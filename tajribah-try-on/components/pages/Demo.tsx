@@ -1,0 +1,48 @@
+'use client';
+
+import { Info } from 'lucide-react';
+import { useLang } from '@/lib/i18n';
+import { SiteLink } from '@/lib/site-env';
+import Studio from '@/components/studio/Studio';
+import { Forward, Shell } from '@/components/site/chrome';
+import { CtaBand } from '@/components/site/ui';
+
+export default function Demo() {
+  const { t } = useLang();
+  return (
+    <Shell current="/demo">
+      <section className="demo-head">
+        <div className="wrap">
+          <nav className="crumbs" aria-label={t('مسار التنقل', 'Breadcrumb')}>
+            <SiteLink href="/">{t('الرئيسية', 'Home')}</SiteLink><span aria-hidden>/</span><span aria-current="page">{t('العرض التجريبي', 'Live demo')}</span>
+          </nav>
+          <div className="demo-intro">
+            <div>
+              <p className="eyebrow">{t('العرض التجريبي', 'Live demo')}</p>
+              <h1>{t('هكذا تظهر تجربة داخل صفحة منتج', 'This is Tajribah inside a product page')}</h1>
+              <p className="lead">{t('جرّب الطرق الثلاث على ساعة حقيقية: على النموذج، وعلى صورتك، وبجانب أشياء تعرف حجمها.',
+                'Try all three modes on a real watch: on the model, on your own photo, and beside things whose size you know.')}</p>
+            </div>
+            <p className="demo-note"><Info size={16} aria-hidden />
+              {t('نستخدم «فايلت» مثالًا لمتجر ساعات سعودي. هذا العرض توضيحي ولا يعني شراكة أو اعتمادًا من فايلت.',
+                'We use Failet as an example of a Saudi watch store. This demo is illustrative and does not imply a partnership with or endorsement by Failet.')}</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="demo-body">
+        <div className="wrap"><Studio /></div>
+      </section>
+
+      <section className="sec sec-tint">
+        <div className="wrap grid-3 seen">
+          <article><h3>{t('ما رأيته', 'What you just saw')}</h3><p>{t('استوديو التجربة كما سيفتح لعملائك عند الضغط على زر «جرّبها» في صفحة المنتج.', 'The try-on studio exactly as it opens for your shoppers when they press “Try it” on a product page.')}</p></article>
+          <article><h3>{t('ما يلزم من منتجك', 'What it needs from your product')}</h3><p>{t('صورة واضحة للمنتج وأبعاده بالمليمتر. نولّد الباقي، أو نجهّزه لك.', 'A clean product photo and its millimetre dimensions. We generate the rest, or prepare it for you.')}</p></article>
+          <article><h3>{t('الخطوة التالية', 'Next step')}</h3><p>{t('نجهّز العرض نفسه على منتج من متجرك.', 'We set up this same demo on a product from your store.')}</p>
+            <SiteLink href="/contact" className="link-more">{t('احجز عرضًا لمتجرك', 'Book a store demo')}<Forward size={16} /></SiteLink></article>
+        </div>
+      </section>
+      <CtaBand />
+    </Shell>
+  );
+}

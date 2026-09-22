@@ -1,0 +1,56 @@
+/* shadcn/ui tokens, recoloured to the Tajribah palette (navy ink, aqua accent). */
+:root {
+  --background: #ffffff;
+  --foreground: #0a2237;
+  --card: #ffffff;
+  --card-foreground: #0a2237;
+  --popover: #ffffff;
+  --popover-foreground: #0a2237;
+  --primary: #0a2237;
+  --primary-foreground: #ffffff;
+  --secondary: #eef4f7;
+  --secondary-foreground: #0a2237;
+  --muted: #eef4f7;
+  --muted-foreground: #5b7487;
+  --accent: #e8f8fa;
+  --accent-foreground: #0a2237;
+  --destructive: #c2413a;
+  --border: #dce6ec;
+  --input: #c7d5de;
+  --ring: #00a7bc;
+  --radius: 0.75rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0a2237;
+  --sidebar-primary: #0a2237;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8f8fa;
+  --sidebar-accent-foreground: #0a2237;
+  --sidebar-border: #dce6ec;
+  --sidebar-ring: #00a7bc;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --font-sans: "IBM Plex Sans Arabic", "Readex Pro", "Segoe UI", Tahoma, sans-serif;
+}

@@ -1,0 +1,71 @@
+/**
+ * P0.5 — "`unsafeAdminDb` with a lint rule", enforced where it can run.
+ *
+ * The admin handle bypasses RLS (T9), so every file allowed to touch it is listed here with
+ * the reason. The same list is in `eslint.config.mjs` as `no-restricted-imports`; this test
+ * exists because lint cannot run on every machine and a rule nobody runs protects nothing.
+ * Adding a file means adding a reason — in both places.
+ */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
+
+const ADMIN_ALLOWED: Record<string, string> = {
+  'db/client.ts': 'defines it',
+  'server/core/tenancy/tenant-db.ts': 'the predicate layer: background jobs reach tenant data through TenantDb on the admin handle',
+  'server/core/tenancy/context.ts': 'the membership lookup that precedes any tenant scope',
+  'server/core/auth/session.ts': 'sessions are keyed by user and span every tenant the user can switch to',
+  'server/modules/auth/service.ts': 'registration and login happen before a tenant is known',
+  'server/core/jobs/queue.ts': 'the worker claims across tenants in one statement (RLS_EXEMPT: jobs)',
+  'server/core/billing/entitlements.ts': 'subscription and membership counts are platform billing state, filtered by tenant explicitly',
+};
+
+const APP_ALLOWED: Record<string, string> = {
+  'db/client.ts': 'defines it',
+  'server/core/tenancy/rls.ts': 'withTenant — the only way to open an RLS-scoped transaction',
+};
+
+function sourceFiles(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    if (entry === 'node_modules' || entry === '__tests__' || entry.startsWith('.')) continue;
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) sourceFiles(full, out);
+    else if (/\.(ts|tsx|mjs)$/.test(entry)) out.push(full);
+  }
+  return out;
+}
+
+function usersOf(identifier: string): string[] {
+  const root = process.cwd();
+  const found: string[] = [];
+  for (const dir of ['app', 'components', 'lib', 'server', 'db', 'content', 'preview']) {
+    let files: string[] = [];
+    try { files = sourceFiles(join(root, dir)); } catch { continue; }
+    for (const file of files) {
+      // Code, not comments: strip line and block comments before looking.
+      const code = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+      if (new RegExp(`\\b${identifier}\\b`).test(code)) found.push(relative(root, file).split(sep).join('/'));
+    }
+  }
+  return found.sort();
+}
+
+test('only the listed files touch the RLS-bypassing admin handle', () => {
+  const outside = usersOf('unsafeAdminDb').filter((file) => !ADMIN_ALLOWED[file]);
+  assert.deepEqual(outside, [],
+    'unsafeAdminDb() bypasses row-level security. Use withTenant(), or add the file to ADMIN_ALLOWED ' +
+    '(here and in eslint.config.mjs) with the reason it cannot be tenant-scoped.');
+});
+
+test('only withTenant opens the RLS-bound app handle', () => {
+  const outside = usersOf('appDb').filter((file) => !APP_ALLOWED[file]);
+  assert.deepEqual(outside, [], 'appDb() is reached through withTenant(); a raw query on it with no tenant returns nothing.');
+});
+
+test('the allow-lists name files that exist and still need the handle', () => {
+  const admin = new Set(usersOf('unsafeAdminDb'));
+  for (const file of Object.keys(ADMIN_ALLOWED)) {
+    assert.ok(admin.has(file), `${file} no longer uses unsafeAdminDb — remove it from ADMIN_ALLOWED so the list stays honest`);
+  }
+});

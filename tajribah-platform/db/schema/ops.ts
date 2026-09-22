@@ -1,0 +1,159 @@
+/**
+ * Jobs (T6), AI jobs (§7.8), flags, notifications and PDPL data requests (§7.9).
+ *
+ * `jobs` is the transport-independent source of truth: a queue may deliver the work, but
+ * the row is what the merchant UI reads and what a restart recovers from. Claiming uses
+ * `SELECT … FOR UPDATE SKIP LOCKED`, which is why there is no `processing` status and no
+ * window where two workers hold the same job (§13.6).
+ */
+import { index, integer, pgEnum, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { bool, createdAt, json, pk, tenantId, timestamps, ts } from './_shared';
+import { tenants } from './identity';
+
+export const JOB_STATE = ['queued', 'claimed', 'running', 'done', 'failed', 'dead', 'cancelled'] as const;
+export const AI_JOB_TYPE = [
+  'generate_3d', 'enhance_texture', 'embed_product', 'enrich_content', 'quality_check', 'convert_format',
+] as const;
+
+export type JobState = (typeof JOB_STATE)[number];
+
+export const jobState = pgEnum('job_state', JOB_STATE);
+export const aiJobType = pgEnum('ai_job_type', AI_JOB_TYPE);
+export const aiJobStatus = pgEnum('ai_job_status', ['queued', 'processing', 'done', 'failed', 'cancelled']);
+export const generationAngle = pgEnum('generation_angle', ['front', 'side', 'back', 'detail']);
+export const notificationLevel = pgEnum('notification_level', ['info', 'success', 'warning', 'error']);
+export const dataRequestType = pgEnum('data_request_type', ['export', 'erase']);
+export const dataRequestStatus = pgEnum('data_request_status', ['received', 'processing', 'completed', 'rejected']);
+
+export const jobs = pgTable('jobs', {
+  id: pk(),
+  /** Nullable: platform-wide jobs (rollups, cleanup) have no tenant. */
+  tenantId: uuid('tenant_id'),
+  /** `domain.action` — `sync.products`, `ai.generate-3d`, `edge.publish-config`. */
+  queue: text('queue').notNull(),
+  payload: json<Record<string, unknown>>('payload'),
+  state: jobState('state').notNull().default('queued'),
+  priority: integer('priority').notNull().default(100), // lower runs first
+  attempts: integer('attempts').notNull().default(0),
+  maxAttempts: integer('max_attempts').notNull().default(5),
+  /** Set on failure with exponential backoff; a claim never picks up a future row. */
+  runAfter: ts('run_after').notNull().defaultNow(),
+  claimedBy: text('claimed_by'),
+  claimedAt: ts('claimed_at'),
+  startedAt: ts('started_at'),
+  finishedAt: ts('finished_at'),
+  lastError: text('last_error'),
+  /** Same key, same job: an idempotent enqueue for schedulers and webhooks. */
+  dedupeKey: text('dedupe_key'),
+  ...timestamps(),
+}, (t) => [
+  index('jobs_claim_idx').on(t.queue, t.state, t.runAfter, t.priority),
+  index('jobs_tenant_idx').on(t.tenantId, t.state),
+  uniqueIndex('jobs_dedupe_unq').on(t.dedupeKey),
+]);
+
+export const aiJobs = pgTable('ai_jobs', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  type: aiJobType('type').notNull(),
+  status: aiJobStatus('status').notNull().default('queued'),
+  priority: integer('priority').notNull().default(100),
+  input: json<Record<string, unknown>>('input'),
+  output: json<Record<string, unknown>>('output'),
+  modelRegistryId: uuid('model_registry_id'),
+  /** What the merchant is charged. */
+  creditsCost: integer('credits_cost').notNull().default(0),
+  /** What it cost us, in US cents. Both numbers, or you cannot tell if a plan is profitable. */
+  actualCostCents: integer('actual_cost_cents').notNull().default(0),
+  gpuSeconds: integer('gpu_seconds'),
+  queuedAt: ts('queued_at'),
+  startedAt: ts('started_at'),
+  finishedAt: ts('finished_at'),
+  errorCode: text('error_code'),
+  errorMessage: text('error_message'),
+  attempts: integer('attempts').notNull().default(0),
+  parentJobId: uuid('parent_job_id'),
+  ...timestamps(),
+}, (t) => [
+  index('ai_jobs_tenant_idx').on(t.tenantId, t.status, t.createdAt),
+  index('ai_jobs_type_idx').on(t.type, t.status),
+]);
+
+export const aiJobEvents = pgTable('ai_job_events', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  jobId: uuid('job_id').notNull().references(() => aiJobs.id, { onDelete: 'cascade' }),
+  event: text('event').notNull(),
+  detail: json<Record<string, unknown>>('detail'),
+  createdAt: createdAt(),
+}, (t) => [index('ai_job_events_job_idx').on(t.jobId, t.createdAt)]);
+
+/** Never hardcode a model name in business logic — look it up here (§5). */
+export const modelRegistry = pgTable('model_registry', {
+  id: pk(),
+  name: text('name').notNull(),
+  version: text('version').notNull(),
+  provider: text('provider').notNull(),
+  endpoint: text('endpoint'),
+  isActive: bool('is_active').notNull().default(false),
+  abSplitPercent: integer('ab_split_percent').notNull().default(0),
+  costPerCallCents: integer('cost_per_call_cents').notNull().default(0),
+  avgLatencyMs: integer('avg_latency_ms'),
+  successRateBp: integer('success_rate_bp'),
+  rolledBackAt: ts('rolled_back_at'),
+  ...timestamps(),
+}, (t) => [uniqueIndex('model_registry_name_version_unq').on(t.name, t.version)]);
+
+export const generationInputs = pgTable('generation_inputs', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  jobId: uuid('job_id').notNull().references(() => aiJobs.id, { onDelete: 'cascade' }),
+  angle: generationAngle('angle').notNull(),
+  storageKey: text('storage_key').notNull(),
+  qualityScore: integer('quality_score'),
+  issues: json<string[]>('issues'),
+  createdAt: createdAt(),
+}, (t) => [index('generation_inputs_job_idx').on(t.jobId)]);
+
+/** Platform-wide by default; a row with a tenant id overrides it for that tenant only. */
+export const featureFlags = pgTable('feature_flags', {
+  id: pk(),
+  key: text('key').notNull(),
+  tenantId: uuid('tenant_id'),
+  enabled: bool('enabled').notNull().default(false),
+  rolloutPercent: integer('rollout_percent').notNull().default(0),
+  note: text('note'),
+  ...timestamps(),
+}, (t) => [uniqueIndex('feature_flags_key_tenant_unq').on(t.key, t.tenantId)]);
+
+export const notifications = pgTable('notifications', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id'),
+  type: text('type').notNull(),
+  titleAr: text('title_ar').notNull(),
+  titleEn: text('title_en').notNull(),
+  bodyAr: text('body_ar'),
+  bodyEn: text('body_en'),
+  href: text('href'),
+  level: notificationLevel('level').notNull().default('info'),
+  readAt: ts('read_at'),
+  createdAt: createdAt(),
+}, (t) => [index('notifications_tenant_user_idx').on(t.tenantId, t.userId, t.readAt)]);
+
+/** PDPL: a data subject's export or erasure request, and its audit trail (§7.9). */
+export const dataRequests = pgTable('data_requests', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  type: dataRequestType('type').notNull(),
+  requestedBy: uuid('requested_by').notNull(),
+  subjectEmail: text('subject_email'),
+  status: dataRequestStatus('status').notNull().default('received'),
+  resultStorageKey: text('result_storage_key'),
+  completedAt: ts('completed_at'),
+  note: text('note'),
+  ...timestamps(),
+}, (t) => [index('data_requests_tenant_idx').on(t.tenantId, t.status)]);
+
+export type Job = typeof jobs.$inferSelect;
+export type AiJob = typeof aiJobs.$inferSelect;

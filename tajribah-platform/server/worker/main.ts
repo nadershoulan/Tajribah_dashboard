@@ -1,0 +1,51 @@
+/**
+ * The worker process (§13.5).
+ *
+ * The first build made `apps/worker` a library with no entry point three separate times,
+ * which meant every scheduled tick had nowhere to run while looking, in review, exactly
+ * like working software. So this file exists now, with the first handler, and it is the
+ * only place the loop lives.
+ *
+ * Two shapes, one body:
+ *  - `runForever()` — a long-lived Node process (local, or a container).
+ *  - `scheduled()`  — a Cloudflare Cron Trigger, which runs one tick and returns.
+ */
+import { tick } from '../core/jobs/runner';
+import { log } from '../core/observability/log';
+import { registerAllHandlers } from './handlers';
+
+export const WORKER_ID = `worker-${Math.random().toString(36).slice(2, 8)}`;
+
+let registered = false;
+
+function ensureHandlers(): void {
+  if (registered) return;
+  registerAllHandlers();
+  registered = true;
+}
+
+/** One pass. This is what a cron trigger calls. */
+export async function runOnce(limit = 10): Promise<void> {
+  ensureHandlers();
+  const result = await tick(WORKER_ID, limit);
+  if (result.claimed > 0) log.info('worker tick', { worker: WORKER_ID, ...result });
+}
+
+/** The long-lived loop. Sleeps when idle rather than spinning. */
+export async function runForever(options: { intervalMs?: number; limit?: number } = {}): Promise<void> {
+  const interval = options.intervalMs ?? 1000;
+  ensureHandlers();
+  log.info('worker started', { worker: WORKER_ID, queues: 'all registered' });
+
+  while (true) {
+    try {
+      const result = await tick(WORKER_ID, options.limit ?? 10);
+      if (result.claimed === 0) await sleep(interval);
+    } catch (error) {
+      log.error('worker tick threw', { worker: WORKER_ID, error: String(error) });
+      await sleep(interval * 5);
+    }
+  }
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));

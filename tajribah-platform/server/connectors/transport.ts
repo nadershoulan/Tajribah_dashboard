@@ -94,8 +94,7 @@ export class Transport {
         response = await this.withTimeout(url, init);
       } catch (error) {
         lastError = error;
-        // A refused connection never reached the store; a timeout might have.
-        reached = !(error instanceof TypeError);
+        reached = !neverSent(error);
       }
 
       if (response && !TRANSIENT_STATUS.has(response.status) && response.status < 500) {
@@ -204,3 +203,19 @@ export class Transport {
 }
 
 export class TimeoutError extends Error {}
+
+/**
+ * Failures that happen before a single byte goes out. `fetch` throws the same
+ * `TypeError('fetch failed')` for a refused connection and for one the store dropped after
+ * reading the request, so only the cause's code tells them apart. Anything else — a timeout,
+ * a reset, a runtime that reports errors differently — counts as possibly received: a
+ * non-idempotent call is then not repeated.
+ */
+const NOT_SENT = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN']);
+
+function neverSent(error: unknown): boolean {
+  for (let e: unknown = error; e; e = (e as { cause?: unknown }).cause) {
+    if (NOT_SENT.has(String((e as { code?: unknown }).code))) return true;
+  }
+  return false;
+}

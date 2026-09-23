@@ -22,7 +22,7 @@ view of the same facts for Nader — update it in the same session. Counts are d
 | Phase | Done / total |
 |---|---|
 | P0 Foundation | **19 / 22 done, P0.20 partly** — its last browser step needs a database; P0.21 CI / P0.22 staging need accounts |
-| P1 Core loop | **2 / 26** (account-free work only, T12) |
+| P1 Core loop | **3 / 26** (account-free work only, T12) |
 | later | not opened |
 
 ## Next up
@@ -64,6 +64,15 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
 - PGlite is one connection: inside `withTenant`, any call on `unsafeAdminDb()` deadlocks
   in tests (on real Postgres it would be a second connection). Nothing does this today.
 - Auth events (`login`, `logout`) are not audited yet — they have no `TenantContext`.
+- (P1.3) Transport circuit and rate-limit state live in memory, per `Transport` instance —
+  on Workers that is per isolate, so two isolates syncing one store each get the full
+  bucket. P1.6 must either keep one connection's sync on one worker or move the bucket to
+  KV/Durable Objects.
+- (P1.3) `ENCRYPTION_KEY` has no rotation: one key, `v1` envelopes. Changing it turns every
+  connection to `error` (tokens unreadable → reconnect). Needs a key id in the envelope
+  before the first real merchant connects.
+- (P1.3) The `accessTokenFor` row lock is untested (see P1.3 row) — add a two-connection
+  test once real Postgres exists.
 
 **Production database:** `bootstrap()` does not register one — no host/driver chosen (T9). The first query on a deployed Worker fails with "No database registered".
 
@@ -78,10 +87,11 @@ boot to be called from until the first route handler exists; the `notify.email` 
 |---|---|---|
 | P1.1 | Onboarding state machine — `server/modules/onboarding/{machine,service,http}.ts`, API-020…023. Steps are done by database fact (active connection, product with width+height mm, ready model, widget `product_view`), only `store` and skips are stored; only `plan`/`connect` skippable; changes need `settings:write` and are audited | 6 tests incl. another store's facts not counting; **seen to fail** 4 ways (expired connection counted, width alone counted, catalogue skippable, no permission check) |
 
+| P1.3 | Connector abstraction — token vault `server/modules/connections/vault.ts` (AES-256-GCM, each token **bound to its connection id** as GCM additional data — `encryptSecret/decryptSecret` gained `boundTo`); connection model `server/modules/connections/service.ts`: `connectStore` (one store ↔ one account via the global unique index → 409; reconnect reuses the row), `listConnections` → `ConnectionSummary` built field by field, `disconnectStore` wipes tokens, `accessTokenFor` refreshes 5 min before expiry under `TenantDb.lockById` (`SELECT … FOR UPDATE`) and re-reads after waiting; a refused refresh / unreadable tokens / expired-without-refresh → tokens wiped, status set, audited as `system`, `ReconnectRequiredError` (409). Transport (`server/connectors/transport.ts`, pre-existing, first tests): **fixed** — a POST whose connection dropped after the store read it was retried (fetch reports it as the same `TypeError` as a refused connection); now only `ECONNREFUSED`/`ENOTFOUND`/`EAI_AGAIN` count as never sent | 10 transport tests against a real local HTTP server + injected clock (timeout, retry/backoff, Retry-After, no POST retry, circuit open/half-open/single trial, per-connection bucket, queue refusal); 8 connection tests on PGlite + 1 crypto. **Seen to fail** 13 ways: timeout ignored, POST idempotent, circuit never opens, half-open unguarded, one bucket for all, Retry-After ignored, dropped POST retried (fixed bug), refresh without re-check, id binding removed, refusal thrown inside the transaction, summary spreads the row, 23505 unmapped, disconnect keeps tokens. **Not proven:** the row lock itself — removing it stays green, because PGlite is one connection and runs transactions one at a time; needs real Postgres |
 | P1.8 | Products domain — `lib/contracts/products.ts` (zod), `server/modules/products/{service,http}.ts`, API-030…034 (`/api/products`, `/api/products/[id]` GET/PATCH/DELETE). Keyset paging on uuid v7 id; search across name/name_ar/sku with `%`/`_` escaped; filters + counts; model status and 30-day numbers from `models_3d` / `daily_product_stats`. Rules: AR needs width+height mm; store-owned fields (name, name_ar, sku, price) refused on synced products; soft delete that wins over a later status change; quota on create; roles (`products:delete` is admin). `apiSource.products()/product()` now real | 8 tests incl. 26 rows paged 10 at a time with no skip/repeat; **seen to fail** 6 ways — and one break (deleted rows listed) first stayed green, exposing a test gap that was then closed |
 
-**Next in P1 (account-free):** P1.3 connector abstraction → P1.6 sync engine (fake connector) →
-P1.7 webhook ingestion (generic) → P1.12 manual upload.
+**Next in P1 (account-free):** P1.6 sync engine (fake connector) → P1.7 webhook ingestion
+(generic) → P1.12 manual upload.
 
 ## Screens built (preview)
 
@@ -113,7 +123,7 @@ domain, the app name on the Salla and Zid partner portals, and a Saudi trademark
 
 | | | |
 |---|---|---|
-| Node ≥ 22.13 | system has **20.15**; a portable **22.23.2** works from the session scratchpad | download `node-v22.23.2-win-x64.zip` from nodejs.org (verify SHA-256), unzip, put it first on `PATH` as a `/c/...` path |
+| Node ≥ 22.13 | **macOS machine (2026-09-23): system Node 24.9 works directly** — `corepack pnpm install --no-lockfile` (pnpm 11.25), then `node scripts/verify.mjs --modules node_modules`. Windows machine: system has **20.15**; a portable **22.23.2** works from the session scratchpad | download `node-v22.23.2-win-x64.zip` from nodejs.org (verify SHA-256), unzip, put it first on `PATH` as a `/c/...` path |
 | pnpm | **11.25.0** via Node 22's corepack | `corepack pnpm install --no-lockfile` — no lockfile is committed yet |
 | Project install | `node_modules` + `.sites-runtime/` (both gitignored) | ~2 min |
 | Dev server | `node scripts/run-framework.mjs dev` → http://localhost:5173 on workerd | reads `.dev.vars` (gitignored; dev-only random secrets) |
@@ -147,3 +157,4 @@ cleared it — if it recurs, restart before debugging.
 | 2026-09-23 | Nader's decisions: Postgres on **Hetzner** (T11); **ASCII digits** in Arabic copy (51 characters converted across 11 files, `formatPercent` emits `%`, a scan test guards it); **start account-free P1** under a recorded gate override (T12). | digit scan seen to fail (a `٢٠` put back in plans.ts → red with file:line); preview screenshot |
 | 2026-09-23 | **P1 opened (T12).** P1 table with IDs and account needs in PACKAGES. P1.1 onboarding state machine. Route-map guard generalised to every module (`MODULE_HANDLERS`) and to catch a module missing from it. | `verify.mjs` Node 22 + lint: **209 pass / 0 fail**, 0 lint errors; P1.1 and the guard seen to fail 5 ways |
 | 2026-09-23 | P1.8 products domain; the route guard reads every method in a route file (`/api/products/[id]` serves three); the dashboard's API source serves the real catalogue. | `verify.mjs` Node 22 + lint: **217 pass / 0 fail**; seen to fail 6 ways |
+| 2026-09-23 | **P1.3 connector abstraction** (on the macOS machine, Node 24.9 — baseline 217 pass first). Token vault + connection service; `TenantDb.lockById`; `boundTo` on the AES helpers; first tests for the transport, which found and fixed a POST-retried-after-drop bug. | `verify.mjs` Node 24 + lint: **236 pass / 0 fail**, 0 lint errors; seen to fail 13 ways, restored byte-identical; row lock not provable on PGlite (filed) |

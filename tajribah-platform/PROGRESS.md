@@ -2,14 +2,14 @@
 
 _Last updated: 2026-09-23 · updated at the end of every work session_
 
-> **Now:** **P1 has started** (your call, 2026-09-23) — only the parts that need no account. Done so far: the onboarding checklist and the real product catalogue.
-> **Next:** P1.3 store-connection plumbing, then the sync engine — tested against a fake store until Salla is available.
+> **Now:** **P1 has started** (your call, 2026-09-23) — only the parts that need no account. Done so far: the onboarding checklist, the real product catalogue, and the store-connection plumbing.
+> **Next:** the sync engine (P1.6) — tested against a fake store until Salla is available.
 > **P0:** code gate passed; the rest waits on you — see below. [Gate report](docs/gates/P0.md)
 > **Waiting on you:** a **Hetzner server** for the database (your choice), and the accounts below.
 
 ```
 P0 Foundation     ████████████████████████████░░░░  19 / 22   (+ P0.20 mostly done, 2 blocked)
-P1 Core loop      ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   2 / 26   ← first sellable product (started)
+P1 Core loop      ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░   3 / 26   ← first sellable product (started)
 P2 Billing        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 15
 P3 3D pipeline    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 P4 Analytics      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
@@ -19,7 +19,7 @@ P7 Scale          ░░░░░░░░░░░░░░░░░░░░�
 P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 M  Marketing      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12   (separate site in tajribah-try-on)
 A  Admin console  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 14
-                                            overall  21 / 168
+                                            overall  22 / 168
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -70,7 +70,7 @@ marked 🔒 in `docs/PACKAGES.md` wait for Salla / Cloudflare / the domain.
 |---|---|---|
 | ✅ | P1.1 Onboarding checklist | The "finish setting up" list ticks itself off from what the store has actually done (connected Salla, sized a product, a model is ready, the button is live) — not from a checkbox that can go stale |
 | ✅ | P1.8 Products | The real product catalogue behind the Products screen: search (Arabic too), filters, paging; AR can only be switched on once the size in mm is filled in; products that come from Salla keep their name and price from Salla; deleting is recoverable; every change is logged |
-| ⬜ | P1.3 Store connections | Next: the plumbing every store connector (Salla, Zid…) will use — safe token storage, retries, and not hammering the store's API |
+| ✅ | P1.3 Store connections | The plumbing every store connector (Salla, Zid…) uses. Store passwords (tokens) are locked away encrypted and never shown or logged; a store can belong to one Tajribah account only; tokens renew themselves before they expire, and if the store cuts us off the merchant is told to reconnect. Calls to the store give up on a hung store, retry sensibly, back off when the store is struggling, and never spend one merchant's API allowance on another. Testing found one real bug (an order-type request could have been sent twice after a dropped connection) — fixed |
 
 ---
 
@@ -121,3 +121,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-23 | Your decisions applied: Hetzner database recorded, Arabic digits → ASCII everywhere, P1 opened for account-free work | 202 pass / 0 fail |
 | 2026-09-23 | P1.1 onboarding checklist | 209 pass / 0 fail |
 | 2026-09-23 | P1.8 product catalogue (real, behind the Products screen) | 217 pass / 0 fail |
+| 2026-09-23 | P1.3 store connections (first session on the Mac) — 1 real bug found and fixed | 236 pass / 0 fail |

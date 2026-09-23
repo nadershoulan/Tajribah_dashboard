@@ -52,7 +52,7 @@ not marked done until it has run against the real service.
 |---|---|---|---|
 | P1.1 ✅ | Onboarding state machine | — | Each step is done because the database says so (connection, dimensions, ready model, widget event), not a stored flag; skipping only where the plan allows |
 | P1.2 | Onboarding UI (wizard, verify email, reset password, 2FA) | — | The checklist renders from P1.1; each step's action works, in both mirrors |
-| P1.3 | **Connector abstraction ⭐** | — | Connection model + encrypted token vault; outbound HTTP with timeout, retry, circuit breaker, per-connection rate limit — each tested against a fake server |
+| P1.3 ✅ | **Connector abstraction ⭐** | — | Connection model + encrypted token vault; outbound HTTP with timeout, retry, circuit breaker, per-connection rate limit — each tested against a fake server |
 | P1.4 | Salla OAuth | 🔒 Salla Partner | A real Salla store connects and refreshes its token |
 | P1.5 | Salla product mapping | 🔒 Salla Partner | Real Salla payloads map to products, incl. Arabic names and variants |
 | P1.6 | **Sync engine ⭐** | — (fake connector) | Full + incremental sync of 10k products, resumable, idempotent, progress readable, against a fake connector |

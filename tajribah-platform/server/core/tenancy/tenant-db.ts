@@ -159,6 +159,19 @@ export class TenantDb {
     return updated as Row<T>[];
   }
 
+  /**
+   * `SELECT … FOR UPDATE` on one row of this tenant. Only meaningful inside `withTenant`: the
+   * lock lasts until that transaction ends, so a second caller waits and then reads what the
+   * first one wrote. 404 if the row is not this tenant's.
+   */
+  async lockById<T extends PgTable>(table: T, id: string): Promise<Row<T>> {
+    const columns = getTableColumns(table) as Record<string, PgColumn>;
+    const rows: any = await this.db.select().from(table as any)
+      .where(this.scope(table, eq(columns.id, id))).limit(1).for('update');
+    if (!rows[0]) throw errors.notFound(getTableName(table));
+    return rows[0] as Row<T>;
+  }
+
   async updateById<T extends PgTable>(table: T, id: string, values: Partial<NewRow<T>>): Promise<Row<T>> {
     const columns = getTableColumns(table) as Record<string, PgColumn>;
     const rows = await this.update(table, eq(columns.id, id), values);

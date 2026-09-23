@@ -171,22 +171,26 @@ async function aesKey(secret: string): Promise<CryptoKey> {
   return crypto.subtle.importKey('raw', material, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
 }
 
-export async function encryptSecret(plaintext: string, secret: string): Promise<string> {
+/**
+ * `boundTo` is authenticated but not stored (GCM additional data): an envelope sealed for one
+ * connection id does not open for another, so a ciphertext copied between rows is useless.
+ */
+export async function encryptSecret(plaintext: string, secret: string, boundTo?: string): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await aesKey(secret);
   const ciphertext = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: iv as unknown as BufferSource }, key, enc.encode(plaintext),
+    gcm(iv, boundTo), key, enc.encode(plaintext),
   );
   return `v1.${b64url(iv)}.${b64url(new Uint8Array(ciphertext))}`;
 }
 
-export async function decryptSecret(envelope: string, secret: string): Promise<string | null> {
+export async function decryptSecret(envelope: string, secret: string, boundTo?: string): Promise<string | null> {
   const [version, ivPart, dataPart] = envelope.split('.');
   if (version !== 'v1' || !ivPart || !dataPart) return null;
   try {
     const key = await aesKey(secret);
     const plain = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: fromB64url(ivPart) as unknown as BufferSource },
+      gcm(fromB64url(ivPart), boundTo),
       key,
       fromB64url(dataPart) as unknown as BufferSource,
     );
@@ -194,6 +198,14 @@ export async function decryptSecret(envelope: string, secret: string): Promise<s
   } catch {
     return null; // wrong key or tampered ciphertext — indistinguishable on purpose
   }
+}
+
+function gcm(iv: Uint8Array, boundTo?: string): AesGcmParams {
+  return {
+    name: 'AES-GCM',
+    iv: iv as unknown as BufferSource,
+    ...(boundTo === undefined ? {} : { additionalData: enc.encode(boundTo) as unknown as BufferSource }),
+  };
 }
 
 // -------------------------------------------------------------------------- utilities

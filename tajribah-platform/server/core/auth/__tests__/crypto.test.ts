@@ -81,6 +81,13 @@ test('secrets round-trip, and a wrong key returns null rather than throwing', as
   assert.equal(await decryptSecret('v1.broken', SECRET), null);
 });
 
+test('an envelope bound to one id does not open for another, or unbound', async () => {
+  const envelope = await encryptSecret('token', SECRET, 'conn-a');
+  assert.equal(await decryptSecret(envelope, SECRET, 'conn-a'), 'token');
+  assert.equal(await decryptSecret(envelope, SECRET, 'conn-b'), null);
+  assert.equal(await decryptSecret(envelope, SECRET), null);
+});
+
 test('the same plaintext encrypts to different envelopes', async () => {
   const [a, b] = await Promise.all([encryptSecret('t', SECRET), encryptSecret('t', SECRET)]);
   assert.notEqual(a, b, 'the IV must be random per message');

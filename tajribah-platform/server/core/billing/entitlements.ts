@@ -12,10 +12,10 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
 import {
-  products, subscriptions, tenantMemberships, usageCounters, models3d,
+  plans, products, subscriptions, tenantMemberships, usageCounters, models3d,
   type LimitKey,
 } from '@/db/schema';
-import { PLANS, UNLIMITED, planByCode, type PlanCode, type PlanDefinition } from '@/lib/plans';
+import { UNLIMITED, planByCode, type PlanCode, type PlanDefinition } from '@/lib/plans';
 import { errors } from '../errors/problem';
 import type { TenantContext } from '../tenancy/context';
 
@@ -35,13 +35,15 @@ export type Entitlements = {
  */
 export async function entitlementsOf(ctx: TenantContext): Promise<Entitlements> {
   const db = unsafeAdminDb(); // subscription is platform billing state, keyed by tenant
-  const [subscription] = await db
-    .select()
+  const [found] = await db
+    .select({ subscription: subscriptions, code: plans.code })
     .from(subscriptions)
+    .innerJoin(plans, eq(plans.id, subscriptions.planId))
     .where(eq(subscriptions.tenantId, ctx.tenantId))
     .limit(1);
+  const subscription = found?.subscription;
 
-  const code: PlanCode = planCodeOf(subscription?.planId) ?? 'starter';
+  const code: PlanCode = found?.code ?? 'starter';
   const plan = planByCode(code);
   const status = subscription?.status ?? (ctx.tenant.status === 'trial' ? 'trialing' : 'none');
 
@@ -67,17 +69,12 @@ export async function planCodesFor(tenantIds: readonly string[]): Promise<Map<st
   const codes = new Map<string, PlanCode>(tenantIds.map((id) => [id, 'starter']));
   if (tenantIds.length === 0) return codes;
   const db = unsafeAdminDb(); // platform billing state, filtered to the caller's own tenants
-  const rows = await db.select({ tenantId: subscriptions.tenantId, planId: subscriptions.planId })
-    .from(subscriptions).where(inArray(subscriptions.tenantId, [...tenantIds]));
-  for (const row of rows) codes.set(row.tenantId, planCodeOf(row.planId) ?? 'starter');
+  // Plan ids are uuids: the code lives on the plans row, never in the id.
+  const rows = await db.select({ tenantId: subscriptions.tenantId, code: plans.code })
+    .from(subscriptions).innerJoin(plans, eq(plans.id, subscriptions.planId))
+    .where(inArray(subscriptions.tenantId, [...tenantIds]));
+  for (const row of rows) codes.set(row.tenantId, row.code);
   return codes;
-}
-
-/** Plan ids are seeded from the catalogue, so the code is recoverable from the id. */
-function planCodeOf(planId: string | null | undefined): PlanCode | null {
-  if (!planId) return null;
-  const found = PLANS.find((p) => p.code === planId || planId.endsWith(`-${p.code}`));
-  return found?.code ?? null;
 }
 
 export function assertFeature(entitlements: Entitlements, feature: string): void {

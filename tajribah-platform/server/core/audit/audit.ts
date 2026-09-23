@@ -84,10 +84,11 @@ export async function record(ctx: TenantContext, input: AuditInput, db: TenantDb
   const changed = Object.keys(changes.before).length + Object.keys(changes.after).length;
   if (input.action === 'update' && changed === 0) return;
 
+  const actorType = input.actorType ?? ctx.actorType ?? 'user';
   await db.insert(auditLogs, {
     id: uuidv7(),
-    actorUserId: input.actorType === 'system' ? null : ctx.actor.userId,
-    actorType: input.actorType ?? 'user',
+    actorUserId: actorType === 'system' ? null : ctx.actor.userId,
+    actorType,
     action: input.action,
     resourceType: input.resourceType,
     resourceId: input.resourceId ?? null,

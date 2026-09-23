@@ -29,7 +29,8 @@ export type ExternalProduct = {
   updatedAt: Date;
 };
 
-export type Page<T> = { items: T[]; next: string | null };
+/** `total`, when the store reports it, is what makes progress a percentage. */
+export type Page<T> = { items: T[]; next: string | null; total?: number | null };
 
 export interface Connector {
   readonly provider: Provider;

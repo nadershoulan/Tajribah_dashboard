@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { products } from '@/db/schema';
+import { plans, products, subscriptions } from '@/db/schema';
+import { UNLIMITED } from '@/lib/plans';
+import { uuidv7 } from '@/lib/ids';
 import { planByCode } from '@/lib/plans';
 import { buildTenantContext } from '@/server/core/tenancy/context';
 import { assertFeature, assertWithinQuota, currentPeriodStart, entitlementsOf } from '@/server/core/billing/entitlements';
@@ -21,6 +23,27 @@ async function plantProducts(harness: TestDb, tenantId: string, count: number) {
     Array.from({ length: count }, (_, i) => ({ tenantId, name: `p${i}` })) as any,
   ));
 }
+
+test('a subscribed tenant gets its plan, found through the plans table', async () => {
+  const harness = await createTestDb();
+  try {
+    const ctx = await starterStore(harness);
+    const planId = uuidv7();
+    const now = new Date();
+    await harness.asAdmin(async () => {
+      await harness.db.insert(plans).values({ id: planId, code: 'enterprise', name: 'Enterprise', nameAr: 'المؤسسات', priceMonthlyMinor: 0, priceAnnualMinor: 0 } as any);
+      await harness.db.insert(subscriptions).values({
+        id: uuidv7(), tenantId: ctx.tenantId, planId, status: 'active',
+        currentPeriodStart: now, currentPeriodEnd: new Date(now.getTime() + 30 * 86_400_000),
+      } as any);
+    });
+    const entitlements = await entitlementsOf(ctx);
+    assert.equal(entitlements.plan.code, 'enterprise', 'plan ids are uuids: the code has to be read from the row');
+    assert.equal(entitlements.limit('products'), UNLIMITED);
+    await plantProducts(harness, ctx.tenantId, planByCode('starter').limits.products + 1);
+    await assert.doesNotReject(() => assertWithinQuota(ctx, 'products'));
+  } finally { await harness.close(); }
+});
 
 test('exceeding a seeded product quota is refused with the right error', async () => {
   const harness = await createTestDb();

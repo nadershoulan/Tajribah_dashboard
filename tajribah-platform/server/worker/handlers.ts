@@ -9,6 +9,7 @@ import { TenantDb } from '../core/tenancy/tenant-db';
 import { registerHandler } from '../core/jobs/runner';
 import { log } from '../core/observability/log';
 import type { Job } from '@/db/schema';
+import { handleSyncJob } from '@/server/modules/sync/job';
 
 /** Read the tenant a job is for, refusing to run tenant work without one. */
 export function tenantOf(job: Job): TenantDb {
@@ -18,9 +19,9 @@ export function tenantOf(job: Job): TenantDb {
 }
 
 export function registerAllHandlers(): void {
-  // P0's only real handler: prove the loop runs end to end. The sync, AI and edge handlers
-  // arrive with their own packages (P1.6, P3.2, P1.15) and register here.
   registerHandler('system.cleanup', async (job: Job) => {
     log.info('cleanup tick', { jobId: job.id });
   });
+  // P1.6. The AI and edge handlers arrive with their own packages (P3.2, P1.15).
+  registerHandler('sync.products', (job: Job) => handleSyncJob(job));
 }

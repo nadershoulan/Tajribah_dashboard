@@ -26,7 +26,10 @@ export type TenantContext = {
   tenantId: string;
   tenant: Tenant;
   actor: Actor;
-  role: MemberRole;
+  /** `system` only for background work (`systemContext`): no member is acting. */
+  role: MemberRole | 'system';
+  /** Set on a `systemContext`; the audit trail records such changes as the platform's. */
+  actorType?: 'system';
   permissions: Set<Permission>;
   requestId: string;
   db: TenantDb;
@@ -73,6 +76,37 @@ export async function buildTenantContext(input: {
     tenant,
     actor: input.actor,
     role: membership.role,
+    permissions,
+    requestId: input.requestId,
+    db: scoped,
+    require: (permission) => requirePermission(permissions, permission),
+    can: (permission) => permissions.has(permission),
+  };
+}
+
+/**
+ * The context for background work on one tenant — a sync job, a webhook handler. There is
+ * no session and no membership, so nothing is inherited: the caller names the tenant (from
+ * the job row, which only tenant-scoped code could have written) and the exact permissions
+ * the job needs. Changes land in the audit trail as `system`. A suspended or deleted tenant
+ * is refused, as it would be for a person.
+ */
+export async function systemContext(input: {
+  tenantId: string;
+  requestId: string;
+  permissions: readonly Permission[];
+}): Promise<TenantContext> {
+  const scoped = TenantDb.for(input.tenantId);
+  const tenant = await scoped.findById(tenants, input.tenantId);
+  if (!tenant || tenant.deletedAt) throw errors.notFound('tenant');
+  if (tenant.status === 'suspended') throw errors.forbidden('this store is suspended — background work is paused');
+  const permissions = new Set(input.permissions);
+  return {
+    tenantId: tenant.id,
+    tenant,
+    actor: { userId: 'system', email: 'system', isStaff: false },
+    role: 'system',
+    actorType: 'system',
     permissions,
     requestId: input.requestId,
     db: scoped,

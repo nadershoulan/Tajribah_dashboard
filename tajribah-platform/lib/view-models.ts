@@ -49,6 +49,25 @@ export type DashboardSummary = {
   activity: ActivityItem[];
 };
 
+/** One sync of one store connection, as the connections screen shows it (P1.6). */
+export type SyncProgress = {
+  id: string;
+  connectionId: string;
+  type: 'full' | 'incremental' | 'single_product' | 'inventory' | 'orders';
+  status: 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
+  triggeredBy: 'schedule' | 'user' | 'webhook' | 'system';
+  /** Items handled so far, failed ones included. */
+  processed: number;
+  failed: number;
+  /** As the store reports it; 0 until the first page arrives. */
+  total: number;
+  /** Null while the total is unknown. Never above 100, even if the store's total was low. */
+  percent: number | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  error: string | null;
+};
+
 export type ConnectionSummary = {
   id: string;
   provider: 'salla' | 'zid' | 'shopify' | 'woocommerce';

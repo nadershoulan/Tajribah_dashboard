@@ -18,6 +18,7 @@ import type {
 import { ApiError, currentStore, type ApiClient } from './api-client';
 import type { ProductListPage, ProductListQuery } from './contracts/products';
 import { pageOf } from './product-list';
+import { applyEdit, editErrors, type ProductEdit } from './product-edit';
 
 export interface DataSource {
   /** The store being viewed. The shell reads it on every screen for the store switcher. */
@@ -26,6 +27,8 @@ export interface DataSource {
   /** One page of the catalogue: search, filter and cursor are the server's (P1.9). */
   products(query?: Partial<ProductListQuery>): Promise<ProductListPage>;
   product(id: string): Promise<ProductRow | null>;
+  /** P1.10. Refusals arrive as `ApiError` 422 with per-field messages. */
+  updateProduct(id: string, edit: ProductEdit): Promise<ProductRow>;
   models(): Promise<ModelRow[]>;
   team(): Promise<TeamMemberRow[]>;
   billing(): Promise<BillingSummary>;
@@ -64,6 +67,9 @@ export function apiSource(client: ApiClient): DataSource {
         throw error;
       }
     },
+    async updateProduct(id, edit) {
+      return client.call<ProductRow>(`/api/products/${encodeURIComponent(id)}`, { method: 'PATCH', body: edit });
+    },
     models: pending('The model library'),
     team: pending('Team management'),
     billing: pending('Billing'),
@@ -72,11 +78,23 @@ export function apiSource(client: ApiClient): DataSource {
 }
 
 /** Seeded data, resolved on a microtask so screens exercise their loading states. */
+/** The preview's edits, for this page load only: the preview has nowhere to save them. */
+const demoEdits = new Map<string, ProductRow>();
+
 export const demoSource: DataSource = {
   async currentTenant() { return DEMO_DASHBOARD.tenant; },
   async dashboard() { return DEMO_DASHBOARD; },
-  async products(query = {}) { return pageOf(DEMO_PRODUCTS, query); },
-  async product(id) { return DEMO_PRODUCTS.find((p) => p.id === id) ?? null; },
+  async products(query = {}) { return pageOf(DEMO_PRODUCTS.map((p) => demoEdits.get(p.id) ?? p), query); },
+  async product(id) { return demoEdits.get(id) ?? DEMO_PRODUCTS.find((p) => p.id === id) ?? null; },
+  async updateProduct(id, edit) {
+    const current = demoEdits.get(id) ?? DEMO_PRODUCTS.find((p) => p.id === id);
+    if (!current) throw new ApiError(404, 'not_found', 'product not found');
+    const fields = editErrors(current, edit);
+    if (Object.keys(fields).length) throw new ApiError(422, 'validation_failed', 'Validation failed', fields);
+    const next = applyEdit(current, edit);
+    demoEdits.set(id, next);
+    return next;
+  },
   async models() { return DEMO_MODELS; },
   async team() { return DEMO_TEAM; },
   async billing() { return DEMO_BILLING; },

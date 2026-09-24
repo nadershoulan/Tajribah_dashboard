@@ -7,6 +7,7 @@
 import { createElement, type ReactElement } from 'react';
 import DashboardHome from '@/components/pages/DashboardHome';
 import Products from '@/components/pages/Products';
+import ProductDetail from '@/components/pages/ProductDetail';
 import Models from '@/components/pages/Models';
 import Connections from '@/components/pages/Connections';
 import Analytics from '@/components/pages/Analytics';
@@ -32,7 +33,13 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/register': Register,
 };
 
+/** Routes with an id in them: the screen reads the id from the path itself. */
+const PATTERNS: [RegExp, () => ReactElement][] = [
+  [/^\/dashboard\/products\/(?!new$)[^/]+$/, ProductDetail],
+];
+
 /** The rendered screen for a path — an element, so no component is chosen during render. */
 export function screenFor(path: string): ReactElement {
-  return createElement(ROUTES[path.replace(/\/$/, '') || '/'] ?? NotFound);
+  const clean = path.replace(/\/$/, '') || '/';
+  return createElement(ROUTES[clean] ?? PATTERNS.find(([pattern]) => pattern.test(clean))?.[1] ?? NotFound);
 }

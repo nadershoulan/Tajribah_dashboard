@@ -175,7 +175,9 @@ button { font: inherit; color: inherit; }
 
 .top-actions { margin-inline-start: auto; display: flex; align-items: center; gap: 8px; min-width: 0; }
 .crumbs, .demo-flag, .tenant-switch { white-space: nowrap; }
-.crumbs { min-width: 0; overflow: hidden; }
+.crumbs { min-width: 0; overflow: hidden; flex: 0 1 auto; }
+/* A long product name ends in an ellipsis instead of pushing the store switcher off a phone. */
+.crumbs [aria-current="page"] { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .crumb { display: contents; }
 
 .tenant-switch {
@@ -478,3 +480,19 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* P1.10 — product detail */
+.detail-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .detail-grid { grid-template-columns: minmax(0, 1fr); } }
+.mm-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; }
+@media (max-width: 520px) { .mm-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.input-unit { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--surface, #fff); }
+.input-unit:focus-within { outline: 2px solid var(--aqua); outline-offset: 1px; border-color: var(--aqua); }
+.field .input-unit input { border: 0; outline: none; min-width: 0; flex: 1; font-variant-numeric: tabular-nums; }
+.input-unit > span { padding-inline: 10px; color: var(--text-3); font-size: 13px; }
+.field input[aria-invalid="true"], .input-unit:has(input[aria-invalid="true"]) { border-color: var(--bad); }
+.toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 500; }
+.toggle input { width: 18px; height: 18px; accent-color: var(--aqua); }
+.facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; margin: 0; font-size: 14px; }
+.facts dt { color: var(--text-3); }
+.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }

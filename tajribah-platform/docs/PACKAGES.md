@@ -60,7 +60,7 @@ not marked done until it has run against the real service.
 | P1.7 ✅ | Webhook ingestion | — (generic); Salla signature 🔒 | Dedup constraint, raw-body signature check, stored-then-handled, replay; seen to refuse a forged and a duplicate delivery |
 | P1.8 ✅ | Products domain | — | Schema contract, repository/service/handlers; every mutation audited; quota enforced |
 | P1.9 ✅ | Products list UI | — | Renders from the API, search/filter/paging, both mirrors, 390 px |
-| P1.10 | Product detail UI | — | Dimensions editable in mm, AR toggle, model link |
+| P1.10 ✅ | Product detail UI | — | Dimensions editable in mm, AR toggle, model link |
 | P1.11 | Connections UI | — (UI); connect button 🔒 | Status, last sync, errors, disconnect |
 | P1.12 ✅ | Manual 3D upload | — (memory storage); real R2 🔒 | Presigned upload, format validation (GLB magic bytes, size), versioning |
 | P1.13 ✅ | Model processing pipeline | — | Optimise (prune, dedup, weld, meshopt) as an `ai.postprocess` job; < 2 MB target reported. KTX2 and GLB→USDZ split to P1.13b |

@@ -2,18 +2,18 @@
 
 // MD-010 — Products table view
 
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Package, Plus, Ruler, Search, Upload } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
-import { useResource } from '@/lib/data';
+import { useData, useResource } from '@/lib/data';
+import type { ProductFilter } from '@/lib/contracts/products';
+import { isSized } from '@/lib/product-list';
 import { formatNumber, formatRelative } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, Empty, ErrorNote, Forward, Loading, PageHead, Panel } from '@/components/dashboard/ui';
 import type { ProductRow } from '@/lib/view-models';
-
-type Filter = 'all' | 'ar_on' | 'ar_off' | 'no_dimensions' | 'draft';
 
 const TYPE_LABEL: Record<ProductRow['productType'], { ar: string; en: string }> = {
   watch: { ar: 'ساعة', en: 'Watch' },
@@ -25,41 +25,55 @@ const TYPE_LABEL: Record<ProductRow['productType'], { ar: string; en: string }> 
   other: { ar: 'أخرى', en: 'Other' },
 };
 
-/** A product with no millimetres cannot be shown at true scale — that is the whole product. */
-export const hasDimensions = (product: ProductRow): boolean => {
-  const d = product.dimensions;
-  return !!d && Object.values(d).some((value) => typeof value === 'number' && value > 0);
-};
+/** Wait for typing to pause before asking the server. */
+function useDebounced<T>(value: T, ms: number): T {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), ms);
+    return () => clearTimeout(timer);
+  }, [value, ms]);
+  return settled;
+}
+
+type MorePages = { key: string; rows: ProductRow[]; nextCursor: string | null; loading: boolean; error: Error | null };
 
 export default function Products() {
   const { t, pick, lang } = useLang();
-  const { data, loading, error } = useResource((source) => source.products());
-  const [filter, setFilter] = useState<Filter>('all');
-  const [query, setQuery] = useState('');
+  const source = useData();
+  const [filter, setFilter] = useState<ProductFilter>('all');
+  const [typed, setTyped] = useState('');
+  const q = useDebounced(typed.trim(), 250);
 
-  const rows = useMemo(() => {
-    const all = data ?? [];
-    const text = query.trim().toLowerCase();
-    return all.filter((product) => {
-      if (text && ![product.name, product.nameAr ?? '', product.sku ?? '']
-        .some((field) => field.toLowerCase().includes(text))) return false;
-      if (filter === 'ar_on') return product.arEnabled;
-      if (filter === 'ar_off') return !product.arEnabled;
-      if (filter === 'no_dimensions') return !hasDimensions(product);
-      if (filter === 'draft') return product.status !== 'active';
-      return true;
-    });
-  }, [data, filter, query]);
+  // Search, filter, counts and paging are the server's (P1.9): the screen never holds more
+  // of the catalogue than it has shown, however large the store.
+  const { data, loading, error } = useResource((s) => s.products({ q: q || undefined, filter }), [q, filter]);
+  const key = `${filter}|${q}`;
+  const [more, setMore] = useState<MorePages | null>(null);
+  const extra = more?.key === key ? more : null; // pages for an older query are simply ignored
+  const rows = [...(data?.rows ?? []), ...(extra?.rows ?? [])];
+  const nextCursor = extra ? extra.nextCursor : data?.nextCursor ?? null;
+  const counts = data?.counts;
+
+  const loadMore = async () => {
+    if (!nextCursor || extra?.loading) return;
+    setMore({ key, rows: extra?.rows ?? [], nextCursor, loading: true, error: null });
+    try {
+      const page = await source.products({ q: q || undefined, filter, cursor: nextCursor });
+      setMore((m) => (m?.key === key ? { key, rows: [...m.rows, ...page.rows], nextCursor: page.nextCursor, loading: false, error: null } : m));
+    } catch (failure) {
+      setMore((m) => (m?.key === key ? { ...m, loading: false, error: failure as Error } : m));
+    }
+  };
 
   const crumbs = [{ label: t('الرئيسية', 'Home'), href: '/dashboard' }, { label: t('المنتجات', 'Products') }];
-  const missing = (data ?? []).filter((p) => !hasDimensions(p)).length;
+  const missing = counts?.missing_sizes ?? 0;
 
-  const filters: { key: Filter; label: string; count?: number }[] = [
-    { key: 'all', label: t('الكل', 'All'), count: data?.length },
-    { key: 'ar_on', label: t('العرض مفعّل', 'AR on'), count: data?.filter((p) => p.arEnabled).length },
-    { key: 'ar_off', label: t('بدون عرض', 'No AR'), count: data?.filter((p) => !p.arEnabled).length },
-    { key: 'no_dimensions', label: t('بدون مقاسات', 'Missing sizes'), count: missing },
-    { key: 'draft', label: t('مسودة', 'Draft'), count: data?.filter((p) => p.status !== 'active').length },
+  const filters: { key: ProductFilter; label: string; count?: number }[] = [
+    { key: 'all', label: t('الكل', 'All'), count: counts?.all },
+    { key: 'ar_on', label: t('العرض مفعّل', 'AR on'), count: counts?.ar_on },
+    { key: 'no_ar', label: t('بدون عرض', 'No AR'), count: counts?.no_ar },
+    { key: 'missing_sizes', label: t('بدون مقاسات', 'Missing sizes'), count: counts?.missing_sizes },
+    { key: 'draft', label: t('مسودة', 'Draft'), count: counts?.draft },
   ];
 
   return (
@@ -89,7 +103,7 @@ export default function Products() {
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <strong style={{ display: 'block', fontSize: 14.5 }}>
-              {t(`${formatNumber(missing, lang)} منتجات بلا مقاس`, `${formatNumber(missing, lang)} products have no size`)}
+              {t(unsizedAr(missing, formatNumber(missing, lang)), missing === 1 ? '1 product has no size' : `${formatNumber(missing, lang)} products have no size`)}
             </strong>
             <span style={{ fontSize: 13, color: 'var(--text-3)' }}>
               {t(
@@ -98,7 +112,7 @@ export default function Products() {
               )}
             </span>
           </div>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFilter('no_dimensions')}>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFilter('missing_sizes')}>
             {t('اعرضها', 'Show them')}
           </button>
         </div>
@@ -107,14 +121,15 @@ export default function Products() {
       <Panel
         flush
         title={t('كل المنتجات', 'All products')}
-        sub={data ? t(`${formatNumber(rows.length, lang)} من ${formatNumber(data.length, lang)}`, `${formatNumber(rows.length, lang)} of ${formatNumber(data.length, lang)}`) : undefined}
+        sub={counts ? t(`${formatNumber(rows.length, lang)} من ${formatNumber(counts[filter], lang)}`, `${formatNumber(rows.length, lang)} of ${formatNumber(counts[filter], lang)}`) : undefined}
         actions={
           <label style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
             <Search size={15} aria-hidden style={{ position: 'absolute', insetInlineStart: 10, color: 'var(--text-3)' }} />
             <span className="sr-only">{t('ابحث في المنتجات', 'Search products')}</span>
             <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              type="search"
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
               placeholder={t('ابحث بالاسم أو الرمز', 'Search by name or SKU')}
               style={{
                 border: '1px solid var(--line)', borderRadius: 10, padding: '7px 12px',
@@ -182,7 +197,7 @@ export default function Products() {
                       {product.priceMinor == null ? '—' : formatMoney(product.priceMinor, product.currency, lang)}
                     </td>
                     <td>
-                      {hasDimensions(product)
+                      {isSized(product)
                         ? <span className="mm">{sizeText(product, t('مم', 'mm'))}</span>
                         : <Badge tone="warn">{t('ناقص', 'Missing')}</Badge>}
                     </td>
@@ -198,6 +213,14 @@ export default function Products() {
                 ))}
               </tbody>
             </table>
+            {extra?.error && <ErrorNote error={extra.error} />}
+            {nextCursor && (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 18px' }}>
+                <button type="button" className="btn btn-ghost" onClick={loadMore} disabled={extra?.loading}>
+                  {extra?.loading ? t('جارٍ التحميل…', 'Loading…') : t('عرض المزيد', 'Show more')}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </Panel>
@@ -209,6 +232,14 @@ export default function Products() {
       </p>
     </Shell>
   );
+}
+
+/** Arabic counts agree with their noun: one, two, three to ten, eleven and up. */
+function unsizedAr(n: number, shown: string): string {
+  if (n === 1) return 'منتج واحد بلا مقاس';
+  if (n === 2) return 'منتجان بلا مقاس';
+  if (n <= 10) return `${shown} منتجات بلا مقاس`;
+  return `${shown} منتجًا بلا مقاس`;
 }
 
 function sizeText(product: ProductRow, unit: string): string {

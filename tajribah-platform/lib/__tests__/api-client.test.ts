@@ -43,7 +43,10 @@ function browser() {
     if (jar.size && url.pathname.startsWith('/api/auth')) {
       headers.set('cookie', [...jar].map(([k, v]) => `${k}=${v}`).join('; '));
     }
-    const handler = HANDLERS[url.pathname] ?? (url.pathname.startsWith('/api/products/') ? products.getProductHandler : undefined);
+    // By method as well as path: a POST to the catalogue must not be answered by the list.
+    const method = (init?.method ?? 'GET').toUpperCase();
+    const handler = (url.pathname === '/api/products' && method === 'POST' ? products.createProductHandler : undefined)
+      ?? HANDLERS[url.pathname] ?? (url.pathname.startsWith('/api/products/') ? products.getProductHandler : undefined);
     if (!handler) return new Response(null, { status: 404 });
     const response = await handler(new Request(url, { ...init, headers }));
     const setCookie = response.headers.get('set-cookie');
@@ -161,7 +164,12 @@ test('refusals arrive as typed errors the forms can explain', async () => {
     await client.login(ACCOUNT.email, ACCOUNT.password);
     await assert.rejects(() => apiSource(client).models(), (e: any) => e.status === 501,
       'screens without an API yet say so — they do not fall back to demo numbers');
-    assert.deepEqual(await apiSource(client).products(), [], 'a new store has an empty catalogue, from the real API');
+    const empty = await apiSource(client).products();
+    assert.deepEqual([empty.rows, empty.counts.all, empty.nextCursor], [[], 0, null], 'a new store has an empty catalogue, from the real API');
+    await client.call('/api/products', { method: 'POST', body: { name: 'Oyster 41', status: 'draft' } });
+    assert.equal((await apiSource(client).products()).rows.length, 1);
+    assert.equal((await apiSource(client).products({ q: 'no such thing' })).rows.length, 0, 'the search reaches the server');
+    assert.deepEqual((await apiSource(client).products({ filter: 'draft' })).counts.draft, 1, 'and so does the filter');
     assert.equal(await apiSource(client).product('01a0cb1d-0000-7000-8000-000000000000'), null, 'an unknown product is null, not an error');
   } finally { await harness.close(); resetEnv(); }
 });

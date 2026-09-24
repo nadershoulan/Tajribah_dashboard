@@ -15,7 +15,7 @@ import { and, desc, eq, gte, ilike, inArray, isNull, lt, ne, or, sql, type SQL }
 import { dailyProductStats, models3d, products, type Product } from '@/db/schema';
 import {
   ProductCreate, ProductPatch, STORE_OWNED_FIELDS,
-  type ProductFilter, type ProductListQuery,
+  type ProductFilter, type ProductListPage, type ProductListQuery,
 } from '@/lib/contracts/products';
 import { riyadhDay } from '@/lib/format';
 import type { ProductRow } from '@/lib/view-models';
@@ -40,11 +40,7 @@ const FILTER: Record<ProductFilter, SQL> = {
 /** `%` and `_` in a search box are characters, not wildcards. */
 const likeEscape = (text: string) => `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
-export type ProductList = {
-  rows: ProductRow[];
-  counts: Record<ProductFilter, number>;
-  nextCursor: string | null;
-};
+export type ProductList = ProductListPage;
 
 export async function listProducts(ctx: TenantContext, query: ProductListQuery): Promise<ProductList> {
   ctx.require('products:read');

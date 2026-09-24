@@ -59,7 +59,7 @@ not marked done until it has run against the real service.
 | P1.6b ✅ | Sync schedule + item partitioning | — | Split from P1.6 (§13 step 2). One scheduler tick reads the database (§13.6): due connections get an incremental sync; `queued`/`running` syncs with no progress for N minutes are re-enqueued (closes the enqueue-after-commit gap). `sync_job_items` partitioned by month (§7.11) with migration + `-- ROLLBACK:`, partitions covered by RLS and the isolation walk |
 | P1.7 ✅ | Webhook ingestion | — (generic); Salla signature 🔒 | Dedup constraint, raw-body signature check, stored-then-handled, replay; seen to refuse a forged and a duplicate delivery |
 | P1.8 ✅ | Products domain | — | Schema contract, repository/service/handlers; every mutation audited; quota enforced |
-| P1.9 | Products list UI | — | Renders from the API, search/filter/paging, both mirrors, 390 px |
+| P1.9 ✅ | Products list UI | — | Renders from the API, search/filter/paging, both mirrors, 390 px |
 | P1.10 | Product detail UI | — | Dimensions editable in mm, AR toggle, model link |
 | P1.11 | Connections UI | — (UI); connect button 🔒 | Status, last sync, errors, disconnect |
 | P1.12 ✅ | Manual 3D upload | — (memory storage); real R2 🔒 | Presigned upload, format validation (GLB magic bytes, size), versioning |

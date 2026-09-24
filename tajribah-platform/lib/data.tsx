@@ -16,12 +16,15 @@ import type {
   AnalyticsView, BillingSummary, DashboardSummary, ModelRow, ProductRow, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ApiError, currentStore, type ApiClient } from './api-client';
+import type { ProductListPage, ProductListQuery } from './contracts/products';
+import { pageOf } from './product-list';
 
 export interface DataSource {
   /** The store being viewed. The shell reads it on every screen for the store switcher. */
   currentTenant(): Promise<TenantSummary>;
   dashboard(): Promise<DashboardSummary>;
-  products(): Promise<ProductRow[]>;
+  /** One page of the catalogue: search, filter and cursor are the server's (P1.9). */
+  products(query?: Partial<ProductListQuery>): Promise<ProductListPage>;
   product(id: string): Promise<ProductRow | null>;
   models(): Promise<ModelRow[]>;
   team(): Promise<TeamMemberRow[]>;
@@ -45,9 +48,13 @@ export function apiSource(client: ApiClient): DataSource {
       return store;
     },
     dashboard: pending('The dashboard summary'),
-    // P1.8. The screen filters and searches client-side for now, so it asks for one large page.
-    async products() {
-      return (await client.call<{ rows: ProductRow[] }>('/api/products?limit=200')).rows;
+    async products(query = {}) {
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(query)) {
+        if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+      }
+      const qs = params.toString();
+      return client.call<ProductListPage>(`/api/products${qs ? `?${qs}` : ''}`);
     },
     async product(id) {
       try {
@@ -68,7 +75,7 @@ export function apiSource(client: ApiClient): DataSource {
 export const demoSource: DataSource = {
   async currentTenant() { return DEMO_DASHBOARD.tenant; },
   async dashboard() { return DEMO_DASHBOARD; },
-  async products() { return DEMO_PRODUCTS; },
+  async products(query = {}) { return pageOf(DEMO_PRODUCTS, query); },
   async product(id) { return DEMO_PRODUCTS.find((p) => p.id === id) ?? null; },
   async models() { return DEMO_MODELS; },
   async team() { return DEMO_TEAM; },

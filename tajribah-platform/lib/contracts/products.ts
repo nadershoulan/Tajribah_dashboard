@@ -4,6 +4,7 @@
  * built against before the API existed.
  */
 import { z } from 'zod';
+import type { ProductRow } from '../view-models';
 
 /** Millimetres, as the merchant measures them. 3 m covers furniture; anything larger is a typo. */
 const MM = z.number().positive('must be more than 0').max(3000, 'is over 3 metres — check the unit (mm)');
@@ -61,3 +62,10 @@ export const ProductListQuery = z.object({
   cursor: z.string().uuid().optional(),
 });
 export type ProductListQuery = z.infer<typeof ProductListQuery>;
+
+/** One page of the catalogue, as `GET /api/products` returns it. Counts honour the search. */
+export type ProductListPage = {
+  rows: ProductRow[];
+  counts: Record<ProductFilter, number>;
+  nextCursor: string | null;
+};

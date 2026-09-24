@@ -56,7 +56,8 @@ await esbuild.build({
 //    The entry sits beside `modules` so bare package imports resolve there.
 const entryDir = path.dirname(modules);
 const entry = path.join(entryDir, '.tajribah-platform.css');
-const rel = (p) => posix(path.relative(entryDir, p));
+// Always explicit (`./x` or `../x`): Tailwind's PostCSS resolver reads a bare `x/y` as a package.
+const rel = (p) => { const r = posix(path.relative(entryDir, p)); return r.startsWith('.') ? r : `./${r}`; };
 fs.writeFileSync(entry, [
   '@import "tailwindcss" source(none);',
   ...['components', 'app', 'lib', 'preview'].map((d) => `@source "${rel(path.join(root, d))}";`),
@@ -65,14 +66,29 @@ fs.writeFileSync(entry, [
   `@import "${rel(path.join(root, 'app', 'theme.css'))}";`,
   `@import "${rel(path.join(root, 'app', 'dashboard.css'))}";`,
 ].join('\n'));
-// @tailwindcss/cli exposes only a binary, so locate it through its package.json.
+// @tailwindcss/cli (the scratch toolkit) exposes only a binary, so locate it through its
+// package.json. A real project install has @tailwindcss/postcss instead — the same compiler
+// behind the Next build — so fall back to that rather than install a second copy.
 const cliPkg = path.join(modules, '@tailwindcss', 'cli', 'package.json');
-const cliBin = JSON.parse(fs.readFileSync(cliPkg, 'utf8')).bin;
-const cli = path.join(path.dirname(cliPkg), typeof cliBin === 'string' ? cliBin : Object.values(cliBin)[0]);
-const tw = spawnSync(process.execPath, [cli, '-i', entry, '-o', path.join(out, 'app.css'), '--minify'],
-  { cwd: entryDir, stdio: 'inherit' });
-fs.rmSync(entry, { force: true });
-if (tw.status !== 0) process.exit(tw.status ?? 1);
+if (fs.existsSync(cliPkg)) {
+  const cliBin = JSON.parse(fs.readFileSync(cliPkg, 'utf8')).bin;
+  const cli = path.join(path.dirname(cliPkg), typeof cliBin === 'string' ? cliBin : Object.values(cliBin)[0]);
+  const tw = spawnSync(process.execPath, [cli, '-i', entry, '-o', path.join(out, 'app.css'), '--minify'],
+    { cwd: entryDir, stdio: 'inherit' });
+  fs.rmSync(entry, { force: true });
+  if (tw.status !== 0) process.exit(tw.status ?? 1);
+} else {
+  const tailwind = req('@tailwindcss/postcss');
+  // pnpm keeps postcss out of the top level; ask for it where @tailwindcss/postcss finds it.
+  const postcss = createRequire(req.resolve('@tailwindcss/postcss'))('postcss');
+  try {
+    const result = await postcss([tailwind({ base: entryDir, optimize: { minify: true } })])
+      .process(fs.readFileSync(entry, 'utf8'), { from: entry, to: path.join(out, 'app.css') });
+    fs.writeFileSync(path.join(out, 'app.css'), result.css);
+  } finally {
+    fs.rmSync(entry, { force: true });
+  }
+}
 
 // 3. Public files the pages reference.
 const copy = (from, to = from) => {

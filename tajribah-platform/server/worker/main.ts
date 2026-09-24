@@ -13,6 +13,7 @@
 import { tick } from '../core/jobs/runner';
 import { log } from '../core/observability/log';
 import { registerAllHandlers } from './handlers';
+import { dispatchPending } from '@/server/modules/webhooks/dispatch';
 
 export const WORKER_ID = `worker-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -29,6 +30,7 @@ export async function runOnce(limit = 10): Promise<void> {
   ensureHandlers();
   const result = await tick(WORKER_ID, limit);
   if (result.claimed > 0) log.info('worker tick', { worker: WORKER_ID, ...result });
+  await dispatchWebhooks();
 }
 
 /** The long-lived loop. Sleeps when idle rather than spinning. */
@@ -40,12 +42,21 @@ export async function runForever(options: { intervalMs?: number; limit?: number 
   while (true) {
     try {
       const result = await tick(WORKER_ID, options.limit ?? 10);
-      if (result.claimed === 0) await sleep(interval);
+      const webhooks = await dispatchWebhooks();
+      if (result.claimed === 0 && webhooks === 0) await sleep(interval);
     } catch (error) {
       log.error('worker tick threw', { worker: WORKER_ID, error: String(error) });
       await sleep(interval * 5);
     }
   }
+}
+
+/** Stored webhook deliveries are handled on the same tick as queue jobs (P1.7). */
+async function dispatchWebhooks(): Promise<number> {
+  const counts = await dispatchPending();
+  const handled = counts.processed + counts.ignored + counts.retry + counts.failed;
+  if (handled > 0) log.info('webhooks dispatched', { worker: WORKER_ID, ...counts });
+  return handled;
 }
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));

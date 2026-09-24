@@ -17,6 +17,7 @@ import { errors } from '@/server/core/errors/problem';
 import { enqueue } from '@/server/core/jobs/queue';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
+import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { ReconnectRequiredError } from '@/server/modules/connections/service';
 import type { SyncJob } from './engine';
 
@@ -27,23 +28,34 @@ export type SyncRequest = {
 
 export async function requestSync(ctx: TenantContext, connectionId: string, request: SyncRequest = {}): Promise<SyncProgress> {
   ctx.require('connections:write');
-  const triggeredBy = request.triggeredBy ?? 'user';
-  const { job, fresh } = await withTenant(ctx.tenantId, async (db) => {
-    const connection = await db.lockById(storeConnections, connectionId);
-    if (connection.status !== 'active') throw new ReconnectRequiredError(connection.status);
-    const active = await db.findOne(syncJobs, and(eq(syncJobs.connectionId, connectionId), inArray(syncJobs.status, ['queued', 'running'])));
-    if (active) return { job: active, fresh: false };
-
-    // Nothing to be incremental against yet: the first sync of a connection is full.
-    const type = request.type === 'full' || !connection.lastSyncAt ? 'full' : 'incremental';
-    const created = await db.insert(syncJobs, { id: uuidv7(), tenantId: ctx.tenantId, connectionId, type, status: 'queued', triggeredBy });
-    await record(ctx, { action: 'sync', resourceType: 'store_connection', resourceId: connectionId, after: { syncJobId: created.id, type, status: 'queued', triggeredBy } }, db);
-    return { job: created, fresh: true };
-  });
-  if (fresh) {
-    await enqueue({ queue: 'sync.products', tenantId: ctx.tenantId, payload: { syncJobId: job.id }, dedupeKey: `sync:${job.id}:start` });
-  }
+  const { job, fresh } = await withTenant(ctx.tenantId, (db) => createSyncIn(ctx, db, connectionId, request));
+  if (fresh) await enqueueSync(ctx.tenantId, job.id);
   return toProgress(job);
+}
+
+/**
+ * The sync row, inside the caller's transaction: the active one if there is one, else a new
+ * `queued` one (`fresh`). The caller enqueues a fresh one with `enqueueSync` **after** its
+ * transaction commits — a job for a row that rolled back would run against nothing.
+ */
+export async function createSyncIn(
+  ctx: TenantContext, db: TenantDb, connectionId: string, request: SyncRequest = {},
+): Promise<{ job: SyncJob; fresh: boolean }> {
+  const triggeredBy = request.triggeredBy ?? 'user';
+  const connection = await db.lockById(storeConnections, connectionId);
+  if (connection.status !== 'active') throw new ReconnectRequiredError(connection.status);
+  const active = await db.findOne(syncJobs, and(eq(syncJobs.connectionId, connectionId), inArray(syncJobs.status, ['queued', 'running'])));
+  if (active) return { job: active, fresh: false };
+
+  // Nothing to be incremental against yet: the first sync of a connection is full.
+  const type = request.type === 'full' || !connection.lastSyncAt ? 'full' : 'incremental';
+  const created = await db.insert(syncJobs, { id: uuidv7(), tenantId: ctx.tenantId, connectionId, type, status: 'queued', triggeredBy });
+  await record(ctx, { action: 'sync', resourceType: 'store_connection', resourceId: connectionId, after: { syncJobId: created.id, type, status: 'queued', triggeredBy } }, db);
+  return { job: created, fresh: true };
+}
+
+export async function enqueueSync(tenantId: string, syncJobId: string): Promise<void> {
+  await enqueue({ queue: 'sync.products', tenantId, payload: { syncJobId }, dedupeKey: `sync:${syncJobId}:start` });
 }
 
 export async function syncProgress(ctx: TenantContext, syncJobId: string): Promise<SyncProgress> {

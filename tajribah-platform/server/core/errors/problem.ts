@@ -91,6 +91,14 @@ export const errors = {
   notImplemented: (what: string) => new AppError('not_implemented', { detail: what }),
 };
 
+/** Postgres 23505 (unique violation), wherever the driver put it on the cause chain. */
+export function isUniqueViolation(error: unknown): boolean {
+  for (let e: unknown = error; e; e = (e as { cause?: unknown }).cause) {
+    if ((e as { code?: unknown }).code === '23505') return true;
+  }
+  return false;
+}
+
 export function isAppError(e: unknown): e is AppError {
   return e instanceof AppError;
 }

@@ -18,10 +18,11 @@ import type { ConnectionSummary } from '@/lib/view-models';
 import { connectorFor, TokenRevokedError, type TokenSet } from '@/server/connectors/types';
 import { auditedInsert, auditedUpdate, record } from '@/server/core/audit/audit';
 import { loadEnv } from '@/server/core/config/env';
-import { AppError, errors } from '@/server/core/errors/problem';
+import { AppError, errors, isUniqueViolation } from '@/server/core/errors/problem';
 import { log } from '@/server/core/observability/log';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
+import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { uuidv7 } from '@/lib/ids';
 import { NO_TOKENS, openTokens, sealTokens } from './vault';
 
@@ -92,6 +93,18 @@ export async function disconnectStore(ctx: TenantContext, id: string): Promise<v
 }
 
 /**
+ * The store told us it uninstalled the app: tokens wiped, status `revoked`, audited — in the
+ * caller's transaction (a webhook handler's). Idempotent: an already revoked connection is
+ * left as it is.
+ */
+export async function revokeIn(ctx: TenantContext, db: TenantDb, id: string, reason: string): Promise<void> {
+  const before = await db.lockById(storeConnections, id);
+  if (before.status === 'revoked') return;
+  const after = await db.updateById(storeConnections, id, { ...NO_TOKENS, status: 'revoked', lastError: reason });
+  await record(ctx, { action: 'disconnect', resourceType: 'store_connection', resourceId: id, before, after }, db);
+}
+
+/**
  * A usable access token for connection `id`, refreshed first if it expires within
  * `REFRESH_SKEW_MS`. For the sync engine and webhook handlers — **never** behind an
  * endpoint. Throws `ReconnectRequiredError` when only the merchant can fix it, and lets an
@@ -155,12 +168,4 @@ async function toSummary(ctx: TenantContext, row: StoreConnection): Promise<Conn
     productCount,
     lastError: row.lastError,
   };
-}
-
-/** Postgres 23505, wherever the driver put it on the cause chain. */
-function isUniqueViolation(error: unknown): boolean {
-  for (let e: unknown = error; e; e = (e as { cause?: unknown }).cause) {
-    if ((e as { code?: unknown }).code === '23505') return true;
-  }
-  return false;
 }

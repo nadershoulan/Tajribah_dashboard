@@ -172,6 +172,18 @@ export class TenantDb {
     return rows[0] as Row<T>;
   }
 
+  /**
+   * `SELECT … FOR UPDATE SKIP LOCKED` on one row: the row, locked until the transaction
+   * ends — or null if it is not this tenant's, or another worker already holds it. How a
+   * worker claims one piece of work without a `processing` status (§13.6).
+   */
+  async tryLockById<T extends PgTable>(table: T, id: string): Promise<Row<T> | null> {
+    const columns = getTableColumns(table) as Record<string, PgColumn>;
+    const rows: any = await this.db.select().from(table as any)
+      .where(this.scope(table, eq(columns.id, id))).limit(1).for('update', { skipLocked: true });
+    return (rows[0] as Row<T>) ?? null;
+  }
+
   async updateById<T extends PgTable>(table: T, id: string, values: Partial<NewRow<T>>): Promise<Row<T>> {
     const columns = getTableColumns(table) as Record<string, PgColumn>;
     const rows = await this.update(table, eq(columns.id, id), values);

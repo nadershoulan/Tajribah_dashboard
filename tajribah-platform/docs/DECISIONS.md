@@ -207,3 +207,25 @@ no later session mistakes it for a passed gate.
 
 **Rollback path.** None needed: the work is additive and gated behind the same checks.
 
+
+## T13 · 2026-09-23 · A forged webhook is refused and logged, never stored (P1.7)
+
+**Context.** `webhook_events` carries `signature_valid`, and the schema comment said a
+delivery that fails its signature is stored "for forensics". But `tenant_id` is NOT NULL, and
+the only way to pick a tenant for a forged delivery is the store id *inside* it — chosen by
+the forger.
+
+**Decision.** Verify the signature over the raw body first. A delivery that fails is answered
+401 and logged (provider, size); it is not written anywhere.
+
+**Why.** Storing it would (a) let anyone fill any tenant's table by naming its store, and
+(b) let a forger claim a real `provider_event_id` first, so the genuine delivery is later
+dropped as a duplicate. Both are tested (`webhooks.test.ts`).
+
+**Consequences.** `signature_valid` is always true today; it stays for providers whose secret
+is per store (WooCommerce, P6), where the tenant has to be found before the signature can be
+checked. Those rows must never occupy the dedup key of a genuine delivery — decide how when
+that connector is built. Replay refuses `signature_valid = false` regardless.
+
+**Rollback path.** Store refused deliveries in a separate, tenant-less platform table if
+forensics are ever needed; do not put them back in `webhook_events`.

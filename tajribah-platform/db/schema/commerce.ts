@@ -6,7 +6,7 @@
  *
  * `webhook_events` carries the dedup constraint that makes replay safe: a delivery is
  * stored once, and replay is a status change on that row — not a second processing path.
- * A delivery whose signature failed is never replayable.
+ * A delivery whose signature fails is refused and not stored at all (DECISIONS T13).
  *
  * `sync_job_items` grows per event rather than per entity, so it is partitioned by month
  * (§7.11). The partitions are created by a migration, not by Drizzle.
@@ -93,7 +93,7 @@ export const webhookEvents = pgTable('webhook_events', {
   providerEventId: text('provider_event_id').notNull(),
   topic: text('topic').notNull(),
   payload: json<Record<string, unknown>>('payload'),
-  /** False means: store it for forensics, never process it, never allow a replay. */
+  /** Always true today (T13: forged deliveries are not stored). Never replay a false one. */
   signatureValid: bool('signature_valid').notNull(),
   status: webhookStatus('status').notNull().default('received'),
   processedAt: ts('processed_at'),

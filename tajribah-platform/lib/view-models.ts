@@ -68,6 +68,14 @@ export type SyncProgress = {
   error: string | null;
 };
 
+/** Webhook delivery health for one store connection (P1.7). */
+export type WebhookHealth = {
+  last24h: { waiting: number; processed: number; failed: number; ignored: number };
+  lastDeliveryAt: string | null;
+  /** The newest delivery that used up its attempts — the one to replay. */
+  lastFailure: { id: string; topic: string; error: string | null; at: string } | null;
+};
+
 export type ConnectionSummary = {
   id: string;
   provider: 'salla' | 'zid' | 'shopify' | 'woocommerce';

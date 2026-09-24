@@ -82,7 +82,8 @@ export function rollbackStatements(): { file: string; statements: string[] }[] {
     const block = text.split('-- ROLLBACK:')[1] ?? '';
     const statements = block.split('\n')
       .map((line) => line.replace(/^--\s?/, '').trim())
-      .filter((line) => /^(DROP|ALTER|REVOKE)\b/i.test(line));
+      // CREATE / INSERT / GRANT too: undoing a table rebuild (0002) has to build the old one back.
+      .filter((line) => /^(DROP|ALTER|REVOKE|CREATE|INSERT|GRANT)\b/i.test(line));
     return { file, statements };
   });
 }

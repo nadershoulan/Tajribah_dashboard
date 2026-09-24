@@ -43,10 +43,14 @@ const code = (e: any) => e.code;
 test('timeout: a store that never answers is abandoned, and a GET is retried once more', async () => {
   const store = await fakeStore(() => { /* never answers */ });
   try {
-    const { t } = transport({ timeoutMs: 50, maxAttempts: 2 });
+    // Attempts are counted where they are made: under load an aborted attempt may never
+    // reach the server, so its arrival count is not a reliable measure of retries.
+    let attempts = 0;
+    const counting: typeof fetch = (...args) => { attempts += 1; return fetch(...args); };
+    const t = new Transport('salla', { timeoutMs: 50, maxAttempts: 2 }, counting, fakeClock());
     const started = Date.now();
     await assert.rejects(() => t.send('c1', store.url), (e: any) => code(e) === 'upstream_timeout');
-    assert.equal(store.hits, 2);
+    assert.equal(attempts, 2);
     assert.ok(Date.now() - started < 2_000, 'two 50 ms timeouts, not the default 10 s');
   } finally { await store.close(); }
 });

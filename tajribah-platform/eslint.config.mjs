@@ -38,6 +38,7 @@ const eslintConfig = defineConfig([
       "server/core/billing/entitlements.ts",
       "server/modules/webhooks/ingest.ts",
       "server/modules/webhooks/dispatch.ts",
+      "server/modules/sync/schedule.ts",
       "server/testing/**",
       "**/__tests__/**",
     ],

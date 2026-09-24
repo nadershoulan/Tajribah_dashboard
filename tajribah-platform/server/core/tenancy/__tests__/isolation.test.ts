@@ -159,7 +159,8 @@ test('every RLS policy is enabled AND forced', async () => {
   try {
     const result: any = await harness.asAdmin(() => harness.db.execute(sql`
       select relname, relrowsecurity, relforcerowsecurity
-      from pg_class where relkind = 'r' and relnamespace = 'public'::regnamespace
+      -- 'p' too: a partitioned parent (sync_job_items, 0002) is not an ordinary table.
+      from pg_class where relkind in ('r', 'p') and relnamespace = 'public'::regnamespace
     `));
     const rows: { relname: string; relrowsecurity: boolean; relforcerowsecurity: boolean }[] =
       Array.isArray(result) ? result : result.rows;
@@ -173,6 +174,26 @@ test('every RLS policy is enabled AND forced', async () => {
       assert.equal(row!.relforcerowsecurity, true,
         `${name}: FORCE is missing — the table owner would bypass the policy silently`);
     }
+  } finally { await harness.close(); }
+});
+
+test('no partition of a tenant table can be read around its parent', async () => {
+  // §13.2: a suite that names only the parent passes while a partition leaks. Policies are
+  // checked on the table a query names, so a partition must not be reachable by name at all.
+  const harness = await createTestDb();
+  try {
+    const result: any = await harness.asAdmin(() => harness.db.execute(sql`
+      select p.relname as parent, c.relname as part,
+             has_table_privilege('tajribah_app', c.oid, 'SELECT') as app,
+             has_table_privilege('tajribah_admin', c.oid, 'SELECT') as admin
+      from pg_inherits i join pg_class c on c.oid = i.inhrelid join pg_class p on p.oid = i.inhparent
+      where p.relnamespace = 'public'::regnamespace`));
+    const rows: { parent: string; part: string; app: boolean; admin: boolean }[] = Array.isArray(result) ? result : result.rows;
+    const tenantNames = new Set(policyTables().map((t) => getTableName(t)));
+    const partitions = rows.filter((r) => tenantNames.has(r.parent));
+    assert.ok(partitions.length > 0, 'expected at least sync_job_items to be partitioned (0002)');
+    const open = partitions.filter((r) => r.app || r.admin).map((r) => `${r.part} (of ${r.parent})`);
+    assert.deepEqual(open, [], 'grant the parent only; a partition read directly skips the parent\'s policy');
   } finally { await harness.close(); }
 });
 

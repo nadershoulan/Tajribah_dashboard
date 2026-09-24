@@ -9,7 +9,10 @@
  * A delivery whose signature fails is refused and not stored at all (DECISIONS T13).
  *
  * `sync_job_items` grows per event rather than per entity, so it is partitioned by month
- * (§7.11). The partitions are created by a migration, not by Drizzle.
+ * (§7.11) — by `drizzle/0002_partition_sync_job_items.sql`, not by Drizzle, which cannot
+ * declare partitions. In the database its primary key is `(id, created_at)`; the `pk()`
+ * below is what Drizzle needs to address rows, and `id` is still unique in practice (uuid v7).
+ * Monthly partitions are created ahead by the sync schedule (`ensureSyncItemPartitions`).
  */
 import { index, integer, pgEnum, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { bool, createdAt, deletedAt, json, pk, tenantId, timestamps, ts } from './_shared';

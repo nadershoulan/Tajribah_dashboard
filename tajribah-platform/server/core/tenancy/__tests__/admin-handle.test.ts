@@ -20,6 +20,7 @@ const ADMIN_ALLOWED: Record<string, string> = {
   'server/core/jobs/queue.ts': 'the worker claims across tenants in one statement (RLS_EXEMPT: jobs)',
   'server/core/billing/entitlements.ts': 'subscription and membership counts are platform billing state, filtered by tenant explicitly',
   'server/modules/webhooks/ingest.ts': 'a delivery precedes any tenant scope: find the connection by provider + a store id the signature vouched for',
+  'server/modules/sync/schedule.ts': 'the sync schedule reads due connections and stalled syncs across tenants (ids only), then acts inside withTenant',
   'server/modules/webhooks/dispatch.ts': 'the worker lists pending events across tenants (ids and tenants only), then handles each inside withTenant',
 };
 

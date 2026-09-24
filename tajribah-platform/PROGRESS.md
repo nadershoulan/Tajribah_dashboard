@@ -3,7 +3,7 @@
 _Last updated: 2026-09-23 · updated at the end of every work session_
 
 > **Now:** **P1 has started** (your call, 2026-09-23) — only the parts that need no account. Done so far: the onboarding checklist, the real product catalogue, the store-connection plumbing, the sync engine, and receiving webhooks from the store.
-> **Next:** the automatic sync schedule (P1.6b), then 3D model upload (P1.12).
+> **Next:** uploading 3D models by hand (P1.12), then the products screens (P1.9, P1.10).
 > **P0:** code gate passed; the rest waits on you — see below. [Gate report](docs/gates/P0.md)
 > **Waiting on you:** a **Hetzner server** for the database (your choice), and the accounts below.
 
@@ -73,7 +73,7 @@ marked 🔒 in `docs/PACKAGES.md` wait for Salla / Cloudflare / the domain.
 | ✅ | P1.3 Store connections | The plumbing every store connector (Salla, Zid…) uses. Store passwords (tokens) are locked away encrypted and never shown or logged; a store can belong to one Tajribah account only; tokens renew themselves before they expire, and if the store cuts us off the merchant is told to reconnect. Calls to the store give up on a hung store, retry sensibly, back off when the store is struggling, and never spend one merchant's API allowance on another. Testing found one real bug (an order-type request could have been sent twice after a dropped connection) — fixed |
 | ✅ | P1.6 Product sync | Copies a store's whole catalogue into Tajribah — tested with 10,000 products — then keeps it up to date with only what changed. It works in short steps, so if the store goes down halfway it picks up where it stopped instead of starting over, and running it twice never creates duplicates. It only changes what the store owns (name, price, photos…) — sizes and AR settings you set are never overwritten. Products removed from the store are archived, but if a store suddenly seems to have lost most of its catalogue, nothing is archived and you're told why. Plan limits are respected, and the reason is shown |
 | ✅ | P1.7 Store webhooks | When something changes in the store (a product edited or deleted, the app uninstalled), the store tells us straight away. Each message is checked to prove it really came from the store — fakes are refused and never saved — and a message sent twice is only acted on once. Changes trigger a quick sync, deleted products are archived, an uninstall disconnects the store. A message that fails to process is retried, then kept so it can be re-run with one click. Salla's exact message format is plugged in once the Salla account exists |
-| ⬜ | P1.6b Automatic sync schedule | Split off: syncing every store on a timer, and restarting a sync that got stuck |
+| ✅ | P1.6b Automatic sync schedule | Every store is kept up to date on a timer (hourly by default), new stores first. A store whose sync keeps failing is retried once an hour, not hammered. A sync that got stuck (for example the server restarted mid-way) is noticed after 15 minutes and resumed. The sync history is stored month by month so it stays fast as it grows, with the same store-to-store privacy checks as everything else |
 
 ---
 
@@ -127,3 +127,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-23 | P1.3 store connections (first session on the Mac) — 1 real bug found and fixed | 236 pass / 0 fail |
 | 2026-09-23 | P1.6 product sync (10,000-product test) · fixed a billing bug: every paid plan was being treated as Starter | 246 pass / 0 fail |
 | 2026-09-23 | P1.7 store webhooks (fakes refused, duplicates ignored, retry + replay) | 253 pass / 0 fail |
+| 2026-09-24 | P1.6b automatic sync schedule + monthly history storage; fixed a gap in the privacy test suite | 262 pass / 0 fail |

@@ -56,7 +56,7 @@ not marked done until it has run against the real service.
 | P1.4 | Salla OAuth | 🔒 Salla Partner | A real Salla store connects and refreshes its token |
 | P1.5 | Salla product mapping | 🔒 Salla Partner | Real Salla payloads map to products, incl. Arabic names and variants |
 | P1.6 ✅ | **Sync engine ⭐** | — (fake connector) | Full + incremental sync of 10k products, resumable, idempotent, progress readable, against a fake connector |
-| P1.6b | Sync schedule + item partitioning | — | Split from P1.6 (§13 step 2). One scheduler tick reads the database (§13.6): due connections get an incremental sync; `queued`/`running` syncs with no progress for N minutes are re-enqueued (closes the enqueue-after-commit gap). `sync_job_items` partitioned by month (§7.11) with migration + `-- ROLLBACK:`, partitions covered by RLS and the isolation walk |
+| P1.6b ✅ | Sync schedule + item partitioning | — | Split from P1.6 (§13 step 2). One scheduler tick reads the database (§13.6): due connections get an incremental sync; `queued`/`running` syncs with no progress for N minutes are re-enqueued (closes the enqueue-after-commit gap). `sync_job_items` partitioned by month (§7.11) with migration + `-- ROLLBACK:`, partitions covered by RLS and the isolation walk |
 | P1.7 ✅ | Webhook ingestion | — (generic); Salla signature 🔒 | Dedup constraint, raw-body signature check, stored-then-handled, replay; seen to refuse a forged and a duplicate delivery |
 | P1.8 ✅ | Products domain | — | Schema contract, repository/service/handlers; every mutation audited; quota enforced |
 | P1.9 | Products list UI | — | Renders from the API, search/filter/paging, both mirrors, 390 px |

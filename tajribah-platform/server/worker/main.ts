@@ -14,6 +14,7 @@ import { tick } from '../core/jobs/runner';
 import { log } from '../core/observability/log';
 import { registerAllHandlers } from './handlers';
 import { dispatchPending } from '@/server/modules/webhooks/dispatch';
+import { scheduleSyncs } from '@/server/modules/sync/schedule';
 
 export const WORKER_ID = `worker-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -31,6 +32,7 @@ export async function runOnce(limit = 10): Promise<void> {
   const result = await tick(WORKER_ID, limit);
   if (result.claimed > 0) log.info('worker tick', { worker: WORKER_ID, ...result });
   await dispatchWebhooks();
+  await scheduleSyncs();
 }
 
 /** The long-lived loop. Sleeps when idle rather than spinning. */
@@ -38,11 +40,14 @@ export async function runForever(options: { intervalMs?: number; limit?: number 
   const interval = options.intervalMs ?? 1000;
   ensureHandlers();
   log.info('worker started', { worker: WORKER_ID, queues: 'all registered' });
+  let lastSchedule = 0;
 
   while (true) {
     try {
       const result = await tick(WORKER_ID, options.limit ?? 10);
       const webhooks = await dispatchWebhooks();
+      // The schedule is a database read; once a minute is plenty for a long-lived loop.
+      if (Date.now() - lastSchedule >= 60_000) { lastSchedule = Date.now(); await scheduleSyncs(); }
       if (result.claimed === 0 && webhooks === 0) await sleep(interval);
     } catch (error) {
       log.error('worker tick threw', { worker: WORKER_ID, error: String(error) });

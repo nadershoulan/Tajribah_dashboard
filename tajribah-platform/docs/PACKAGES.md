@@ -62,7 +62,7 @@ not marked done until it has run against the real service.
 | P1.9 | Products list UI | — | Renders from the API, search/filter/paging, both mirrors, 390 px |
 | P1.10 | Product detail UI | — | Dimensions editable in mm, AR toggle, model link |
 | P1.11 | Connections UI | — (UI); connect button 🔒 | Status, last sync, errors, disconnect |
-| P1.12 | Manual 3D upload | — (memory storage); real R2 🔒 | Presigned upload, format validation (GLB magic bytes, size), versioning |
+| P1.12 ✅ | Manual 3D upload | — (memory storage); real R2 🔒 | Presigned upload, format validation (GLB magic bytes, size), versioning |
 | P1.13 | Model processing pipeline | — | Optimise, KTX2, GLB→USDZ as jobs; < 2 MB target reported |
 | P1.14 | Model library UI | — | Versions, status, publish |
 | P1.15 | **Edge viewer config ⭐⭐** | 🔒 Cloudflare KV | Publish writes a versioned KV entry; the shopper path never reads Postgres |

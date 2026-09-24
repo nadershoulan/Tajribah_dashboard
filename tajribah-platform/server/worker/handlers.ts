@@ -10,6 +10,7 @@ import { registerHandler } from '../core/jobs/runner';
 import { log } from '../core/observability/log';
 import type { Job } from '@/db/schema';
 import { handleSyncJob } from '@/server/modules/sync/job';
+import { handleProcessJob } from '@/server/modules/models/process';
 
 /** Read the tenant a job is for, refusing to run tenant work without one. */
 export function tenantOf(job: Job): TenantDb {
@@ -24,4 +25,6 @@ export function registerAllHandlers(): void {
   });
   // P1.6. The AI and edge handlers arrive with their own packages (P3.2, P1.15).
   registerHandler('sync.products', (job: Job) => handleSyncJob(job));
+  // P1.13: optimise a confirmed model upload.
+  registerHandler('ai.postprocess', (job: Job) => handleProcessJob(job));
 }

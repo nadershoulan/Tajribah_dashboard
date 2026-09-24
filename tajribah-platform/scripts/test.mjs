@@ -77,6 +77,22 @@ const aliasPlugin = {
   },
 };
 
+/**
+ * `sharp` is a native addon (reached through gltf-transform → ndarray-pixels, P1.13) and
+ * cannot be bundled. Left external as a bare name it would be looked up from `.tests/`, where
+ * pnpm's strict layout does not expose it — so it is pinned to the path its importer sees.
+ */
+const nativeAddonPlugin = {
+  name: 'native-addons',
+  setup(build) {
+    build.onResolve({ filter: /^sharp$/ }, async (args) => {
+      if (args.pluginData?.native) return undefined;
+      const found = await build.resolve(args.path, { kind: 'require-call', resolveDir: args.resolveDir, pluginData: { native: true } });
+      return { path: found.path, external: true };
+    });
+  },
+};
+
 await esbuild.build({
   entryPoints: tests,
   outdir: OUT,
@@ -86,10 +102,10 @@ await esbuild.build({
   target: 'node20',
   format: 'cjs',
   sourcemap: 'inline',
-  external: ['@electric-sql/pglite', 'node:*'],
+  external: ['@electric-sql/pglite', 'node:*'], // PGlite loads its own WASM at runtime
   // The project has no node_modules of its own here; resolve packages from the toolkit.
   nodePaths: [MODULES],
-  plugins: [aliasPlugin],
+  plugins: [aliasPlugin, nativeAddonPlugin],
   logLevel: 'warning',
 });
 

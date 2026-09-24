@@ -229,3 +229,27 @@ that connector is built. Replay refuses `signature_valid = false` regardless.
 
 **Rollback path.** Store refused deliveries in a separate, tenant-less platform table if
 forensics are ever needed; do not put them back in `webhook_events`.
+
+## T14 · 2026-09-24 · gltf-transform + meshoptimizer for model optimisation; meshopt, not Draco, for now (P1.13)
+
+**Dependencies added** (runtime): `@gltf-transform/core`, `@gltf-transform/functions`,
+`@gltf-transform/extensions` 4.5.0 and `meshoptimizer` 1.2.0 — all MIT, all older than the
+workspace's 7-day release-age policy.
+
+**Why.** The plan names `gltf-transform` for post-processing (§5). WebCrypto-style "the
+platform already does this" does not apply: there is no glTF reader, mesh optimiser or
+meshopt encoder in the runtime. meshoptimizer is WASM, so it runs in Node and in Workers.
+
+**Meshopt, not Draco.** Both are in the plan. One compressor per file (`model_files.compression`
+is one value), and `<model-viewer>` decodes both. Meshopt was chosen first because it also
+compresses animation and morph targets, decodes faster on low-end phones, and needs no second
+WASM encoder (`draco3dgltf`). Draco usually compresses dense static meshes further — if the
+size report (`withinTarget`) shows models missing 2 MB because of geometry, add Draco as a
+second optimised variant rather than replacing meshopt.
+
+**Not solved here (P1.13b).** Texture compression (KTX2/Basis) and GLB→USDZ need native
+encoders (`toktx`, Blender or `usd-core`) in the worker's container. Textures pass through
+untouched until then, and they are usually most of the 2 MB.
+
+**Rollback path.** Remove the four packages and `server/modules/models/{optimize,process}.ts`;
+confirmed uploads then stay `processing`, and nothing else depends on them.

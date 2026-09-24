@@ -14,7 +14,7 @@
  * get 1 and 2, not a unique-key error. The live version is `models_3d.current_version_id`
  * only (see db/schema/ar.ts) — an upload never changes it; publishing does.
  */
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { modelFiles, models3d, modelVersions, products } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { record } from '@/server/core/audit/audit';
@@ -23,6 +23,8 @@ import { forTenant } from '@/server/core/storage/storage';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
 import { CONTENT_TYPES, formatOf, HEADER_BYTES, inspect, MAX_MODEL_BYTES } from './inspect';
+import { TARGET_BYTES } from './optimize';
+import { enqueueProcessing } from './process';
 
 /** Long enough for a slow phone connection; a presigned URL is a bearer credential. */
 export const UPLOAD_URL_SECONDS = 15 * 60;
@@ -112,9 +114,9 @@ export async function confirmUpload(ctx: TenantContext, versionId: string): Prom
 
   if (problem) await store.delete(file.storageKey); // never keep bytes we refused
 
-  return withTenant(ctx.tenantId, async (db) => {
+  const outcome = await withTenant(ctx.tenantId, async (db): Promise<ConfirmedUpload & { fresh: boolean }> => {
     const before = await db.lockById(modelVersions, versionId);
-    if (before.status !== 'draft') return { versionId, status: before.status === 'failed' ? 'failed' as const : 'processing' as const, error: null };
+    if (before.status !== 'draft') return { versionId, status: before.status === 'failed' ? 'failed' as const : 'processing' as const, error: null, fresh: false };
     const status = problem ? 'failed' as const : 'processing' as const;
     const after = await db.updateById(modelVersions, versionId, { status });
     await db.updateById(modelFiles, file.id, { fileSizeBytes: stored.size, checksum: stored.checksum });
@@ -122,8 +124,11 @@ export async function confirmUpload(ctx: TenantContext, versionId: string): Prom
     // A model with no live version shows the state of its first upload.
     if (!model.currentVersionId) await db.updateById(models3d, model.id, { status: problem ? 'failed' : 'processing' });
     await record(ctx, { action: 'update', resourceType: 'model_version', resourceId: versionId, before, after: { ...after, ...(problem ? { error: problem } : {}) } }, db);
-    return { versionId, status, error: problem };
+    return { versionId, status, error: problem, fresh: true };
   });
+  // After the commit: a job for a version that rolled back would process nothing.
+  if (outcome.fresh && outcome.status === 'processing') await enqueueProcessing(ctx.tenantId, versionId);
+  return { versionId: outcome.versionId, status: outcome.status, error: outcome.error };
 }
 
 /** Every version of a model, newest first, with `isCurrent` computed from the model's pointer. */
@@ -132,7 +137,21 @@ export async function modelVersionsOf(ctx: TenantContext, modelId: string) {
   const model = await ctx.db.findById(models3d, modelId);
   if (!model) throw errors.notFound('model');
   const versions = await ctx.db.find(modelVersions, eq(modelVersions.modelId, modelId), { orderBy: desc(modelVersions.version), limit: 100 });
-  return versions.map((v) => ({ id: v.id, version: v.version, status: v.status, isCurrent: v.id === model.currentVersionId, createdAt: v.createdAt.toISOString() }));
+  const files = versions.length
+    ? await ctx.db.find(modelFiles, inArray(modelFiles.modelVersionId, versions.map((v) => v.id)), { limit: 1000 })
+    : [];
+  const sizeOf = (versionId: string, variant: 'original' | 'optimized') =>
+    files.find((f) => f.modelVersionId === versionId && f.variant === variant)?.fileSizeBytes ?? null;
+  return versions.map((v) => {
+    const optimizedBytes = sizeOf(v.id, 'optimized');
+    return {
+      id: v.id, version: v.version, status: v.status, isCurrent: v.id === model.currentVersionId,
+      polyCount: v.polyCount, originalBytes: sizeOf(v.id, 'original'), optimizedBytes,
+      /** The < 2 MB report (§5). Null until there is an optimised file to measure. */
+      withinTarget: optimizedBytes === null ? null : optimizedBytes <= TARGET_BYTES,
+      createdAt: v.createdAt.toISOString(),
+    };
+  });
 }
 
 async function firstBytes(store: ReturnType<typeof forTenant>, storageKey: string): Promise<Uint8Array> {

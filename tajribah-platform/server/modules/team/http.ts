@@ -24,12 +24,12 @@ export const listTeamHandler = route(async (request) => {
   return json({ members: await listTeam(ctx) });
 });
 
-/** API-071 — POST /api/team/invitations { email, role } */
+/** API-071 — POST /api/team/invitations { email, role, lang? } */
 export const inviteHandler = route(async (request) => {
   const config = apiConfig();
   assertSameOrigin(request, config);
   const ctx = await tenantContextFor(request, config);
-  const body = await readJson(request, z.object({ email: z.string().max(254), role: z.enum(MEMBER_ROLE) }));
+  const body = await readJson(request, z.object({ email: z.string().max(254), role: z.enum(MEMBER_ROLE), lang: z.enum(['ar', 'en']).optional() }));
   const { id } = await invite(ctx, body, { authSecret: config.authSecret, appUrl: loadEnv().APP_URL });
   return json({ id }, { status: 201 }); // the token only ever travels in the email
 });

@@ -16,6 +16,7 @@ import type {
   AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ApiError, currentStore, type ApiClient } from './api-client';
+import type { Lang } from './lang';
 import type { ProductListPage, ProductListQuery } from './contracts/products';
 import { DEFAULT_BUTTON_RADIUS, SettingsPatch, type StoreSettings } from './contracts/settings';
 import { ArConfigInput, DEFAULT_AR_CONFIG, placementErrors, placementsFor, type ArConfigView } from './contracts/ar-config';
@@ -45,7 +46,7 @@ export interface DataSource {
   uploadModel(file: File, target?: { productId?: string; modelId?: string }): Promise<{ modelId: string; status: 'processing' | 'failed'; error: string | null }>;
   team(): Promise<TeamMemberRow[]>;
   /** P1.24. The link goes by email only; nothing here ever sees the token. */
-  invite(email: string, role: TeamMemberRow['role']): Promise<void>;
+  invite(email: string, role: TeamMemberRow['role'], lang: Lang): Promise<void>;
   revokeInvitation(invitationId: string): Promise<void>;
   changeRole(membershipId: string, role: TeamMemberRow['role']): Promise<void>;
   removeMember(membershipId: string): Promise<void>;
@@ -131,8 +132,8 @@ export function apiSource(client: ApiClient): DataSource {
     async team() {
       return (await client.call<{ members: TeamMemberRow[] }>('/api/team')).members;
     },
-    async invite(email, role) {
-      await client.call('/api/team/invitations', { method: 'POST', body: { email, role } });
+    async invite(email, role, lang) {
+      await client.call('/api/team/invitations', { method: 'POST', body: { email, role, lang } });
     },
     async revokeInvitation(id) {
       await client.call<void>(`/api/team/invitations/${encodeURIComponent(id)}`, { method: 'DELETE' });

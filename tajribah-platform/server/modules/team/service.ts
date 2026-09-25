@@ -20,6 +20,7 @@ import { and, eq, gt, inArray, isNull } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
 import { invitations, tenantMemberships, tenants, users } from '@/db/schema';
 import { secret, uuidv7 } from '@/lib/ids';
+import type { Lang } from '@/lib/lang';
 import type { MemberRole } from '@/lib/permissions';
 import type { TeamMemberRow } from '@/lib/view-models';
 import { auditedDelete, auditedUpdate, record } from '@/server/core/audit/audit';
@@ -38,7 +39,8 @@ export const INVITE_DAYS = 7;
 const RANK: Record<MemberRole, number> = { owner: 5, admin: 4, editor: 3, analyst: 2, viewer: 1 };
 const INVITABLE: MemberRole[] = ['admin', 'editor', 'analyst', 'viewer'];
 
-export type InviteInput = { email: string; role: MemberRole };
+/** `lang`: the email's language, chosen by the inviter — we know nothing of the invitee yet. */
+export type InviteInput = { email: string; role: MemberRole; lang?: Lang };
 
 export async function listTeam(ctx: TenantContext): Promise<TeamMemberRow[]> {
   ctx.require('team:read');
@@ -100,7 +102,7 @@ export async function invite(ctx: TenantContext, input: InviteInput, config: { a
 
   await sendEmail(email, EMAIL.teamInvite, {
     link: `${config.appUrl}/invite/${token}`, store: ctx.tenant.name, days: INVITE_DAYS,
-  }, 'ar');
+  }, input.lang === 'en' ? 'en' : 'ar');
   return { id, token };
 }
 

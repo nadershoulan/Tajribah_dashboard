@@ -37,11 +37,13 @@ test('over HTTP: invite by email, accept into the store, change the role, remove
     const sara = await signUp('sara@example.test', 'Sara own store');
     console.log = original;
 
-    const invited = await call(inviteHandler, '/api/team/invitations', owner.auth, 'POST', { email: 'sara@example.test', role: 'editor' });
+    const invited = await call(inviteHandler, '/api/team/invitations', owner.auth, 'POST', { email: 'sara@example.test', role: 'editor', lang: 'en' });
     assert.equal(invited.status, 201);
+    assert.match(sent.at(-1).subject, /You are invited/, 'the language travels through the endpoint');
     assert.ok(!JSON.stringify(await invited.json()).includes('token'), 'the token travels only in the email');
     const token = sent.find((m) => m.to === 'sara@example.test' && m.text.includes('/invite/'))!.text.match(/\/invite\/([A-Za-z0-9_-]+)/)[1];
     assert.ok(sent.at(-1).text.includes(`${APP}/invite/`));
+    assert.equal((await call(inviteHandler, '/api/team/invitations', owner.auth, 'POST', { email: 'kim@example.test', role: 'viewer', lang: 'fr' })).status, 422);
 
     const accepted = await call(acceptInvitationHandler, '/api/invitations/accept', sara.auth, 'POST', { token });
     assert.equal(accepted.status, 200);

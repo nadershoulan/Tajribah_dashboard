@@ -11,7 +11,7 @@ import { formatRelative } from '@/lib/format';
 import { ROLE_PERMISSIONS } from '@/lib/permissions';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
-import type { Bi } from '@/lib/lang';
+import type { Bi, Lang } from '@/lib/lang';
 import type { TeamMemberRow } from '@/lib/view-models';
 
 const ROLE_LABEL: Record<TeamMemberRow['role'], Bi> = {
@@ -53,6 +53,7 @@ export default function Team() {
   const [inviting, setInviting] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<TeamMemberRow['role']>('editor');
+  const [mailLang, setMailLang] = useState<Lang>(lang);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
@@ -77,7 +78,7 @@ export default function Team() {
   };
   const sendInvite = (event: FormEvent) => {
     event.preventDefault();
-    void act('invite', () => source.invite(email, role), t(`أُرسلت الدعوة إلى ${email}.`, `Invitation sent to ${email}.`))
+    void act('invite', () => source.invite(email, role, mailLang), t(`أُرسلت الدعوة إلى ${email}.`, `Invitation sent to ${email}.`))
       .then(() => { setEmail(''); });
   };
 
@@ -112,6 +113,13 @@ export default function Team() {
               <label htmlFor="invite-role">{t('الدور', 'Role')}</label>
               <select id="invite-role" value={role} onChange={(e) => setRole(e.target.value as TeamMemberRow['role'])}>
                 {INVITABLE.map((r) => <option key={r} value={r}>{pick(ROLE_LABEL[r])}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="invite-lang">{t('لغة الرسالة', 'Email language')}</label>
+              <select id="invite-lang" value={mailLang} onChange={(e) => setMailLang(e.target.value as Lang)}>
+                <option value="ar">العربية</option>
+                <option value="en">English</option>
               </select>
             </div>
             <button type="submit" className="btn btn-primary" disabled={busy === 'invite'}>

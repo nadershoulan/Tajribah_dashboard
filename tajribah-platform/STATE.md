@@ -114,8 +114,9 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
   decision on the response process (who handles a request, within what period) — P8 / legal.
 - (P1.24) Signing up always creates a store: an invitee with no account gets an empty store
   of their own before joining. A "join only" sign-up belongs with the onboarding UI.
-- (P1.24) Invitation emails are sent in Arabic (the invitee's language is unknown). Offer
-  the inviter a language choice, or send both, when the onboarding UI lands.
+- ~~(P1.24) invitation emails were always Arabic~~ — fixed 2026-09-26: the invite form has
+  an "Email language" choice (default: the inviter's UI language); API-071 takes
+  `lang: 'ar' | 'en'` (anything else 422; omitted → Arabic). Seen red 3 ways.
 - ~~(P1.14) analytics and embed overflow a 390 px phone~~ — closed by P1.17's `.grid` fix.
 - (P1.12, closed by P1.14) the uploader UI was not built with P1.12 although the spec lists it.
 - (P1.11) `store_connections.health_score` is never computed (always 100). The screen no

@@ -75,6 +75,17 @@ test('invite → email with a link → accept as that address → member; the to
   } finally { await harness.close(); }
 });
 
+test('the invitation email is in the language the inviter chose; Arabic by default', async () => {
+  const harness = await createTestDb();
+  try {
+    const owner = await store(harness, 'alpha');
+    await invite(owner.ctx, { email: 'lee@example.test', role: 'viewer' }, CONFIG);
+    assert.match(sent.at(-1)!.text, /دُعيت/);
+    await invite(owner.ctx, { email: 'lee@example.test', role: 'viewer', lang: 'en' }, CONFIG);
+    assert.match(sent.at(-1)!.subject, /You are invited/, 'the inviter chose English for this person');
+  } finally { await harness.close(); }
+});
+
 test('expired, revoked and re-sent invitations; nobody is invited twice or as owner', async () => {
   const harness = await createTestDb();
   try {

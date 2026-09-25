@@ -157,4 +157,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-25 | P1.16 AR button script for storefronts (2.7 KB, can't break the shop) | 318 pass / 0 fail |
 | 2026-09-25 | P1.17 install snippet + checker; all screens fit phones | 322 pass / 0 fail |
 | 2026-09-25 | P1.18 AR on phones — all no-account parts of P1 now done | 325 pass / 0 fail |
-| 2026-09-26 | Fixes: duplicate background jobs, sidebar showing screens a role can't open, abandoned uploads cleaned up daily | 331 pass / 0 fail |
+| 2026-09-26 | Fixes from the backlog: duplicate jobs, sidebar by role, abandoned uploads, why a model failed, encryption key rotation, webhook retry pacing and fairness, invitation email language | 338 pass / 0 fail |

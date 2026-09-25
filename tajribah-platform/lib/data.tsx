@@ -17,6 +17,7 @@ import type {
 } from './view-models';
 import { ApiError, currentStore, type ApiClient } from './api-client';
 import type { ProductListPage, ProductListQuery } from './contracts/products';
+import { DEFAULT_BUTTON_RADIUS, SettingsPatch, type StoreSettings } from './contracts/settings';
 import { pageOf } from './product-list';
 import { MODEL_TARGET_BYTES } from './model-size';
 import { applyEdit, editErrors, type ProductEdit } from './product-edit';
@@ -47,6 +48,9 @@ export interface DataSource {
   changeRole(membershipId: string, role: TeamMemberRow['role']): Promise<void>;
   removeMember(membershipId: string): Promise<void>;
   billing(): Promise<BillingSummary>;
+  /** P1.25. Refusals: `ApiError` 422 with per-field messages. */
+  settings(): Promise<StoreSettings>;
+  updateSettings(patch: Record<string, unknown>): Promise<StoreSettings>;
   analytics(range: '7d' | '30d' | '90d'): Promise<AnalyticsView>;
 }
 
@@ -129,6 +133,8 @@ export function apiSource(client: ApiClient): DataSource {
       await client.call<void>(`/api/team/members/${encodeURIComponent(id)}`, { method: 'DELETE' });
     },
     billing: pending('Billing'),
+    async settings() { return client.call<StoreSettings>('/api/settings'); },
+    async updateSettings(patch) { return client.call<StoreSettings>('/api/settings', { method: 'PATCH', body: patch }); },
     analytics: pending('Analytics'),
   };
 }
@@ -137,6 +143,11 @@ export function apiSource(client: ApiClient): DataSource {
 /** The preview's edits, for this page load only: the preview has nowhere to save them. */
 const demoEdits = new Map<string, ProductRow>();
 const demoTeam: TeamMemberRow[] = DEMO_TEAM.map((m) => ({ ...m }));
+/** The preview store's settings: blank identity fields, as a new merchant has (§11). */
+const demoSettings: StoreSettings = {
+  slug: DEMO_DASHBOARD.tenant.slug, name: DEMO_DASHBOARD.tenant.name, nameAr: null, crNumber: null, vatNumber: null,
+  nationalAddress: null, city: null, brandColor: null, buttonRadius: DEFAULT_BUTTON_RADIUS, consentTextAr: null, consentTextEn: null,
+};
 const demoModels: ModelRow[] = DEMO_MODELS.map((m) => ({ ...m }));
 /** Which version is live per demo model, when it is not the newest. */
 const demoLive = new Map<string, number>();
@@ -252,6 +263,18 @@ export const demoSource: DataSource = {
     demoTeam.splice(at, 1);
   },
   async billing() { return DEMO_BILLING; },
+  async settings() { return { ...demoSettings }; },
+  async updateSettings(patch) {
+    const parsed = SettingsPatch.safeParse(patch);
+    if (!parsed.success) {
+      const fields: Record<string, string[]> = {};
+      for (const issue of parsed.error.issues) (fields[String(issue.path[0] ?? '_')] ??= []).push(issue.message);
+      throw new ApiError(422, 'validation_failed', 'Validation failed', fields);
+    }
+    const { brandColor, buttonRadius, ...rest } = parsed.data;
+    Object.assign(demoSettings, rest, brandColor !== undefined ? { brandColor } : {}, buttonRadius !== undefined ? { buttonRadius } : {});
+    return { ...demoSettings };
+  },
   async analytics(range) {
     const days = range === '7d' ? 7 : range === '30d' ? 30 : 90;
     const series = DEMO_ANALYTICS.series.slice(-Math.min(days, DEMO_ANALYTICS.series.length));

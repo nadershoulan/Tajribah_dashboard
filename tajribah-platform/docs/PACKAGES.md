@@ -76,7 +76,7 @@ not marked done until it has run against the real service.
 | P1.22 | Dashboard home | — | Renders from the API (currently seeded) |
 | P1.23 | Dashboard shell extras | — | Command palette, notification centre |
 | P1.24 ✅ | Team management | — | Invite (email), roles, remove — audited |
-| P1.25 | Settings | — | Store details, CR/VAT, branding |
+| P1.25 ✅ | Settings | — | Store details, CR/VAT, branding |
 | P1.26 | Core-loop E2E + viewer load test | 🔒 all of the above live | A real merchant completes the loop unaided; viewer at 5k rps |
 
 **Gate:** a real merchant completes signup → connect → sync → AR live, unaided.

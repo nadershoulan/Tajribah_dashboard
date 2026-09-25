@@ -15,6 +15,7 @@ import { log } from '../core/observability/log';
 import { registerAllHandlers } from './handlers';
 import { dispatchPending } from '@/server/modules/webhooks/dispatch';
 import { scheduleSyncs } from '@/server/modules/sync/schedule';
+import { expireStaleDrafts } from '@/server/modules/models/cleanup';
 
 export const WORKER_ID = `worker-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -32,7 +33,7 @@ export async function runOnce(limit = 10): Promise<void> {
   const result = await tick(WORKER_ID, limit);
   if (result.claimed > 0) log.info('worker tick', { worker: WORKER_ID, ...result });
   await dispatchWebhooks();
-  await scheduleSyncs();
+  await scheduled();
 }
 
 /** The long-lived loop. Sleeps when idle rather than spinning. */
@@ -47,13 +48,19 @@ export async function runForever(options: { intervalMs?: number; limit?: number 
       const result = await tick(WORKER_ID, options.limit ?? 10);
       const webhooks = await dispatchWebhooks();
       // The schedule is a database read; once a minute is plenty for a long-lived loop.
-      if (Date.now() - lastSchedule >= 60_000) { lastSchedule = Date.now(); await scheduleSyncs(); }
+      if (Date.now() - lastSchedule >= 60_000) { lastSchedule = Date.now(); await scheduled(); }
       if (result.claimed === 0 && webhooks === 0) await sleep(interval);
     } catch (error) {
       log.error('worker tick threw', { worker: WORKER_ID, error: String(error) });
       await sleep(interval * 5);
     }
   }
+}
+
+/** The database-driven sweeps: due syncs, then uploads abandoned as drafts (P1.12). */
+async function scheduled(): Promise<void> {
+  await scheduleSyncs();
+  await expireStaleDrafts();
 }
 
 /** Stored webhook deliveries are handled on the same tick as queue jobs (P1.7). */

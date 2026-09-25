@@ -81,8 +81,13 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
   backoff if a handler ever calls out.
 - (P1.7) `dispatchPending` takes the oldest 50 events across all tenants — one store's flood
   delays others. Apply the queue's `FAIR_SHARE` rule if that shows up.
-- (P1.12) A `draft` version whose bytes never arrive stays `draft` forever (the URL expires
-  after 15 min). A cleanup tick should fail drafts older than a day.
+- ~~(P1.12) a `draft` version whose bytes never arrive stayed `draft` forever~~ — fixed
+  2026-09-26: `server/modules/models/cleanup.ts` `expireStaleDrafts`, on the worker's
+  schedule tick. Drafts older than a day → `failed` under a row lock (a racing confirm wins
+  or loses cleanly), bytes deleted after commit, audited as `system`; a model still on its
+  first upload shows `failed`, a live model is untouched. 2 tests; seen red 5 ways (TTL,
+  live model failed, bytes kept, not audited, both draft guards off). Dropping only the
+  query's `draft` filter stays green by design — the lock re-check guards it.
 - (P1.12) No storage quota check on upload: `storage_gb` is metered per period, which is the
   wrong shape for "bytes held". Decide with P2 billing.
 - (P1.13) The optimiser must run in the **Node** worker (the plan's Hetzner container), not in

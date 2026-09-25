@@ -93,8 +93,11 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
 - (P1.13) The optimiser must run in the **Node** worker (the plan's Hetzner container), not in
   a Cloudflare Worker: `ndarray-pixels` (pulled in by `@gltf-transform/functions`) imports the
   native `sharp` at load. Nothing bundles the worker for Workers today; keep it that way.
-- (P1.13) `model_versions` has no `error` column: why a version failed is only in its audit
-  row and the log. The model library UI (P1.14) will want it on the row.
+- ~~(P1.13) `model_versions` had no `error` column~~ — fixed 2026-09-26 by
+  `drizzle/0003_model_version_error.sql` (with ROLLBACK). Written by the file check, the
+  optimiser and the draft sweep; shown under a failed version in the library (Arabic where
+  mapped). The migration test now also requires every `ADD COLUMN` to have a `DROP COLUMN`
+  in its rollback — the full rollback drops the table, so nothing else would notice (seen red).
 - ~~(P1.16) a failed viewer load gave no feedback~~ — closed by P1.18 (message + native paths).
 - (P1.16) The widget's browser behaviour (shadow isolation, fail-closed, no host errors) is
   verified by a recorded CDP run, not by `verify.mjs`. Add a browser job when CI exists (P0.21).

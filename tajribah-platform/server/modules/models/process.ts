@@ -86,6 +86,7 @@ async function finish(
     }
     const after = await db.updateById(modelVersions, versionId, {
       status,
+      error: result.failure ?? null,
       ...(result.stats ? {
         polyCount: result.stats.polyCount, materialCount: result.stats.materialCount,
         textureCount: result.stats.textureCount, boundingBox: result.stats.boundingBox,
@@ -99,7 +100,7 @@ async function finish(
       : {};
     await record(ctx, {
       action: 'update', resourceType: 'model_version', resourceId: versionId,
-      before, after: { ...after, ...report, ...(result.failure ? { error: result.failure } : {}) },
+      before, after: { ...after, ...report },
     }, db);
     await notifyIn(db, result.failure
       ? { type: 'model.failed', permission: 'models:read', level: 'error', href: '/dashboard/models',

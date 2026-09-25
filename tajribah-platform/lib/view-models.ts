@@ -169,6 +169,8 @@ export type ModelVersionRow = {
   optimizedBytes: number | null;
   /** Optimised file ≤ 2 MB. Null until there is an optimised file to measure. */
   withinTarget: boolean | null;
+  /** Why a `failed` version failed, in the checker's (English) words. */
+  error: string | null;
   createdAt: string;
 };
 

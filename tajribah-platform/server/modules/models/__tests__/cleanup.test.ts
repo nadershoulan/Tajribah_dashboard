@@ -80,6 +80,7 @@ test('a draft abandoned for a day is failed, its bytes deleted, and the change a
 
     assert.deepEqual(await expireStaleDrafts(), { expired: 1 });
     assert.equal((await versionOf(harness, abandoned.versionId)).status, 'failed');
+    assert.match((await versionOf(harness, abandoned.versionId)).error, /never confirmed/);
     assert.equal((await modelOf(harness, abandoned.modelId)).status, 'failed', 'a model with nothing else shows its only upload failed');
     assert.equal(await storage().head(key), null, 'bytes nobody confirmed are not kept');
     assert.equal((await versionOf(harness, recent.versionId)).status, 'draft', 'a recent draft is left alone');

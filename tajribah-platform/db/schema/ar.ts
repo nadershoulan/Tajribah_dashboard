@@ -62,6 +62,8 @@ export const modelVersions = pgTable('model_versions', {
   textureCount: integer('texture_count'),
   boundingBox: json<{ min: [number, number, number]; max: [number, number, number] }>('bounding_box'),
   sourceJobId: uuid('source_job_id'),
+  /** Why it failed, in the checker's words (0003). Null unless `failed`. */
+  error: text('error'),
   publishedAt: ts('published_at'),
   createdBy: uuid('created_by'),
   ...timestamps(),

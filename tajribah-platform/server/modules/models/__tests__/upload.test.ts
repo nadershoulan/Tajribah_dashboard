@@ -129,6 +129,10 @@ test('a file that is not what it claims is refused, deleted, and its version mar
 
     const statuses = (await modelVersionsOf(ctx, png.modelId)).map((v) => [v.version, v.status]);
     assert.deepEqual(statuses, [[2, 'failed'], [1, 'failed']]);
+    // The reason stays on the row, for the library to show later — not only in the audit trail.
+    const [v2, v1] = await modelVersionsOf(ctx, png.modelId);
+    assert.match(v1.error!, /not a GLB/);
+    assert.match(v2.error!, /cut off/);
   } finally { await harness.close(); }
 });
 

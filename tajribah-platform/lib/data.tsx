@@ -194,6 +194,7 @@ function demoVersionsOf(model: ModelRow): ModelVersionRow[] {
       polyCount: model.polyCount, originalBytes: bytes ? Math.round(bytes * 3.4) : null,
       optimizedBytes: status === 'ready' && bytes ? bytes : null,
       withinTarget: status === 'ready' && bytes ? bytes <= MODEL_TARGET_BYTES : null,
+      error: status === 'failed' ? 'the GLB could not be read: no scene in the file' : null,
       createdAt: model.updatedAt,
     };
   });

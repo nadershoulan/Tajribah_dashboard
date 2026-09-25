@@ -119,12 +119,12 @@ export async function confirmUpload(ctx: TenantContext, versionId: string): Prom
     const before = await db.lockById(modelVersions, versionId);
     if (before.status !== 'draft') return { versionId, status: before.status === 'failed' ? 'failed' as const : 'processing' as const, error: null, fresh: false };
     const status = problem ? 'failed' as const : 'processing' as const;
-    const after = await db.updateById(modelVersions, versionId, { status });
+    const after = await db.updateById(modelVersions, versionId, { status, error: problem });
     await db.updateById(modelFiles, file.id, { fileSizeBytes: stored.size, checksum: stored.checksum });
     const model = await db.requireById(models3d, version.modelId);
     // A model with no live version shows the state of its first upload.
     if (!model.currentVersionId) await db.updateById(models3d, model.id, { status: problem ? 'failed' : 'processing' });
-    await record(ctx, { action: 'update', resourceType: 'model_version', resourceId: versionId, before, after: { ...after, ...(problem ? { error: problem } : {}) } }, db);
+    await record(ctx, { action: 'update', resourceType: 'model_version', resourceId: versionId, before, after }, db);
     return { versionId, status, error: problem, fresh: true };
   });
   // After the commit: a job for a version that rolled back would process nothing.
@@ -150,6 +150,7 @@ export async function modelVersionsOf(ctx: TenantContext, modelId: string): Prom
       polyCount: v.polyCount, originalBytes: sizeOf(v.id, 'original'), optimizedBytes,
       /** The < 2 MB report (§5). Null until there is an optimised file to measure. */
       withinTarget: optimizedBytes === null ? null : optimizedBytes <= TARGET_BYTES,
+      error: v.error,
       createdAt: v.createdAt.toISOString(),
     };
   });

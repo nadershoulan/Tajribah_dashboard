@@ -35,11 +35,11 @@ export async function expireStaleDrafts(now = new Date(), limit = 100): Promise<
       const keys = await withTenant(tenantId, async (db) => {
         const before = await db.lockById(modelVersions, id);
         if (before.status !== 'draft') return null; // confirmed in between
-        const after = await db.updateById(modelVersions, id, { status: 'failed' });
+        const after = await db.updateById(modelVersions, id, { status: 'failed', error: 'upload never confirmed' });
         const model = await db.requireById(models3d, before.modelId);
         // Only a model still waiting on its first upload shows it failed; a live one stays live.
         if (!model.currentVersionId && model.status === 'draft') await db.updateById(models3d, model.id, { status: 'failed' });
-        await record(ctx, { action: 'update', resourceType: 'model_version', resourceId: id, before, after: { ...after, error: 'upload never confirmed' } }, db);
+        await record(ctx, { action: 'update', resourceType: 'model_version', resourceId: id, before, after }, db);
         const files = await db.find(modelFiles, eq(modelFiles.modelVersionId, id), { limit: 10 });
         return files.map((f) => f.storageKey);
       });

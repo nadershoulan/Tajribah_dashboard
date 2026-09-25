@@ -74,5 +74,10 @@ test('each rollback names everything its migration creates', () => {
       const missing = created(kind).filter((name) => !dropped(kind).has(name));
       assert.deepEqual(missing, [], `${file}: CREATE ${kind} without a matching DROP in the rollback`);
     }
+    // A column added to an existing table: the full rollback drops the table anyway, so only
+    // this check notices a rollback that would leave the column behind on its own.
+    const added = [...forward.matchAll(/ALTER TABLE "?(\w+)"? ADD COLUMN (?:IF NOT EXISTS )?"?(\w+)"?/gi)].map((m) => `${m[1]}.${m[2]}`);
+    const removed = new Set([...rollback.matchAll(/ALTER TABLE "?(\w+)"? DROP COLUMN (?:IF EXISTS )?"?(\w+)"?/gi)].map((m) => `${m[1]}.${m[2]}`));
+    assert.deepEqual(added.filter((c) => !removed.has(c)), [], `${file}: ADD COLUMN without a matching DROP COLUMN in the rollback`);
   }
 });

@@ -127,6 +127,7 @@ test('processing twice changes nothing; a file that passed the header check but 
     assert.equal(await processVersion(tenantId, bad.started.versionId, 'r3'), 'failed');
     const [row] = await admin(harness, () => harness.db.select().from(modelVersions).where(eq(modelVersions.id, bad.started.versionId))) as any[];
     assert.equal(row.status, 'failed');
+    assert.ok(row.error, 'why it failed is kept on the version');
   } finally { await harness.close(); }
 });
 

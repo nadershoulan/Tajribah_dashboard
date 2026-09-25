@@ -30,7 +30,13 @@ const UPLOAD_AR: [RegExp, string][] = [
   [/cut off|damaged/, 'الملف ناقص أو تالف — ربما انقطع الرفع. جرّب مرة أخرى'],
   [/glTF version/, 'إصدار glTF غير مدعوم — صدّره بصيغة glTF 2.0'],
   [/not a USDZ file|USDZ files must be stored uncompressed|must be the USD scene/, 'ملف USDZ غير صالح — صدّره بأداة USDZ'],
+  [/could not be (read|optimised)/, 'تعذّرت قراءة النموذج — افتحه في برنامج ثلاثي الأبعاد وصدّره من جديد'],
+  [/never confirmed/, 'لم يكتمل الرفع — ارفع الملف مرة أخرى'],
 ];
+
+/** A checker's reason, in the reader's language; unmapped reasons stay as written. */
+const sayProblem = (message: string, lang: string) =>
+  (lang === 'ar' ? UPLOAD_AR.find(([pattern]) => pattern.test(message))?.[1] ?? message : message);
 
 export default function Models() {
   const { t, pick, lang } = useLang();
@@ -44,7 +50,7 @@ export default function Models() {
   const picker = useRef<HTMLInputElement>(null);
 
   /** Server refusals are English; the ones an upload meets get their Arabic here. */
-  const say = (message: string) => (lang === 'ar' ? UPLOAD_AR.find(([pattern]) => pattern.test(message))?.[1] ?? message : message);
+  const say = (message: string) => sayProblem(message, lang);
   const send = async (file: File | undefined) => {
     if (!file) return;
     setUpload({ state: 'busy', message: t(`جارٍ رفع ${file.name}…`, `Uploading ${file.name}…`) });
@@ -294,6 +300,7 @@ function Versions({ modelId, onPublished }: { modelId: string; onPublished: () =
                   </>
                 : row.originalBytes ? <span className="num">{formatBytes(row.originalBytes, lang)}</span> : '—'}
             </span>
+            {row.status === 'failed' && row.error && <span className="versions-error" dir="auto">{sayProblem(row.error, lang)}</span>}
             {row.status === 'ready' && !row.isCurrent && (
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => publish(row)} disabled={busy !== null}>
                 {busy === row.id ? t('جارٍ النشر…', 'Publishing…')

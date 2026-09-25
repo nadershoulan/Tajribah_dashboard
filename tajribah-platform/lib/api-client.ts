@@ -161,6 +161,13 @@ export class ApiClient {
     this.setToken(result.accessToken);
   }
 
+  /** P1.24: join the store that invited this account; the session then acts for it. */
+  async acceptInvitation(token: string): Promise<string> {
+    const result = await this.call<TokenBody & { tenantId: string }>('/api/invitations/accept', { body: { token } });
+    this.setToken(result.accessToken);
+    return result.tenantId;
+  }
+
   async requestPasswordReset(email: string, locale: 'ar' | 'en'): Promise<void> {
     const response = await this.send('/api/auth/password-reset', { body: { email, locale } });
     if (!response.ok) return ApiClient.fail(response);

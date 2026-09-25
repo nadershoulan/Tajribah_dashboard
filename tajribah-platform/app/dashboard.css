@@ -520,3 +520,8 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .versions ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .versions li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13.5px; }
 .versions-size { color: var(--text-2); margin-inline-end: auto; }
+
+/* P1.24 — team */
+.invite-form { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: 0 12px; align-items: end; }
+.invite-form .btn { margin-bottom: 14px; }
+@media (max-width: 560px) { .invite-form { grid-template-columns: minmax(0, 1fr); } }

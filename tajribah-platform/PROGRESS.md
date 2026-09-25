@@ -3,13 +3,13 @@
 _Last updated: 2026-09-23 · updated at the end of every work session_
 
 > **Now:** **P1 has started** (your call, 2026-09-23) — only the parts that need no account. Done so far: the onboarding checklist, the real product catalogue, the store-connection plumbing, the sync engine, receiving webhooks from the store, uploading 3D models, and shrinking them for phones.
-> **Next:** QR codes (P1.20), then team management (P1.24). **One question for you:** see P1.13b below.
+> **Next:** store settings (P1.25), then the real dashboard home (P1.22). QR codes wait for the short domain. **One question for you:** see P1.13b below.
 > **P0:** code gate passed; the rest waits on you — see below. [Gate report](docs/gates/P0.md)
 > **Waiting on you:** a **Hetzner server** for the database (your choice), and the accounts below.
 
 ```
 P0 Foundation     ████████████████████████████░░░░  19 / 22   (+ P0.20 mostly done, 2 blocked)
-P1 Core loop      █████████████░░░░░░░░░░░░░░░░░░░  11 / 26   ← first sellable product (started)
+P1 Core loop      ██████████████░░░░░░░░░░░░░░░░░░  12 / 26   ← first sellable product (started)
 P2 Billing        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 15
 P3 3D pipeline    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 P4 Analytics      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
@@ -19,7 +19,7 @@ P7 Scale          ░░░░░░░░░░░░░░░░░░░░�
 P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 M  Marketing      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12   (separate site in tajribah-try-on)
 A  Admin console  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 14
-                                            overall  30 / 168
+                                            overall  31 / 168
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -75,6 +75,7 @@ marked 🔒 in `docs/PACKAGES.md` wait for Salla / Cloudflare / the domain.
 | ✅ | P1.7 Store webhooks | When something changes in the store (a product edited or deleted, the app uninstalled), the store tells us straight away. Each message is checked to prove it really came from the store — fakes are refused and never saved — and a message sent twice is only acted on once. Changes trigger a quick sync, deleted products are archived, an uninstall disconnects the store. A message that fails to process is retried, then kept so it can be re-run with one click. Salla's exact message format is plugged in once the Salla account exists |
 | ✅ | P1.6b Automatic sync schedule | Every store is kept up to date on a timer (hourly by default), new stores first. A store whose sync keeps failing is retried once an hour, not hammered. A sync that got stuck (for example the server restarted mid-way) is noticed after 15 minutes and resumed. The sync history is stored month by month so it stays fast as it grows, with the same store-to-store privacy checks as everything else |
 | ✅ | P1.9 Products screen | The product list now asks the server for each page, so it stays fast with thousands of products. Search (Arabic too), filters and their counts all come from the real data; "Show more" loads the next page. Checked in Arabic and English, on a laptop and a phone |
+| ✅ | P1.24 Team | Invite people by email with a role (admin, editor, analyst, viewer). They join by signing in with that same email — a forwarded link is useless to anyone else — and the link works once, for 7 days. Change someone's role or remove them (they lose access immediately). There is only ever one owner, and nobody can give a role above their own. Pending invitations count toward your plan's team size. Every change is in the activity log |
 | ✅ | P1.14 3D model library | All your models in one place, each with its versions: size before and after compression, and whether it's under 2 MB. You choose which version shoppers see ("Publish"), and can go back to an older one in one click — a new upload never goes live on its own. Upload by picking a file or dropping it on the list; wrong files are refused with the reason, in Arabic too |
 | ✅ | P1.11 Store connection screen | Shows your connected store for real: whether it's working, when it last synced, a progress bar while a sync runs, and any errors (from syncing or from the store's update messages). "Sync now" and "Disconnect" work — disconnecting asks first and keeps all your products. The old "connection health %" was removed because nothing actually calculated it. Connecting a new store waits on the Salla account |
 | ✅ | P1.10 Product page | Each product has its own page where you enter its real size in millimetres (Arabic numerals work), set its type and switch AR on. AR can't be switched on until width and height are filled in — the same rule the server enforces, checked by a test that compares the two. Name and price are shown but not editable here, because they come from your store |
@@ -141,3 +142,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-25 | P1.10 product page (sizes, AR switch) | 282 pass / 0 fail |
 | 2026-09-25 | P1.11 store connection screen (sync now, disconnect) | 284 pass / 0 fail |
 | 2026-09-25 | P1.14 model library (versions, publish, upload) | 290 pass / 0 fail |
+| 2026-09-25 | P1.24 team (invitations, roles, removal) | 297 pass / 0 fail |

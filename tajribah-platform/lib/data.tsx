@@ -41,6 +41,11 @@ export interface DataSource {
   /** P1.12 uploader: presigned PUT straight to storage, then the server checks the bytes. */
   uploadModel(file: File, target?: { productId?: string; modelId?: string }): Promise<{ modelId: string; status: 'processing' | 'failed'; error: string | null }>;
   team(): Promise<TeamMemberRow[]>;
+  /** P1.24. The link goes by email only; nothing here ever sees the token. */
+  invite(email: string, role: TeamMemberRow['role']): Promise<void>;
+  revokeInvitation(invitationId: string): Promise<void>;
+  changeRole(membershipId: string, role: TeamMemberRow['role']): Promise<void>;
+  removeMember(membershipId: string): Promise<void>;
   billing(): Promise<BillingSummary>;
   analytics(range: '7d' | '30d' | '90d'): Promise<AnalyticsView>;
 }
@@ -108,7 +113,21 @@ export function apiSource(client: ApiClient): DataSource {
         `/api/models/versions/${encodeURIComponent(started.versionId)}/confirm`, { method: 'POST' });
       return { modelId: started.modelId, ...confirmed };
     },
-    team: pending('Team management'),
+    async team() {
+      return (await client.call<{ members: TeamMemberRow[] }>('/api/team')).members;
+    },
+    async invite(email, role) {
+      await client.call('/api/team/invitations', { method: 'POST', body: { email, role } });
+    },
+    async revokeInvitation(id) {
+      await client.call<void>(`/api/team/invitations/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    },
+    async changeRole(id, role) {
+      await client.call<void>(`/api/team/members/${encodeURIComponent(id)}`, { method: 'PATCH', body: { role } });
+    },
+    async removeMember(id) {
+      await client.call<void>(`/api/team/members/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    },
     billing: pending('Billing'),
     analytics: pending('Analytics'),
   };
@@ -117,6 +136,7 @@ export function apiSource(client: ApiClient): DataSource {
 /** Seeded data, resolved on a microtask so screens exercise their loading states. */
 /** The preview's edits, for this page load only: the preview has nowhere to save them. */
 const demoEdits = new Map<string, ProductRow>();
+const demoTeam: TeamMemberRow[] = DEMO_TEAM.map((m) => ({ ...m }));
 const demoModels: ModelRow[] = DEMO_MODELS.map((m) => ({ ...m }));
 /** Which version is live per demo model, when it is not the newest. */
 const demoLive = new Map<string, number>();
@@ -204,7 +224,33 @@ export const demoSource: DataSource = {
     demoModels.unshift(model);
     return { modelId: model.id, status: 'processing', error: null };
   },
-  async team() { return DEMO_TEAM; },
+  async team() { return demoTeam.map((m) => ({ ...m })); },
+  async invite(email, role) {
+    const address = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) throw new ApiError(422, 'validation_failed', 'Validation failed', { email: ['is not an email address'] });
+    if (role === 'owner') throw new ApiError(422, 'validation_failed', 'Validation failed', { role: ['cannot be given by invitation'] });
+    if (demoTeam.some((m) => m.email === address && m.status !== 'invited')) throw new ApiError(409, 'conflict', 'this person is already on the team');
+    const open = demoTeam.find((m) => m.email === address);
+    if (open) open.role = role;
+    else demoTeam.push({ id: `inv-${demoTeam.length + 1}`, fullName: '', email: address, role, status: 'invited', lastLoginAt: null });
+  },
+  async revokeInvitation(id) {
+    const at = demoTeam.findIndex((m) => m.id === id && m.status === 'invited');
+    if (at < 0) throw new ApiError(404, 'not_found', 'invitation not found');
+    demoTeam.splice(at, 1);
+  },
+  async changeRole(id, role) {
+    const member = demoTeam.find((m) => m.id === id && m.status !== 'invited');
+    if (!member) throw new ApiError(404, 'not_found', 'team member not found');
+    if (member.role === 'owner' || role === 'owner') throw new ApiError(403, 'forbidden', 'the owner’s role cannot be changed here');
+    member.role = role;
+  },
+  async removeMember(id) {
+    const at = demoTeam.findIndex((m) => m.id === id && m.status !== 'invited');
+    if (at < 0) throw new ApiError(404, 'not_found', 'team member not found');
+    if (demoTeam[at].role === 'owner') throw new ApiError(403, 'forbidden', 'the owner cannot be removed');
+    demoTeam.splice(at, 1);
+  },
   async billing() { return DEMO_BILLING; },
   async analytics(range) {
     const days = range === '7d' ? 7 : range === '30d' ? 30 : 90;

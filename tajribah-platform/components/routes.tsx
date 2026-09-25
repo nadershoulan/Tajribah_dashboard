@@ -8,6 +8,7 @@ import { createElement, type ReactElement } from 'react';
 import DashboardHome from '@/components/pages/DashboardHome';
 import Products from '@/components/pages/Products';
 import ProductDetail from '@/components/pages/ProductDetail';
+import InviteAccept from '@/components/pages/InviteAccept';
 import Models from '@/components/pages/Models';
 import Connections from '@/components/pages/Connections';
 import Analytics from '@/components/pages/Analytics';
@@ -36,6 +37,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
 /** Routes with an id in them: the screen reads the id from the path itself. */
 const PATTERNS: [RegExp, () => ReactElement][] = [
   [/^\/dashboard\/products\/(?!new$)[^/]+$/, ProductDetail],
+  [/^\/invite\/[^/]+$/, InviteAccept],
 ];
 
 /** The rendered screen for a path — an element, so no component is chosen during render. */

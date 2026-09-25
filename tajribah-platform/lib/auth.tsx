@@ -22,6 +22,8 @@ export type AuthApi = {
   register(body: RegisterBody): Promise<{ slugNeedsConfirmation: boolean }>;
   logout(): Promise<void>;
   switchTenant(tenantId: string): Promise<void>;
+  /** P1.24. Rejects with `ApiError` 404 for a used, expired, revoked or someone-else's link. */
+  acceptInvitation(token: string): Promise<void>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -62,6 +64,7 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
     register: async (body) => { const result = await client.register(body); await load(); return result; },
     logout: async () => { await client.logout(); setState({ status: 'signed-out', me: null }); },
     switchTenant: async (tenantId) => { await client.switchTenant(tenantId); await load(); },
+    acceptInvitation: async (token) => { await client.acceptInvitation(token); await load(); },
   }), [state, client, load]);
 
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>;
@@ -85,6 +88,7 @@ export function DemoAuthProvider({ children }: { children: ReactNode }) {
     register: async () => ({ slugNeedsConfirmation: false }),
     logout: async () => {},
     switchTenant: async () => {},
+    acceptInvitation: async () => {},
   }), [tenant]);
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>;
 }

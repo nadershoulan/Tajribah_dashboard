@@ -75,6 +75,14 @@ export const EMAIL = {
       en: `Hello,\n\nOpen this link to reset your password:\n${link}\n\nThe link is valid for ${minutes} minutes and works once. If you did not ask for this, ignore this message; your password has not changed.`,
     },
   })),
+
+  teamInvite: emailTemplate(({ link, store, days }: { link: string; store: string; days: number }) => ({
+    subject: { ar: `دعوة للانضمام إلى فريق ${store} في ${BRAND.ar}`, en: `You are invited to join ${store} on ${BRAND.en}` },
+    text: {
+      ar: `مرحباً،\n\nدُعيت للانضمام إلى فريق متجر «${store}» في ${BRAND.ar}. لقبول الدعوة افتح الرابط التالي وسجّل الدخول بهذا البريد الإلكتروني:\n${link}\n\nالرابط صالح لمدة ${days} أيام ويُستخدم مرة واحدة. إن لم تتوقع هذه الدعوة فتجاهل الرسالة.`,
+      en: `Hello,\n\nYou have been invited to join the team of "${store}" on ${BRAND.en}. To accept, open this link and sign in with this email address:\n${link}\n\nThe link is valid for ${days} days and works once. If you were not expecting this, ignore this message.`,
+    },
+  })),
 };
 
 export async function sendEmail<P>(to: string, template: EmailTemplate<P>, params: P, lang: Lang): Promise<void> {

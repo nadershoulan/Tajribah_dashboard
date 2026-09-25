@@ -9,6 +9,7 @@ import { useLang } from '@/lib/i18n';
 import { LangToggle } from '@/components/dashboard/chrome';
 import { useAuth } from '@/lib/auth';
 import { authErrorMessage } from './auth-errors';
+import { safeNext } from '@/lib/safe-next';
 import { slugify } from '@/lib/slug';
 import { TRIAL_DAYS } from '@/lib/plans';
 
@@ -43,7 +44,8 @@ export default function Register() {
         locale: lang,
         ...(phone ? { phone } : {}),
       });
-      env.navigate('/dashboard');
+      // Back to where the visitor was sent from (an invitation), through the same allow-list as sign-in.
+      env.navigate(safeNext(new URLSearchParams(env.search).get('next')));
     } catch (error) {
       setNote(authErrorMessage(error, t));
     } finally {

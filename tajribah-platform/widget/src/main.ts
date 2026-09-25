@@ -15,9 +15,11 @@
  *    script is included.
  *  - **Never reads our database.** The config comes from the edge (P1.15); if our API is down,
  *    shoppers still see AR.
- *  - **Small.** The heavy viewer (`<model-viewer>`) loads only when a shopper taps (P1.18).
+ *  - **Small.** On a tap, phones open their native AR app (P1.18, `ar.ts`); the heavy viewer
+ *    (`<model-viewer>`) loads only where there is none.
  */
 import { parseConfig, type ViewerConfig } from './config';
+import { arPath, detectDevice } from './ar';
 
 export const WIDGET_VERSION = '1.0.0';
 export const CONFIG_TIMEOUT_MS = 3000;
@@ -78,6 +80,7 @@ button:focus-visible{outline:2px solid currentColor;outline-offset:3px}
 svg{width:18px;height:18px;flex:none}
 .overlay{position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center}
 .sheet{position:relative;width:min(640px,94vw);height:min(640px,80vh);background:#fff;border-radius:16px;overflow:hidden}
+.note{margin:0;padding:64px 24px;font:500 16px/1.6 system-ui,sans-serif;color:#222;text-align:center}
 .close{position:absolute;top:10px;inset-inline-end:10px;z-index:1;background:#fff;color:#111;border-radius:999px;padding:6px 12px;min-height:0;font-size:14px}
 model-viewer{width:100%;height:100%}
 `;
@@ -120,10 +123,36 @@ function loadViewer(src: string): Promise<void> {
   return viewerLoading;
 }
 
-/** The first, simple viewer: `<model-viewer>` in a modal. P1.18 builds the full AR paths. */
+/** P1.18: the native AR app where the phone has one, the in-page viewer otherwise. */
+async function openAr(host: HTMLElement, config: ViewerConfig, lang: 'ar' | 'en', settings: Settings): Promise<void> {
+  const probe = document.createElement('a');
+  const device = detectDevice(navigator.userAgent, navigator.maxTouchPoints ?? 0, !!probe.relList?.supports?.('ar'));
+  const path = arPath(device, config, location.href);
+  if (path.kind === 'quick-look') {
+    // Quick Look opens from a rel="ar" link that contains an image; the link must be in the
+    // document itself (not a shadow root) for Safari to honour it.
+    const link = document.createElement('a');
+    link.rel = 'ar';
+    link.href = path.href;
+    link.style.display = 'none';
+    link.appendChild(document.createElement('img'));
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    return;
+  }
+  if (path.kind === 'scene-viewer') {
+    location.href = path.href;
+    return;
+  }
+  return openViewer(host, config, lang, settings);
+}
+
+/** `<model-viewer>` in a modal: desktops, and phones without a native AR path. */
 async function openViewer(host: HTMLElement, config: ViewerConfig, lang: 'ar' | 'en', settings: Settings): Promise<void> {
-  await loadViewer(settings.viewer);
   const root = host.shadowRoot!;
+  let loaded = true;
+  try { await loadViewer(settings.viewer); } catch { loaded = false; }
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
   overlay.setAttribute('role', 'dialog');
@@ -135,6 +164,23 @@ async function openViewer(host: HTMLElement, config: ViewerConfig, lang: 'ar' | 
   close.type = 'button';
   close.className = 'close';
   close.textContent = lang === 'ar' ? 'إغلاق' : 'Close';
+  if (!loaded) {
+    // The tap deserves an answer even when the viewer is unreachable (P1.16's open item).
+    const note = document.createElement('p');
+    note.className = 'note';
+    note.textContent = lang === 'ar' ? 'تعذّر فتح العرض ثلاثي الأبعاد الآن. حاول مرة أخرى بعد قليل.' : 'The 3D view could not open right now. Please try again shortly.';
+    sheet.appendChild(close);
+    sheet.appendChild(note);
+    overlay.appendChild(sheet);
+    root.appendChild(overlay);
+    const dismissNote = () => { overlay.remove(); document.removeEventListener('keydown', onNoteKey); };
+    const onNoteKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismissNote(); };
+    close.addEventListener('click', dismissNote);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) dismissNote(); });
+    document.addEventListener('keydown', onNoteKey);
+    close.focus();
+    return;
+  }
   const viewer = document.createElement('model-viewer');
   viewer.setAttribute('src', config.model.glb);
   if (config.model.usdz) viewer.setAttribute('ios-src', config.model.usdz);
@@ -178,7 +224,7 @@ export async function mount(doc: Document, settings: Settings, fetchImpl: typeof
     const product = host.getAttribute(ATTR.product) ?? '';
     const config = product ? await loadConfig(configUrl(settings.configBase, settings.store, product), fetchImpl) : null;
     if (!config) { host.setAttribute(READY, 'none'); return; } // fail closed: nothing drawn
-    renderButton(host, config, lang, () => openViewer(host, config, lang, settings));
+    renderButton(host, config, lang, () => openAr(host, config, lang, settings));
     host.setAttribute(READY, 'yes');
     drawn += 1;
   })));

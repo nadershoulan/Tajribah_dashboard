@@ -3,13 +3,13 @@
 _Last updated: 2026-09-23 · updated at the end of every work session_
 
 > **Now:** **P1 has started** (your call, 2026-09-23) — only the parts that need no account. Done so far: the onboarding checklist, the real product catalogue, the store-connection plumbing, the sync engine, receiving webhooks from the store, uploading 3D models, and shrinking them for phones.
-> **Next:** the full AR experience on phones (P1.18) — the last P1 piece that needs no account. **One question for you:** see P1.13b below.
+> **Next:** everything in P1 that needs no account is built. The rest waits on the Salla Partner account, Cloudflare, the domain — and one decision from you (P1.13b below).
 > **P0:** code gate passed; the rest waits on you — see below. [Gate report](docs/gates/P0.md)
 > **Waiting on you:** a **Hetzner server** for the database (your choice), and the accounts below.
 
 ```
 P0 Foundation     ████████████████████████████░░░░  19 / 22   (+ P0.20 mostly done, 2 blocked)
-P1 Core loop      ██████████████████████░░░░░░░░░░  18 / 26   ← first sellable product (started)
+P1 Core loop      ███████████████████████░░░░░░░░░  19 / 26   ← first sellable product (started)
 P2 Billing        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 15
 P3 3D pipeline    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 P4 Analytics      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
@@ -19,7 +19,7 @@ P7 Scale          ░░░░░░░░░░░░░░░░░░░░�
 P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 M  Marketing      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12   (separate site in tajribah-try-on)
 A  Admin console  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 14
-                                            overall  37 / 168
+                                            overall  38 / 168
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -75,6 +75,7 @@ marked 🔒 in `docs/PACKAGES.md` wait for Salla / Cloudflare / the domain.
 | ✅ | P1.7 Store webhooks | When something changes in the store (a product edited or deleted, the app uninstalled), the store tells us straight away. Each message is checked to prove it really came from the store — fakes are refused and never saved — and a message sent twice is only acted on once. Changes trigger a quick sync, deleted products are archived, an uninstall disconnects the store. A message that fails to process is retried, then kept so it can be re-run with one click. Salla's exact message format is plugged in once the Salla account exists |
 | ✅ | P1.6b Automatic sync schedule | Every store is kept up to date on a timer (hourly by default), new stores first. A store whose sync keeps failing is retried once an hour, not hammered. A sync that got stuck (for example the server restarted mid-way) is noticed after 15 minutes and resumed. The sync history is stored month by month so it stays fast as it grows, with the same store-to-store privacy checks as everything else |
 | ✅ | P1.9 Products screen | The product list now asks the server for each page, so it stays fast with thousands of products. Search (Arabic too), filters and their counts all come from the real data; "Show more" loads the next page. Checked in Arabic and English, on a laptop and a phone |
+| ✅ | P1.18 AR on the shopper's phone | When a shopper taps the button: on an iPhone the product opens straight in Apple's AR viewer, on Android in Google's — no extra download, and locked to the product's real size so it can't be pinched bigger or smaller. On a computer it opens a 3D view on the page. Glasses and watches keep the 3D view until virtual try-on arrives. If something fails, the shopper sees a short message instead of nothing |
 | ✅ | P1.17 Install in your store | The two lines to paste into your product page template (the old text on this screen would not have worked — fixed), and a checker: paste a product page's address and we open it and tell you exactly what's wrong — no code, the wrong store's code, the product number not filled in — and how to fix it. For safety it only opens pages of your own store. Every screen now also fits a phone properly |
 | ✅ | P1.16 The AR button for your store ⭐⭐ | The small script that goes on your product pages: it adds the "View in your space" button in your brand colour and your store's language, and opens the 3D viewer when a shopper taps. It is tiny (under 3 KB), loads after your page, can't be restyled by your theme or restyle it, and if anything goes wrong it simply shows no button — it can never break your shop. It goes live once the Cloudflare account and domain exist |
 | ✅ | P1.23 Bell and quick search | The bell now shows real notifications — only the ones worth your attention: a sync that failed, a model ready to publish or refused, an update from your store that couldn't be processed, someone accepting your invitation. Each person has their own, and reading them doesn't mark them for others. Ctrl+K (or the search icon) jumps to any screen you're allowed to open, or to a product by name or SKU, in Arabic or English |
@@ -155,3 +156,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-25 | P1.23 notifications + quick search | 314 pass / 0 fail |
 | 2026-09-25 | P1.16 AR button script for storefronts (2.7 KB, can't break the shop) | 318 pass / 0 fail |
 | 2026-09-25 | P1.17 install snippet + checker; all screens fit phones | 322 pass / 0 fail |
+| 2026-09-25 | P1.18 AR on phones — all no-account parts of P1 now done | 325 pass / 0 fail |

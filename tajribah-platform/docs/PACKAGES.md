@@ -69,7 +69,7 @@ not marked done until it has run against the real service.
 | P1.15 | **Edge viewer config ⭐⭐** | 🔒 Cloudflare KV | Publish writes a versioned KV entry; the shopper path never reads Postgres |
 | P1.16 ✅ | **AR viewer widget ⭐⭐** | — | < 60 KB gzipped, loads after the page, fails closed |
 | P1.17 ✅ | Embed & install | — | Snippet + install checker |
-| P1.18 | Shopper AR experience | — | WebXR / Quick Look / Scene Viewer paths |
+| P1.18 ✅ | Shopper AR experience | — | WebXR / Quick Look / Scene Viewer paths |
 | P1.19 | Hosted AR pages | 🔒 domain | Per-product page on the short domain |
 | P1.20 | QR codes | 🔒 short domain (§12 #3) | Per product, printable. **Blocked:** a printed code is permanent, so it must encode the final short domain — codes printed against a temporary host break when the domain arrives |
 | P1.21 ✅ | AR settings UI | — | Button style, placement, per product |

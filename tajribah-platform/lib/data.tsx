@@ -13,7 +13,7 @@ import {
   DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS,
 } from './demo-data';
 import type {
-  AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ApiError, currentStore, type ApiClient } from './api-client';
 import type { ProductListPage, ProductListQuery } from './contracts/products';
@@ -21,6 +21,7 @@ import { DEFAULT_BUTTON_RADIUS, SettingsPatch, type StoreSettings } from './cont
 import { ArConfigInput, DEFAULT_AR_CONFIG, placementErrors, placementsFor, type ArConfigView } from './contracts/ar-config';
 import { pageOf } from './product-list';
 import { MODEL_TARGET_BYTES } from './model-size';
+import { embedSnippet } from '../widget/src/snippet';
 import { applyEdit, editErrors, type ProductEdit } from './product-edit';
 
 export interface DataSource {
@@ -51,6 +52,9 @@ export interface DataSource {
   billing(): Promise<BillingSummary>;
   /** P1.25. Refusals: `ApiError` 422 with per-field messages. */
   settings(): Promise<StoreSettings>;
+  /** P1.17: the snippet to paste, and a live check of a product page. */
+  embed(): Promise<{ storeKey: string; snippet: string; storeHost: string | null }>;
+  checkInstall(url: string): Promise<InstallCheck>;
   /** P1.23: the signed-in person's own notifications, newest first. */
   notifications(): Promise<{ items: NotificationItem[]; unread: number }>;
   markNotificationsRead(ids: string[] | 'all'): Promise<void>;
@@ -143,6 +147,8 @@ export function apiSource(client: ApiClient): DataSource {
     async settings() { return client.call<StoreSettings>('/api/settings'); },
     async arConfigs() { return (await client.call<{ configs: ArConfigView[] }>('/api/ar-configs')).configs; },
     async notifications() { return client.call<{ items: NotificationItem[]; unread: number }>('/api/notifications'); },
+    async embed() { return client.call<{ storeKey: string; snippet: string; storeHost: string | null }>('/api/embed'); },
+    async checkInstall(url) { return client.call<InstallCheck>('/api/embed/check', { method: 'POST', body: { url } }); },
     async markNotificationsRead(ids) {
       await client.call('/api/notifications/read', { method: 'POST', body: ids === 'all' ? { all: true } : { ids } });
     },
@@ -289,6 +295,13 @@ export const demoSource: DataSource = {
   },
   async billing() { return DEMO_BILLING; },
   async settings() { return { ...demoSettings }; },
+  async embed() {
+    return { storeKey: DEMO_DASHBOARD.tenant.slug, snippet: embedSnippet(DEMO_DASHBOARD.tenant.slug), storeHost: null };
+  },
+  async checkInstall(url) {
+    // The preview has no server to fetch the page from: it says so instead of pretending.
+    return { status: 'unreachable', detail: 'preview — the real app fetches the page and checks it', url };
+  },
   async notifications() {
     return { items: demoNotifications.map((n) => ({ ...n })), unread: demoNotifications.filter((n) => !n.read).length };
   },

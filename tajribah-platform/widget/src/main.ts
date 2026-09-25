@@ -24,6 +24,10 @@ export const CONFIG_TIMEOUT_MS = 3000;
 const DEFAULT_CONFIG_BASE = 'https://cfg.tajribah.com/v1';
 const DEFAULT_VIEWER = 'https://cdn.tajribah.com/vendor/model-viewer-4.0.0.min.js';
 const READY = 'data-tajribah-ready';
+/** The attributes merchants paste (P1.17's snippet is built from these, and tested against them). */
+export const ATTR = { store: 'data-tajribah-store', product: 'data-tajribah-product', config: 'data-tajribah-config', viewer: 'data-tajribah-viewer' } as const;
+/** Where the widget is served, versioned; the snippet and the install checker both use it. */
+export const WIDGET_SRC = 'https://cdn.tajribah.com/w/v1/widget.js';
 
 type Settings = { store: string; configBase: string; viewer: string };
 
@@ -154,13 +158,13 @@ async function openViewer(host: HTMLElement, config: ViewerConfig, lang: 'ar' | 
 }
 
 function settingsOf(doc: Document): Settings | null {
-  const script = (doc.currentScript as HTMLScriptElement | null) ?? doc.querySelector<HTMLScriptElement>('script[data-tajribah-store]');
-  const store = script?.getAttribute('data-tajribah-store');
+  const script = (doc.currentScript as HTMLScriptElement | null) ?? doc.querySelector<HTMLScriptElement>(`script[${ATTR.store}]`);
+  const store = script?.getAttribute(ATTR.store);
   if (!store) return null;
   return {
     store,
-    configBase: script!.getAttribute('data-tajribah-config') ?? DEFAULT_CONFIG_BASE,
-    viewer: script!.getAttribute('data-tajribah-viewer') ?? DEFAULT_VIEWER,
+    configBase: script!.getAttribute(ATTR.config) ?? DEFAULT_CONFIG_BASE,
+    viewer: script!.getAttribute(ATTR.viewer) ?? DEFAULT_VIEWER,
   };
 }
 
@@ -168,10 +172,10 @@ function settingsOf(doc: Document): Settings | null {
 export async function mount(doc: Document, settings: Settings, fetchImpl: typeof fetch = fetch): Promise<number> {
   const lang = pageLang(doc);
   let drawn = 0;
-  const hosts = Array.from(doc.querySelectorAll<HTMLElement>('[data-tajribah-product]')).filter((el) => !el.hasAttribute(READY));
+  const hosts = Array.from(doc.querySelectorAll<HTMLElement>(`[${ATTR.product}]`)).filter((el) => !el.hasAttribute(READY));
   await Promise.all(hosts.map((host) => guard(async () => {
     host.setAttribute(READY, 'loading');
-    const product = host.getAttribute('data-tajribah-product') ?? '';
+    const product = host.getAttribute(ATTR.product) ?? '';
     const config = product ? await loadConfig(configUrl(settings.configBase, settings.store, product), fetchImpl) : null;
     if (!config) { host.setAttribute(READY, 'none'); return; } // fail closed: nothing drawn
     renderButton(host, config, lang, () => openViewer(host, config, lang, settings));

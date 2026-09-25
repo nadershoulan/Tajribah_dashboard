@@ -94,6 +94,11 @@ export type ConnectionDetail = ConnectionSummary & {
   webhooks: WebhookHealth;
 };
 
+/** The install checker's answer (P1.17). */
+export type InstallCheck =
+  | { status: 'installed'; productRef: string; url: string }
+  | { status: 'missing_script' | 'wrong_store' | 'missing_placeholder' | 'template_not_rendered' | 'unreachable'; detail: string | null; url: string };
+
 /** One notification in the bell (P1.23). */
 export type NotificationItem = {
   id: string;

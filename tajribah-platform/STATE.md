@@ -63,7 +63,9 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
 **Filed, not fixed (outside the package that found them):**
 - PGlite is one connection: inside `withTenant`, any call on `unsafeAdminDb()` deadlocks
   in tests (on real Postgres it would be a second connection). Nothing does this today.
-- Auth events (`login`, `logout`) are not audited yet — they have no `TenantContext`.
+- ~~Auth events (`login`, `logout`) are not audited~~ — stale entry, struck 2026-09-26:
+  `recordSessionEvent` writes both to the session's store trail (`auth/http.ts`), asserted in
+  `server/modules/auth/__tests__/http.test.ts` ("one login, one logout").
 - (P1.3) Transport circuit and rate-limit state live in memory, per `Transport` instance —
   on Workers that is per isolate, so two isolates syncing one store each get the full
   bucket. P1.6 must either keep one connection's sync on one worker or move the bucket to

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  decryptSecret, encryptSecret, hashPassword, hmac, keyedHash, needsRehash,
+  decryptSecret, encryptSecret, encryptionKeyId, hashPassword, hmac, keyedHash, needsRehash,
   otpCode, signJwt, timingSafeEqual, verifyJwt, verifyPassword,
 } from '@/server/core/auth/crypto';
 
@@ -74,7 +74,7 @@ test('keyedHash is domain-separated', async () => {
 
 test('secrets round-trip, and a wrong key returns null rather than throwing', async () => {
   const envelope = await encryptSecret('salla-access-token-abc', SECRET);
-  assert.match(envelope, /^v1\./);
+  assert.match(envelope, /^v2\.[\w-]{8}\./, 'versioned, with the id of the key that sealed it');
   assert.ok(!envelope.includes('salla-access-token-abc'), 'the plaintext must not survive');
   assert.equal(await decryptSecret(envelope, SECRET), 'salla-access-token-abc');
   assert.equal(await decryptSecret(envelope, SECRET + 'x'), null);
@@ -86,6 +86,23 @@ test('an envelope bound to one id does not open for another, or unbound', async 
   assert.equal(await decryptSecret(envelope, SECRET, 'conn-a'), 'token');
   assert.equal(await decryptSecret(envelope, SECRET, 'conn-b'), null);
   assert.equal(await decryptSecret(envelope, SECRET), null);
+});
+
+test('key rotation: an envelope says which key sealed it, and the old key still opens it', async () => {
+  const OLD = SECRET;
+  const NEW = 'n'.repeat(40);
+  const sealed = await encryptSecret('token', OLD, 'conn-a');
+  assert.equal(sealed.split('.')[1], await encryptionKeyId(OLD));
+  assert.notEqual(await encryptionKeyId(OLD), await encryptionKeyId(NEW));
+  assert.equal(await decryptSecret(sealed, [NEW, OLD], 'conn-a'), 'token', 'the previous key opens what it sealed');
+  assert.equal(await decryptSecret(sealed, [NEW], 'conn-a'), null, 'once the previous key is gone, it does not');
+  // The key id must not be part of the AES key: that key is SHA-256(secret).
+  const material = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(OLD)));
+  const prefix = [Buffer.from(material).toString('hex'), Buffer.from(material).toString('base64url')].map((s) => s.slice(0, 8));
+  assert.ok(!prefix.includes(await encryptionKeyId(OLD)), 'the key id leaks key bits');
+  // Envelopes sealed before key ids existed (`v1.iv.data`) still open, under any given key.
+  const [, , iv, data] = sealed.split('.');
+  assert.equal(await decryptSecret(`v1.${iv}.${data}`, [NEW, OLD], 'conn-a'), 'token');
 });
 
 test('the same plaintext encrypts to different envelopes', async () => {

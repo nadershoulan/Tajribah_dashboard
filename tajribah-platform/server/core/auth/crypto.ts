@@ -172,8 +172,20 @@ async function aesKey(secret: string): Promise<CryptoKey> {
 }
 
 /**
+ * Which key sealed an envelope, without saying anything about the key: an HMAC under the
+ * key itself, in its own domain. Never a prefix of SHA-256(secret) — that *is* the AES key.
+ * 8 characters (48 bits) tell a handful of keys apart; nothing depends on it being unique.
+ */
+export async function encryptionKeyId(secret: string): Promise<string> {
+  return (await keyedHash(secret, 'encryption_key_id', 'v2')).slice(0, 8);
+}
+
+/**
  * `boundTo` is authenticated but not stored (GCM additional data): an envelope sealed for one
  * connection id does not open for another, so a ciphertext copied between rows is useless.
+ *
+ * Envelope: `v2.<key id>.<iv>.<ciphertext>`. The key id is what lets `ENCRYPTION_KEY` be
+ * rotated: the previous key stays readable while rows move to the new one.
  */
 export async function encryptSecret(plaintext: string, secret: string, boundTo?: string): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -181,23 +193,42 @@ export async function encryptSecret(plaintext: string, secret: string, boundTo?:
   const ciphertext = await crypto.subtle.encrypt(
     gcm(iv, boundTo), key, enc.encode(plaintext),
   );
-  return `v1.${b64url(iv)}.${b64url(new Uint8Array(ciphertext))}`;
+  return `v2.${await encryptionKeyId(secret)}.${b64url(iv)}.${b64url(new Uint8Array(ciphertext))}`;
 }
 
-export async function decryptSecret(envelope: string, secret: string, boundTo?: string): Promise<string | null> {
-  const [version, ivPart, dataPart] = envelope.split('.');
-  if (version !== 'v1' || !ivPart || !dataPart) return null;
-  try {
-    const key = await aesKey(secret);
-    const plain = await crypto.subtle.decrypt(
-      gcm(fromB64url(ivPart), boundTo),
-      key,
-      fromB64url(dataPart) as unknown as BufferSource,
-    );
-    return new TextDecoder().decode(plain);
-  } catch {
-    return null; // wrong key or tampered ciphertext — indistinguishable on purpose
+/**
+ * Open `envelope` with whichever of `secrets` sealed it (current key first, then the
+ * previous one during a rotation). `v1` envelopes predate key ids: each key is tried.
+ */
+export async function decryptSecret(envelope: string, secrets: string | readonly string[], boundTo?: string): Promise<string | null> {
+  const keys = typeof secrets === 'string' ? [secrets] : secrets;
+  const parts = envelope.split('.');
+  let candidates: readonly string[];
+  let ivPart: string | undefined;
+  let dataPart: string | undefined;
+  if (parts[0] === 'v2' && parts.length === 4) {
+    [, , ivPart, dataPart] = parts;
+    const ids = await Promise.all(keys.map(encryptionKeyId));
+    candidates = keys.filter((_, i) => ids[i] === parts[1]);
+  } else if (parts[0] === 'v1' && parts.length === 3) {
+    [, ivPart, dataPart] = parts;
+    candidates = keys;
+  } else return null;
+  if (!ivPart || !dataPart) return null;
+  for (const secret of candidates) {
+    try {
+      const key = await aesKey(secret);
+      const plain = await crypto.subtle.decrypt(
+        gcm(fromB64url(ivPart), boundTo),
+        key,
+        fromB64url(dataPart) as unknown as BufferSource,
+      );
+      return new TextDecoder().decode(plain);
+    } catch {
+      // wrong key or tampered ciphertext — indistinguishable on purpose; try the next key
+    }
   }
+  return null;
 }
 
 function gcm(iv: Uint8Array, boundTo?: string): AesGcmParams {

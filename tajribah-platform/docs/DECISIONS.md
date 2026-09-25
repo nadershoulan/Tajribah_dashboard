@@ -275,3 +275,25 @@ the native fallbacks (Quick Look link, Scene Viewer intent).
 
 **Rollback path.** Bundle the viewer into the widget and raise the budget — a deliberate,
 measured trade, not a default.
+
+## T16 · 2026-09-26 · `ENCRYPTION_KEY` rotates with a key id and one previous key (fix filed under P1.3)
+
+**Decision.** Token envelopes are `v2.<key id>.<iv>.<ciphertext>`. The key id is 8 characters
+of an HMAC under the key in its own domain (`encryptionKeyId`) — never a prefix of
+SHA-256(key), which is the AES key itself. An optional `ENCRYPTION_KEY_PREVIOUS` opens
+envelopes the old key sealed; `v1` envelopes (no key id) are tried against both. Tokens move
+to the current key when used (`accessTokenFor`, under its row lock) and by a sweep on the
+worker's schedule tick (`server/modules/connections/rotation.ts`).
+
+**Procedure.** Set `ENCRYPTION_KEY_PREVIOUS` = old, `ENCRYPTION_KEY` = new, deploy. Wait for
+the worker log `connection tokens re-sealed` to stop reporting any (`resealed: 0` — the sweep
+is silent then). Remove `ENCRYPTION_KEY_PREVIOUS`, deploy. Rows counted `unreadable` were
+already unreadable; their next use asks the merchant to reconnect, as before.
+
+**Why.** Without a key id, changing the key made every connection unreadable at once, and
+every merchant had to reconnect — which rules out rotating after a suspected leak. One
+previous key, not a keyring: rotations are rare, and each finishes in minutes.
+
+**Rollback path.** Put the old key back as `ENCRYPTION_KEY` with the new one as previous; the
+same sweep moves everything back. Code rollback: `v2` envelopes would need re-sealing as `v1`
+first — drop the key id segment (`v1.<iv>.<ciphertext>` opens under the same key).

@@ -68,9 +68,11 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
   on Workers that is per isolate, so two isolates syncing one store each get the full
   bucket. P1.6 must either keep one connection's sync on one worker or move the bucket to
   KV/Durable Objects.
-- (P1.3) `ENCRYPTION_KEY` has no rotation: one key, `v1` envelopes. Changing it turns every
-  connection to `error` (tokens unreadable → reconnect). Needs a key id in the envelope
-  before the first real merchant connects.
+- ~~(P1.3) `ENCRYPTION_KEY` had no rotation~~ — fixed 2026-09-26 (DECISIONS T16): `v2`
+  envelopes carry a key id; `ENCRYPTION_KEY_PREVIOUS` opens old ones; tokens re-seal on use
+  and via `resealConnections` on the schedule tick. 3 rotation tests + 1 crypto test; seen
+  red 6 ways (previous key ignored, no re-seal on use, sweep not re-sealing, re-seal under
+  the old key, key id = SHA-256 prefix, `v1` refused).
 - ~~(P1.6) A crash between committing a sync row and enqueueing its job leaves it stuck~~ —
   closed by P1.6b: the schedule re-enqueues a sync idle for 15 minutes.
 - ~~(P0.13) concurrent `enqueue` with one `dedupeKey` threw a unique violation~~ — fixed

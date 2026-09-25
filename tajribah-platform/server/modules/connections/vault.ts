@@ -8,7 +8,7 @@
  */
 import type { StoreConnection } from '@/db/schema';
 import type { TokenSet } from '@/server/connectors/types';
-import { decryptSecret, encryptSecret } from '@/server/core/auth/crypto';
+import { decryptSecret, encryptSecret, encryptionKeyId } from '@/server/core/auth/crypto';
 
 export type SealedTokens = Pick<StoreConnection,
   'accessTokenEncrypted' | 'refreshTokenEncrypted' | 'tokenExpiresAt' | 'scopes'>;
@@ -17,6 +17,9 @@ export type SealedTokens = Pick<StoreConnection,
 export const NO_TOKENS: SealedTokens = {
   accessTokenEncrypted: null, refreshTokenEncrypted: null, tokenExpiresAt: null, scopes: null,
 };
+
+/** `current` seals; `previous` only opens, while `ENCRYPTION_KEY` is being rotated. */
+export type VaultKeys = { current: string; previous?: string };
 
 export async function sealTokens(connectionId: string, tokens: TokenSet, key: string): Promise<SealedTokens> {
   return {
@@ -32,14 +35,21 @@ export async function sealTokens(connectionId: string, tokens: TokenSet, key: st
  * or the ciphertext was altered or moved from another row. The caller cannot tell which,
  * on purpose; every case means the merchant has to reconnect.
  */
-export async function openTokens(row: StoreConnection, key: string): Promise<TokenSet | null> {
+export async function openTokens(row: StoreConnection, keys: VaultKeys): Promise<TokenSet | null> {
   if (!row.accessTokenEncrypted) return null;
-  const accessToken = await decryptSecret(row.accessTokenEncrypted, key, row.id);
+  const secrets = keys.previous ? [keys.current, keys.previous] : [keys.current];
+  const accessToken = await decryptSecret(row.accessTokenEncrypted, secrets, row.id);
   if (accessToken === null) return null;
   let refreshToken: string | null = null;
   if (row.refreshTokenEncrypted) {
-    refreshToken = await decryptSecret(row.refreshTokenEncrypted, key, row.id);
+    refreshToken = await decryptSecret(row.refreshTokenEncrypted, secrets, row.id);
     if (refreshToken === null) return null;
   }
   return { accessToken, refreshToken, expiresAt: row.tokenExpiresAt, scopes: row.scopes };
+}
+
+/** True when `row` holds tokens not sealed under the current key (a previous key, or `v1`). */
+export async function needsReseal(row: StoreConnection, keys: VaultKeys): Promise<boolean> {
+  const prefix = `v2.${await encryptionKeyId(keys.current)}.`;
+  return [row.accessTokenEncrypted, row.refreshTokenEncrypted].some((e) => e !== null && !e.startsWith(prefix));
 }

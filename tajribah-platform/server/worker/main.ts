@@ -16,6 +16,7 @@ import { registerAllHandlers } from './handlers';
 import { dispatchPending } from '@/server/modules/webhooks/dispatch';
 import { scheduleSyncs } from '@/server/modules/sync/schedule';
 import { expireStaleDrafts } from '@/server/modules/models/cleanup';
+import { resealConnections } from '@/server/modules/connections/rotation';
 
 export const WORKER_ID = `worker-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -57,10 +58,11 @@ export async function runForever(options: { intervalMs?: number; limit?: number 
   }
 }
 
-/** The database-driven sweeps: due syncs, then uploads abandoned as drafts (P1.12). */
+/** The database-driven sweeps: due syncs, abandoned draft uploads, tokens under an old key. */
 async function scheduled(): Promise<void> {
   await scheduleSyncs();
   await expireStaleDrafts();
+  await resealConnections();
 }
 
 /** Stored webhook deliveries are handled on the same tick as queue jobs (P1.7). */

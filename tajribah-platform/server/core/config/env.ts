@@ -47,6 +47,11 @@ export const REGISTRY = {
     doc: 'AES-256-GCM key for store connection tokens at rest (§7.5). Domain-separated from AUTH_SECRET.',
     example: 'generate-with-openssl-rand-base64-48',
   }),
+  ENCRYPTION_KEY_PREVIOUS: entry({
+    schema: z.string().min(32).optional(),
+    scope: 'runtime', secret: true,
+    doc: 'Only while rotating ENCRYPTION_KEY: the old key, so tokens it sealed still open. The worker re-seals them; remove it once none are left.',
+  }),
   SESSION_TTL_MINUTES: entry({
     schema: z.coerce.number().int().positive().default(15),
     scope: 'runtime', doc: 'Access token lifetime. The refresh token outlives it and rotates.',

@@ -74,7 +74,7 @@ test('tokens are stored sealed: not in the row, not in the audit trail, not in t
     const row = await raw(harness, made.id);
     const stored = JSON.stringify(row);
     assert.ok(!stored.includes('access-1') && !stored.includes('refresh-1'), 'no plaintext at rest');
-    assert.match(row.accessTokenEncrypted, /^v1\./);
+    assert.match(row.accessTokenEncrypted, /^v2\.[\w-]{8}\./);
     assert.deepEqual(row.scopes, ['products.read_write']);
 
     const trail = await harness.asAdmin(() => harness.db.select().from(auditLogs));

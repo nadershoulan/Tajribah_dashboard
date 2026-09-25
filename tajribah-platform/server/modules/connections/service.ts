@@ -24,7 +24,7 @@ import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { uuidv7 } from '@/lib/ids';
-import { NO_TOKENS, openTokens, sealTokens } from './vault';
+import { needsReseal, NO_TOKENS, openTokens, sealTokens, type VaultKeys } from './vault';
 
 /** Refresh this long before the store says the token expires: a sync page takes time. */
 export const REFRESH_SKEW_MS = 5 * 60_000;
@@ -44,7 +44,12 @@ export class ReconnectRequiredError extends AppError {
   }
 }
 
-const vaultKey = () => loadEnv().ENCRYPTION_KEY;
+/** Seal with the current key; open with it or, during a rotation, the previous one. */
+export const vaultKeys = (): VaultKeys => {
+  const env = loadEnv();
+  return { current: env.ENCRYPTION_KEY, previous: env.ENCRYPTION_KEY_PREVIOUS };
+};
+const vaultKey = () => vaultKeys().current;
 
 export async function connectStore(ctx: TenantContext, input: ConnectInput): Promise<ConnectionSummary> {
   ctx.require('connections:write');
@@ -111,7 +116,7 @@ export async function revokeIn(ctx: TenantContext, db: TenantDb, id: string, rea
  * upstream failure through untouched (nothing is changed; the next attempt retries).
  */
 export async function accessTokenFor(ctx: TenantContext, id: string, now: Date = new Date()): Promise<string> {
-  const key = vaultKey();
+  const keys = vaultKeys();
   // A refusal is written inside the transaction and thrown after it: throwing inside
   // would roll back the very status change that explains the refusal.
   const outcome = await withTenant(ctx.tenantId, async (db): Promise<{ token: string } | { refused: StoreConnection['status'] }> => {
@@ -125,10 +130,14 @@ export async function accessTokenFor(ctx: TenantContext, id: string, now: Date =
       return { refused: status };
     };
 
-    const tokens = await openTokens(row, key);
+    const tokens = await openTokens(row, keys);
     if (!tokens) return refuse('error', 'stored tokens could not be read — reconnect the store');
     const expiresAt = tokens.expiresAt?.getTime();
-    if (expiresAt === undefined || expiresAt - now.getTime() > REFRESH_SKEW_MS) return { token: tokens.accessToken };
+    if (expiresAt === undefined || expiresAt - now.getTime() > REFRESH_SKEW_MS) {
+      // Opened with a previous key: move it to the current one while the row is locked anyway.
+      if (await needsReseal(row, keys)) await db.updateById(storeConnections, id, await sealTokens(id, tokens, keys.current));
+      return { token: tokens.accessToken };
+    }
     if (!tokens.refreshToken) return refuse('expired', 'access expired and the store gave no refresh token');
 
     let next: TokenSet;
@@ -140,7 +149,7 @@ export async function accessTokenFor(ctx: TenantContext, id: string, now: Date =
     }
     // A store that rotates without re-sending the refresh token means "keep the old one".
     const merged: TokenSet = { ...next, refreshToken: next.refreshToken ?? tokens.refreshToken, scopes: next.scopes ?? tokens.scopes };
-    await db.updateById(storeConnections, id, await sealTokens(id, merged, key));
+    await db.updateById(storeConnections, id, await sealTokens(id, merged, keys.current));
     return { token: merged.accessToken };
   });
 

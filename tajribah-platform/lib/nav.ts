@@ -71,7 +71,14 @@ export const EXTRA_TITLES: Record<string, Bi> = {
   '/register': { ar: 'إنشاء حساب', en: 'Create an account' },
 };
 
+/** The sidebar for a role: items it may open, and no group left empty. */
+export function navGroupsFor(permissions: readonly string[]): NavGroup[] {
+  return DASHBOARD_NAV
+    .map((group) => ({ ...group, items: group.items.filter((item) => !item.permission || permissions.includes(item.permission)) }))
+    .filter((group) => group.items.length > 0);
+}
+
 /** The screens a role may open, flattened — for the command palette (P1.23). */
 export function visibleNav(permissions: readonly string[]): NavItem[] {
-  return DASHBOARD_NAV.flatMap((group) => group.items).filter((item) => !item.permission || permissions.includes(item.permission));
+  return navGroupsFor(permissions).flatMap((group) => group.items);
 }

@@ -93,8 +93,10 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
 - ~~(P1.16) a failed viewer load gave no feedback~~ — closed by P1.18 (message + native paths).
 - (P1.16) The widget's browser behaviour (shadow isolation, fail-closed, no host errors) is
   verified by a recorded CDP run, not by `verify.mjs`. Add a browser job when CI exists (P0.21).
-- (P1.23) The sidebar's comment says it hides items a role cannot use, but it filters only by
-  plan feature, not by role. The palette filters by role (`visibleNav`); the sidebar should too.
+- ~~(P1.23) the sidebar filtered by plan only, not by role~~ — fixed 2026-09-26:
+  `navGroupsFor(permissions)` (empty groups dropped) drives the sidebar, and `visibleNav`
+  is built from it, so sidebar and palette cannot disagree. 3 tests, seen red with the
+  filter removed.
 - (P1.23) Notifications are only fetched when the bell is opened or a page loads — no push.
   Enough for now; revisit with P1.26's load work.
 - (P1.25) PDPL self-service export/erasure is not built; the buttons are disabled. It needs a

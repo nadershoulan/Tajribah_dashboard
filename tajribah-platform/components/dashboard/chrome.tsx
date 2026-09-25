@@ -18,7 +18,8 @@ import { useAuth } from '@/lib/auth';
 import { RequireSession } from './require-session';
 import { CommandPalette } from './command-palette';
 import { NotificationBell } from './notifications';
-import { DASHBOARD_NAV } from '@/lib/nav';
+import { navGroupsFor } from '@/lib/nav';
+import { ROLE_PERMISSIONS } from '@/lib/permissions';
 import { planByCode } from '@/lib/plans';
 import type { TenantSummary } from '@/lib/view-models';
 import { formatRelative } from '@/lib/format';
@@ -48,6 +49,9 @@ function Sidebar({ tenant, open, onClose }: { tenant: TenantSummary | null; open
   const env = useEnv();
   const auth = useAuth();
   const plan = tenant ? planByCode(tenant.plan) : null;
+  // Same rule as the palette. Not a security boundary: the API refuses what the role lacks.
+  const role = currentStore(auth.me)?.role ?? 'viewer';
+  const groups = navGroupsFor(ROLE_PERMISSIONS[role] ?? []);
 
   const signOut = async () => {
     await auth.logout();
@@ -58,7 +62,7 @@ function Sidebar({ tenant, open, onClose }: { tenant: TenantSummary | null; open
     <nav className="sidebar" data-open={open ? 'true' : 'false'} aria-label={t('التنقل الرئيسي', 'Main navigation')}>
       <Logo light />
 
-      {DASHBOARD_NAV.map((group) => (
+      {groups.map((group) => (
         <div className="side-group" key={group.label.en}>
           <h2>{pick(group.label)}</h2>
           {group.items.map((item) => {

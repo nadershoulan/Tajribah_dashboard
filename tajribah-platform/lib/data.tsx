@@ -18,6 +18,7 @@ import type {
 import { ApiError, currentStore, type ApiClient } from './api-client';
 import type { ProductListPage, ProductListQuery } from './contracts/products';
 import { DEFAULT_BUTTON_RADIUS, SettingsPatch, type StoreSettings } from './contracts/settings';
+import { ArConfigInput, DEFAULT_AR_CONFIG, placementErrors, placementsFor, type ArConfigView } from './contracts/ar-config';
 import { pageOf } from './product-list';
 import { MODEL_TARGET_BYTES } from './model-size';
 import { applyEdit, editErrors, type ProductEdit } from './product-edit';
@@ -50,6 +51,9 @@ export interface DataSource {
   billing(): Promise<BillingSummary>;
   /** P1.25. Refusals: `ApiError` 422 with per-field messages. */
   settings(): Promise<StoreSettings>;
+  /** P1.21: AR button and viewer settings per product. */
+  arConfigs(): Promise<ArConfigView[]>;
+  saveArConfig(productId: string, input: ArConfigInput): Promise<ArConfigView>;
   updateSettings(patch: Record<string, unknown>): Promise<StoreSettings>;
   analytics(range: '7d' | '30d' | '90d'): Promise<AnalyticsView>;
 }
@@ -134,6 +138,10 @@ export function apiSource(client: ApiClient): DataSource {
     },
     billing: pending('Billing'),
     async settings() { return client.call<StoreSettings>('/api/settings'); },
+    async arConfigs() { return (await client.call<{ configs: ArConfigView[] }>('/api/ar-configs')).configs; },
+    async saveArConfig(productId, input) {
+      return client.call<ArConfigView>(`/api/ar-configs/${encodeURIComponent(productId)}`, { method: 'PUT', body: input });
+    },
     async updateSettings(patch) { return client.call<StoreSettings>('/api/settings', { method: 'PATCH', body: patch }); },
     analytics: pending('Analytics'),
   };
@@ -143,6 +151,15 @@ export function apiSource(client: ApiClient): DataSource {
 /** The preview's edits, for this page load only: the preview has nowhere to save them. */
 const demoEdits = new Map<string, ProductRow>();
 const demoTeam: TeamMemberRow[] = DEMO_TEAM.map((m) => ({ ...m }));
+const demoArConfigs = new Map<string, ArConfigView>();
+function demoArDefault(p: ProductRow): ArConfigView {
+  return {
+    productId: p.id, productName: p.name, productNameAr: p.nameAr, productType: p.productType, arEnabled: p.arEnabled,
+    buttonLabelAr: DEFAULT_AR_CONFIG.buttonLabelAr, buttonLabelEn: DEFAULT_AR_CONFIG.buttonLabelEn, variant: DEFAULT_AR_CONFIG.variant,
+    showIcon: DEFAULT_AR_CONFIG.showIcon, placement: placementsFor(p.productType)[0], scale: 1, autoRotate: true, shadow: 1,
+    saved: false, publishedVersion: 0, unpublishedChanges: false,
+  };
+}
 /** The preview store's settings: blank identity fields, as a new merchant has (§11). */
 const demoSettings: StoreSettings = {
   slug: DEMO_DASHBOARD.tenant.slug, name: DEMO_DASHBOARD.tenant.name, nameAr: null, crNumber: null, vatNumber: null,
@@ -264,6 +281,20 @@ export const demoSource: DataSource = {
   },
   async billing() { return DEMO_BILLING; },
   async settings() { return { ...demoSettings }; },
+  async arConfigs() {
+    return DEMO_PRODUCTS.filter((p) => p.status !== 'archived').map((p) => demoArConfigs.get(p.id) ?? demoArDefault(p));
+  },
+  async saveArConfig(productId, input) {
+    const product = DEMO_PRODUCTS.find((p) => p.id === productId);
+    if (!product) throw new ApiError(404, 'not_found', 'product not found');
+    const parsed = ArConfigInput.safeParse(input);
+    const fields: Record<string, string[]> = parsed.success ? placementErrors(product.productType, parsed.data.placement) : {};
+    if (!parsed.success) for (const issue of parsed.error.issues) (fields[String(issue.path[0] ?? '_')] ??= []).push(issue.message);
+    if (Object.keys(fields).length) throw new ApiError(422, 'validation_failed', 'Validation failed', fields);
+    const view = { ...demoArDefault(product), ...parsed.data!, saved: true, unpublishedChanges: true };
+    demoArConfigs.set(productId, view);
+    return view;
+  },
   async updateSettings(patch) {
     const parsed = SettingsPatch.safeParse(patch);
     if (!parsed.success) {

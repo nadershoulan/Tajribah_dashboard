@@ -534,3 +534,23 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .button-preview > span { display: inline-flex; align-items: center; gap: 8px; color: #fff; padding: 10px 18px; font-weight: 600; font-size: 14.5px; }
 .save-bar { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap;
   margin-top: 18px; padding: 12px 0; background: linear-gradient(to top, var(--bg, #f6f8fa) 70%, transparent); }
+
+/* P1.21 — AR settings */
+.pick-list { list-style: none; margin: 0; padding: 6px; display: grid; gap: 2px; max-height: 560px; overflow-y: auto; }
+.pick-list button { width: 100%; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; padding: 10px 12px;
+  border: 0; border-radius: 10px; background: none; font: inherit; text-align: start; cursor: pointer; }
+.pick-list button:hover { background: var(--bg, #f6f8fa); }
+.pick-list button[aria-current="true"] { background: var(--bg, #f6f8fa); box-shadow: inset 3px 0 0 var(--aqua); }
+[dir="rtl"] .pick-list button[aria-current="true"] { box-shadow: inset -3px 0 0 var(--aqua); }
+.pick-name { font-weight: 500; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+.pick-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.placement { border: 0; padding: 0; margin: 0 0 14px; }
+.placement legend { font-size: 13.5px; font-weight: 500; margin-bottom: 6px; }
+.placement-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.placement-options label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 13.5px; cursor: pointer; }
+.placement-options label.is-on { border-color: var(--aqua); background: var(--bg, #f6f8fa); }
+.placement-options input { accent-color: var(--aqua); }
+.ar-grid { display: grid; grid-template-columns: minmax(240px, 2fr) minmax(0, 3fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .ar-grid { grid-template-columns: minmax(0, 1fr); } }
+/* The CSS reset makes svg a block; inside a toggle's text it belongs on the line. */
+.toggle > span { display: inline-flex; align-items: center; gap: 6px; }

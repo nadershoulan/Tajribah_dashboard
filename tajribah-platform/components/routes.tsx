@@ -9,6 +9,7 @@ import DashboardHome from '@/components/pages/DashboardHome';
 import Products from '@/components/pages/Products';
 import ProductDetail from '@/components/pages/ProductDetail';
 import InviteAccept from '@/components/pages/InviteAccept';
+import ArSettings from '@/components/pages/ArSettings';
 import Models from '@/components/pages/Models';
 import Connections from '@/components/pages/Connections';
 import Analytics from '@/components/pages/Analytics';
@@ -30,6 +31,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/dashboard/team': Team,
   '/dashboard/settings': SettingsPage,
   '/dashboard/embed': Embed,
+  '/dashboard/ar-settings': ArSettings,
   '/login': Login,
   '/register': Register,
 };

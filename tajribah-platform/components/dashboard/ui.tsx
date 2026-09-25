@@ -76,8 +76,9 @@ export function Stat({ label, value, sub, delta, hint }: {
           {delta > 0 ? '▲' : delta < 0 ? '▼' : '—'} {formatPercent(Math.abs(delta), lang)}
         </div>
       )}
+      {/* A missing number always says why; real stores see this until P4 has data. */}
+      {value === null && <div className="stat-sub">{t('لا توجد بيانات كافية بعد', 'Not enough data yet')}</div>}
       {sub && <div className="stat-sub">{sub}</div>}
-      {value === null && !sub && <div className="stat-sub">{t('لا توجد بيانات كافية بعد', 'Not enough data yet')}</div>}
     </div>
   );
 }

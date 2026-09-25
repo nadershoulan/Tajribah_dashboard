@@ -14,6 +14,7 @@ import type {
   ActivityItem, AnalyticsView, BillingSummary, ConnectionSummary, DashboardSummary,
   MetricPoint, ModelRow, ProductRow, SyncProgress, TeamMemberRow, WebhookHealth,
 } from './view-models';
+import { STEP_COPY } from './onboarding-steps';
 
 /** Deterministic: the same preview build always renders the same numbers. */
 function seeded(seed: number): () => number {
@@ -192,25 +193,8 @@ export const DEMO_DASHBOARD: DashboardSummary = {
   },
   onboarding: {
     complete: false,
-    steps: [
-      { key: 'account', title: { ar: 'إنشاء الحساب', en: 'Create your account' },
-        description: { ar: 'تم', en: 'Done' }, href: '/dashboard', done: true, minutes: 2 },
-      { key: 'store', title: { ar: 'بيانات المتجر', en: 'Store details' },
-        description: { ar: 'الاسم والسجل التجاري والرقم الضريبي', en: 'Name, CR and VAT number' },
-        href: '/dashboard/settings', done: true, minutes: 3 },
-      { key: 'connect', title: { ar: 'ربط سلة', en: 'Connect Salla' },
-        description: { ar: 'نستورد منتجاتك تلقائيًا', en: 'We import your catalogue automatically' },
-        href: '/dashboard/connections', done: true, minutes: 2 },
-      { key: 'catalogue', title: { ar: 'مراجعة المقاسات', en: 'Check your dimensions' },
-        description: { ar: 'المقاس بالمليمتر هو ما يجعل الحجم حقيقيًا', en: 'Millimetres are what make the size real' },
-        href: '/dashboard/products', done: false, minutes: 10 },
-      { key: 'first_model', title: { ar: 'أول نموذج ثلاثي الأبعاد', en: 'Your first 3D model' },
-        description: { ar: 'ارفع ملفًا أو ولّده من صور المنتج', en: 'Upload a file, or generate it from photos' },
-        href: '/dashboard/models', done: true, minutes: 5 },
-      { key: 'embed', title: { ar: 'تركيب الزر في متجرك', en: 'Install the button in your store' },
-        description: { ar: 'سطر واحد في قالب صفحة المنتج', en: 'One line in your product page template' },
-        href: '/dashboard/embed', done: false, minutes: 5 },
-    ],
+    // The shared copy (lib/onboarding-steps.ts); only whether each is done is demo data.
+    steps: STEP_COPY.map((step) => ({ ...step, done: !['catalogue', 'embed'].includes(step.key) })),
   },
   counts: { products: 64, arEnabled: 41, models: 6, modelsReady: 4, teamMembers: 3 },
   usage: {

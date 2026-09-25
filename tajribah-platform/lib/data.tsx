@@ -69,7 +69,7 @@ export function apiSource(client: ApiClient): DataSource {
       if (!store) throw new ApiError(404, 'not_found', 'no store on this account');
       return store;
     },
-    dashboard: pending('The dashboard summary'),
+    async dashboard() { return client.call<DashboardSummary>('/api/dashboard'); },
     async products(query = {}) {
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(query)) {

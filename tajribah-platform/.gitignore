@@ -54,3 +54,6 @@ next-env.d.ts
 
 # local Worker variables (wrangler) — dev-only secrets, never committed
 /.dev.vars
+
+# P1.16 — the built storefront widget (widget/build.mjs)
+/widget/dist/

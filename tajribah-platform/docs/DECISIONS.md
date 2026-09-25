@@ -253,3 +253,25 @@ untouched until then, and they are usually most of the 2 MB.
 
 **Rollback path.** Remove the four packages and `server/modules/models/{optimize,process}.ts`;
 confirmed uploads then stay `processing`, and nothing else depends on them.
+
+## T15 · 2026-09-25 · The storefront widget is a small loader; `<model-viewer>` loads on tap; iOS 15+ (P1.16)
+
+**Decision.** The script on merchants' product pages (`widget/`) only finds its placeholders,
+fetches and checks the viewer config from the edge, and draws the button in a shadow root —
+2.7 KB gzipped today, gated at 60 KB by a test. `<model-viewer>` (the plan's viewer, §5) is
+loaded by a module script tag **only when a shopper taps**, from a pinned, versioned URL on
+our CDN (`data-tajribah-viewer` overrides it for tests). Build target `es2020`: iOS 15+,
+because esbuild will not lower destructuring around a Safari 14 bug, and Saudi iPhone
+traffic below iOS 15 is negligible.
+
+**Why.** `<model-viewer>` with three.js is several times the 60 KB budget; bundling it would
+put that weight on every product page view for the few shoppers who tap. Loading it by script
+tag keeps the loader import-free and lets the viewer be updated without touching the loader.
+
+**Consequences.** The pinned `model-viewer` file must be copied onto our CDN when Cloudflare
+exists (P1.15/P1.18); until then the default URL does not resolve and a tap fails closed
+(nothing opens). A failed viewer load currently gives the shopper no feedback — P1.18 adds
+the native fallbacks (Quick Look link, Scene Viewer intent).
+
+**Rollback path.** Bundle the viewer into the widget and raise the budget — a deliberate,
+measured trade, not a default.

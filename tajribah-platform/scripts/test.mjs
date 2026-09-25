@@ -55,7 +55,7 @@ function findBundles(dir, found = []) {
   return found.sort();
 }
 
-const tests = ['server', 'lib', 'db']
+const tests = ['server', 'lib', 'db', 'widget']
   .flatMap((d) => findTests(join(ROOT, d)))
   .filter((f) => !filter || f.includes(filter));
 

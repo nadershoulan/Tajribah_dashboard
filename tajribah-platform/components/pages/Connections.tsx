@@ -3,8 +3,10 @@
 // MD-030 — Store connections
 
 import { AlertTriangle, CheckCircle2, Link2, RefreshCw, ShoppingBag } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useLang } from '@/lib/i18n';
-import { useResource } from '@/lib/data';
+import { useData, useResource } from '@/lib/data';
+import type { ConnectionDetail, SyncProgress } from '@/lib/view-models';
 import { formatDateTime, formatNumber, formatRelative } from '@/lib/format';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
@@ -51,17 +53,25 @@ const PROVIDERS: ProviderCard[] = [
 ];
 
 export default function Connections() {
-  const { t, pick, lang } = useLang();
-  const { data, loading, error } = useResource((source) => source.dashboard());
-  const connection = data?.connection ?? null;
+  const { t, pick } = useLang();
+  // Bumped to reload after an action, and on a timer while a sync is running.
+  const [version, setVersion] = useState(0);
+  const { data, loading, error } = useResource((source) => source.connections(), [version]);
+  const syncing = (data ?? []).some((c) => c.latestSync?.status === 'queued' || c.latestSync?.status === 'running');
+  useEffect(() => {
+    if (!syncing) return;
+    const timer = setTimeout(() => setVersion((v) => v + 1), 3000);
+    return () => clearTimeout(timer);
+  }, [syncing, version]);
 
   const crumbs = [
     { label: t('الرئيسية', 'Home'), href: '/dashboard' },
     { label: t('ربط المتجر', 'Store connections') },
   ];
+  const linked = new Set((data ?? []).filter((c) => c.status === 'active').map((c) => c.provider));
 
   return (
-    <Shell tenant={data?.tenant ?? null} crumbs={crumbs}>
+    <Shell tenant={null} crumbs={crumbs}>
       <PageHead
         title={t('ربط المتجر', 'Store connections')}
         lead={t(
@@ -70,63 +80,15 @@ export default function Connections() {
         )}
       />
 
-      {loading && <Panel><Loading rows={4} /></Panel>}
+      {loading && !data && <Panel><Loading rows={4} /></Panel>}
       {error && <ErrorNote error={error} />}
-
-      {!loading && connection && (
-        <Panel
-          title={t('المتجر المتصل', 'Connected store')}
-          actions={
-            <>
-              <button type="button" className="btn btn-ghost btn-sm">
-                <RefreshCw size={14} aria-hidden />{t('مزامنة الآن', 'Sync now')}
-              </button>
-              <button type="button" className="btn btn-quiet btn-sm">{t('فصل', 'Disconnect')}</button>
-            </>
-          }
-        >
-          <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <span className="empty-icon" style={{ margin: 0, width: 44, height: 44 }}>
-              <ShoppingBag size={20} aria-hidden />
-            </span>
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 4 }}>
-                <strong style={{ fontSize: 16 }}>{connection.storeName}</strong>
-                <Badge tone={connection.status === 'active' ? 'ok' : 'bad'} dot>
-                  {connection.status === 'active' ? t('نشط', 'Active') : t('يحتاج انتباهك', 'Needs attention')}
-                </Badge>
-              </div>
-              <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 13.5 }}>
-                {connection.storeUrl} · {formatNumber(connection.productCount, lang)} {t('منتج', 'products')}
-              </p>
-              {connection.lastSyncAt && (
-                <p style={{ margin: '4px 0 0', color: 'var(--text-3)', fontSize: 13 }}>
-                  {t('آخر مزامنة', 'Last sync')} {formatRelative(connection.lastSyncAt, lang)}
-                  {' · '}<span className="mm">{formatDateTime(connection.lastSyncAt, lang)}</span>
-                </p>
-              )}
-              {connection.lastError && (
-                <p style={{ margin: '8px 0 0', color: 'var(--bad)', fontSize: 13 }}>
-                  <AlertTriangle size={13} aria-hidden /> {connection.lastError}
-                </p>
-              )}
-            </div>
-            <div style={{ minWidth: 150 }}>
-              <div className="usage-row">
-                <div className="usage-top">
-                  <span>{t('صحة الاتصال', 'Connection health')}</span>
-                  <span className="num">{connection.healthScore}%</span>
-                </div>
-                <div className="meter"><i style={{ width: `${connection.healthScore}%` }} /></div>
-              </div>
-            </div>
-          </div>
-        </Panel>
-      )}
+      {(data ?? []).map((connection) => (
+        <ConnectionPanel key={connection.id} connection={connection} onChanged={() => setVersion((v) => v + 1)} />
+      ))}
 
       <div className="grid grid-2" style={{ marginTop: 18 }}>
         {PROVIDERS.map((provider) => {
-          const connected = connection?.provider === provider.id;
+          const connected = linked.has(provider.id);
           return (
             <section className="panel" key={provider.id} style={{ padding: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
@@ -172,4 +134,151 @@ export default function Connections() {
       </Panel>
     </Shell>
   );
+}
+
+const STATUS: Record<ConnectionDetail['status'], { tone: 'ok' | 'bad' | 'warn'; label: Bi }> = {
+  active: { tone: 'ok', label: { ar: 'نشط', en: 'Active' } },
+  expired: { tone: 'warn', label: { ar: 'انتهت الصلاحية', en: 'Access expired' } },
+  revoked: { tone: 'bad', label: { ar: 'مفصول', en: 'Disconnected' } },
+  error: { tone: 'bad', label: { ar: 'يحتاج انتباهك', en: 'Needs attention' } },
+};
+
+function ConnectionPanel({ connection, onChanged }: { connection: ConnectionDetail; onChanged: () => void }) {
+  const { t, pick, lang } = useLang();
+  const source = useData();
+  const [busy, setBusy] = useState<'sync' | 'disconnect' | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [failure, setFailure] = useState<Error | null>(null);
+  const sync = connection.latestSync;
+  const running = sync?.status === 'queued' || sync?.status === 'running';
+  const active = connection.status === 'active';
+
+  const act = async (kind: 'sync' | 'disconnect') => {
+    setBusy(kind);
+    setFailure(null);
+    try {
+      if (kind === 'sync') await source.syncNow(connection.id);
+      else await source.disconnect(connection.id);
+      setConfirming(false);
+      onChanged();
+    } catch (error) {
+      setFailure(error as Error);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const n = (value: number) => formatNumber(value, lang);
+  const status = STATUS[connection.status];
+  return (
+    <Panel
+      title={t('المتجر المتصل', 'Connected store')}
+      actions={active && (
+        <>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => act('sync')} disabled={running || busy !== null}>
+            <RefreshCw size={14} aria-hidden />{running ? t('تجري المزامنة…', 'Syncing…') : t('مزامنة الآن', 'Sync now')}
+          </button>
+          {!confirming && (
+            <button type="button" className="btn btn-quiet btn-sm" onClick={() => setConfirming(true)} disabled={busy !== null}>{t('فصل', 'Disconnect')}</button>
+          )}
+        </>
+      )}
+    >
+      <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <span className="empty-icon" style={{ margin: 0, width: 44, height: 44 }}>
+          <ShoppingBag size={20} aria-hidden />
+        </span>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 4, flexWrap: 'wrap' }}>
+            <strong style={{ fontSize: 16 }}>{connection.storeName}</strong>
+            <Badge tone={status.tone} dot>{pick(status.label)}</Badge>
+          </div>
+          <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 13.5, overflowWrap: 'anywhere' }}>
+            {connection.storeUrl ? `${connection.storeUrl} · ` : ''}{t('المنتجات', 'Products')}: <span className="num">{n(connection.productCount)}</span>
+          </p>
+          {connection.lastSyncAt && (
+            <p style={{ margin: '4px 0 0', color: 'var(--text-3)', fontSize: 13 }}>
+              {t('آخر مزامنة', 'Last sync')} {formatRelative(connection.lastSyncAt, lang)}
+              {' · '}{formatDateTime(connection.lastSyncAt, lang)}
+            </p>
+          )}
+          {sync && <SyncLine sync={sync} />}
+          {connection.lastError && (
+            <p role="alert" style={{ margin: '8px 0 0', color: 'var(--bad)', fontSize: 13 }}>
+              <AlertTriangle size={13} aria-hidden /> {connection.lastError}
+            </p>
+          )}
+          {!active && (
+            <p className="hint">
+              {connection.status === 'revoked'
+                ? t('المتجر مفصول ولن يُزامن. منتجاتك باقية هنا. أعد الربط لاستئناف المزامنة.', 'This store is disconnected and will not sync. Your products stay here. Reconnect it to resume syncing.')
+                : t('انتهى إذن الوصول إلى متجرك. أعد الربط لاستئناف المزامنة.', 'Access to your store has lapsed. Reconnect it to resume syncing.')}
+            </p>
+          )}
+        </div>
+        <div style={{ minWidth: 170 }}>
+          <div className="usage-top" style={{ fontSize: 13, marginBottom: 4 }}>
+            <span>{t('تحديثات المتجر (24 ساعة)', 'Store updates (24 h)')}</span>
+          </div>
+          <p style={{ margin: 0, fontSize: 13.5 }}>
+            <span className="num">{n(connection.webhooks.last24h.processed)}</span> {t('نُفّذت', 'handled')}
+            {connection.webhooks.last24h.failed > 0 && (
+              <> · <span className="num" style={{ color: 'var(--bad)' }}>{n(connection.webhooks.last24h.failed)}</span> {t('فشلت', 'failed')}</>
+            )}
+          </p>
+          {connection.webhooks.lastFailure && (
+            <p style={{ margin: '2px 0 0', fontSize: 12.5, color: 'var(--text-3)' }}>
+              {t('آخر فشل', 'Last failure')} {formatRelative(connection.webhooks.lastFailure.at, lang)} · <span className="mm">{connection.webhooks.lastFailure.topic}</span>
+            </p>
+          )}
+        </div>
+      </div>
+
+      {confirming && (
+        <div className="confirm" role="alertdialog" aria-labelledby={`disconnect-${connection.id}`}>
+          <p id={`disconnect-${connection.id}`} style={{ margin: 0 }}>
+            <strong>{t('فصل هذا المتجر؟', 'Disconnect this store?')}</strong>{' '}
+            {t('نتوقف عن المزامنة ونحذف مفاتيح الوصول. منتجاتك ونماذجها تبقى كما هي.', 'We stop syncing and delete the access keys. Your products and their models stay as they are.')}
+          </p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <button type="button" className="btn btn-danger btn-sm" onClick={() => act('disconnect')} disabled={busy !== null}>
+              {busy === 'disconnect' ? t('جارٍ الفصل…', 'Disconnecting…') : t('نعم، افصل', 'Yes, disconnect')}
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirming(false)} disabled={busy !== null}>{t('إلغاء', 'Cancel')}</button>
+          </div>
+        </div>
+      )}
+      {failure && <ErrorNote error={failure} />}
+    </Panel>
+  );
+}
+
+function SyncLine({ sync }: { sync: SyncProgress }) {
+  const { t, lang } = useLang();
+  const n = (value: number) => formatNumber(value, lang);
+  if (sync.status === 'queued') return <p className="sync-line">{t('المزامنة في الطابور…', 'Sync queued…')}</p>;
+  if (sync.status === 'running') {
+    return (
+      <div className="sync-line sync-progress" role="status">
+        <span>
+          {t('تجري المزامنة', 'Syncing')}{sync.percent !== null ? ` · ${n(sync.percent)}%` : ''}
+          {sync.total > 0 && <> · <span className="num">{n(sync.processed)}</span> {t('من', 'of')} <span className="num">{n(sync.total)}</span></>}
+        </span>
+        <div className="meter"><i style={{ width: `${sync.percent ?? 0}%` }} /></div>
+      </div>
+    );
+  }
+  if (sync.status === 'failed') {
+    return <p className="sync-line" style={{ color: 'var(--bad)' }}>{t('فشلت آخر مزامنة', 'The last sync failed')}{sync.error ? `: ${sync.error}` : ''}</p>;
+  }
+  if (sync.status === 'done') {
+    return (
+      <p className="sync-line">
+        {t('فُحص في آخر مزامنة', 'Checked in the last sync')}: <span className="num">{n(sync.processed)}</span>
+        {sync.failed > 0 && <> · {t('لم يُستورد', 'Not imported')}: <span className="num" style={{ color: 'var(--bad)' }}>{n(sync.failed)}</span></>}
+        {sync.error ? <> · {sync.error}</> : null}
+      </p>
+    );
+  }
+  return null;
 }

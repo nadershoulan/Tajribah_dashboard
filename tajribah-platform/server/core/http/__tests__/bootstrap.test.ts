@@ -10,9 +10,10 @@ import * as onboardingHttp from '@/server/modules/onboarding/http';
 import * as productsHttp from '@/server/modules/products/http';
 import * as webhooksHttp from '@/server/modules/webhooks/http';
 import * as modelsHttp from '@/server/modules/models/http';
+import * as connectionsHttp from '@/server/modules/connections/http';
 
 // Every module's handlers. A new module's http.ts is added here once.
-const MODULE_HANDLERS: Record<string, Record<string, unknown>> = { auth: authHttp, onboarding: onboardingHttp, products: productsHttp, webhooks: webhooksHttp, models: modelsHttp };
+const MODULE_HANDLERS: Record<string, Record<string, unknown>> = { auth: authHttp, onboarding: onboardingHttp, products: productsHttp, webhooks: webhooksHttp, models: modelsHttp, connections: connectionsHttp };
 
 const BASE = { APP_URL: 'http://localhost:5173', AUTH_SECRET: 'a'.repeat(40), ENCRYPTION_KEY: 'b'.repeat(40) };
 

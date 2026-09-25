@@ -10,10 +10,10 @@
  */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
-  DEMO_ANALYTICS, DEMO_BILLING, DEMO_DASHBOARD, DEMO_MODELS, DEMO_PRODUCTS, DEMO_TEAM,
+  DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS,
 } from './demo-data';
 import type {
-  AnalyticsView, BillingSummary, DashboardSummary, ModelRow, ProductRow, TeamMemberRow, TenantSummary,
+  AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, ModelRow, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ApiError, currentStore, type ApiClient } from './api-client';
 import type { ProductListPage, ProductListQuery } from './contracts/products';
@@ -29,6 +29,10 @@ export interface DataSource {
   product(id: string): Promise<ProductRow | null>;
   /** P1.10. Refusals arrive as `ApiError` 422 with per-field messages. */
   updateProduct(id: string, edit: ProductEdit): Promise<ProductRow>;
+  /** P1.11: every store connection with its latest sync and webhook health. */
+  connections(): Promise<ConnectionDetail[]>;
+  syncNow(connectionId: string): Promise<SyncProgress>;
+  disconnect(connectionId: string): Promise<void>;
   models(): Promise<ModelRow[]>;
   team(): Promise<TeamMemberRow[]>;
   billing(): Promise<BillingSummary>;
@@ -70,6 +74,15 @@ export function apiSource(client: ApiClient): DataSource {
     async updateProduct(id, edit) {
       return client.call<ProductRow>(`/api/products/${encodeURIComponent(id)}`, { method: 'PATCH', body: edit });
     },
+    async connections() {
+      return (await client.call<{ connections: ConnectionDetail[] }>('/api/connections')).connections;
+    },
+    async syncNow(connectionId) {
+      return client.call<SyncProgress>(`/api/connections/${encodeURIComponent(connectionId)}/sync`, { method: 'POST' });
+    },
+    async disconnect(connectionId) {
+      await client.call<void>(`/api/connections/${encodeURIComponent(connectionId)}`, { method: 'DELETE' });
+    },
     models: pending('The model library'),
     team: pending('Team management'),
     billing: pending('Billing'),
@@ -80,6 +93,14 @@ export function apiSource(client: ApiClient): DataSource {
 /** Seeded data, resolved on a microtask so screens exercise their loading states. */
 /** The preview's edits, for this page load only: the preview has nowhere to save them. */
 const demoEdits = new Map<string, ProductRow>();
+const demoConnectionState: { status: ConnectionDetail['status']; lastSyncAt: string | null; sync: SyncProgress | null } =
+  { status: DEMO_CONNECTION.status, lastSyncAt: DEMO_CONNECTION.lastSyncAt, sync: null };
+function demoConnections(): ConnectionDetail[] {
+  return [{
+    ...DEMO_CONNECTION, status: demoConnectionState.status, lastSyncAt: demoConnectionState.lastSyncAt,
+    latestSync: demoConnectionState.sync ?? DEMO_SYNC, webhooks: DEMO_WEBHOOKS,
+  }];
+}
 
 export const demoSource: DataSource = {
   async currentTenant() { return DEMO_DASHBOARD.tenant; },
@@ -94,6 +115,25 @@ export const demoSource: DataSource = {
     const next = applyEdit(current, edit);
     demoEdits.set(id, next);
     return next;
+  },
+  async connections() { return demoConnections(); },
+  async syncNow(connectionId) {
+    const connection = demoConnections().find((c) => c.id === connectionId);
+    if (!connection) throw new ApiError(404, 'not_found', 'store connection not found');
+    if (connection.status !== 'active') throw new ApiError(409, 'conflict', `the store connection is ${connection.status} — reconnect the store`);
+    // The preview has no worker: the sync it starts finishes at once, with the catalogue it has.
+    const now = new Date().toISOString();
+    demoConnectionState.sync = {
+      id: `sync-${Date.now()}`, connectionId, type: 'incremental', status: 'done', triggeredBy: 'user',
+      processed: DEMO_PRODUCTS.length, failed: 0, total: DEMO_PRODUCTS.length, percent: 100,
+      startedAt: now, finishedAt: now, error: null,
+    };
+    demoConnectionState.lastSyncAt = now;
+    return demoConnectionState.sync;
+  },
+  async disconnect(connectionId) {
+    if (!demoConnections().some((c) => c.id === connectionId)) throw new ApiError(404, 'not_found', 'store connection not found');
+    demoConnectionState.status = 'revoked';
   },
   async models() { return DEMO_MODELS; },
   async team() { return DEMO_TEAM; },

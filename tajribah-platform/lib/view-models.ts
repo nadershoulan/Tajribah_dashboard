@@ -88,6 +88,12 @@ export type ConnectionSummary = {
   lastError: string | null;
 };
 
+/** One store connection as the connections screen shows it (P1.11): no token, ever. */
+export type ConnectionDetail = ConnectionSummary & {
+  latestSync: SyncProgress | null;
+  webhooks: WebhookHealth;
+};
+
 export type ActivityItem = {
   id: string;
   kind: 'sync' | 'model' | 'publish' | 'billing' | 'team' | 'tryon';

@@ -12,7 +12,7 @@
  */
 import type {
   ActivityItem, AnalyticsView, BillingSummary, ConnectionSummary, DashboardSummary,
-  MetricPoint, ModelRow, ProductRow, TeamMemberRow,
+  MetricPoint, ModelRow, ProductRow, SyncProgress, TeamMemberRow, WebhookHealth,
 } from './view-models';
 
 /** Deterministic: the same preview build always renders the same numbers. */
@@ -73,6 +73,18 @@ export const DEMO_CONNECTION: ConnectionSummary = {
   healthScore: 98,
   productCount: 64,
   lastError: null,
+};
+
+/** The demo store's last sync and its webhook traffic (P1.11). */
+export const DEMO_SYNC: SyncProgress = {
+  id: 'sync-demo', connectionId: 'conn-demo', type: 'incremental', status: 'done', triggeredBy: 'schedule',
+  processed: 12, failed: 0, total: 12, percent: 100, startedAt: iso(0, 6), finishedAt: iso(0, 6), error: null,
+};
+
+export const DEMO_WEBHOOKS: WebhookHealth = {
+  last24h: { waiting: 0, processed: 37, failed: 1, ignored: 4 },
+  lastDeliveryAt: iso(0, 1),
+  lastFailure: { id: 'wh-demo', topic: 'product.updated', error: 'handler bug', at: iso(0, 9) },
 };
 
 export const DEMO_PRODUCTS: ProductRow[] = [

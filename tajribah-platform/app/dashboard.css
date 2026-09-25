@@ -496,3 +496,11 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; margin: 0; font-size: 14px; }
 .facts dt { color: var(--text-3); }
 .facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
+/* P1.11 — connections */
+.sync-line { margin: 6px 0 0; font-size: 13px; color: var(--text-2); max-width: 360px; }
+/* Only the running sync stacks: its text over its meter. */
+.sync-progress { display: grid; gap: 4px; }
+.confirm { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--bad); border-radius: 12px; background: var(--bad-bg, #fff5f5); font-size: 13.5px; }
+.btn-danger { background: var(--bad); color: #fff; border: 1px solid var(--bad); }
+.btn-danger:hover:not(:disabled) { filter: brightness(.94); }

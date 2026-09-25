@@ -19,7 +19,7 @@ export async function replayWebhook(ctx: TenantContext, id: string): Promise<voi
   if (!event) throw errors.notFound('webhook delivery');
   if (!event.signatureValid) throw errors.conflict('a delivery whose signature failed is never replayed');
   if (event.status === 'received') return; // already waiting for the worker
-  await auditedUpdate(ctx, webhookEvents, id, { status: 'received', attempts: 0, error: null, processedAt: null },
+  await auditedUpdate(ctx, webhookEvents, id, { status: 'received', attempts: 0, error: null, processedAt: null, nextAttemptAt: null },
     { resourceType: 'webhook_event', action: 'update' });
 }
 

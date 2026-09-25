@@ -12,6 +12,7 @@ import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness'
 import { FakeStore } from '@/server/testing/fake-store';
 import { connectStore } from '@/server/modules/connections/service';
 import { dispatchOne, dispatchPending, HANDLERS, MAX_WEBHOOK_ATTEMPTS } from '@/server/modules/webhooks/dispatch';
+import { backoffMs } from '@/server/core/jobs/queue';
 import { receiveWebhookHandler } from '@/server/modules/webhooks/http';
 import { replayWebhook, webhookHealth } from '@/server/modules/webhooks/service';
 import { clearWebhookSources, hmacSha256, hmacSource, registerWebhookSource, toHex } from '@/server/modules/webhooks/sources';
@@ -174,6 +175,47 @@ test('a failing handler is retried, then failed; a person replays it; a forged r
     const other = await merchant(harness, 'beta');
     await assert.rejects(() => replayWebhook(other.ctx, event.id), (e: any) => code(e) === 'not_found');
   } finally { delete HANDLERS['test.flaky']; clearConnectors(); await harness.close(); }
+});
+
+test('a failed attempt waits before the next one, longer each time; a replay goes straight back', async () => {
+  const harness = await createTestDb();
+  HANDLERS['test.down'] = async () => { throw new Error('still down'); };
+  try {
+    const { ctx } = await merchant(harness, 'alpha');
+    await deliver(envelope({ event: 'test.down' }));
+    const t0 = new Date();
+    assert.equal((await dispatchPending(50, t0)).retry, 1);
+    assert.equal((await dispatchPending(50, t0)).retry, 0, 'not again on the very next tick');
+    const first = (await events(harness))[0];
+    const wait1 = first.nextAttemptAt.getTime() - t0.getTime();
+    assert.equal(wait1, backoffMs(1));
+
+    const t1 = new Date(first.nextAttemptAt.getTime());
+    assert.equal((await dispatchPending(50, t1)).retry, 1, 'due again once the wait is over');
+    const second = (await events(harness))[0];
+    assert.ok(second.nextAttemptAt.getTime() - t1.getTime() > wait1, 'and the next wait is longer');
+
+    await admin(harness, () => harness.db.update(webhookEvents).set({ status: 'failed' } as any).where(eq(webhookEvents.id, first.id)));
+    await replayWebhook(ctx, first.id);
+    assert.equal((await events(harness))[0].nextAttemptAt, null, 'a person asked: no waiting');
+    assert.equal((await dispatchPending(50, t1)).retry, 1);
+  } finally { delete HANDLERS['test.down']; clearConnectors(); await harness.close(); }
+});
+
+test('one store\'s flood does not hold back another store\'s update; a lone store still fills the batch', async () => {
+  const harness = await createTestDb();
+  try {
+    await merchant(harness, 'alpha');
+    for (let i = 0; i < 10; i++) await deliver(envelope({ event: 'order.created' }));
+    await merchant(harness, 'beta');
+    await deliver(envelope({ event: 'order.created', store: 'store-beta' }));
+
+    assert.equal((await dispatchPending(5)).ignored, 5, 'the batch is full');
+    const waiting = (await events(harness)).filter((e) => e.status === 'received');
+    const tenants = new Set(waiting.map((e) => e.tenantId));
+    assert.equal(waiting.length, 6);
+    assert.equal(tenants.size, 1, 'beta\'s one event went in the first batch, though ten of alpha\'s are older');
+  } finally { clearConnectors(); await harness.close(); }
 });
 
 test('two workers on one event: it is handled once', async () => {

@@ -7,13 +7,19 @@
  * `received` again. A handler works in that transaction; anything that must not happen
  * unless it commits (enqueueing a job) is returned as `afterCommit`.
  *
- * A failed handler rolls back, and a second small transaction counts the attempt. After
- * `MAX_WEBHOOK_ATTEMPTS` the event is `failed` and waits for a person to replay it.
+ * A failed handler rolls back, and a second small transaction counts the attempt and sets
+ * when the next one may run (the job queue's `backoffMs`). After `MAX_WEBHOOK_ATTEMPTS` the
+ * event is `failed` and waits for a person to replay it.
+ *
+ * Fair like the job queue: in each pass a store gets at most `FAIR_SHARE` of the batch
+ * before anyone gets more, so one store's flood cannot hold back another store's update.
+ * Slots nobody else wants go to the oldest events left — a store alone still fills the batch.
  */
-import { and, asc, eq, ne } from 'drizzle-orm';
+import { and, asc, eq, isNull, lte, ne, or } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
 import { products, storeConnections, webhookEvents } from '@/db/schema';
 import { record } from '@/server/core/audit/audit';
+import { backoffMs, FAIR_SHARE } from '@/server/core/jobs/queue';
 import { log } from '@/server/core/observability/log';
 import { systemContext, type TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
@@ -61,22 +67,35 @@ export const HANDLERS: Record<string, TopicHandler> = {
   },
 };
 
-/** One worker pass over events waiting to be handled, oldest first. */
-export async function dispatchPending(limit = 50): Promise<Record<DispatchOutcome, number>> {
+/** One worker pass over events due to be handled: fair across stores, oldest first within. */
+export async function dispatchPending(limit = 50, now = new Date()): Promise<Record<DispatchOutcome, number>> {
   // Platform scheduling across tenants, like the job queue: ids and tenants only. Each
   // event is then handled inside its own tenant's RLS transaction.
-  const pending = await unsafeAdminDb()
+  const due = await unsafeAdminDb()
     .select({ id: webhookEvents.id, tenantId: webhookEvents.tenantId })
     .from(webhookEvents)
-    .where(eq(webhookEvents.status, 'received'))
+    .where(and(eq(webhookEvents.status, 'received'), or(isNull(webhookEvents.nextAttemptAt), lte(webhookEvents.nextAttemptAt, now))))
     .orderBy(asc(webhookEvents.createdAt))
-    .limit(limit);
+    .limit(limit * 10);
   const counts: Record<DispatchOutcome, number> = { processed: 0, ignored: 0, retry: 0, failed: 0, skipped: 0 };
-  for (const { id, tenantId } of pending) counts[await dispatchOne(tenantId, id)] += 1;
+  for (const { id, tenantId } of fairBatch(due, limit)) counts[await dispatchOne(tenantId, id, now)] += 1;
   return counts;
 }
 
-export async function dispatchOne(tenantId: string, eventId: string): Promise<DispatchOutcome> {
+/** Each tenant's oldest `FAIR_SHARE` first, then the oldest of what is left, up to `limit`. */
+export function fairBatch<T extends { tenantId: string }>(oldestFirst: T[], limit: number): T[] {
+  const cap = Math.max(1, Math.floor(limit * FAIR_SHARE));
+  const taken = new Map<string, number>();
+  const first: T[] = [];
+  const rest: T[] = [];
+  for (const row of oldestFirst) {
+    const n = taken.get(row.tenantId) ?? 0;
+    if (n < cap) { first.push(row); taken.set(row.tenantId, n + 1); } else rest.push(row);
+  }
+  return [...first, ...rest].slice(0, limit);
+}
+
+export async function dispatchOne(tenantId: string, eventId: string, now = new Date()): Promise<DispatchOutcome> {
   const ctx = await systemContext({ tenantId, requestId: `webhook-${eventId}`, permissions: WEBHOOK_PERMISSIONS });
   let afterCommit: (() => Promise<void>) | undefined;
   try {
@@ -100,7 +119,10 @@ export async function dispatchOne(tenantId: string, eventId: string): Promise<Di
       if (!event || event.status !== 'received') return 'skipped';
       const attempts = event.attempts + 1;
       const spent = attempts >= MAX_WEBHOOK_ATTEMPTS;
-      await db.updateById(webhookEvents, eventId, { attempts, error: message, status: spent ? 'failed' : 'received' });
+      await db.updateById(webhookEvents, eventId, {
+        attempts, error: message, status: spent ? 'failed' : 'received',
+        nextAttemptAt: spent ? null : new Date(now.getTime() + backoffMs(attempts)),
+      });
       if (spent) {
         await notifyIn(db, {
           type: 'webhook.failed', permission: 'connections:read', level: 'warning', href: '/dashboard/connections',

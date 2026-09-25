@@ -78,11 +78,10 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
 - ~~(P0.13) concurrent `enqueue` with one `dedupeKey` threw a unique violation~~ — fixed
   2026-09-26: `INSERT … ON CONFLICT (dedupe_key) DO NOTHING`, then read the winner. Test:
   five concurrent enqueues → one job (seen red first with `jobs_dedupe_unq`).
-- (P1.7) A failing webhook handler is retried on the next worker tick with no backoff — five
-  attempts can go in five seconds. Handlers are local database work, so this is rare; add
-  backoff if a handler ever calls out.
-- (P1.7) `dispatchPending` takes the oldest 50 events across all tenants — one store's flood
-  delays others. Apply the queue's `FAIR_SHARE` rule if that shows up.
+- ~~(P1.7) webhook retries had no backoff; one store's flood delayed others~~ — fixed
+  2026-09-26: `webhook_events.next_attempt_at` (`drizzle/0004`, with ROLLBACK) set from the
+  queue's `backoffMs`, cleared by a replay; `fairBatch` gives each store `FAIR_SHARE` of a
+  pass first, then fills leftover slots oldest-first. 2 tests; seen red 6 ways.
 - ~~(P1.12) a `draft` version whose bytes never arrive stayed `draft` forever~~ — fixed
   2026-09-26: `server/modules/models/cleanup.ts` `expireStaleDrafts`, on the worker's
   schedule tick. Drafts older than a day → `failed` under a row lock (a racing confirm wins

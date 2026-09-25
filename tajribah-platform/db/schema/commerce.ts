@@ -102,6 +102,8 @@ export const webhookEvents = pgTable('webhook_events', {
   processedAt: ts('processed_at'),
   error: text('error'),
   attempts: integer('attempts').notNull().default(0),
+  /** Not before this, after a failed attempt (0004). Null = now. */
+  nextAttemptAt: ts('next_attempt_at'),
   createdAt: createdAt(),
 }, (t) => [
   uniqueIndex('webhook_events_provider_event_unq').on(t.provider, t.providerEventId),

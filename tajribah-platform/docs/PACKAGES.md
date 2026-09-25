@@ -65,13 +65,13 @@ not marked done until it has run against the real service.
 | P1.12 ✅ | Manual 3D upload | — (memory storage); real R2 🔒 | Presigned upload, format validation (GLB magic bytes, size), versioning |
 | P1.13 ✅ | Model processing pipeline | — | Optimise (prune, dedup, weld, meshopt) as an `ai.postprocess` job; < 2 MB target reported. KTX2 and GLB→USDZ split to P1.13b |
 | P1.13b | Textures + USDZ | ❓ worker container decision | KTX2/Basis textures and GLB→USDZ need native encoders (`toktx`; Blender or `usd-core`) in the worker image — choose the image first |
-| P1.14 | Model library UI | — | Versions, status, publish |
+| P1.14 ✅ | Model library UI | — | Versions, status, publish |
 | P1.15 | **Edge viewer config ⭐⭐** | 🔒 Cloudflare KV | Publish writes a versioned KV entry; the shopper path never reads Postgres |
 | P1.16 | **AR viewer widget ⭐⭐** | — | < 60 KB gzipped, loads after the page, fails closed |
 | P1.17 | Embed & install | — | Snippet + install checker |
 | P1.18 | Shopper AR experience | — | WebXR / Quick Look / Scene Viewer paths |
 | P1.19 | Hosted AR pages | 🔒 domain | Per-product page on the short domain |
-| P1.20 | QR codes | — | Per product, printable |
+| P1.20 | QR codes | 🔒 short domain (§12 #3) | Per product, printable. **Blocked:** a printed code is permanent, so it must encode the final short domain — codes printed against a temporary host break when the domain arrives |
 | P1.21 | AR settings UI | — | Button style, placement, per product |
 | P1.22 | Dashboard home | — | Renders from the API (currently seeded) |
 | P1.23 | Dashboard shell extras | — | Command palette, notification centre |

@@ -2,17 +2,19 @@
 
 // MD-040 — 3D model library
 
-import { Box, CloudUpload, Sparkles, Wand2 } from 'lucide-react';
+import { Fragment, useRef, useState, type DragEvent } from 'react';
+import { Box, ChevronDown, CloudUpload, Wand2 } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
-import { useResource } from '@/lib/data';
+import { useData, useResource } from '@/lib/data';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, Empty, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
-import type { ModelRow } from '@/lib/view-models';
+import type { ModelRow, ModelVersionRow } from '@/lib/view-models';
+import { MODEL_TARGET_BYTES } from '@/lib/model-size';
 
 /** Under this, AR loads in about two seconds on a Saudi mobile network. Over it, it does not. */
-const SIZE_TARGET_BYTES = 2_000_000;
+const SIZE_TARGET_BYTES = MODEL_TARGET_BYTES;
 
 const SOURCE_LABEL: Record<ModelRow['source'], { ar: string; en: string }> = {
   uploaded: { ar: 'مرفوع', en: 'Uploaded' },
@@ -20,9 +22,49 @@ const SOURCE_LABEL: Record<ModelRow['source'], { ar: string; en: string }> = {
   professional_service: { ar: 'خدمة احترافية', en: 'Professional service' },
 };
 
+const UPLOAD_AR: [RegExp, string][] = [
+  [/only \.glb and \.usdz/, 'يُقبل ملف .glb أو .usdz فقط'],
+  [/larger than/, 'الملف أكبر من 50 ميجابايت'],
+  [/the file is empty/, 'الملف فارغ'],
+  [/not a GLB file/, 'ليس ملف GLB — أول بايتات الملف ليست "glTF"'],
+  [/cut off|damaged/, 'الملف ناقص أو تالف — ربما انقطع الرفع. جرّب مرة أخرى'],
+  [/glTF version/, 'إصدار glTF غير مدعوم — صدّره بصيغة glTF 2.0'],
+  [/not a USDZ file|USDZ files must be stored uncompressed|must be the USD scene/, 'ملف USDZ غير صالح — صدّره بأداة USDZ'],
+];
+
 export default function Models() {
   const { t, pick, lang } = useLang();
-  const { data, loading, error } = useResource((source) => source.models());
+  const source = useData();
+  const [version, setVersion] = useState(0);
+  const { data, loading, error } = useResource((s) => s.models(), [version]);
+  const reload = () => setVersion((v) => v + 1);
+  const [open, setOpen] = useState<string | null>(null);
+  const [upload, setUpload] = useState<{ state: 'busy' | 'done' | 'failed'; message: string } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const picker = useRef<HTMLInputElement>(null);
+
+  /** Server refusals are English; the ones an upload meets get their Arabic here. */
+  const say = (message: string) => (lang === 'ar' ? UPLOAD_AR.find(([pattern]) => pattern.test(message))?.[1] ?? message : message);
+  const send = async (file: File | undefined) => {
+    if (!file) return;
+    setUpload({ state: 'busy', message: t(`جارٍ رفع ${file.name}…`, `Uploading ${file.name}…`) });
+    try {
+      const result = await source.uploadModel(file);
+      setUpload(result.status === 'failed'
+        ? { state: 'failed', message: t(`رُفض الملف: ${say(result.error ?? '')}`, `The file was refused: ${result.error ?? ''}`) }
+        : { state: 'done', message: t('وصل الملف، ونجهّزه الآن للجوال. يظهر جاهزًا خلال دقائق.', 'The file arrived and is being prepared for phones. It shows as ready within minutes.') });
+      reload();
+    } catch (failure) {
+      const fields = (failure as { fields?: Record<string, string[]> }).fields;
+      const reason = fields ? Object.values(fields).flat().map(say).join(' · ') : (failure as Error).message;
+      setUpload({ state: 'failed', message: t(`تعذّر الرفع: ${reason}`, `Upload failed: ${reason}`) });
+    }
+  };
+  const onDrop = (event: DragEvent) => {
+    event.preventDefault();
+    setDragging(false);
+    void send(event.dataTransfer.files[0]);
+  };
 
   const crumbs = [
     { label: t('الرئيسية', 'Home'), href: '/dashboard' },
@@ -45,10 +87,11 @@ export default function Models() {
         )}
         actions={
           <>
-            <button type="button" className="btn btn-ghost">
+            <input ref={picker} type="file" accept=".glb,.usdz" hidden onChange={(e) => { void send(e.target.files?.[0]); e.target.value = ''; }} />
+            <button type="button" className="btn btn-primary" onClick={() => picker.current?.click()} disabled={upload?.state === 'busy'}>
               <CloudUpload size={16} aria-hidden />{t('ارفع ملفًا', 'Upload a file')}
             </button>
-            <button type="button" className="btn btn-primary">
+            <button type="button" className="btn btn-ghost" disabled title={t('يصل مع مرحلة التوليد بالذكاء الاصطناعي', 'Arrives with the AI generation phase')}>
               <Wand2 size={16} aria-hidden />{t('ولّد من صور', 'Generate from photos')}
             </button>
           </>
@@ -79,7 +122,17 @@ export default function Models() {
         </div>
       </div>
 
-      <Panel flush title={t('مكتبة النماذج', 'Model library')}>
+      {upload && (
+        <p role="status" className={`upload-note upload-${upload.state}`}>{upload.message}</p>
+      )}
+
+      <div
+        className={`drop-zone${dragging ? ' is-over' : ''}`}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+      >
+      <Panel flush title={t('مكتبة النماذج', 'Model library')} sub={t('اسحب ملف GLB أو USDZ وأفلته هنا', 'Drop a GLB or USDZ file here')}>
         {loading && <Loading rows={5} />}
         {error && <ErrorNote error={error} />}
 
@@ -91,7 +144,7 @@ export default function Models() {
               'ابدأ بمنتج واحد: ارفع ملفًا جاهزًا إن كان لديك، وإلا ولّد نموذجًا من ثلاث صور — أمامية وجانبية وخلفية.',
               'Start with one product: upload a file if you have one, or generate a model from three photos — front, side and back.',
             )}
-            action={<button type="button" className="btn btn-accent"><Sparkles size={16} aria-hidden />{t('ولّد أول نموذج', 'Generate your first model')}</button>}
+            action={<button type="button" className="btn btn-accent" onClick={() => picker.current?.click()}><CloudUpload size={16} aria-hidden />{t('ارفع أول نموذج', 'Upload your first model')}</button>}
           />
         )}
 
@@ -108,11 +161,13 @@ export default function Models() {
                   <th scope="col">{t('المضلعات', 'Polygons')}</th>
                   <th scope="col">{t('الصيغ', 'Formats')}</th>
                   <th scope="col">{t('آخر تحديث', 'Updated')}</th>
+                  <th scope="col"><span className="sr-only">{t('الإصدارات', 'Versions')}</span></th>
                 </tr>
               </thead>
               <tbody>
                 {(data ?? []).map((model) => (
-                  <tr key={model.id}>
+                  <Fragment key={model.id}>
+                  <tr>
                     <td>
                       <div className="cell-main">
                         <span className="thumb" aria-hidden><Box size={17} /></span>
@@ -143,19 +198,32 @@ export default function Models() {
                         : '—'}
                     </td>
                     <td style={{ color: 'var(--text-3)', fontSize: 13 }}>{formatRelative(model.updatedAt, lang)}</td>
+                    <td>
+                      <button type="button" className="btn btn-quiet btn-sm" aria-expanded={open === model.id}
+                        onClick={() => setOpen(open === model.id ? null : model.id)}>
+                        {t('الإصدارات', 'Versions')}<ChevronDown size={14} aria-hidden style={{ transform: open === model.id ? 'rotate(180deg)' : undefined }} />
+                      </button>
+                    </td>
                   </tr>
+                  {open === model.id && (
+                    <tr className="versions-row">
+                      <td colSpan={9}><Versions modelId={model.id} onPublished={reload} /></td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
           </div>
         )}
       </Panel>
+      </div>
 
       <Panel title={t('لماذا يهم حجم النموذج', 'Why model size matters')} >
         <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 14 }}>
           {t(
-            'نموذج بحجم 5 ميجابايت يُحمّل في نحو 8 ثوانٍ على شبكة جوال سعودية، وبحجم 1.5 ميجابايت في ثانيتين. العرض البطيء لا يُستخدم. لذلك نضغط كل نموذج تلقائيًا (Draco و meshopt و KTX2) ونولّد مستويات تفصيل أخف للأجهزة الأضعف.',
-            'A 5 MB model takes about 8 seconds on a Saudi mobile network; 1.5 MB takes two. Slow AR is unused AR, so every model is compressed automatically (Draco, meshopt, KTX2) and given lighter levels of detail for weaker devices.',
+            'نموذج بحجم 5 ميجابايت يُحمّل في نحو 8 ثوانٍ على شبكة جوال سعودية، وبحجم 1.5 ميجابايت في ثانيتين. العرض البطيء لا يُستخدم. لذلك يُنظَّف كل نموذج GLB مرفوع ويُضغط تلقائيًا (meshopt)، ونعرض حجمه قبل الضغط وبعده. ضغط الصور داخل النموذج يأتي لاحقًا.',
+            'A 5 MB model takes about 8 seconds on a Saudi mobile network; 1.5 MB takes two. Slow AR is unused AR, so every uploaded GLB is cleaned up and compressed automatically (meshopt), and you see its size before and after. Compressing the images inside a model comes later.',
           )}
         </p>
         <p className="hint">
@@ -182,4 +250,63 @@ function QaBadge({ status }: { status: ModelRow['qaStatus'] }) {
   if (status === 'approved') return <Badge tone="ok">{t('معتمد', 'Approved')}</Badge>;
   if (status === 'rejected') return <Badge tone="bad">{t('مرفوض', 'Rejected')}</Badge>;
   return <Badge tone="warn">{t('بانتظار المراجعة', 'Pending')}</Badge>;
+}
+
+/** A model's versions, newest first, with Publish on each ready one that is not live. */
+function Versions({ modelId, onPublished }: { modelId: string; onPublished: () => void }) {
+  const { t, lang } = useLang();
+  const source = useData();
+  const [version, setVersion] = useState(0);
+  const { data, loading, error } = useResource((s) => s.modelVersions(modelId), [modelId, version]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [failure, setFailure] = useState<Error | null>(null);
+
+  const publish = async (row: ModelVersionRow) => {
+    setBusy(row.id);
+    setFailure(null);
+    try {
+      await source.publishVersion(row.id);
+      setVersion((v) => v + 1);
+      onPublished();
+    } catch (e) {
+      setFailure(e as Error);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (loading) return <Loading rows={2} />;
+  if (error) return <ErrorNote error={error} />;
+  const live = data?.find((v) => v.isCurrent);
+  return (
+    <div className="versions">
+      <ul>
+        {(data ?? []).map((row) => (
+          <li key={row.id}>
+            <strong className="num">v{row.version}</strong>
+            <StatusBadge status={row.status} />
+            {row.isCurrent && <Badge tone="ok" dot>{t('منشور', 'Live')}</Badge>}
+            <span className="versions-size">
+              {row.optimizedBytes !== null
+                ? <>
+                    <span className="num">{formatBytes(row.originalBytes ?? 0, lang)}</span> → <span className="num" style={{ color: row.withinTarget ? undefined : 'var(--warn)' }}>{formatBytes(row.optimizedBytes, lang, 2)}</span>
+                    {' '}{row.withinTarget ? t('ضمن الهدف', 'within target') : t('فوق 2 ميجابايت', 'over 2 MB')}
+                  </>
+                : row.originalBytes ? <span className="num">{formatBytes(row.originalBytes, lang)}</span> : '—'}
+            </span>
+            {row.status === 'ready' && !row.isCurrent && (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => publish(row)} disabled={busy !== null}>
+                {busy === row.id ? t('جارٍ النشر…', 'Publishing…')
+                  : live && live.version > row.version ? t('ارجع إلى هذا الإصدار', 'Roll back to this') : t('انشر', 'Publish')}
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {failure && <ErrorNote error={failure} />}
+      <p className="hint" style={{ margin: '8px 0 0' }}>
+        {t('النشر يجعل هذا الإصدار هو ما يراه المتسوقون. الرفع وحده لا ينشر شيئًا.', 'Publishing makes this version what shoppers see. Uploading alone never publishes anything.')}
+      </p>
+    </div>
+  );
 }

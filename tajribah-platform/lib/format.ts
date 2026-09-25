@@ -70,12 +70,17 @@ export function formatPercent(fraction: number, lang: Lang = 'ar'): string {
 }
 
 /** `1.4 GB`, `820 KB`. Model files are judged by this number, so it is always visible. */
-export function formatBytes(bytes: number, lang: Lang = 'ar'): string {
+/**
+ * `digits` for the places where rounding would contradict a verdict beside it — 2.04 MB shown
+ * as "2 MB" next to "over 2 MB" (the model size report, P1.14).
+ */
+export function formatBytes(bytes: number, lang: Lang = 'ar', digits?: number): string {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   let size = bytes;
   let unit = 0;
   while (size >= 1024 && unit < units.length - 1) { size /= 1024; unit++; }
-  return `${formatNumber(size, lang, { maximumFractionDigits: size < 10 && unit > 0 ? 1 : 0 })} ${units[unit]}`;
+  const fraction = digits ?? (size < 10 && unit > 0 ? 1 : 0);
+  return `${formatNumber(size, lang, { maximumFractionDigits: unit > 0 ? fraction : 0 })} ${units[unit]}`;
 }
 
 /** `+966 51 234 5678`, grouped the way it is read aloud. */

@@ -113,3 +113,11 @@ test('every bilingual string in the data files has both languages, and the Arabi
     assert.notEqual(pair.ar, pair.en, `${path}: not translated`);
   }
 });
+
+test('formatBytes: extra digits where rounding would contradict an over/under verdict', async () => {
+  const { formatBytes } = await import('@/lib/format');
+  const justOver = 2 * 1024 * 1024 + 50_000;
+  assert.equal(formatBytes(justOver, 'en'), '2 MB', 'the default rounding hides it…');
+  assert.equal(formatBytes(justOver, 'en', 2), '2.05 MB', '…two digits show it');
+  assert.equal(formatBytes(512, 'en', 2), '512 B', 'bytes never get decimals');
+});

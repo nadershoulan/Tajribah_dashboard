@@ -140,6 +140,21 @@ export type ModelRow = {
   updatedAt: string;
 };
 
+/** One version of a model, for the library's version list (P1.12–P1.14). */
+export type ModelVersionRow = {
+  id: string;
+  version: number;
+  status: 'draft' | 'processing' | 'ready' | 'failed' | 'archived';
+  /** Computed from `models_3d.current_version_id` — never stored on the version (db/schema/ar.ts). */
+  isCurrent: boolean;
+  polyCount: number | null;
+  originalBytes: number | null;
+  optimizedBytes: number | null;
+  /** Optimised file ≤ 2 MB. Null until there is an optimised file to measure. */
+  withinTarget: boolean | null;
+  createdAt: string;
+};
+
 export type TeamMemberRow = {
   id: string;
   fullName: string;

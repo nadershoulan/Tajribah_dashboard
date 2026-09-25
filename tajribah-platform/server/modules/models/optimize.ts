@@ -18,9 +18,10 @@ import { Document, getBounds, WebIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { dedup, meshopt, prune, weld } from '@gltf-transform/functions';
 import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
+import { MODEL_TARGET_BYTES } from '@/lib/model-size';
 
-/** The size a model should come in under for AR to open quickly on a phone (§5). */
-export const TARGET_BYTES = 2 * 1024 * 1024;
+/** Shared with the screens (lib/model-size.ts). */
+export const TARGET_BYTES = MODEL_TARGET_BYTES;
 
 export type ModelStats = {
   polyCount: number;

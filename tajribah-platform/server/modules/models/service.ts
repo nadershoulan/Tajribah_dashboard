@@ -17,6 +17,7 @@
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { modelFiles, models3d, modelVersions, products } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
+import type { ModelVersionRow } from '@/lib/view-models';
 import { record } from '@/server/core/audit/audit';
 import { errors } from '@/server/core/errors/problem';
 import { forTenant } from '@/server/core/storage/storage';
@@ -132,7 +133,7 @@ export async function confirmUpload(ctx: TenantContext, versionId: string): Prom
 }
 
 /** Every version of a model, newest first, with `isCurrent` computed from the model's pointer. */
-export async function modelVersionsOf(ctx: TenantContext, modelId: string) {
+export async function modelVersionsOf(ctx: TenantContext, modelId: string): Promise<ModelVersionRow[]> {
   ctx.require('models:read');
   const model = await ctx.db.findById(models3d, modelId);
   if (!model) throw errors.notFound('model');

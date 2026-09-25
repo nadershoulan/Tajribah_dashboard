@@ -13,11 +13,12 @@ import {
   DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS,
 } from './demo-data';
 import type {
-  AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, ModelRow, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, ModelRow, ModelVersionRow, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ApiError, currentStore, type ApiClient } from './api-client';
 import type { ProductListPage, ProductListQuery } from './contracts/products';
 import { pageOf } from './product-list';
+import { MODEL_TARGET_BYTES } from './model-size';
 import { applyEdit, editErrors, type ProductEdit } from './product-edit';
 
 export interface DataSource {
@@ -34,6 +35,11 @@ export interface DataSource {
   syncNow(connectionId: string): Promise<SyncProgress>;
   disconnect(connectionId: string): Promise<void>;
   models(): Promise<ModelRow[]>;
+  /** P1.14. Newest first; `isCurrent` marks the live one. */
+  modelVersions(modelId: string): Promise<ModelVersionRow[]>;
+  publishVersion(versionId: string): Promise<void>;
+  /** P1.12 uploader: presigned PUT straight to storage, then the server checks the bytes. */
+  uploadModel(file: File, target?: { productId?: string; modelId?: string }): Promise<{ modelId: string; status: 'processing' | 'failed'; error: string | null }>;
   team(): Promise<TeamMemberRow[]>;
   billing(): Promise<BillingSummary>;
   analytics(range: '7d' | '30d' | '90d'): Promise<AnalyticsView>;
@@ -83,7 +89,25 @@ export function apiSource(client: ApiClient): DataSource {
     async disconnect(connectionId) {
       await client.call<void>(`/api/connections/${encodeURIComponent(connectionId)}`, { method: 'DELETE' });
     },
-    models: pending('The model library'),
+    async models() {
+      return (await client.call<{ models: ModelRow[] }>('/api/models')).models;
+    },
+    async modelVersions(modelId) {
+      return (await client.call<{ versions: ModelVersionRow[] }>(`/api/models/${encodeURIComponent(modelId)}/versions`)).versions;
+    },
+    async publishVersion(versionId) {
+      await client.call<void>(`/api/models/versions/${encodeURIComponent(versionId)}/publish`, { method: 'POST' });
+    },
+    async uploadModel(file, target = {}) {
+      const started = await client.call<{ modelId: string; versionId: string; uploadUrl: string; contentType: string }>(
+        '/api/models/uploads', { method: 'POST', body: { filename: file.name, sizeBytes: file.size, ...target } });
+      // Straight to storage: no session header — the signature in the URL is the permission.
+      const put = await fetch(started.uploadUrl, { method: 'PUT', headers: { 'content-type': started.contentType }, body: file });
+      if (!put.ok) throw new ApiError(put.status, 'upload_failed', 'the file did not reach storage — try again');
+      const confirmed = await client.call<{ status: 'processing' | 'failed'; error: string | null }>(
+        `/api/models/versions/${encodeURIComponent(started.versionId)}/confirm`, { method: 'POST' });
+      return { modelId: started.modelId, ...confirmed };
+    },
     team: pending('Team management'),
     billing: pending('Billing'),
     analytics: pending('Analytics'),
@@ -93,6 +117,25 @@ export function apiSource(client: ApiClient): DataSource {
 /** Seeded data, resolved on a microtask so screens exercise their loading states. */
 /** The preview's edits, for this page load only: the preview has nowhere to save them. */
 const demoEdits = new Map<string, ProductRow>();
+const demoModels: ModelRow[] = DEMO_MODELS.map((m) => ({ ...m }));
+/** Which version is live per demo model, when it is not the newest. */
+const demoLive = new Map<string, number>();
+/** Versions 1…n of a demo model; older ready versions stand in for rollbacks. */
+function demoVersionsOf(model: ModelRow): ModelVersionRow[] {
+  const live = demoLive.get(model.id) ?? (model.status === 'ready' ? model.version : 0);
+  return Array.from({ length: Math.max(model.version, 1) }, (_, i) => model.version - i).map((n) => {
+    const newest = n === model.version;
+    const status = newest ? model.status : 'ready';
+    const bytes = newest ? model.sizeBytes : Math.round(model.sizeBytes * (1.25 + (model.version - n) * 0.2));
+    return {
+      id: `${model.id}@${n}`, version: n, status, isCurrent: n === live,
+      polyCount: model.polyCount, originalBytes: bytes ? Math.round(bytes * 3.4) : null,
+      optimizedBytes: status === 'ready' && bytes ? bytes : null,
+      withinTarget: status === 'ready' && bytes ? bytes <= MODEL_TARGET_BYTES : null,
+      createdAt: model.updatedAt,
+    };
+  });
+}
 const demoConnectionState: { status: ConnectionDetail['status']; lastSyncAt: string | null; sync: SyncProgress | null } =
   { status: DEMO_CONNECTION.status, lastSyncAt: DEMO_CONNECTION.lastSyncAt, sync: null };
 function demoConnections(): ConnectionDetail[] {
@@ -135,7 +178,32 @@ export const demoSource: DataSource = {
     if (!demoConnections().some((c) => c.id === connectionId)) throw new ApiError(404, 'not_found', 'store connection not found');
     demoConnectionState.status = 'revoked';
   },
-  async models() { return DEMO_MODELS; },
+  async models() { return demoModels.map((m) => ({ ...m })); },
+  async modelVersions(modelId) {
+    const model = demoModels.find((m) => m.id === modelId);
+    if (!model) throw new ApiError(404, 'not_found', 'model not found');
+    return demoVersionsOf(model);
+  },
+  async publishVersion(versionId) {
+    const [modelId, n] = versionId.split('@');
+    const model = demoModels.find((m) => m.id === modelId);
+    const version = model && demoVersionsOf(model).find((v) => v.id === versionId);
+    if (!model || !version) throw new ApiError(404, 'not_found', 'model version not found');
+    if (version.status !== 'ready') throw new ApiError(409, 'conflict', `version ${n} is ${version.status} — only a ready version can go live`);
+    demoLive.set(model.id, Number(n));
+  },
+  async uploadModel(file) {
+    // The preview has no storage and no worker: the upload is accepted and stays processing.
+    const ext = file.name.toLowerCase().split('.').pop();
+    if (ext !== 'glb' && ext !== 'usdz') throw new ApiError(422, 'validation_failed', 'Validation failed', { filename: ['only .glb and .usdz files can be uploaded'] });
+    const model: ModelRow = {
+      id: `m-upload-${demoModels.length + 1}`, productId: null, productName: null, name: file.name.replace(/\.[^.]+$/, ''),
+      source: 'uploaded', status: 'processing', qaStatus: 'pending', version: 1, sizeBytes: 0, polyCount: null,
+      formats: [], thumbnailUrl: null, updatedAt: new Date().toISOString(),
+    };
+    demoModels.unshift(model);
+    return { modelId: model.id, status: 'processing', error: null };
+  },
   async team() { return DEMO_TEAM; },
   async billing() { return DEMO_BILLING; },
   async analytics(range) {

@@ -173,7 +173,9 @@ button { font: inherit; color: inherit; }
 .crumbs a:hover { color: var(--text); }
 .crumbs [aria-current="page"] { color: var(--text); font-weight: 500; }
 
-.top-actions { margin-inline-start: auto; display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* The buttons never shrink (they cannot get narrower, they would only spill out); the
+   breadcrumb takes all the squeeze and ends in an ellipsis. */
+.top-actions { margin-inline-start: auto; display: flex; align-items: center; gap: 8px; flex: none; }
 .crumbs, .demo-flag, .tenant-switch { white-space: nowrap; }
 .crumbs { min-width: 0; overflow: hidden; flex: 0 1 auto; }
 /* A long product name ends in an ellipsis instead of pushing the store switcher off a phone. */
@@ -291,7 +293,10 @@ button { font: inherit; color: inherit; }
 
 /* ---------- tables -------------------------------------------------------- */
 
-.table-wrap { overflow-x: auto; }
+/* `position: relative` makes the scroller the containing block of absolutely positioned
+   children (e.g. an `.sr-only` header label), so they are clipped with the table instead of
+   stretching the page sideways — in RTL that turned a phone page into a 765 px wide scroll. */
+.table-wrap { overflow-x: auto; position: relative; }
 table.data { width: 100%; border-collapse: collapse; font-size: 14px; }
 table.data th {
   text-align: start; font-weight: 600; font-size: 12.5px; color: var(--text-3);
@@ -504,3 +509,14 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .confirm { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--bad); border-radius: 12px; background: var(--bad-bg, #fff5f5); font-size: 13.5px; }
 .btn-danger { background: var(--bad); color: #fff; border: 1px solid var(--bad); }
 .btn-danger:hover:not(:disabled) { filter: brightness(.94); }
+
+/* P1.14 — model library */
+.drop-zone { border-radius: 16px; outline: 2px dashed transparent; outline-offset: 4px; transition: outline-color .15s; }
+.drop-zone.is-over { outline-color: var(--aqua); }
+.upload-note { margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; font-size: 13.5px; background: var(--surface); border: 1px solid var(--line); }
+.upload-failed { border-color: var(--bad); color: var(--bad); background: var(--bad-bg); }
+.upload-done { border-color: var(--aqua); }
+.versions-row > td { background: var(--bg, #f6f8fa); }
+.versions ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.versions li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13.5px; }
+.versions-size { color: var(--text-2); margin-inline-end: auto; }

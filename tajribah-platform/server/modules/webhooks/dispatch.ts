@@ -21,6 +21,7 @@ import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { revokeIn } from '@/server/modules/connections/service';
 import { createSyncIn, enqueueSync } from '@/server/modules/sync/service';
 import { webhookSourceFor, type Delivery } from './sources';
+import { notifyIn } from '@/server/modules/notifications/service';
 
 export type WebhookEvent = typeof webhookEvents.$inferSelect;
 export type HandlerResult = { outcome: 'processed' | 'ignored'; afterCommit?: () => Promise<void> };
@@ -100,6 +101,13 @@ export async function dispatchOne(tenantId: string, eventId: string): Promise<Di
       const attempts = event.attempts + 1;
       const spent = attempts >= MAX_WEBHOOK_ATTEMPTS;
       await db.updateById(webhookEvents, eventId, { attempts, error: message, status: spent ? 'failed' : 'received' });
+      if (spent) {
+        await notifyIn(db, {
+          type: 'webhook.failed', permission: 'connections:read', level: 'warning', href: '/dashboard/connections',
+          title: { ar: 'تحديث من متجرك لم يُعالَج', en: 'An update from your store was not processed' },
+          body: { ar: `${event.topic}: ${message}`, en: `${event.topic}: ${message}` },
+        });
+      }
       log.warn('webhook handler failed', { webhookEventId: eventId, topic: event.topic, attempts, spent, error: message });
       return spent ? 'failed' : 'retry';
     });

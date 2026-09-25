@@ -32,6 +32,7 @@ import { withTenant } from '@/server/core/tenancy/rls';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { normaliseEmail } from '@/server/modules/auth/service';
 import { UNLIMITED } from '@/lib/plans';
+import { notifyIn } from '@/server/modules/notifications/service';
 
 export const INVITE_DAYS = 7;
 const RANK: Record<MemberRole, number> = { owner: 5, admin: 4, editor: 3, analyst: 2, viewer: 1 };
@@ -164,6 +165,10 @@ export async function acceptInvitation(input: { token: string; userId: string; a
       tenantId: invitation.tenantId, actor: { userId: user.id }, requestId: `invite-${invitation.id}`,
     } as unknown as TenantContext;
     await record(ctx, { action: 'create', resourceType: 'team_member', resourceId: membership.id, after: { email: user.email, role: membership.role, via: 'invitation' } }, tdb);
+    await notifyIn(tdb, {
+      type: 'team.joined', userIds: [invitation.invitedBy], level: 'success', href: '/dashboard/team',
+      title: { ar: `انضم ${user.email} إلى الفريق`, en: `${user.email} joined the team` }, body: null,
+    });
   });
   return { tenantId: invitation.tenantId };
 }

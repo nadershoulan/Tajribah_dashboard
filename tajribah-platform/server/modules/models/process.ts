@@ -24,6 +24,7 @@ import { systemContext, type TenantContext } from '@/server/core/tenancy/context
 import { withTenant } from '@/server/core/tenancy/rls';
 import { CONTENT_TYPES } from './inspect';
 import { optimizeGlb, TARGET_BYTES, UnreadableModelError, type ModelStats } from './optimize';
+import { notifyIn } from '@/server/modules/notifications/service';
 
 export const PROCESS_PERMISSIONS = ['models:read', 'models:write'] as const;
 export type ProcessOutcome = 'ready' | 'failed' | 'skipped';
@@ -100,6 +101,11 @@ async function finish(
       action: 'update', resourceType: 'model_version', resourceId: versionId,
       before, after: { ...after, ...report, ...(result.failure ? { error: result.failure } : {}) },
     }, db);
+    await notifyIn(db, result.failure
+      ? { type: 'model.failed', permission: 'models:read', level: 'error', href: '/dashboard/models',
+          title: { ar: `تعذّر تجهيز «${model.name}»`, en: `“${model.name}” could not be prepared` }, body: { ar: result.failure, en: result.failure } }
+      : { type: 'model.ready', permission: 'models:read', level: 'success', href: '/dashboard/models',
+          title: { ar: `«${model.name}» جاهز للنشر`, en: `“${model.name}” is ready to publish` }, body: null });
     log.info('model processed', { versionId, status, ...report, ...(result.failure ? { error: result.failure } : {}) });
     return status;
   });

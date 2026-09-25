@@ -70,3 +70,8 @@ export const EXTRA_TITLES: Record<string, Bi> = {
   '/login': { ar: 'تسجيل الدخول', en: 'Sign in' },
   '/register': { ar: 'إنشاء حساب', en: 'Create an account' },
 };
+
+/** The screens a role may open, flattened — for the command palette (P1.23). */
+export function visibleNav(permissions: readonly string[]): NavItem[] {
+  return DASHBOARD_NAV.flatMap((group) => group.items).filter((item) => !item.permission || permissions.includes(item.permission));
+}

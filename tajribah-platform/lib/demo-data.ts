@@ -12,7 +12,7 @@
  */
 import type {
   ActivityItem, AnalyticsView, BillingSummary, ConnectionSummary, DashboardSummary,
-  MetricPoint, ModelRow, ProductRow, SyncProgress, TeamMemberRow, WebhookHealth,
+  MetricPoint, ModelRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, WebhookHealth,
 } from './view-models';
 import { STEP_COPY } from './onboarding-steps';
 
@@ -87,6 +87,16 @@ export const DEMO_WEBHOOKS: WebhookHealth = {
   lastDeliveryAt: iso(0, 1),
   lastFailure: { id: 'wh-demo', topic: 'product.updated', error: 'handler bug', at: iso(0, 9) },
 };
+
+export const DEMO_NOTIFICATIONS: NotificationItem[] = [
+  { id: 'n-1', type: 'model.ready', level: 'success', href: '/dashboard/models', read: false, createdAt: iso(0, 9),
+    title: { ar: '«diamond-watch-v3» جاهز للنشر', en: '“diamond-watch-v3” is ready to publish' }, body: null },
+  { id: 'n-2', type: 'webhook.failed', level: 'warning', href: '/dashboard/connections', read: false, createdAt: iso(1, 11),
+    title: { ar: 'تحديث من متجرك لم يُعالَج', en: 'An update from your store was not processed' },
+    body: { ar: 'product.updated: handler bug', en: 'product.updated: handler bug' } },
+  { id: 'n-3', type: 'team.joined', level: 'success', href: '/dashboard/team', read: true, createdAt: iso(4),
+    title: { ar: 'انضمت sara@failet.sa إلى الفريق', en: 'sara@failet.sa joined the team' }, body: null },
+];
 
 export const DEMO_PRODUCTS: ProductRow[] = [
   {

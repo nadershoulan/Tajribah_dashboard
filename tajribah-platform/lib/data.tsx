@@ -10,10 +10,10 @@
  */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
-  DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS,
+  DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS,
 } from './demo-data';
 import type {
-  AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, ModelRow, ModelVersionRow, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ApiError, currentStore, type ApiClient } from './api-client';
 import type { ProductListPage, ProductListQuery } from './contracts/products';
@@ -51,6 +51,9 @@ export interface DataSource {
   billing(): Promise<BillingSummary>;
   /** P1.25. Refusals: `ApiError` 422 with per-field messages. */
   settings(): Promise<StoreSettings>;
+  /** P1.23: the signed-in person's own notifications, newest first. */
+  notifications(): Promise<{ items: NotificationItem[]; unread: number }>;
+  markNotificationsRead(ids: string[] | 'all'): Promise<void>;
   /** P1.21: AR button and viewer settings per product. */
   arConfigs(): Promise<ArConfigView[]>;
   saveArConfig(productId: string, input: ArConfigInput): Promise<ArConfigView>;
@@ -139,6 +142,10 @@ export function apiSource(client: ApiClient): DataSource {
     billing: pending('Billing'),
     async settings() { return client.call<StoreSettings>('/api/settings'); },
     async arConfigs() { return (await client.call<{ configs: ArConfigView[] }>('/api/ar-configs')).configs; },
+    async notifications() { return client.call<{ items: NotificationItem[]; unread: number }>('/api/notifications'); },
+    async markNotificationsRead(ids) {
+      await client.call('/api/notifications/read', { method: 'POST', body: ids === 'all' ? { all: true } : { ids } });
+    },
     async saveArConfig(productId, input) {
       return client.call<ArConfigView>(`/api/ar-configs/${encodeURIComponent(productId)}`, { method: 'PUT', body: input });
     },
@@ -152,6 +159,7 @@ export function apiSource(client: ApiClient): DataSource {
 const demoEdits = new Map<string, ProductRow>();
 const demoTeam: TeamMemberRow[] = DEMO_TEAM.map((m) => ({ ...m }));
 const demoArConfigs = new Map<string, ArConfigView>();
+const demoNotifications: NotificationItem[] = DEMO_NOTIFICATIONS.map((n) => ({ ...n }));
 function demoArDefault(p: ProductRow): ArConfigView {
   return {
     productId: p.id, productName: p.name, productNameAr: p.nameAr, productType: p.productType, arEnabled: p.arEnabled,
@@ -281,6 +289,12 @@ export const demoSource: DataSource = {
   },
   async billing() { return DEMO_BILLING; },
   async settings() { return { ...demoSettings }; },
+  async notifications() {
+    return { items: demoNotifications.map((n) => ({ ...n })), unread: demoNotifications.filter((n) => !n.read).length };
+  },
+  async markNotificationsRead(ids) {
+    for (const n of demoNotifications) if (ids === 'all' || ids.includes(n.id)) n.read = true;
+  },
   async arConfigs() {
     return DEMO_PRODUCTS.filter((p) => p.status !== 'archived').map((p) => demoArConfigs.get(p.id) ?? demoArDefault(p));
   },

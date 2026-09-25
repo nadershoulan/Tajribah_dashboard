@@ -94,6 +94,18 @@ export type ConnectionDetail = ConnectionSummary & {
   webhooks: WebhookHealth;
 };
 
+/** One notification in the bell (P1.23). */
+export type NotificationItem = {
+  id: string;
+  type: string;
+  title: Bi;
+  body: Bi | null;
+  href: string | null;
+  level: 'info' | 'success' | 'warning' | 'error';
+  read: boolean;
+  createdAt: string;
+};
+
 export type ActivityItem = {
   id: string;
   kind: 'sync' | 'model' | 'publish' | 'billing' | 'team' | 'tryon';

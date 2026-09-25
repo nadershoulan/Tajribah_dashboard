@@ -33,6 +33,7 @@ import { systemContext, type TenantContext } from '@/server/core/tenancy/context
 import { withTenant } from '@/server/core/tenancy/rls';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { accessTokenFor, ReconnectRequiredError } from '@/server/modules/connections/service';
+import { notifyIn } from '@/server/modules/notifications/service';
 
 export type SyncJob = typeof syncJobs.$inferSelect;
 export type StepResult = 'done' | 'more' | 'failed' | 'skipped';
@@ -100,6 +101,10 @@ export async function markSyncFailed(ctx: TenantContext, syncJobId: string, mess
     const failed = await db.updateById(syncJobs, syncJobId, { status: 'failed', error: message, finishedAt: now });
     await db.updateById(storeConnections, job.connectionId, { lastError: `sync failed: ${message}` });
     await record(ctx, { action: 'sync', resourceType: 'store_connection', resourceId: job.connectionId, after: { syncJobId, status: 'failed', error: message } }, db);
+    await notifyIn(db, {
+      type: 'sync.failed', permission: 'connections:read', level: 'error', href: '/dashboard/connections',
+      title: { ar: 'فشلت مزامنة متجرك', en: 'Your store sync failed' }, body: { ar: message, en: message },
+    });
     log.warn('sync failed', { syncJobId, connectionId: job.connectionId, error: message });
     return failed;
   });
@@ -220,6 +225,13 @@ async function finish(
     action: 'sync', resourceType: 'store_connection', resourceId: job.connectionId,
     after: { syncJobId: job.id, type: job.type, status: 'done', created, updated, skipped, failed, archived },
   }, db);
+  if (warning) {
+    await notifyIn(db, {
+      type: 'sync.archive_guard', permission: 'connections:read', level: 'warning', href: '/dashboard/connections',
+      title: { ar: 'المزامنة لم تؤرشف أي منتج', en: 'The sync archived nothing' },
+      body: { ar: 'متجرك أظهر عددًا أقل بكثير من المنتجات. تأكد من المتجر ثم زامن مجددًا.', en: warning },
+    });
+  }
   log.info('sync finished', { syncJobId: job.id, type: job.type, created, updated, skipped, failed, archived });
   return done;
 }

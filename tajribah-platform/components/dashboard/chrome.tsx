@@ -9,13 +9,15 @@
 import { useState, type ReactNode } from 'react';
 import {
   BarChart3, Box, CreditCard, Code2, Home, Link2, Lock, Menu, Package, QrCode,
-  Scan, Settings, SlidersHorizontal, Users, ChevronDown, Bell, X, LogOut,
+  Scan, Settings, SlidersHorizontal, Users, ChevronDown, X, LogOut,
 } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
 import { currentStore } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
 import { RequireSession } from './require-session';
+import { CommandPalette } from './command-palette';
+import { NotificationBell } from './notifications';
 import { DASHBOARD_NAV } from '@/lib/nav';
 import { planByCode } from '@/lib/plans';
 import type { TenantSummary } from '@/lib/view-models';
@@ -178,10 +180,9 @@ export function Shell({ tenant, crumbs = [], children }: {
                 {t('بيانات تجريبية', 'Demo data')}
               </span>
             )}
+            <CommandPalette />
             <LangToggle />
-            <button type="button" className="icon-btn" aria-label={t('الإشعارات', 'Notifications')}>
-              <Bell size={17} />
-            </button>
+            <NotificationBell />
             <TenantSwitcher tenant={store} />
           </div>
         </header>

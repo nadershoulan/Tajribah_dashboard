@@ -40,6 +40,18 @@ test('dedupeKey makes enqueue idempotent', async () => {
   } finally { await harness.close(); }
 });
 
+test('concurrent enqueues with one dedupeKey return one job, and never throw', async () => {
+  const harness = await createTestDb();
+  try {
+    const a = await seedTenant(harness, 'alpha');
+    // Both read "no job yet" before either inserts: the unique index decides, not the read.
+    const made = await Promise.all(Array.from({ length: 5 }, () =>
+      enqueue({ queue: 'edge.publish-config', tenantId: a.tenantId, dedupeKey: 'cfg:race' })));
+    assert.equal(new Set(made.map((j) => j.id)).size, 1, 'every caller gets the same job');
+    assert.equal((await harness.db.select().from(jobs).where(eq(jobs.dedupeKey, 'cfg:race'))).length, 1);
+  } finally { await harness.close(); }
+});
+
 test('one tenant cannot occupy a whole batch', async () => {
   const harness = await createTestDb();
   try {

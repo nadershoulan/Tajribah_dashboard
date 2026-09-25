@@ -60,12 +60,16 @@ export async function enqueue(input: EnqueueInput): Promise<Job> {
     dedupeKey: input.dedupeKey ?? null,
   };
 
-  if (input.dedupeKey) {
-    const [existing] = await db.select().from(jobs).where(eq(jobs.dedupeKey, input.dedupeKey)).limit(1);
-    if (existing) return existing;
+  if (!input.dedupeKey) {
+    const [created] = await db.insert(jobs).values(row).returning();
+    return created;
   }
-  const [created] = await db.insert(jobs).values(row).returning();
-  return created;
+  // The unique index decides, not a read first: two callers can both read "no job yet".
+  // The loser inserts nothing and reads the winner's row, which has committed by then.
+  const [created] = await db.insert(jobs).values(row).onConflictDoNothing({ target: jobs.dedupeKey }).returning();
+  if (created) return created;
+  const [existing] = await db.select().from(jobs).where(eq(jobs.dedupeKey, input.dedupeKey)).limit(1);
+  return existing;
 }
 
 /**

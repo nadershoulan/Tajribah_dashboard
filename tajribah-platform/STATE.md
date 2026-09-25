@@ -73,10 +73,9 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
   before the first real merchant connects.
 - ~~(P1.6) A crash between committing a sync row and enqueueing its job leaves it stuck~~ —
   closed by P1.6b: the schedule re-enqueues a sync idle for 15 minutes.
-- (P0.13, corrected 2026-09-24) `enqueue` checks `dedupeKey` by select-then-insert, and
-  `jobs.dedupe_key` **does** have a unique index — so two concurrent enqueues with one key
-  do not both insert: the second **throws** a unique violation instead of returning the
-  existing job. (The earlier note here said they could both insert; that was wrong.)
+- ~~(P0.13) concurrent `enqueue` with one `dedupeKey` threw a unique violation~~ — fixed
+  2026-09-26: `INSERT … ON CONFLICT (dedupe_key) DO NOTHING`, then read the winner. Test:
+  five concurrent enqueues → one job (seen red first with `jobs_dedupe_unq`).
 - (P1.7) A failing webhook handler is retried on the next worker tick with no backoff — five
   attempts can go in five seconds. Handlers are local database work, so this is rare; add
   backoff if a handler ever calls out.

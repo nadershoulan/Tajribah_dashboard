@@ -10,7 +10,7 @@ _Last updated: 2026-09-26 · updated at the end of every work session_
 ```
 P0 Foundation     ████████████████████████████░░░░  19 / 22   (+ P0.20 mostly done, 2 blocked)
 P1 Core loop      ████████████████████████░░░░░░░░  20 / 26   ← first sellable product (started)
-P2 Billing        ███████████░░░░░░░░░░░░░░░░░░░░░   5 / 15   ← started 2026-09-26 (parts needing no account)
+P2 Billing        █████████████░░░░░░░░░░░░░░░░░░░   6 / 15   ← started 2026-09-26 (parts needing no account)
 P3 3D pipeline    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 P4 Analytics      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 P5 Try-on         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 14   (engine already exists in tajribah-try-on)
@@ -100,6 +100,7 @@ wait for those accounts.
 
 | | Package | In plain words |
 |---|---|---|
+| ✅ | P2.13 Billing messages | When an invoice is issued, or a payment fails, the store's owner and admins are told — in the dashboard and by email, each in their own language, and only once even if the payment system reports it twice. The payment-failed message says when the next attempt will be. These fire automatically once payments are connected |
 | ◐ | P2.12 Discount codes | Discount codes now exist: a percentage, a fixed amount, or free months, each optionally limited to certain plans, to a number of uses and to dates. At checkout a store types a code and the server checks it (in Arabic too: expired, not for this plan, used up, already used by your store); the discount shows and the VAT is worked out on what's left. A store can use a code once, and a limited code can't be over-used even if two stores use the last one at the same moment. Codes are created from the admin console (coming); using one at payment arrives with the payment gateway |
 | ◐ | P2.10 Billing screen | The billing screen now shows the store's real plan, prices, AI credits and invoices. Every button works: choosing a plan opens a checkout with monthly or yearly billing (showing the yearly saving), the VAT and the total — priced exactly as the invoice will be. The last step, paying, stays closed with a clear note until the payment gateway (Moyasar) is connected; nothing is charged. Some text promised things that don't exist yet (ZATCA QR, PDF download) — now it only says what is true |
 | ✅ | P2.11 When a trial ends | Found a real gap: nothing actually stopped a store after its free trial ran out. Now, when a trial ends without a plan (or a subscription is cancelled), the store becomes read-only everywhere at once — every change is refused with a clear reason, nothing is deleted — while choosing a plan, fixing business details and reading everything still work. A banner says what happened, when, and links to choose a plan. Owners and admins get a reminder 3 days before, on the last day and when it ends, in the dashboard and by email, once each |
@@ -191,3 +192,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-26 | P2.11 trial end: read-only everywhere, banner, reminders | 386 pass / 0 fail |
 | 2026-09-26 | P2.10 billing screen on real data, checkout up to payment | 389 pass / 0 fail |
 | 2026-09-26 | P2.12 discount codes; database security rules now cover tables added later | 395 pass / 0 fail |
+| 2026-09-26 | P2.13 billing messages (invoice issued, payment failed) | 397 pass / 0 fail |

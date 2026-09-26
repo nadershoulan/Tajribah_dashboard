@@ -31,6 +31,7 @@ import { errors } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { withTenant } from '@/server/core/tenancy/rls';
+import { announceInvoice } from './notices';
 
 /** Riyadh calendar year of an instant (UTC+3, no DST). */
 export const riyadhYear = (at: Date) => new Date(at.getTime() + 3 * 60 * 60 * 1000).getUTCFullYear();
@@ -60,6 +61,8 @@ export type IssueInvoiceInput = {
   /** Card payments are paid at issue; a bank transfer is due later. */
   paid?: boolean;
   dueInDays?: number;
+  /** P2.13: tell the store's billing people (in-app + email), once. The payment path passes the app's URL. */
+  announce?: { appUrl: string };
 };
 
 /**
@@ -119,7 +122,9 @@ export async function issueInvoice(ctx: TenantContext, input: IssueInvoiceInput,
     await record(ctx, { action: 'create', resourceType: 'invoice', resourceId: row.id, after: row as never }, db);
     return row.id;
   });
-  return (await invoiceOf(ctx, id))!;
+  const issued = (await invoiceOf(ctx, id))!;
+  if (input.announce) await announceInvoice(ctx, issued, input.announce.appUrl); // after the commit
+  return issued;
 }
 
 type InvoiceRowDb = typeof invoices.$inferSelect;

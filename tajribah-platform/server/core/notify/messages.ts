@@ -9,6 +9,7 @@
  * Email always has a plain-text body. HTML is optional and not used yet: a text-only mail
  * cannot render left-to-right by accident, and a mail with no text part lands in spam.
  */
+import { formatDate } from '@/lib/format';
 import { pick, type Bi, type Lang } from '@/lib/lang';
 import { assertSmsLength, emailSender, smsSender } from './notify';
 
@@ -81,6 +82,24 @@ export const EMAIL = {
     text: {
       ar: `مرحباً،\n\nدُعيت للانضمام إلى فريق متجر «${store}» في ${BRAND.ar}. لقبول الدعوة افتح الرابط التالي وسجّل الدخول بهذا البريد الإلكتروني:\n${link}\n\nالرابط صالح لمدة ${days} أيام ويُستخدم مرة واحدة. إن لم تتوقع هذه الدعوة فتجاهل الرسالة.`,
       en: `Hello,\n\nYou have been invited to join the team of "${store}" on ${BRAND.en}. To accept, open this link and sign in with this email address:\n${link}\n\nThe link is valid for ${days} days and works once. If you were not expecting this, ignore this message.`,
+    },
+  })),
+
+  /** P2.13: an invoice was issued. */
+  invoiceIssued: emailTemplate(({ number, total, link, store }: { number: string; total: string; link: string; store: string }) => ({
+    subject: { ar: `فاتورة ${number} — ${store}`, en: `Invoice ${number} — ${store}` },
+    text: {
+      ar: `مرحباً،\n\nصدرت فاتورة جديدة لمتجر «${store}» بمبلغ ${total} شامل ضريبة القيمة المضافة.\n\nاعرضها أو اطبعها من هنا:\n${link}`,
+      en: `Hello,\n\nA new invoice was issued to "${store}" for ${total} including VAT.\n\nView or print it here:\n${link}`,
+    },
+  })),
+
+  /** P2.13: a payment failed (sent by dunning, P2.8). */
+  paymentFailed: emailTemplate(({ amount, link, store, retryAt }: { amount: string; link: string; store: string; retryAt: Date | null }) => ({
+    subject: { ar: `تعذّر تحصيل الدفعة — ${store}`, en: `A payment did not go through — ${store}` },
+    text: {
+      ar: `مرحباً،\n\nلم نتمكن من تحصيل ${amount} لمتجر «${store}».${retryAt ? ` سنحاول مرة أخرى في ${formatDate(retryAt, 'ar')}.` : ''} حدّث طريقة الدفع حتى لا يتوقف متجرك:\n${link}`,
+      en: `Hello,\n\nWe could not collect ${amount} for "${store}".${retryAt ? ` We will try again on ${formatDate(retryAt, 'en')}.` : ''} Update your payment method so your store keeps running:\n${link}`,
     },
   })),
 

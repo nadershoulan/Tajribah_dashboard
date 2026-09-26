@@ -11,13 +11,13 @@
  */
 import { and, eq, gte, inArray, lte } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
-import { notifications, subscriptions, tenantMemberships, tenants, users } from '@/db/schema';
+import { notifications, subscriptions, tenants } from '@/db/schema';
 import { formatDate } from '@/lib/format';
-import { permissionsFor } from '@/lib/permissions';
 import { EMAIL, sendEmail } from '@/server/core/notify/messages';
 import { log } from '@/server/core/observability/log';
 import { withTenant } from '@/server/core/tenancy/rls';
 import { notifyIn } from '@/server/modules/notifications/service';
+import { billingRecipients } from './notices';
 
 const DAY = 86_400_000;
 export type TrialMilestone = 'three_days' | 'last_day' | 'ended';
@@ -71,10 +71,7 @@ export async function sendTrialReminders(now = new Date(), limit = 200): Promise
       });
       if (!recipients) continue;
       // After the commit: the row above is the record; an email that fails is logged, not resent.
-      const members = await db.select({ role: tenantMemberships.role, email: users.email, locale: users.locale })
-        .from(tenantMemberships).innerJoin(users, eq(users.id, tenantMemberships.userId))
-        .where(and(eq(tenantMemberships.tenantId, store.id), eq(tenantMemberships.status, 'active')));
-      for (const member of members.filter((m) => permissionsFor(m.role).has('billing:read'))) {
+      for (const member of await billingRecipients(store.id)) {
         await sendEmail(member.email, EMAIL.trialReminder, { title: copy.title, body: copy.body, store: store.name }, member.locale)
           .catch((error) => log.warn('trial reminder email failed', { tenantId: store.id, error: String(error) }));
       }

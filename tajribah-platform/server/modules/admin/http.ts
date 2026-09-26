@@ -18,6 +18,7 @@ import { createCoupon, listCoupons, updateCoupon } from './coupons';
 import { endStaffView, startStaffView } from './staff-view';
 import { RESPONSE_DAYS, exportDocument, fulfilErasure, fulfilExport, listPrivacyRequests, recordPrivacyRequest, rejectPrivacyRequest } from './privacy';
 import { retentionState } from './retention';
+import { createAnnouncement, listAnnouncements, updateAnnouncement } from './announcements';
 import { currentScope } from '@/server/core/observability/scope';
 import { errors } from '@/server/core/errors/problem';
 
@@ -336,4 +337,34 @@ export const rejectPrivacyHandler = route(async (request) => {
 export const retentionHandler = route(async (request) => {
   await staffContextFor(request);
   return json(await retentionState());
+});
+
+const ANNOUNCEMENT = z.object({
+  titleAr: z.string().max(200), titleEn: z.string().max(200), bodyAr: z.string().max(1000).nullable(), bodyEn: z.string().max(1000).nullable(),
+  level: z.enum(['info', 'warning']), link: z.string().max(200).nullable(), startsAt: z.string().datetime({ offset: true }), endsAt: z.string().datetime({ offset: true }),
+  active: z.boolean(), reason: z.string().max(500),
+});
+
+/** API-A31 — GET /api/admin/announcements (A13, T23). */
+export const listAnnouncementsHandler = route(async (request) => {
+  await staffContextFor(request);
+  return json({ announcements: await listAnnouncements() });
+});
+
+/** API-A32 — POST /api/admin/announcements: publish a notice to every store's dashboard. */
+export const createAnnouncementHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  return json(await createAnnouncement(staff, await readJson(request, ANNOUNCEMENT)), { status: 201 });
+});
+
+/** API-A33 — PATCH /api/admin/announcements/[id]: change or switch off a notice. */
+export const updateAnnouncementHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const id = new URL(request.url).pathname.split('/').filter(Boolean).pop() ?? '';
+  if (!z.string().uuid().safeParse(id).success) throw errors.notFound('announcement');
+  return json(await updateAnnouncement(staff, id, await readJson(request, ANNOUNCEMENT.partial().required({ reason: true }))));
 });

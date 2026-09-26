@@ -183,6 +183,13 @@ export type AdminRetention = {
   rules: { key: string; what: Bi2; keep: Bi2; due: number }[]; never: { what: Bi2; why: Bi2 }[]; deletedStoresForReview: number; asOf: string;
 };
 
+/** A13 — server/modules/admin/announcements.ts */
+export type AdminAnnouncementFields = {
+  titleAr: string; titleEn: string; bodyAr: string | null; bodyEn: string | null;
+  level: 'info' | 'warning'; link: string | null; startsAt: string; endsAt: string; active: boolean;
+};
+export type AdminAnnouncement = AdminAnnouncementFields & { id: string; createdAt: string; live: boolean };
+
 export type AdminApi = {
   whoami(): Promise<{ email: string; fullName: string }>;
   trail(storeId?: string): Promise<StaffTrailRow[]>;
@@ -216,6 +223,9 @@ export type AdminApi = {
   fulfilErasure(id: string): Promise<void>;
   rejectPrivacy(id: string, reason: string): Promise<void>;
   retention(): Promise<AdminRetention>;
+  announcements(): Promise<AdminAnnouncement[]>;
+  createAnnouncement(fields: AdminAnnouncementFields & { reason: string }): Promise<AdminAnnouncement>;
+  updateAnnouncement(id: string, patch: Partial<AdminAnnouncementFields> & { reason: string }): Promise<AdminAnnouncement>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -296,6 +306,9 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       fulfilErasure: async (id) => { await client.call(`/api/admin/privacy/${encodeURIComponent(id)}/erase`, { method: 'POST' }); },
       rejectPrivacy: async (id, reason) => { await client.call(`/api/admin/privacy/${encodeURIComponent(id)}/reject`, { body: { reason } }); },
       retention: () => client.call('/api/admin/retention'),
+      announcements: async () => (await client.call<{ announcements: AdminAnnouncement[] }>('/api/admin/announcements')).announcements,
+      createAnnouncement: (fields) => client.call('/api/admin/announcements', { body: fields }),
+      updateAnnouncement: (id, patch) => client.call(`/api/admin/announcements/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch }),
     },
     twoFactor: {
       status: () => client.twoFactorStatus(),
@@ -361,7 +374,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound, announcements: notFound, createAnnouncement: notFound, updateAnnouncement: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

@@ -63,6 +63,7 @@ export const EXEMPT: Record<string, string> = {
   billing_events: 'Raw provider webhook envelopes, deduplicated before a tenant is known. Resolved to a tenant during processing.',
   model_registry: 'Catalogue of AI models, versions and A/B splits operated by Tajribah. It holds no tenant data and is never written by a merchant.',
   coupons: 'Platform catalogue of discount codes (P2.12), the same for every store and written only by the admin console. Which store used which code is tenant data, in coupon_redemptions.',
+  announcements: 'Platform notices shown on every store dashboard (A13, T23) — the same for every store, written only by the admin console, read-only to the app role.',
   staff_audit: 'What Tajribah staff did in the admin console (A1). Platform-wide — an action may concern no store — and read and written only by the admin role; the application role has no grant at all.',
 };
 

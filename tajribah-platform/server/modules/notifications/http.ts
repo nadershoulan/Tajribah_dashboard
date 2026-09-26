@@ -3,8 +3,9 @@
  */
 import { z } from 'zod';
 import { route } from '@/server/core/observability/request';
-import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@/server/core/http/api';
+import { apiConfig, assertSameOrigin, authenticate, json, readJson, tenantContextFor } from '@/server/core/http/api';
 import { markRead, myNotifications } from './service';
+import { liveAnnouncements } from '@/server/modules/admin/announcements';
 
 /** API-110 — GET /api/notifications */
 export const listNotificationsHandler = route(async (request) => {
@@ -22,4 +23,10 @@ export const markReadHandler = route(async (request) => {
     z.object({ all: z.literal(true) }),
   ]));
   return json({ marked: await markRead(ctx, 'all' in body ? 'all' : body.ids) });
+});
+
+/** API-112 — GET /api/announcements: the platform notices live now (A13, T23). Any signed-in person. */
+export const announcementsHandler = route(async (request) => {
+  await authenticate(request);
+  return json({ announcements: await liveAnnouncements() });
 });

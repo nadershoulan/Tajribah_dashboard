@@ -9,12 +9,13 @@
 import { useState, type ReactNode } from 'react';
 import {
   BarChart3, Box, CreditCard, Code2, Home, Link2, Lock, Menu, Package, QrCode,
-  Scan, Settings, ShieldAlert, ShieldCheck, SlidersHorizontal, Users, ChevronDown, X, LogOut, Eye,
+  Scan, Settings, ShieldAlert, ShieldCheck, SlidersHorizontal, Users, ChevronDown, X, LogOut, Eye, Megaphone,
 } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
 import { currentStore } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
+import { useResource } from '@/lib/data';
 import { RequireSession } from './require-session';
 import { CommandPalette } from './command-palette';
 import { NotificationBell } from './notifications';
@@ -119,6 +120,38 @@ function Sidebar({ tenant, open, onClose }: { tenant: TenantSummary | null; open
 }
 
 /** P2.11: a store whose trial or subscription ended can read everything but change nothing — say so, and the way out. */
+const DISMISSED_KEY = 'tajribah-dismissed-announcements';
+const readDismissed = (): string[] => { try { return JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? '[]') as string[]; } catch { return []; } };
+
+/** A13 (T23): notices Tajribah publishes to every store — dismissible, remembered in this browser only. */
+function AnnouncementBanner() {
+  const { t, pick } = useLang();
+  const { data } = useResource((s) => s.announcements(), []);
+  const [dismissed, setDismissed] = useState<string[]>(readDismissed);
+  const shown = (data ?? []).filter((a) => !dismissed.includes(a.id));
+  if (!shown.length) return null;
+  const dismiss = (id: string) => {
+    const next = [...dismissed, id].slice(-50);
+    setDismissed(next);
+    try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(next)); } catch { /* private window: dismissed for this visit only */ }
+  };
+  return (
+    <>
+      {shown.map((a) => (
+        <div key={a.id} className={`notice announcement ${a.level}`} role="status">
+          <Megaphone size={18} aria-hidden />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <strong>{pick(a.title)}</strong>
+            {a.body && <p>{pick(a.body)}</p>}
+          </div>
+          {a.link && <AppLink href={a.link} className="btn btn-ghost btn-sm">{t('التفاصيل', 'Details')}</AppLink>}
+          <button type="button" className="icon-btn" onClick={() => dismiss(a.id)} aria-label={t('إخفاء', 'Dismiss')}><X size={16} /></button>
+        </div>
+      ))}
+    </>
+  );
+}
+
 /** A4b: a staff member is looking at this store's dashboard — say so on every screen, with Stop. */
 function StaffViewBanner({ store }: { store: TenantSummary | null }) {
   const { t, lang } = useLang();
@@ -249,6 +282,7 @@ export function Shell({ tenant, crumbs = [], children }: {
 
         <main className="page" id="main">
           <StaffViewBanner store={store} />
+          <AnnouncementBanner />
           <ReadOnlyBanner store={store} />
           <RequireSession>{children}</RequireSession>
         </main>

@@ -16,7 +16,7 @@ import type {
   AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ApiError, currentStore, type ApiClient } from './api-client';
-import type { Lang } from './lang';
+import type { Bi, Lang } from './lang';
 import type { ProductListPage, ProductListQuery } from './contracts/products';
 import type { PlanCode } from './plans';
 import { DEFAULT_BUTTON_RADIUS, SettingsPatch, type StoreSettings } from './contracts/settings';
@@ -34,6 +34,9 @@ import {
   OnboardingError, confirmStore as confirmStoreRule, evaluate, skip as skipRule, unskip as unskipRule,
   type Facts, type OnboardingView, type StepKey,
 } from '@/server/modules/onboarding/machine';
+
+/** A13 (T23) — server/modules/notifications/service.ts `LiveAnnouncement`. */
+export type Announcement = { id: string; level: 'info' | 'warning'; title: Bi; body: Bi | null; link: string | null; endsAt: string };
 
 export interface DataSource {
   /** The store being viewed. The shell reads it on every screen for the store switcher. */
@@ -68,6 +71,8 @@ export interface DataSource {
   checkInstall(url: string): Promise<InstallCheck>;
   /** P1.23: the signed-in person's own notifications, newest first. */
   notifications(): Promise<{ items: NotificationItem[]; unread: number }>;
+  /** A13 (T23): platform notices live now, for every dashboard. */
+  announcements(): Promise<Announcement[]>;
   markNotificationsRead(ids: string[] | 'all'): Promise<void>;
   /** P1.21: AR button and viewer settings per product. */
   arConfigs(): Promise<ArConfigView[]>;
@@ -170,6 +175,7 @@ export function apiSource(client: ApiClient): DataSource {
     async settings() { return client.call<StoreSettings>('/api/settings'); },
     async arConfigs() { return (await client.call<{ configs: ArConfigView[] }>('/api/ar-configs')).configs; },
     async notifications() { return client.call<{ items: NotificationItem[]; unread: number }>('/api/notifications'); },
+    async announcements() { return (await client.call<{ announcements: Announcement[] }>('/api/announcements')).announcements; },
     async embed() { return client.call<{ storeKey: string; snippet: string; storeHost: string | null }>('/api/embed'); },
     async checkInstall(url) { return client.call<InstallCheck>('/api/embed/check', { method: 'POST', body: { url } }); },
     async markNotificationsRead(ids) {
@@ -399,6 +405,8 @@ export const demoSource: DataSource = {
     // The preview has no server to fetch the page from: it says so instead of pretending.
     return { status: 'unreachable', detail: 'preview — the real app fetches the page and checks it', url };
   },
+  // The preview has no staff to publish one: no invented notices.
+  async announcements() { return []; },
   async notifications() {
     return { items: demoNotifications.map((n) => ({ ...n })), unread: demoNotifications.filter((n) => !n.read).length };
   },

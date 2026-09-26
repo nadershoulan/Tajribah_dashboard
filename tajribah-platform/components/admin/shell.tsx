@@ -8,7 +8,7 @@
  * to turn it on. The server refuses the same people on every admin endpoint regardless.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Activity, ArrowLeft, FileLock2, LayoutDashboard, LifeBuoy, TicketPercent, Receipt, ShieldAlert, ScrollText, Store, Tags, Users } from 'lucide-react';
+import { Activity, ArrowLeft, FileLock2, LayoutDashboard, LifeBuoy, Megaphone, TicketPercent, Receipt, ShieldAlert, ScrollText, Store, Tags, Users } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { ApiError } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
@@ -27,6 +27,7 @@ const NAV = [
   { href: '/admin/people', icon: Users, label: { ar: 'الأشخاص', en: 'People' } },
   { href: '/admin/plans', icon: Tags, label: { ar: 'الباقات', en: 'Plans' } },
   { href: '/admin/coupons', icon: TicketPercent, label: { ar: 'الكوبونات', en: 'Coupons' } },
+  { href: '/admin/announcements', icon: Megaphone, label: { ar: 'الإعلانات', en: 'Announcements' } },
   { href: '/admin/billing', icon: Receipt, label: { ar: 'الفوترة', en: 'Billing' }, also: ['/admin/invoices/'] },
   { href: '/admin/operations', icon: Activity, label: { ar: 'التشغيل', en: 'Operations' } },
   { href: '/admin/compliance', icon: FileLock2, label: { ar: 'الامتثال', en: 'Compliance' } },

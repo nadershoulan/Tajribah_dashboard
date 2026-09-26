@@ -165,5 +165,27 @@ export const dataRequests = pgTable('data_requests', {
   ...timestamps(),
 }, (t) => [index('data_requests_tenant_idx').on(t.tenantId, t.status)]);
 
+/**
+ * A13 (T23, drizzle/0015): announcements — bilingual notices on every store's dashboard between
+ * two times, written by staff in the admin console. A platform catalogue: read-only to the app.
+ */
+export const announcementLevel = pgEnum('announcement_level', ['info', 'warning']);
+export const announcements = pgTable('announcements', {
+  id: pk(),
+  titleAr: text('title_ar').notNull(),
+  titleEn: text('title_en').notNull(),
+  bodyAr: text('body_ar'),
+  bodyEn: text('body_en'),
+  level: announcementLevel('level').notNull().default('info'),
+  /** A dashboard path (`/dashboard/…`) the notice links to, or null. */
+  link: text('link'),
+  startsAt: ts('starts_at').notNull(),
+  endsAt: ts('ends_at').notNull(),
+  active: bool('active').notNull().default(true),
+  createdBy: uuid('created_by').notNull(),
+  ...timestamps(),
+}, (t) => [index('announcements_window_idx').on(t.active, t.startsAt, t.endsAt)]);
+
 export type Job = typeof jobs.$inferSelect;
+export type Announcement = typeof announcements.$inferSelect;
 export type AiJob = typeof aiJobs.$inferSelect;

@@ -37,6 +37,7 @@ import AdminOperations from '@/components/pages/admin/AdminOperations';
 import AdminSupport from '@/components/pages/admin/AdminSupport';
 import AdminCoupons from '@/components/pages/admin/AdminCoupons';
 import AdminCompliance from '@/components/pages/admin/AdminCompliance';
+import AdminAnnouncements from '@/components/pages/admin/AdminAnnouncements';
 import NotFound from '@/components/pages/NotFound';
 
 export const ROUTES: Record<string, () => ReactElement> = {
@@ -64,6 +65,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/admin/support': AdminSupport,
   '/admin/coupons': AdminCoupons,
   '/admin/compliance': AdminCompliance,
+  '/admin/announcements': AdminAnnouncements,
   '/admin/audit': AdminAudit,
   '/verify-email': VerifyEmail,
   '/reset-password': ResetPassword,

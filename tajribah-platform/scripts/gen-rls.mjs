@@ -131,7 +131,7 @@ const policies = scoped.filter(early).map(policyOf).join(BREAK);
 
 // Platform catalogues are readable by the app and writable only by migrations. GRANT SELECT
 // does not make a table read-only on its own — the REVOKE has to come first (§13.2).
-const READ_ONLY_CATALOGUES = ['plans', 'plan_limits', 'plan_features', 'model_registry', 'coupons'];
+const READ_ONLY_CATALOGUES = ['plans', 'plan_limits', 'plan_features', 'model_registry', 'coupons', 'announcements'];
 const readOnlyOf = (name) => [
   `REVOKE ALL ON "${name}" FROM tajribah_app;`,
   `GRANT SELECT ON "${name}" TO tajribah_app;`,

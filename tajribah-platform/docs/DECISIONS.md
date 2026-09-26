@@ -446,3 +446,17 @@ until counsel reviews them. They follow the Saudi PDPL's shape; the periods are 
 **Rollback path.** The periods are one table in code (`server/modules/admin/retention.ts`);
 changing one changes the next sweep. Nothing deleted can be brought back — lengthen a period
 before a sweep, not after.
+
+## T23 · 2026-09-27 · "Platform copy" (A13) means announcements
+
+**Decision (Nader: "do invent", applied to A13's undefined "platform copy").** All product copy
+stays in code, reviewed like code — a label or a legal sentence is not something to change
+without review. The one kind of copy that must change on staff's schedule rather than a
+release's is a **notice to every store**: a maintenance window, a new feature, holiday support
+hours. That is what A13's platform copy is: **announcements** (`drizzle/0015`), bilingual and
+required in both languages, shown on every dashboard between a start and an end (at most 90
+days apart), `info` or `warning`, optionally linking inside the dashboard only. A platform
+catalogue: the app role reads, only the admin console writes; each change is in the staff trail
+with a reason. A store can dismiss one (remembered in that browser only).
+
+**Rollback path.** Switch an announcement off; drop the table with 0015's ROLLBACK.

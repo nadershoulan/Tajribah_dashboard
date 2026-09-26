@@ -11,6 +11,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { ApiError, type ApiClient, type MeResponse, type RegisterBody, type TwoFactorStatus } from './api-client';
 import { matchTotp, newBackupCodes, newTotpSecret, otpauthUrl } from '@/server/core/auth/totp';
 import { DEMO_DASHBOARD } from './demo-data';
+import type { ConnectionSummary, TeamMemberRow } from './view-models';
 
 export type AuthStatus = 'loading' | 'signed-in' | 'signed-out';
 
@@ -69,10 +70,29 @@ export type PlatformOverview = {
   asOf: string;
 };
 
+/** A3 — server/modules/admin/stores.ts */
+export type AdminStoreRow = {
+  id: string; name: string; nameAr: string | null; slug: string; status: 'trial' | 'active' | 'past_due' | 'suspended' | 'cancelled';
+  plan: 'starter' | 'growth' | 'pro' | 'enterprise'; subscription: string | null; readOnly: 'trial_ended' | 'subscription_ended' | null;
+  trialEndsAt: string | null; createdAt: string;
+};
+type AdminMeter = { used: number; limit: number };
+export type AdminStoreDetail = {
+  store: AdminStoreRow & { crNumber: string | null; vatNumber: string | null; city: string | null; locale: string };
+  usage: Record<'products' | 'team_members' | 'storage_gb' | 'ar_sessions' | 'ai_credits', AdminMeter>;
+  credits: { balance: number; usedThisMonth: number };
+  invoices: { id: string; number: string; status: string; totalMinor: number; currency: string; issuedAt: string }[];
+  connections: ConnectionSummary[];
+  members: TeamMemberRow[];
+  staffTrail: StaffTrailRow[];
+};
+
 export type AdminApi = {
   whoami(): Promise<{ email: string; fullName: string }>;
   trail(storeId?: string): Promise<StaffTrailRow[]>;
   overview(): Promise<PlatformOverview>;
+  stores(query: { q?: string; status?: string; plan?: string; before?: string }): Promise<{ stores: AdminStoreRow[]; next: string | null }>;
+  store(id: string): Promise<AdminStoreDetail>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -119,6 +139,11 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       whoami: () => client.call('/api/admin/whoami'),
       trail: async (storeId) => (await client.call<{ entries: StaffTrailRow[] }>(`/api/admin/audit${storeId ? `?store=${encodeURIComponent(storeId)}` : ''}`)).entries,
       overview: () => client.call('/api/admin/overview'),
+      stores: (query) => {
+        const params = new URLSearchParams(Object.entries(query).filter(([, v]) => v) as [string, string][]);
+        return client.call(`/api/admin/stores${params.size ? `?${params}` : ''}`);
+      },
+      store: (id) => client.call(`/api/admin/stores/${encodeURIComponent(id)}`),
     },
     twoFactor: {
       status: () => client.twoFactorStatus(),
@@ -184,7 +209,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

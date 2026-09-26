@@ -18,7 +18,7 @@ P6 AI+connectors  ░░░░░░░░░░░░░░░░░░░░�
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13
 P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 M  Marketing      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12   (separate site in tajribah-try-on)
-A  Admin console  █████░░░░░░░░░░░░░░░░░░░░░░░░░░░   2 / 14   ← started 2026-09-26
+A  Admin console  ███████░░░░░░░░░░░░░░░░░░░░░░░░░   3 / 14   ← started 2026-09-26
                                             overall  38 / 168
 ```
 
@@ -98,6 +98,7 @@ The internal console for running Tajribah: stores, people, plans, coupons, what 
 
 | | Package | In plain words |
 |---|---|---|
+| ✅ | A3 Every store | Staff can find any store — by name (Arabic too), web address or id — filter by status and plan, and open a store to see its details, how much of its plan it uses (the same numbers the store sees), its invoices, connection, team, and anything staff changed on it. Looking changes nothing |
 | ✅ | A2 Platform at a glance | The first page of the staff console: how many stores there are and in what state, new stores this month, trials ending this week, monthly and yearly recurring revenue (at list prices until payments are live — the page says so), subscriptions per plan, cancellations, invoices and AI use this month |
 | ✅ | A1 Who can get in | The staff console now exists at /admin. Only Tajribah staff can open it — and only with two-step sign-in on; for anyone else it looks like a page that doesn't exist. Staff are marked directly in the database (no button can do it). Everything staff do there is written to a staff-only record that merchants' requests can't read or change. The console looks clearly different from a store's dashboard |
 
@@ -204,3 +205,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-26 | P2.13 billing messages (invoice issued, payment failed) | 397 pass / 0 fail |
 | 2026-09-26 | Staff console opened: A1 who can get in, staff activity record | 399 pass / 0 fail |
 | 2026-09-26 | A2 platform overview for staff | 400 pass / 0 fail |
+| 2026-09-26 | A3 stores list and store page for staff | 402 pass / 0 fail |

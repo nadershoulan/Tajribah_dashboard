@@ -706,3 +706,9 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
   .admin-nav { display: flex; overflow-x: auto; border-inline-end: 0; border-bottom: 1px solid var(--line); padding: 10px 12px; }
   .admin-who { margin-inline-start: 0; }
 }
+
+/* A3 — admin filters */
+.admin-filters { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.admin-filters .search { display: flex; align-items: center; gap: 8px; flex: 1 1 240px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface, #fff); }
+.admin-filters .search input { border: 0; outline: 0; flex: 1; min-width: 0; font: inherit; background: transparent; color: var(--text); }
+.admin-filters select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; font: inherit; background: var(--surface, #fff); color: var(--text); }

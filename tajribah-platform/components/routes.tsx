@@ -26,6 +26,8 @@ import Security from '@/components/pages/Security';
 import InvoiceView from '@/components/pages/InvoiceView';
 import AdminAudit from '@/components/pages/admin/AdminAudit';
 import AdminOverview from '@/components/pages/admin/AdminOverview';
+import AdminStores from '@/components/pages/admin/AdminStores';
+import AdminStore from '@/components/pages/admin/AdminStore';
 import NotFound from '@/components/pages/NotFound';
 
 export const ROUTES: Record<string, () => ReactElement> = {
@@ -45,6 +47,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/register': Register,
   // The staff console (Track A).
   '/admin': AdminOverview,
+  '/admin/stores': AdminStores,
   '/admin/audit': AdminAudit,
   '/verify-email': VerifyEmail,
   '/reset-password': ResetPassword,
@@ -55,6 +58,7 @@ const PATTERNS: [RegExp, () => ReactElement][] = [
   [/^\/dashboard\/products\/(?!new$)[^/]+$/, ProductDetail],
   [/^\/invite\/[^/]+$/, InviteAccept],
   [/^\/dashboard\/billing\/invoices\/[^/]+$/, InvoiceView],
+  [/^\/admin\/stores\/[^/]+$/, AdminStore],
 ];
 
 /** The rendered screen for a path — an element, so no component is chosen during render. */

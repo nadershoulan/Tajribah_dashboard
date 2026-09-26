@@ -114,7 +114,7 @@ only. Screen IDs from the inventory (`ADM-*`).
 |---|---|---|---|
 | A1 ✅ | Admin app & access control | — | Only staff **with two-step sign-in** reach any admin endpoint or screen (others: 404, so the console is not even revealed); every staff action lands in a platform staff audit trail the app role cannot read or write; the console looks unmistakably different |
 | A2 ✅ | Platform overview | — (numbers); real revenue 🔒 | ADM-02: stores by status, trials ending, MRR/ARR from subscriptions × the plan rows, new stores — from the database |
-| A3 | Tenant management | — | ADM-03…07: every store, filterable; one store's profile, usage, billing and connections |
+| A3 ✅ | Tenant management | — | ADM-03…07: every store, filterable; one store's profile, usage, billing and connections |
 | A4 | Tenant actions & impersonation | — | ADM-08: suspend/restore, extend a trial, credit adjustment — each with a reason, in both the store's and the staff trail; impersonation read-only and visible to the store |
 | A5 | User management | — | ADM-11/12: find a person, their stores; end their sessions, reset their two-step sign-in — audited |
 | A6 | Plans & pricing management | — | ADM-13/14: edit a plan's prices, limits and features (T19: applies to everyone), audited |

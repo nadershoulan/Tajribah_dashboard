@@ -25,6 +25,8 @@ export type AuthApi = {
   completeTwoFactor(challenge: string, code: string): Promise<void>;
   /** P1.2b: the signed-in person's own two-step sign-in. */
   twoFactor: TwoFactorApi;
+  /** A1: the staff console. 404 for anyone not staff, 403 for staff without two-step sign-in. */
+  admin: AdminApi;
   register(body: RegisterBody): Promise<{ slugNeedsConfirmation: boolean }>;
   logout(): Promise<void>;
   switchTenant(tenantId: string): Promise<void>;
@@ -45,6 +47,17 @@ export type TwoFactorApi = {
   enable(code: string): Promise<{ backupCodes: string[] }>;
   disable(password: string, code: string): Promise<void>;
   regenerateBackupCodes(password: string): Promise<{ backupCodes: string[] }>;
+};
+
+/** A1 — one row of the staff trail (server/modules/admin/access.ts). */
+export type StaffTrailRow = {
+  id: string; at: string; staff: string; action: string; targetType: string; targetId: string | null;
+  storeId: string | null; reason: string | null;
+};
+
+export type AdminApi = {
+  whoami(): Promise<{ email: string; fullName: string }>;
+  trail(storeId?: string): Promise<StaffTrailRow[]>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -87,6 +100,10 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       return pending;
     },
     completeTwoFactor: async (challenge, code) => { await client.completeTwoFactor(challenge, code); await load(); },
+    admin: {
+      whoami: () => client.call('/api/admin/whoami'),
+      trail: async (storeId) => (await client.call<{ entries: StaffTrailRow[] }>(`/api/admin/audit${storeId ? `?store=${encodeURIComponent(storeId)}` : ''}`)).entries,
+    },
     twoFactor: {
       status: () => client.twoFactorStatus(),
       startSetup: (password) => client.startTwoFactorSetup(password),
@@ -150,6 +167,9 @@ const demoTwoFactor: TwoFactorApi = {
   },
 };
 
+const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound };
+
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {
   const tenant = DEMO_DASHBOARD.tenant;
@@ -167,6 +187,8 @@ export function DemoAuthProvider({ children }: { children: ReactNode }) {
     login: async () => null,
     completeTwoFactor: async () => {},
     twoFactor: demoTwoFactor,
+    // The preview has no staff: the console answers as it does for any merchant.
+    admin: demoAdmin,
     register: async () => ({ slugNeedsConfirmation: false }),
     logout: async () => {},
     switchTenant: async () => {},

@@ -28,6 +28,7 @@ view of the same facts for Nader — update it in the same session. Counts are d
 | P0 Foundation | **19 / 22 done, P0.20 partly** — its last browser step needs a database; P0.21 CI / P0.22 staging need accounts |
 | P1 Core loop | **20 / 26** + P1.6b + P1.2b (account-free work only, T12) · P1.13b needs a decision · P1.20 blocked on the domain · **every other open P1 package needs an account** |
 | P2 Billing | **6 / 15 + P2.10, P2.12 up to the payment path** (T18: account-free only — P2.2, P2.6, P2.9, P2.11 and parts of P2.10/12/13 need no account; the rest wait on Moyasar / ZATCA) |
+| Track A Admin | **1 / 14** (T18) — A1 access control; A8–A10 need Moyasar / P3 |
 | later | not opened |
 
 ## Next up
@@ -155,6 +156,9 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
 - (P2.6) No stored PDF (`pdf_storage_key` unused): the invoice prints to PDF from the browser.
   A server-side PDF with Arabic shaping needs a renderer choice — decide with P2.7's provider,
   which may return the PDF/A-3 itself.
+- (A1) **To make someone staff**: `UPDATE users SET is_staff = true WHERE email = '…';` on the
+  database, then they turn on two-step sign-in. No screen can grant it, by design. Nobody is
+  staff yet (no database host).
 - (P2.11) Screens do not yet disable their write buttons for a read-only store — the server
   refuses (402) and the banner explains. Read `store.readOnly` in the page kits when polishing.
 - (P2.11) The sync schedule still syncs a read-only store (a system context). Decide with P2.4
@@ -176,6 +180,12 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
 returns the verification token and a route handler will send it; `configureNotify` has no
 boot to be called from until the first route handler exists; the `notify.email` /
 `notify.sms` queues have no handler.
+
+**Track A — done and verified (under the T18 override)**
+
+| ID | Package | Verified by |
+|---|---|---|
+| A1 | Admin app & access control — the console lives at `/admin` in this app (ARCHITECTURE). `server/modules/admin/access.ts` `staffContextFor`: **staff only** (`users.is_staff`, read on every request — set by the operator in the database, never by a screen), anyone else gets **404** so the console is not even confirmed; staff **must have two-step sign-in** (403 with the way to turn it on). **`staff_audit`** (`drizzle/0011`, EXEMPT, `store_id` not `tenant_id`): every staff action (`staffLog`), platform-wide, **admin role only** — the generated block (T21) gives the app role no grant at all. API-A00 `whoami`, API-A01 staff trail (`?store=`). `/me` carries `isStaff`; staff see a "Staff console" link. UI: `AdminShell` (dark bar "every action here is logged", own nav, back to the store dashboard) guarded by the session and the server's check; ADM-43 staff activity at `/admin` and `/admin/audit`. The preview answers 404 (no staff) | 2 tests through the real handlers with real sessions: no session 401, merchant 404 (code `not_found`), staff without two-step 403, staff 200, staff status removed → 404 at once, deleted account 404; the trail newest first with the staff address and reason, store filter, and the app role refused reading or deleting it. **Seen to fail** 5 ways. Browser: a merchant at `/admin` sees the ordinary "page does not exist"; the console itself in a throwaway preview with a stand-in staff answer (restored byte-identical), ar 390 / en 1440 |
 
 **P2 — done and verified (under the T18 override)**
 
@@ -316,3 +326,4 @@ cleared it — if it recurs, restart before debugging.
 | 2026-09-26 | **P2.10 billing UI** (account-free part): real billing summary (API-133), checkout to the pay step, every dead button wired, untrue copy corrected. | `verify.mjs` Node 22 + lint: **389 pass / 0 fail**, 0 lint errors; seen to fail 3 ways; checkout driven in the browser |
 | 2026-09-26 | **P2.12 coupons** (model, server-side check at checkout, redemption for the payment path) + **T21** RLS generator for tables created after 0001. | `verify.mjs` Node 22 + lint: **395 pass / 0 fail**, 0 lint errors; seen to fail 9 ways + isolation suite catches a later table without RLS |
 | 2026-09-26 | **P2.13 billing notifications**: invoice issued and payment failed — owners and admins, their language, in-app + email, once each; trial reminders share the recipients. | `verify.mjs` Node 22 + lint: **397 pass / 0 fail**, 0 lint errors; seen to fail 5 ways |
+| 2026-09-26 | **P2 account-free work done.** **Track A opened: A1 admin access control** — staff only (404 otherwise), two-step sign-in required, admin-only staff trail (`drizzle/0011`, second table on the T21 generator), staff console shell + ADM-43. | `verify.mjs` Node 22 + lint: **399 pass / 0 fail**, 0 lint errors; seen to fail 5 ways |

@@ -18,7 +18,7 @@ P6 AI+connectors  ░░░░░░░░░░░░░░░░░░░░�
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13
 P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 M  Marketing      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12   (separate site in tajribah-try-on)
-A  Admin console  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 14
+A  Admin console  ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   1 / 14   ← started 2026-09-26
                                             overall  38 / 168
 ```
 
@@ -91,6 +91,14 @@ marked 🔒 in `docs/PACKAGES.md` wait for Salla / Cloudflare / the domain.
 | ✅ | P1.12 Upload a 3D model | A merchant uploads a .glb (Android / web) or .usdz (iPhone) file for a product, up to 50 MB. The file goes straight to storage, not through our servers. Before it's accepted, the file itself is checked — not just its name — so a renamed photo, an old format, or an upload that got cut off halfway is refused with a clear reason and deleted. Each new upload becomes the next version of that product's model; it never goes live by itself |
 | ✅ | P1.13 Shrink models for phones | After an upload is accepted, the model is automatically cleaned up and compressed so it opens faster on a phone (unused parts removed, repeated parts shared). Each model shows its size before and after, and whether it's under the 2 MB target. The original is kept. It is marked ready, but only goes live when you publish it |
 | ❓ | P1.13b Texture compression + iPhone files | Compressing textures (usually most of a model's size) and making the iPhone (.usdz) version automatically both need extra tools installed on the server that runs background work. **Decision needed** — see below |
+
+## Track A — the staff console (started 2026-09-26)
+
+The internal console for running Tajribah: stores, people, plans, coupons, what went wrong.
+
+| | Package | In plain words |
+|---|---|---|
+| ✅ | A1 Who can get in | The staff console now exists at /admin. Only Tajribah staff can open it — and only with two-step sign-in on; for anyone else it looks like a page that doesn't exist. Staff are marked directly in the database (no button can do it). Everything staff do there is written to a staff-only record that merchants' requests can't read or change. The console looks clearly different from a store's dashboard |
 
 ## P2 — billing (started 2026-09-26, parts needing no account)
 
@@ -193,3 +201,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-26 | P2.10 billing screen on real data, checkout up to payment | 389 pass / 0 fail |
 | 2026-09-26 | P2.12 discount codes; database security rules now cover tables added later | 395 pass / 0 fail |
 | 2026-09-26 | P2.13 billing messages (invoice issued, payment failed) | 397 pass / 0 fail |
+| 2026-09-26 | Staff console opened: A1 who can get in, staff activity record | 399 pass / 0 fail |

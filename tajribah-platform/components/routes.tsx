@@ -24,6 +24,7 @@ import ResetPassword from '@/components/pages/ResetPassword';
 import Onboarding from '@/components/pages/Onboarding';
 import Security from '@/components/pages/Security';
 import InvoiceView from '@/components/pages/InvoiceView';
+import AdminAudit from '@/components/pages/admin/AdminAudit';
 import NotFound from '@/components/pages/NotFound';
 
 export const ROUTES: Record<string, () => ReactElement> = {
@@ -41,6 +42,9 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/dashboard/ar-settings': ArSettings,
   '/login': Login,
   '/register': Register,
+  // A1: the staff console. `/admin` shows the staff trail until the overview (A2) takes it.
+  '/admin': AdminAudit,
+  '/admin/audit': AdminAudit,
   '/verify-email': VerifyEmail,
   '/reset-password': ResetPassword,
 };

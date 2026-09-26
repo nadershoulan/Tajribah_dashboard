@@ -21,6 +21,7 @@ const ADMIN_ALLOWED: Record<string, string> = {
   'server/modules/billing/trial.ts': 'the reminder sweep finds due trials across stores (ids and dates only); each reminder is written in its own store',
   'server/modules/billing/coupons.ts': 'coupon limits count redemptions across stores, and redemption locks the platform coupon row',
   'server/modules/billing/notices.ts': 'billing mail goes to the store’s owners and admins, whose addresses live on the global users table',
+  'server/modules/admin/access.ts': 'the admin console: staff act across every store by definition; the staff trail is admin-role only',
   'server/core/jobs/queue.ts': 'the worker claims across tenants in one statement (RLS_EXEMPT: jobs)',
   'server/core/billing/entitlements.ts': 'subscription and membership counts are platform billing state, filtered by tenant explicitly',
   'server/modules/webhooks/ingest.ts': 'a delivery precedes any tenant scope: find the connection by provider + a store id the signature vouched for',

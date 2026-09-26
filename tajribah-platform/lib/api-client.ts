@@ -29,7 +29,7 @@ export class ApiError extends Error {
 }
 
 export type MeResponse = {
-  user: { id: string; email: string; fullName: string; emailVerified: boolean; locale: string };
+  user: { id: string; email: string; fullName: string; emailVerified: boolean; locale: string; isStaff?: boolean };
   currentTenantId: string | null;
   tenants: {
     id: string; slug: string; name: string; status: string; role: string;

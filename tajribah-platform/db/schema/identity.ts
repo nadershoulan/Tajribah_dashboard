@@ -222,6 +222,26 @@ export const auditLogs = pgTable('audit_logs', {
   index('audit_resource_idx').on(t.tenantId, t.resourceType, t.resourceId),
 ]);
 
+/**
+ * A1 (drizzle/0011) — what staff did in the admin console. Platform-wide, admin role only.
+ * `storeId`, not `tenantId`: an action may concern no store, and this must not get a tenant policy.
+ */
+export const staffAudit = pgTable('staff_audit', {
+  id: pk(),
+  staffUserId: uuid('staff_user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  action: text('action').notNull(),
+  targetType: text('target_type').notNull(),
+  targetId: text('target_id'),
+  storeId: uuid('store_id'),
+  reason: text('reason'),
+  detail: json<Record<string, unknown>>('detail'),
+  requestId: text('request_id'),
+  createdAt: createdAt(),
+}, (t) => [
+  index('staff_audit_time_idx').on(t.createdAt),
+  index('staff_audit_store_idx').on(t.storeId, t.createdAt),
+]);
+
 export type Tenant = typeof tenants.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type TenantMembership = typeof tenantMemberships.$inferSelect;

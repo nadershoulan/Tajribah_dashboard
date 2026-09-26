@@ -688,3 +688,21 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .coupon-row input { flex: 1; min-width: 0; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; background: var(--surface, #fff); color: var(--text); text-transform: uppercase; }
 .coupon-row .field-error { font-size: 12.5px; color: var(--bad); }
 .coupon-row .field-hint { font-size: 12.5px; color: var(--text-3); }
+
+/* A1 — the staff console: unmistakably not the merchant dashboard */
+.admin-shell { min-height: 100vh; background: var(--bg, #f4f7f9); }
+.admin-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 12px 20px; background: #2a0f14; color: #fff; }
+.admin-bar strong { font-size: 15px; }
+.admin-warn { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: #b42318; font-size: 12.5px; font-weight: 600; }
+.admin-who { font-size: 13px; color: #f3c9cd; margin-inline-start: auto; }
+.admin-bar .btn-ghost { color: #fff; border-color: rgba(255, 255, 255, .35); background: transparent; }
+.admin-body { display: grid; grid-template-columns: 220px minmax(0, 1fr); }
+.admin-nav { padding: 18px 12px; border-inline-end: 1px solid var(--line); display: grid; align-content: start; gap: 4px; }
+.admin-nav .side-link { color: var(--text-2); }
+.admin-nav .side-link[aria-current="page"] { background: var(--tint); color: var(--text); }
+.admin-title { margin: 0 0 16px; font-size: 22px; }
+@media (max-width: 860px) {
+  .admin-body { grid-template-columns: minmax(0, 1fr); }
+  .admin-nav { display: flex; overflow-x: auto; border-inline-end: 0; border-bottom: 1px solid var(--line); padding: 10px 12px; }
+  .admin-who { margin-inline-start: 0; }
+}

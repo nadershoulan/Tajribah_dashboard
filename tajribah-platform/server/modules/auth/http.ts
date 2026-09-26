@@ -127,7 +127,7 @@ export const meHandler = route(async (request) => {
   const plans = await planCodesFor(stores.map(({ tenant }) => tenant.id));
   const readOnly = await readOnlyFor(stores.map(({ tenant }) => tenant));
   return json({
-    user: { id: actor.userId, email: actor.email, fullName: actor.fullName, emailVerified: actor.emailVerified, locale: actor.locale },
+    user: { id: actor.userId, email: actor.email, fullName: actor.fullName, emailVerified: actor.emailVerified, locale: actor.locale, isStaff: actor.isStaff },
     currentTenantId: caller.tenantId,
     tenants: stores.map(({ tenant, role }) => ({
       id: tenant.id, slug: tenant.slug, name: tenant.name, status: tenant.status, role,

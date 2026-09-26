@@ -105,6 +105,28 @@ ZATCA provider block the rest; they may be prepared against fakes, not marked do
 | P2.14 | Financial reporting | 🔒 real payments | MRR, churn, revenue by plan — from invoices and payments |
 | P2.15 | Billing integrity tests | 🔒 Moyasar | The gate: full payment cycle incl. failure, refund and duplicate webhook |
 
+## Track A — Admin console (14)
+
+**Open under T18 (after P2.1).** Lives in this app at `/admin` (docs/ARCHITECTURE.md), staff
+only. Screen IDs from the inventory (`ADM-*`).
+
+| ID | Package | Needs | Done when |
+|---|---|---|---|
+| A1 ✅ | Admin app & access control | — | Only staff **with two-step sign-in** reach any admin endpoint or screen (others: 404, so the console is not even revealed); every staff action lands in a platform staff audit trail the app role cannot read or write; the console looks unmistakably different |
+| A2 | Platform overview | — (numbers); real revenue 🔒 | ADM-02: stores by status, trials ending, MRR/ARR from subscriptions × the plan rows, new stores — from the database |
+| A3 | Tenant management | — | ADM-03…07: every store, filterable; one store's profile, usage, billing and connections |
+| A4 | Tenant actions & impersonation | — | ADM-08: suspend/restore, extend a trial, credit adjustment — each with a reason, in both the store's and the staff trail; impersonation read-only and visible to the store |
+| A5 | User management | — | ADM-11/12: find a person, their stores; end their sessions, reset their two-step sign-in — audited |
+| A6 | Plans & pricing management | — | ADM-13/14: edit a plan's prices, limits and features (T19: applies to everyone), audited |
+| A7 | Subscriptions & invoices | — (view); refunds 🔒 | ADM-17…19: subscriptions and invoices across stores |
+| A8 | Payments & revenue | 🔒 Moyasar | Payments, refunds, revenue |
+| A9 | AI operations | 🔒 P3 | AI jobs, cost, failures |
+| A10 | Content & QA queues | 🔒 P3 | Model QA review |
+| A11 | Platform operations | — | Queue health, stuck jobs, webhook failures, key rotation state |
+| A12 | Support tooling | — | Look up a store/person/request id and see what happened |
+| A13 | Content management | — | Coupons (ADM-15) and platform copy |
+| A14 | Compliance & system | — (view); PDPL process ❓ | Data requests, retention, the staff trail |
+
 ## P3–P8 and the parallel tracks
 
 As in the plan's Appendix A, unchanged: P3 3D pipeline (12) ·

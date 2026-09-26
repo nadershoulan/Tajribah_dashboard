@@ -13,13 +13,10 @@ import { eq } from 'drizzle-orm';
 import { unsafeAdminDb, type Db } from '@/db/client';
 import { auditLogs, subscriptions, tenants, type Tenant } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
-import type { Permission } from '@/lib/permissions';
 import { errors } from '@/server/core/errors/problem';
-import { requirePermission } from '@/server/core/rbac/permissions';
-import type { TenantContext } from '@/server/core/tenancy/context';
-import { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { adjustCredits } from '@/server/modules/billing/credits';
 import { staffLog, type StaffContext } from './access';
+import { staffActingContext } from './stores';
 
 const DAY = 86_400_000;
 
@@ -90,13 +87,7 @@ export async function actOnStore(staff: StaffContext, storeId: string, action: S
 async function adjust(staff: StaffContext, storeId: string, delta: number, reason: string, now: Date): Promise<void> {
   const [tenant] = await unsafeAdminDb().select().from(tenants).where(eq(tenants.id, storeId)).limit(1);
   if (!tenant || tenant.deletedAt) throw errors.notFound('store');
-  const permissions = new Set<Permission>(['billing:read', 'billing:write']);
-  const ctx: TenantContext = {
-    tenantId: tenant.id, tenant, role: 'system', actorType: 'staff',
-    actor: { userId: staff.userId, email: staff.email, isStaff: true },
-    permissions, requestId: staff.requestId, db: TenantDb.for(tenant.id), readOnly: null,
-    require: (p) => requirePermission(permissions, p), can: (p) => permissions.has(p),
-  };
+  const ctx = staffActingContext(tenant, staff, ['billing:read', 'billing:write']);
   const entry = await adjustCredits(ctx, delta, `${reason} (staff: ${staff.email})`, now);
   await staffLog(staff, { action: 'store.credits_adjust', targetType: 'store', targetId: storeId, storeId, reason, detail: { delta, balanceAfter: entry.balanceAfter } });
 }

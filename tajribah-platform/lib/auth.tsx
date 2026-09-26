@@ -136,6 +136,20 @@ export type AdminInvoiceRow = {
   subtotalMinor: number; vatMinor: number; totalMinor: number; currency: string; issuedAt: string | null; paidAt: string | null; zatcaStatus: string | null;
 };
 
+/** A11 — server/modules/admin/operations.ts */
+type AdminOpsStore = { id: string; name: string; nameAr: string | null } | null;
+export type AdminJobRow = { id: string; queue: string; store: AdminOpsStore; state: string; attempts: number; maxAttempts: number; lastError: string | null; claimedBy: string | null; claimedAt: string | null; finishedAt: string | null; createdAt: string };
+export type AdminOperations = {
+  queues: { queue: string; ready: number; scheduled: number; running: number; dead: number; doneLastDay: number; lagSeconds: number | null }[];
+  stuck: AdminJobRow[]; dead: AdminJobRow[];
+  webhooks: {
+    lastDay: Record<'received' | 'processed' | 'failed' | 'ignored', number>; overdue: number;
+    failed: { id: string; provider: string; topic: string; store: AdminOpsStore; attempts: number; error: string | null; createdAt: string }[];
+  };
+  keys: { currentKeyId: string; previousKeySet: boolean; pending: { connectionTokens: number; authenticatorSecrets: number }; previousKeyRemovable: boolean };
+  asOf: string;
+};
+
 export type AdminApi = {
   whoami(): Promise<{ email: string; fullName: string }>;
   trail(storeId?: string): Promise<StaffTrailRow[]>;
@@ -151,6 +165,9 @@ export type AdminApi = {
   subscriptions(query: { status?: string; plan?: string; cycle?: string; before?: string }): Promise<{ subscriptions: AdminSubscriptionRow[]; next: string | null; byStatus: Partial<Record<AdminSubscriptionRow['status'], number>> }>;
   invoices(query: { status?: string; month?: string; q?: string; before?: string }): Promise<{ invoices: AdminInvoiceRow[]; next: string | null; totals: { count: number; totalMinor: number; vatMinor: number } }>;
   invoice(id: string): Promise<{ store: AdminStoreRef; invoice: InvoiceDocument }>;
+  operations(): Promise<AdminOperations>;
+  retryJob(id: string, reason: string): Promise<void>;
+  replayWebhook(id: string, reason: string): Promise<void>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -214,6 +231,9 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       subscriptions: (query) => client.call(`/api/admin/subscriptions${queryString(query)}`),
       invoices: (query) => client.call(`/api/admin/invoices${queryString(query)}`),
       invoice: (id) => client.call(`/api/admin/invoices/${encodeURIComponent(id)}`),
+      operations: () => client.call('/api/admin/operations'),
+      retryJob: async (id, reason) => { await client.call(`/api/admin/jobs/${encodeURIComponent(id)}/retry`, { body: { reason } }); },
+      replayWebhook: async (id, reason) => { await client.call(`/api/admin/webhooks/${encodeURIComponent(id)}/replay`, { body: { reason } }); },
     },
     twoFactor: {
       status: () => client.twoFactorStatus(),
@@ -279,7 +299,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

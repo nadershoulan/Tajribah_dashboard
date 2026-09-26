@@ -12,6 +12,7 @@ import { actOnStore } from './actions';
 import { actOnPerson, listPeople, personDetail } from './users';
 import { plansForStaff, updatePlan } from './plans';
 import { invoiceForStaff, listInvoices, listSubscriptions } from './billing';
+import { operations, replayDelivery, retryJob } from './operations';
 import { errors } from '@/server/core/errors/problem';
 
 /** API-A00 — GET /api/admin/whoami: the console's own guard asks this first. */
@@ -164,4 +165,35 @@ export const invoiceForStaffHandler = route(async (request) => {
   const id = new URL(request.url).pathname.split('/').filter(Boolean).pop() ?? '';
   if (!z.string().uuid().safeParse(id).success) throw errors.notFound('invoice');
   return json(await invoiceForStaff(staff, id));
+});
+
+/** API-A14 — GET /api/admin/operations: queues, stuck and dead jobs, failed webhooks, key rotation (A11). */
+export const operationsHandler = route(async (request) => {
+  await staffContextFor(request);
+  return json(await operations());
+});
+
+const REASON = z.object({ reason: z.string().max(500) });
+const idBeforeLast = (request: Request) => { const s = new URL(request.url).pathname.split('/').filter(Boolean); return s[s.length - 2] ?? ''; };
+
+/** API-A15 — POST /api/admin/jobs/[id]/retry: a dead job back in its queue. */
+export const retryJobHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const id = idBeforeLast(request);
+  if (!z.string().uuid().safeParse(id).success) throw errors.notFound('job');
+  await retryJob(staff, id, (await readJson(request, REASON)).reason);
+  return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+});
+
+/** API-A16 — POST /api/admin/webhooks/[id]/replay: a failed delivery handled again. */
+export const replayDeliveryHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const id = idBeforeLast(request);
+  if (!z.string().uuid().safeParse(id).success) throw errors.notFound('webhook delivery');
+  await replayDelivery(staff, id, (await readJson(request, REASON)).reason);
+  return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
 });

@@ -26,6 +26,7 @@ const ADMIN_ALLOWED: Record<string, string> = {
   'server/modules/admin/stores.ts': 'staff list and inspect any store (A3), including a suspended one; reads only',
   'server/modules/admin/actions.ts': 'staff change a store (A4): the change, the store audit row and the staff trail in one admin transaction',
   'server/modules/admin/billing.ts': 'staff read subscriptions and invoices across every store (A7); reads only',
+  'server/modules/admin/operations.ts': 'staff see queue, webhook and key-rotation health across the platform and retry a dead job (A11); jobs are platform rows',
   'server/modules/admin/plans.ts': 'staff change the platform plan catalogue (A6, T19): the rows, the reach count and the staff trail in one transaction',
   'server/modules/admin/users.ts': 'staff find people across every store and end their sessions or reset two-step sign-in (A5); users are not tenant-scoped',
   'server/core/jobs/queue.ts': 'the worker claims across tenants in one statement (RLS_EXEMPT: jobs)',

@@ -39,6 +39,21 @@ export function inspectionContext(tenant: Tenant, staff: StaffContext): TenantCo
   };
 }
 
+/**
+ * A staff member acting on one store, with exactly the permissions the action needs: the store's
+ * own functions run as they would for the merchant, and its audit trail records a `staff` actor.
+ */
+export function staffActingContext(tenant: Tenant, staff: StaffContext, granted: readonly Permission[]): TenantContext {
+  const permissions = new Set<Permission>(granted);
+  return {
+    tenantId: tenant.id, tenant, role: 'system', actorType: 'staff',
+    actor: { userId: staff.userId, email: staff.email, isStaff: true },
+    permissions, requestId: staff.requestId, db: TenantDb.for(tenant.id), readOnly: null,
+    require: (permission) => requirePermission(permissions, permission),
+    can: (permission) => permissions.has(permission),
+  };
+}
+
 export type StoreRow = {
   id: string; name: string; nameAr: string | null; slug: string; status: Tenant['status'];
   plan: PlanCode; subscription: string | null; readOnly: ReadOnlyReason | null; trialEndsAt: string | null; createdAt: string;

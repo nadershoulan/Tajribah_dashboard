@@ -727,12 +727,26 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .seg button { padding: 7px 14px; border: 0; border-radius: 9px; background: transparent; color: var(--text-2); font: inherit; font-weight: 500; cursor: pointer; }
 .seg button.on { background: var(--tint); color: var(--text); }
 
+/* A11 — operations */
+.ops { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.ops .grid { margin: 0; }
+.ops-list { list-style: none; margin: 0; padding: 0; }
+.ops-list li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 8px 16px; align-items: center; padding: 12px 18px; border-top: 1px solid var(--line); }
+.ops-list li:first-child { border-top: 0; }
+.ops-list li > .btn { justify-self: start; }
+.ops-what { display: grid; gap: 2px; font-size: 14px; }
+.ops-what > span:last-child { font-size: 12.5px; color: var(--text-3); }
+@media (max-width: 860px) { .ops-list li { grid-template-columns: minmax(0, 1fr); } }
+.ops-error { margin: 0; text-align: start; font-family: var(--f-mono, ui-monospace, monospace); font-size: 12.5px; color: var(--bad); overflow-wrap: anywhere; }
+.ops-retry { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ops-retry input { min-width: 0; width: 180px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 9px; font: inherit; background: var(--surface, #fff); color: var(--text); }
+
 /* A6 — plans editor */
 .plan-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
 .plan-tab { display: grid; gap: 2px; text-align: start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface, #fff); color: var(--text); font: inherit; cursor: pointer; }
 .plan-tab span { font-size: 12.5px; color: var(--text-3); }
 .plan-tab.on { border-color: var(--aqua); box-shadow: 0 0 0 1px var(--aqua); }
-.plan-editor { display: grid; gap: 18px; margin-bottom: 18px; }
+.plan-editor { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; margin-bottom: 18px; }
 .plan-editor .grid { margin: 0; }
 .plan-notice { margin: 0 0 14px; color: var(--ok); }
 .limit-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px auto; gap: 10px; align-items: center; padding: 6px 0; font-size: 14px; }

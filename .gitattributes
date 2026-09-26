@@ -1,0 +1,26 @@
+# Text files are LF in the repository and in every checkout, whatever core.autocrlf says.
+# Generated files (.env.example, drizzle/0001_rls.sql) are compared byte for byte with what
+# the generators write, so a CRLF checkout on Windows failed those checks.
+* text=auto eol=lf
+
+# Windows-only scripts keep CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets: never touched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.glb binary
+*.usdz binary
+*.hdr binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.pdf binary
+*.zip binary
+*.wasm binary

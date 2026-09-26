@@ -1,10 +1,10 @@
 'use client';
 
-// ADM-04 — Tenant detail: profile · ADM-05 usage & quotas · ADM-06 billing · ADM-07 connections (A3)
+// ADM-04 — Tenant detail: profile · ADM-05 usage & quotas · ADM-06 billing · ADM-07 connections (A3) · ADM-08 actions (A4)
 
 import { useEffect, useState } from 'react';
 import { AppLink, useEnv } from '@/lib/app-env';
-import { useAuth, type AdminStoreDetail } from '@/lib/auth';
+import { useAuth, type AdminStoreAction, type AdminStoreDetail } from '@/lib/auth';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { useLang } from '@/lib/i18n';
 import { formatMoney } from '@/lib/money';
@@ -25,11 +25,12 @@ function Detail() {
   const id = env.path.split('/').filter(Boolean).pop() ?? '';
   const [data, setData] = useState<{ id: string; detail: AdminStoreDetail } | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const [version, setVersion] = useState(0);
   useEffect(() => {
     let live = true;
     auth.admin.store(id).then((detail) => { if (live) setData({ id, detail }); }, (e: Error) => { if (live) setError(e); });
     return () => { live = false; };
-  }, [auth.admin, id]);
+  }, [auth.admin, id, version]);
 
   if (error) return <ErrorNote error={error} />;
   if (!data || data.id !== id) return <Panel><Loading rows={5} /></Panel>;
@@ -75,6 +76,7 @@ function Detail() {
           )}
         </Panel>
       </div>
+      <div style={{ marginTop: 18 }}><Actions store={store} onDone={() => setVersion((v) => v + 1)} /></div>
       <div className="grid grid-2" style={{ marginTop: 18 }}>
         <Panel flush title={t('الفريق', 'Team')}>
           <div className="table-wrap"><table className="data"><tbody>
@@ -90,5 +92,90 @@ function Detail() {
         </Panel>
       </div>
     </>
+  );
+}
+
+type Kind = AdminStoreAction['type'];
+
+/** The server's refusals (server/modules/admin/actions.ts, credits.ts), in Arabic; anything else as sent. */
+const REFUSALS: Record<string, string> = {
+  'only a store on its trial can have the trial extended': 'لا تُمدَّد التجربة إلا لمتجر في فترة تجربته',
+  'the store is already suspended': 'المتجر موقوف بالفعل',
+  'the store is not suspended': 'المتجر غير موقوف',
+  'an adjustment cannot take the balance below zero': 'لا يمكن أن ينزل الرصيد تحت الصفر',
+};
+
+/** ADM-08 — what staff can change on a store. Every change needs a reason; the store sees it in its activity. */
+function Actions({ store, onDone }: { store: AdminStoreDetail['store']; onDone: () => void }) {
+  const { t, lang } = useLang();
+  const auth = useAuth();
+  const onTrial = store.status === 'trial' && store.subscription !== 'active' && store.subscription !== 'past_due';
+  const kinds: { kind: Kind; label: string }[] = [
+    ...(onTrial ? [{ kind: 'extend_trial' as const, label: t('تمديد التجربة', 'Extend the trial') }] : []),
+    store.status === 'suspended'
+      ? { kind: 'restore' as const, label: t('إعادة تفعيل المتجر', 'Restore the store') }
+      : { kind: 'suspend' as const, label: t('إيقاف المتجر', 'Suspend the store') },
+    { kind: 'adjust_credits', label: t('تعديل أرصدة الذكاء الاصطناعي', 'Adjust AI credits') },
+  ];
+  const [chosen, setChosen] = useState<Kind | null>(null);
+  const kind = kinds.some((k) => k.kind === chosen) ? chosen! : kinds[0]!.kind;
+  const [amount, setAmount] = useState('7');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+
+  const n = Number(amount);
+  const amountProblem = kind === 'extend_trial' ? (Number.isInteger(n) && n >= 1 && n <= 90 ? null : t('من 1 إلى 90 يومًا', '1 to 90 days'))
+    : kind === 'adjust_credits' ? (Number.isInteger(n) && n !== 0 ? null : t('عدد صحيح غير صفري؛ السالب يخصم', 'A whole, non-zero number; negative takes credits away'))
+    : null;
+  const reasonProblem = reason.trim().length < 5 ? t('اكتب السبب ببضع كلمات', 'Say why, in a few words') : null;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (amountProblem || reasonProblem) return;
+    const action: AdminStoreAction = kind === 'extend_trial' ? { type: kind, days: n, reason: reason.trim() }
+      : kind === 'adjust_credits' ? { type: kind, delta: n, reason: reason.trim() }
+      : { type: kind, reason: reason.trim() };
+    setBusy(true); setProblem(null); setDone(null);
+    try {
+      await auth.admin.act(store.id, action);
+      setDone(kinds.find((k) => k.kind === kind)!.label);
+      setReason('');
+      onDone();
+    } catch (err) {
+      setProblem((err as Error).message);
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Panel title={t('إجراءات على المتجر', 'Act on this store')} sub={t('يُسجَّل كل إجراء مع سببه، ويراه المتجر في سجل نشاطه.', 'Every action is recorded with its reason, and the store sees it in its activity.')}>
+      <form className="admin-actions" onSubmit={submit} noValidate>
+        <div className="field">
+          <label htmlFor="act-kind">{t('الإجراء', 'Action')}</label>
+          <select id="act-kind" value={kind} onChange={(e) => { setChosen(e.target.value as Kind); setAmount(e.target.value === 'adjust_credits' ? '' : '7'); setDone(null); }}>
+            {kinds.map((k) => <option key={k.kind} value={k.kind}>{k.label}</option>)}
+          </select>
+        </div>
+        {(kind === 'extend_trial' || kind === 'adjust_credits') && (
+          <div className="field act-amount">
+            <label htmlFor="act-amount">{kind === 'extend_trial' ? t('عدد الأيام', 'Days') : t('الأرصدة (+ أو −)', 'Credits (+ or −)')}</label>
+            <input id="act-amount" dir="ltr" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} aria-invalid={!!amountProblem && amount !== ''} />
+            {amountProblem && amount !== '' && <span className="field-error">{amountProblem}</span>}
+          </div>
+        )}
+        <div className="field act-reason">
+          <label htmlFor="act-reason">{t('السبب', 'Reason')}</label>
+          <input id="act-reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder={t('مثال: تأخر الإطلاق بسبب المنصة', 'e.g. launch delayed on our side')} />
+        </div>
+        <div className="btn-row">
+          <button type="submit" className={kind === 'suspend' ? 'btn btn-danger' : 'btn btn-accent'} disabled={busy || !!amountProblem || !!reasonProblem}>
+            {busy ? t('جارٍ التنفيذ…', 'Working…') : kinds.find((k) => k.kind === kind)!.label}
+          </button>
+        </div>
+      </form>
+      {problem && <p className="field-error" role="alert" style={{ margin: '8px 0 0' }}>{t('لم يُنفَّذ: ', 'Not done: ')}{lang === 'ar' && REFUSALS[problem] ? REFUSALS[problem] : <span dir="ltr">{problem}</span>}</p>}
+      {done && <p role="status" style={{ color: 'var(--ok)', margin: '8px 0 0' }}>{t(`تم: ${done}`, `Done: ${done}`)}</p>}
+    </Panel>
   );
 }

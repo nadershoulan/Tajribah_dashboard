@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, sql } from 'drizzle-orm';
 import { appDb } from '@/db/client';
-import { users } from '@/db/schema';
+import { tenants, users } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { issueSession } from '@/server/core/auth/session';
 import { apiConfig } from '@/server/core/http/api';
@@ -15,7 +15,7 @@ import { loadEnv, resetEnv } from '@/server/core/config/env';
 import { setLogLevel } from '@/server/core/observability/log';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
 import { staffLog, staffTrail, type StaffContext } from '@/server/modules/admin/access';
-import { listStoresHandler, overviewHandler, staffTrailHandler, whoamiHandler } from '@/server/modules/admin/http';
+import { listStoresHandler, overviewHandler, staffTrailHandler, storeActionHandler, whoamiHandler } from '@/server/modules/admin/http';
 
 setLogLevel('error');
 const APP = 'http://localhost:5173';
@@ -35,7 +35,7 @@ test('only staff with two-step sign-in get in; everyone else is told the page do
   loadEnv({ APP_URL: APP, AUTH_SECRET: 's'.repeat(40), ENCRYPTION_KEY: 'e'.repeat(40) });
   const harness = await createTestDb();
   try {
-    await seedTenant(harness, 'alpha');
+    const store = await seedTenant(harness, 'alpha');
     const merchant = await person(harness, 'owner@example.test');
     const staffNo2fa = await person(harness, 'new-staff@tajribah.test', { isStaff: true });
     const staff = await person(harness, 'staff@tajribah.test', { isStaff: true, totpEnabled: true });
@@ -51,6 +51,19 @@ test('only staff with two-step sign-in get in; everyone else is told the page do
       assert.match(((await no2fa.json()) as any).detail, /two-step sign-in/);
       assert.equal((await get(handler, '/api/admin/x', staff.token)).status, 200);
     }
+    // A4: the one write endpoint — same guard, plus same-origin.
+    const act = (token: string | undefined, headers: Record<string, string> = {}) => storeActionHandler(new Request(`${APP}/api/admin/stores/${store.tenantId}/actions`, {
+      method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers },
+      body: JSON.stringify({ type: 'suspend', reason: 'access test' }),
+    }));
+    assert.equal((await act(undefined)).status, 401);
+    assert.equal((await act(merchant.token)).status, 404, 'a merchant cannot act, nor learn the console exists');
+    assert.equal((await act(staffNo2fa.token)).status, 403);
+    assert.equal((await act(staff.token, { origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' })).status, 403, 'cross-origin refused');
+    assert.equal((await act(staff.token)).status, 204);
+    const [after] = await harness.asAdmin(() => harness.db.select().from(tenants).where(eq(tenants.id, store.tenantId)));
+    assert.equal(after!.status, 'suspended');
+
     const me = await (await get(whoamiHandler, '/api/admin/whoami', staff.token)).json() as any;
     assert.equal(me.email, 'staff@tajribah.test');
 

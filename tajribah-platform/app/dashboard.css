@@ -712,3 +712,11 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .admin-filters .search { display: flex; align-items: center; gap: 8px; flex: 1 1 240px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface, #fff); }
 .admin-filters .search input { border: 0; outline: 0; flex: 1; min-width: 0; font: inherit; background: transparent; color: var(--text); }
 .admin-filters select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; font: inherit; background: var(--surface, #fff); color: var(--text); }
+
+/* A4 — staff actions on a store */
+.admin-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.admin-actions .field { margin-bottom: 0; flex: 0 0 220px; }
+.admin-actions .field.act-amount { flex-basis: 140px; }
+.admin-actions .field.act-reason { flex: 1 1 260px; }
+.admin-actions .btn-row { margin: 0; }
+@media (max-width: 860px) { .admin-actions { flex-direction: column; align-items: stretch; } .admin-actions .field, .admin-actions .field.act-amount, .admin-actions .field.act-reason { flex: 0 0 auto; } }

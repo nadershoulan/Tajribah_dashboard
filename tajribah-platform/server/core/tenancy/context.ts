@@ -30,7 +30,7 @@ export type TenantContext = {
   /** `system` only for background work (`systemContext`): no member is acting. */
   role: MemberRole | 'system';
   /** Set on a `systemContext`; the audit trail records such changes as the platform's. */
-  actorType?: 'system';
+  actorType?: 'system' | 'staff';
   permissions: Set<Permission>;
   requestId: string;
   db: TenantDb;

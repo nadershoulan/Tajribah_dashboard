@@ -87,12 +87,19 @@ export type AdminStoreDetail = {
   staffTrail: StaffTrailRow[];
 };
 
+/** A4 — server/modules/admin/actions.ts */
+export type AdminStoreAction =
+  | { type: 'extend_trial'; days: number; reason: string }
+  | { type: 'suspend' | 'restore'; reason: string }
+  | { type: 'adjust_credits'; delta: number; reason: string };
+
 export type AdminApi = {
   whoami(): Promise<{ email: string; fullName: string }>;
   trail(storeId?: string): Promise<StaffTrailRow[]>;
   overview(): Promise<PlatformOverview>;
   stores(query: { q?: string; status?: string; plan?: string; before?: string }): Promise<{ stores: AdminStoreRow[]; next: string | null }>;
   store(id: string): Promise<AdminStoreDetail>;
+  act(id: string, action: AdminStoreAction): Promise<void>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -144,6 +151,7 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
         return client.call(`/api/admin/stores${params.size ? `?${params}` : ''}`);
       },
       store: (id) => client.call(`/api/admin/stores/${encodeURIComponent(id)}`),
+      act: async (id, action) => { await client.call(`/api/admin/stores/${encodeURIComponent(id)}/actions`, { body: action }); },
     },
     twoFactor: {
       status: () => client.twoFactorStatus(),
@@ -209,7 +217,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

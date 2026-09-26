@@ -4,10 +4,11 @@
  */
 import { z } from 'zod';
 import { route } from '@/server/core/observability/request';
-import { json } from '@/server/core/http/api';
+import { apiConfig, assertSameOrigin, json, readJson } from '@/server/core/http/api';
 import { staffContextFor, staffTrail } from './access';
 import { platformOverview } from './overview';
 import { listStores, storeDetail } from './stores';
+import { actOnStore } from './actions';
 import { errors } from '@/server/core/errors/problem';
 
 /** API-A00 — GET /api/admin/whoami: the console's own guard asks this first. */
@@ -54,4 +55,23 @@ export const storeDetailHandler = route(async (request) => {
   const id = new URL(request.url).pathname.split('/').filter(Boolean).pop() ?? '';
   if (!z.string().uuid().safeParse(id).success) throw errors.notFound('store');
   return json(await storeDetail(staff, id));
+});
+
+const ACTION = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('extend_trial'), days: z.number().int(), reason: z.string().max(500) }),
+  z.object({ type: z.literal('suspend'), reason: z.string().max(500) }),
+  z.object({ type: z.literal('restore'), reason: z.string().max(500) }),
+  z.object({ type: z.literal('adjust_credits'), delta: z.number().int(), reason: z.string().max(500) }),
+]);
+
+/** API-A05 — POST /api/admin/stores/[id]/actions: extend a trial, suspend, restore, adjust credits (A4, ADM-08). */
+export const storeActionHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const segments = new URL(request.url).pathname.split('/').filter(Boolean);
+  const id = segments[segments.length - 2] ?? '';
+  if (!z.string().uuid().safeParse(id).success) throw errors.notFound('store');
+  await actOnStore(staff, id, await readJson(request, ACTION));
+  return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
 });

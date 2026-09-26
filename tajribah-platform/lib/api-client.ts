@@ -34,6 +34,8 @@ export type MeResponse = {
   tenants: {
     id: string; slug: string; name: string; status: string; role: string;
     plan: PlanCode; trialEndsAt: string | null; logoUrl: string | null;
+    /** P2.11: why the store cannot change things now, or null. */
+    readOnly: 'trial_ended' | 'subscription_ended' | null;
   }[];
 };
 
@@ -45,7 +47,7 @@ export function currentStore(me: MeResponse | null): TenantSummary | null {
   return {
     id: tenant.id, name: tenant.name, slug: tenant.slug, plan: tenant.plan,
     status: tenant.status as TenantSummary['status'], trialEndsAt: tenant.trialEndsAt,
-    logoUrl: tenant.logoUrl, role: tenant.role as TenantSummary['role'],
+    logoUrl: tenant.logoUrl, role: tenant.role as TenantSummary['role'], readOnly: tenant.readOnly ?? null,
   };
 }
 

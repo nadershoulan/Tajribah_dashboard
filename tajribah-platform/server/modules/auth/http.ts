@@ -16,7 +16,7 @@ import {
   rotateSession, setSessionTenant, type IssuedSession,
 } from '@/server/core/auth/session';
 import { buildTenantContext, membershipsOf } from '@/server/core/tenancy/context';
-import { planCodesFor } from '@/server/core/billing/entitlements';
+import { planCodesFor, readOnlyFor } from '@/server/core/billing/entitlements';
 import { errors, problemResponse } from '@/server/core/errors/problem';
 import { EMAIL, sendEmail } from '@/server/core/notify/messages';
 import { recordSessionEvent } from '@/server/core/audit/audit';
@@ -125,6 +125,7 @@ export const meHandler = route(async (request) => {
   const actor = await actorOf(caller.userId);
   const stores = await membershipsOf(caller.userId);
   const plans = await planCodesFor(stores.map(({ tenant }) => tenant.id));
+  const readOnly = await readOnlyFor(stores.map(({ tenant }) => tenant));
   return json({
     user: { id: actor.userId, email: actor.email, fullName: actor.fullName, emailVerified: actor.emailVerified, locale: actor.locale },
     currentTenantId: caller.tenantId,
@@ -133,6 +134,7 @@ export const meHandler = route(async (request) => {
       plan: plans.get(tenant.id) ?? 'starter',
       trialEndsAt: tenant.trialEndsAt?.toISOString() ?? null,
       logoUrl: tenant.logoUrl ?? null,
+      readOnly: readOnly.get(tenant.id) ?? null,
     })),
   });
 });

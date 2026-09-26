@@ -18,6 +18,7 @@ import { scheduleSyncs } from '@/server/modules/sync/schedule';
 import { expireStaleDrafts } from '@/server/modules/models/cleanup';
 import { resealConnections } from '@/server/modules/connections/rotation';
 import { resealTwoFactorSecrets } from '@/server/modules/auth/two-factor';
+import { sendTrialReminders } from '@/server/modules/billing/trial';
 
 export const WORKER_ID = `worker-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -65,6 +66,7 @@ async function scheduled(): Promise<void> {
   await expireStaleDrafts();
   await resealConnections();
   await resealTwoFactorSecrets();
+  await sendTrialReminders();
 }
 
 /** Stored webhook deliveries are handled on the same tick as queue jobs (P1.7). */

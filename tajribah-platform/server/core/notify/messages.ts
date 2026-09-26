@@ -84,6 +84,15 @@ export const EMAIL = {
     },
   })),
 
+  /** P2.11: a trial reminder (3 days left, last day, ended). The wording is the in-app one. */
+  trialReminder: emailTemplate(({ title, body, store }: { title: Bi; body: Bi; store: string }) => ({
+    subject: { ar: `${title.ar} — ${store}`, en: `${title.en} — ${store}` },
+    text: {
+      ar: `مرحباً،\n\n${body.ar}\n\nاختر باقتك من صفحة الاشتراك في لوحة ${BRAND.ar}.`,
+      en: `Hello,\n\n${body.en}\n\nChoose your plan on the Billing page of your ${BRAND.en} dashboard.`,
+    },
+  })),
+
   /** P1.2b: sent on every change, so a change the owner did not make is noticed. */
   twoFactorChanged: emailTemplate(({ on }: { on: boolean }) => ({
     subject: on

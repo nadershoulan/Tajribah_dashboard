@@ -10,8 +10,9 @@
  */
 import { and, eq } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
-import { tenantMemberships, tenants, type Tenant } from '@/db/schema';
+import { subscriptions, tenantMemberships, tenants, type Tenant } from '@/db/schema';
 import type { MemberRole } from '@/lib/permissions';
+import { allowedWhileReadOnly, writeStateOf, type ReadOnlyReason } from '../billing/lifecycle';
 import { errors } from '../errors/problem';
 import { permissionsFor, requirePermission, type Permission } from '../rbac/permissions';
 import { TenantDb } from './tenant-db';
@@ -33,7 +34,12 @@ export type TenantContext = {
   permissions: Set<Permission>;
   requestId: string;
   db: TenantDb;
-  /** Throws 403 if the role lacks it. Call it at the top of every mutating service method. */
+  /**
+   * P2.11: why this store cannot change things right now (trial or subscription ended), or
+   * null. While set, `require` refuses every write permission but the ones that lead out of it.
+   */
+  readOnly: ReadOnlyReason | null;
+  /** Throws 403 if the role lacks it (402 if the store is read-only). Call it at the top of every mutating service method. */
   require(permission: Permission): void;
   can(permission: Permission): boolean;
 };
@@ -70,6 +76,12 @@ export async function buildTenantContext(input: {
 
   const permissions = permissionsFor(membership.role);
   const scoped = TenantDb.for(tenant.id);
+  // P2.11: one small read per request — every write in the product passes `require`, so this
+  // is where a lapsed store becomes read-only, not in each feature that remembers to check.
+  const [subscription] = await db.select({ status: subscriptions.status }).from(subscriptions)
+    .where(eq(subscriptions.tenantId, tenant.id)).limit(1);
+  const { readOnly } = writeStateOf({ subscriptionStatus: subscription?.status ?? null, trialEndsAt: tenant.trialEndsAt });
+  const blocked = (permission: Permission) => readOnly !== null && !allowedWhileReadOnly(permission);
 
   return {
     tenantId: tenant.id,
@@ -79,8 +91,12 @@ export async function buildTenantContext(input: {
     permissions,
     requestId: input.requestId,
     db: scoped,
-    require: (permission) => requirePermission(permissions, permission),
-    can: (permission) => permissions.has(permission),
+    readOnly,
+    require: (permission) => {
+      requirePermission(permissions, permission);
+      if (blocked(permission)) throw errors.readOnly(readOnly!);
+    },
+    can: (permission) => permissions.has(permission) && !blocked(permission),
   };
 }
 
@@ -110,6 +126,9 @@ export async function systemContext(input: {
     permissions,
     requestId: input.requestId,
     db: scoped,
+    // Housekeeping (draft expiry, key re-seal, an uninstall webhook) must still run on a
+    // read-only store; which background work to stop for one is the schedule's decision.
+    readOnly: null,
     require: (permission) => requirePermission(permissions, permission),
     can: (permission) => permissions.has(permission),
   };

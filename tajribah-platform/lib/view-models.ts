@@ -17,6 +17,8 @@ export type TenantSummary = {
   trialEndsAt: string | null;
   logoUrl: string | null;
   role: 'owner' | 'admin' | 'editor' | 'analyst' | 'viewer';
+  /** P2.11: the trial or subscription ended — the store can read but not change things. */
+  readOnly?: 'trial_ended' | 'subscription_ended' | null;
 };
 
 export type OnboardingStep = {

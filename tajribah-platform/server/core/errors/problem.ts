@@ -12,7 +12,7 @@ import type { Lang } from '@/lib/lang';
 export type ErrorCode =
   | 'validation_failed' | 'invalid_credentials' | 'unauthenticated' | 'forbidden'
   | 'not_found' | 'conflict' | 'idempotency_conflict' | 'rate_limited'
-  | 'quota_exceeded' | 'plan_required' | 'upstream_unavailable' | 'upstream_timeout'
+  | 'quota_exceeded' | 'plan_required' | 'store_read_only' | 'upstream_unavailable' | 'upstream_timeout'
   | 'not_implemented' | 'internal';
 
 type Def = { status: number; title: { ar: string; en: string } };
@@ -28,6 +28,7 @@ const CATALOGUE: Record<ErrorCode, Def> = {
   rate_limited:         { status: 429, title: { ar: 'محاولات كثيرة', en: 'Too many requests' } },
   quota_exceeded:       { status: 409, title: { ar: 'تجاوزت حد الباقة', en: 'Plan quota exceeded' } },
   plan_required:        { status: 402, title: { ar: 'يتطلب ترقية الباقة', en: 'Upgrade required' } },
+  store_read_only:      { status: 402, title: { ar: 'المتجر للقراءة فقط', en: 'This store is read-only' } },
   upstream_unavailable: { status: 502, title: { ar: 'خدمة خارجية غير متاحة', en: 'Upstream unavailable' } },
   upstream_timeout:     { status: 504, title: { ar: 'انتهت مهلة الخدمة الخارجية', en: 'Upstream timed out' } },
   not_implemented:      { status: 501, title: { ar: 'غير متاح بعد', en: 'Not implemented' } },
@@ -89,6 +90,10 @@ export const errors = {
   upstream: (provider: string, cause?: unknown) =>
     new AppError('upstream_unavailable', { detail: `${provider} is unavailable`, cause }),
   notImplemented: (what: string) => new AppError('not_implemented', { detail: what }),
+  /** P2.11: the trial ended, or the subscription did — choosing a plan lifts it. */
+  readOnly: (reason: 'trial_ended' | 'subscription_ended') => new AppError('store_read_only', {
+    detail: reason === 'trial_ended' ? 'the free trial has ended — choose a plan to make changes' : 'the subscription has ended — choose a plan to make changes',
+  }),
 };
 
 /** Postgres 23505 (unique violation), wherever the driver put it on the cause chain. */

@@ -62,7 +62,7 @@ export async function dashboardSummary(ctx: TenantContext, now = new Date()): Pr
     tenant: {
       id: ctx.tenant.id, name: ctx.tenant.name, slug: ctx.tenant.slug, plan: entitlements.plan.code,
       status: ctx.tenant.status as DashboardSummary['tenant']['status'], trialEndsAt: ctx.tenant.trialEndsAt?.toISOString() ?? null,
-      logoUrl: ctx.tenant.logoUrl, role: ctx.role === 'system' ? 'viewer' : ctx.role,
+      logoUrl: ctx.tenant.logoUrl, role: ctx.role === 'system' ? 'viewer' : ctx.role, readOnly: ctx.readOnly,
     },
     onboarding: { complete: onboarding.complete, steps },
     counts: { products: productCount, arEnabled, models, modelsReady, teamMembers },

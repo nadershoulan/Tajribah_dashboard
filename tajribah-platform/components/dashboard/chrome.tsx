@@ -22,7 +22,7 @@ import { navGroupsFor } from '@/lib/nav';
 import { ROLE_PERMISSIONS } from '@/lib/permissions';
 import { planByCode } from '@/lib/plans';
 import type { TenantSummary } from '@/lib/view-models';
-import { formatRelative } from '@/lib/format';
+import { formatDate, formatRelative } from '@/lib/format';
 
 const ICONS: Record<string, typeof Home> = {
   home: Home, package: Package, box: Box, scan: Scan, sliders: SlidersHorizontal,
@@ -115,6 +115,30 @@ function Sidebar({ tenant, open, onClose }: { tenant: TenantSummary | null; open
   );
 }
 
+/** P2.11: a store whose trial or subscription ended can read everything but change nothing — say so, and the way out. */
+function ReadOnlyBanner({ store }: { store: TenantSummary | null }) {
+  const { t, lang } = useLang();
+  if (!store?.readOnly) return null;
+  const ended = store.readOnly === 'trial_ended' && store.trialEndsAt ? formatDate(store.trialEndsAt, lang) : null;
+  return (
+    <div className="notice" role="status">
+      <Lock size={18} aria-hidden />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <strong>
+          {store.readOnly === 'trial_ended'
+            ? t(`انتهت التجربة المجانية${ended ? ` في ${ended}` : ''}`, `The free trial ended${ended ? ` on ${ended}` : ''}`)
+            : t('انتهى الاشتراك', 'The subscription has ended')}
+        </strong>
+        <p>{t(
+          'متجرك الآن للاطلاع فقط: لا يُحذف شيء، لكن لا يمكن إجراء تغييرات حتى تختار باقة.',
+          'Your store is read-only for now: nothing is deleted, but changes are paused until you choose a plan.',
+        )}</p>
+      </div>
+      <AppLink href="/dashboard/billing" className="btn btn-accent btn-sm">{t('اختر باقة', 'Choose a plan')}</AppLink>
+    </div>
+  );
+}
+
 function TenantSwitcher({ tenant }: { tenant: TenantSummary | null }) {
   const { t } = useLang();
   if (!tenant) return null;
@@ -196,7 +220,10 @@ export function Shell({ tenant, crumbs = [], children }: {
           </div>
         </header>
 
-        <main className="page" id="main"><RequireSession>{children}</RequireSession></main>
+        <main className="page" id="main">
+          <ReadOnlyBanner store={store} />
+          <RequireSession>{children}</RequireSession>
+        </main>
       </div>
     </div>
   );

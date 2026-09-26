@@ -161,7 +161,7 @@ export function DemoAuthProvider({ children }: { children: ReactNode }) {
       currentTenantId: tenant.id,
       tenants: [{
         id: tenant.id, slug: tenant.slug, name: tenant.name, status: tenant.status, role: tenant.role,
-        plan: tenant.plan, trialEndsAt: tenant.trialEndsAt, logoUrl: tenant.logoUrl,
+        plan: tenant.plan, trialEndsAt: tenant.trialEndsAt, logoUrl: tenant.logoUrl, readOnly: tenant.readOnly ?? null,
       }],
     },
     login: async () => null,

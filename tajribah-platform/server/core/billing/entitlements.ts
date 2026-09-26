@@ -18,6 +18,7 @@ import {
 import { UNLIMITED, planByCode, type PlanCode, type PlanDefinition, type PlanLimits } from '@/lib/plans';
 import { errors } from '../errors/problem';
 import { log } from '../observability/log';
+import { writeStateOf, type ReadOnlyReason } from './lifecycle';
 import type { TenantContext } from '../tenancy/context';
 import type { TenantDb } from '../tenancy/tenant-db';
 
@@ -70,10 +71,8 @@ export async function entitlementsOf(ctx: TenantContext): Promise<Entitlements> 
   };
   const status = subscription?.status ?? (ctx.tenant.status === 'trial' ? 'trialing' : 'none');
 
-  const trialOver = ctx.tenant.trialEndsAt ? ctx.tenant.trialEndsAt.getTime() < Date.now() : false;
-  const canWrite = status === 'active'
-    || (status === 'trialing' && !trialOver)
-    || status === 'past_due'; // grace: dunning chases the payment, it does not lock the store
+  // P2.11: the same rule the request context enforces (server/core/billing/lifecycle.ts).
+  const canWrite = writeStateOf({ subscriptionStatus: subscription?.status ?? null, trialEndsAt: ctx.tenant.trialEndsAt }).readOnly === null;
 
   return {
     plan,
@@ -98,6 +97,19 @@ export async function planCodesFor(tenantIds: readonly string[]): Promise<Map<st
     .where(inArray(subscriptions.tenantId, [...tenantIds]));
   for (const row of rows) codes.set(row.tenantId, row.code);
   return codes;
+}
+
+/** P2.11: why each store is read-only (or null), for the session — the same rule as the request context. */
+export async function readOnlyFor(stores: readonly { id: string; trialEndsAt: Date | null }[], now = new Date()): Promise<Map<string, ReadOnlyReason | null>> {
+  const result = new Map<string, ReadOnlyReason | null>();
+  if (stores.length === 0) return result;
+  const rows = await unsafeAdminDb().select({ tenantId: subscriptions.tenantId, status: subscriptions.status })
+    .from(subscriptions).where(inArray(subscriptions.tenantId, stores.map((s) => s.id)));
+  const status = new Map(rows.map((r) => [r.tenantId, r.status]));
+  for (const store of stores) {
+    result.set(store.id, writeStateOf({ subscriptionStatus: status.get(store.id) ?? null, trialEndsAt: store.trialEndsAt, now }).readOnly);
+  }
+  return result;
 }
 
 export function assertFeature(entitlements: Entitlements, feature: string): void {

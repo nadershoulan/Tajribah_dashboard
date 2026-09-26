@@ -3,17 +3,22 @@ import type { Bi } from './lang';
 /**
  * Company details shown in the footer, contact page and legal pages.
  *
- * TODO before launch — replace every placeholder below with the registered
- * details. Empty strings are simply not rendered, so nothing invented appears
- * on the site; the two email addresses are placeholders on a domain that must
- * be registered and have working mailboxes before they are published.
+ * Supplied by the owner (2026-09-27): SRO Company operates Tajribah — Ministry of
+ * Commerce CR / unified number 7033242079, ZATCA VAT registration 314550511700003
+ * (effective 2026-02-01), National Address RRMA7169 (building 7169, Prince
+ * Muhammad Ibn Saad Ibn Abdulaziz Rd, Al Malqa, Riyadh 13524, secondary 2369).
+ * The same facts the platform's invoices carry (tajribah-platform
+ * server/core/billing/seller.ts).
+ *
+ * Still placeholders: the two email addresses are on a domain that must be
+ * registered and have working mailboxes before they are published.
  */
 export const COMPANY = {
   name: { ar: 'تجربة', en: 'Tajribah' } as Bi,
-  legalName: { ar: '', en: '' } as Bi,
-  crNumber: '',
-  vatNumber: '',
-  address: { ar: '', en: '' } as Bi,
+  legalName: { ar: 'شركة إس أر أو', en: 'SRO Company' } as Bi,
+  crNumber: '7033242079',
+  vatNumber: '314550511700003',
+  address: { ar: 'حي الملقا، الرياض 13524، المملكة العربية السعودية', en: 'Al Malqa, Riyadh 13524, Saudi Arabia' } as Bi,
   email: 'hello@tajribah.sa',
   privacyEmail: 'privacy@tajribah.sa',
   /** Where the storefront script is served from once the CDN is live. */

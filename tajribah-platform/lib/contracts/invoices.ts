@@ -49,6 +49,8 @@ export type InvoiceParty = {
   crNumber: string | null;
   vatNumber: string | null;
   address: string | null;
+  /** The address in Arabic, when it was recorded in both languages (the seller's is). */
+  addressAr?: string | null;
 };
 
 /** What the invoice screen shows: everything as it was when the invoice was issued. */

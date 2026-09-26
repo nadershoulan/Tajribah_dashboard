@@ -142,9 +142,9 @@ function Head({ ar, en, end }: { ar: string; en: string; end?: boolean }) {
   return <th scope="col" className={end ? 'end' : undefined}><span dir="rtl">{ar}</span><br /><span dir="ltr">{en}</span></th>;
 }
 
-function Pair({ ar, en, strong, children }: { ar: string; en: string; strong?: boolean; children: ReactNode }) {
+function Pair({ ar, en, strong, stack, children }: { ar: string; en: string; strong?: boolean; stack?: boolean; children: ReactNode }) {
   return (
-    <div className={strong ? 'strong' : undefined}>
+    <div className={[strong && 'strong', stack && 'stack'].filter(Boolean).join(' ') || undefined}>
       <dt><span dir="rtl">{ar}</span> <span dir="ltr">{en}</span></dt>
       <dd>{children}</dd>
     </div>
@@ -161,7 +161,12 @@ function PartyBlock({ ar, en, party }: { ar: string; en: string; party: InvoiceP
       <dl>
         <Pair ar="السجل التجاري" en="CR number"><span dir="ltr" className="mm">{party.crNumber ?? missing}</span></Pair>
         <Pair ar="الرقم الضريبي" en="VAT number"><span dir="ltr" className="mm">{party.vatNumber ?? missing}</span></Pair>
-        {party.address && <Pair ar="العنوان" en="Address"><span>{party.address}</span></Pair>}
+        {(party.address || party.addressAr) && (
+          <Pair ar="العنوان" en="Address" stack>
+            {party.addressAr && <span dir="rtl" className="invoice-address">{party.addressAr}</span>}
+            {party.address && <span dir="ltr" className="invoice-address">{party.address}</span>}
+          </Pair>
+        )}
       </dl>
     </section>
   );

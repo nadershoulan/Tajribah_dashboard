@@ -27,7 +27,7 @@ import { embedSnippet } from '../widget/src/snippet';
 import { applyEdit, editErrors, type ProductEdit } from './product-edit';
 import { STEP_COPY } from './onboarding-steps';
 import { priceInvoiceLines, type InvoiceDocument } from './contracts/invoices';
-import { SELLER } from '@/server/core/billing/seller';
+import { SELLER, addressLine } from '@/server/core/billing/seller';
 import { slugProblem } from './slug';
 import type { OnboardingState } from '@/db/schema';
 import {
@@ -213,7 +213,7 @@ function sampleInvoice(): InvoiceDocument {
   return {
     ...priced, id: 'sample', number: 'TJ-2026-SAMPLE00-000001', status: 'paid', kind: 'simplified', currency: 'SAR',
     issuedAt: '2026-10-05T09:00:00.000Z', dueAt: '2026-10-05T09:00:00.000Z', paidAt: '2026-10-05T09:00:00.000Z',
-    seller: { name: SELLER.nameEn, nameAr: SELLER.nameAr, crNumber: SELLER.crNumber, vatNumber: SELLER.vatNumber, address: SELLER.nationalAddress },
+    seller: { name: SELLER.nameEn, nameAr: SELLER.nameAr, crNumber: SELLER.crNumber, vatNumber: SELLER.vatNumber, address: addressLine(SELLER.address, 'en'), addressAr: addressLine(SELLER.address, 'ar') },
     buyer: { name: 'Failet', nameAr: 'فايلت', crNumber: null, vatNumber: null, address: null },
     zatca: { status: null, qr: null },
   };

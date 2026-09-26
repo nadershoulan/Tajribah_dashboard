@@ -26,7 +26,7 @@ import {
 } from '@/lib/contracts/invoices';
 import { VAT_NUMBER } from '@/lib/contracts/settings';
 import { record } from '@/server/core/audit/audit';
-import { SELLER, type Seller } from '@/server/core/billing/seller';
+import { SELLER, addressLine, vatEffectiveInstant, type Seller } from '@/server/core/billing/seller';
 import { errors } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
@@ -82,6 +82,11 @@ export async function issueInvoice(ctx: TenantContext, input: IssueInvoiceInput,
     throw errors.validation({ lines: [(error as Error).message] });
   }
   const issuedAt = input.issuedAt ?? new Date();
+  // VAT may not be charged before the seller's registration takes effect (ZATCA's own rule).
+  const effective = vatEffectiveInstant(seller);
+  if (!effective || issuedAt.getTime() < effective.getTime()) {
+    throw errors.conflict(`VAT can only be invoiced from the seller's registration date (${seller.vatEffectiveFrom ?? 'not registered'})`);
+  }
 
   const id = await withTenant(ctx.tenantId, async (db) => {
     const buyer = await db.requireById(tenants, ctx.tenantId);
@@ -102,7 +107,8 @@ export async function issueInvoice(ctx: TenantContext, input: IssueInvoiceInput,
       sellerNameAr: seller.nameAr,
       sellerCrNumber: seller.crNumber,
       sellerVatNumber: seller.vatNumber,
-      sellerAddress: seller.nationalAddress,
+      sellerAddress: addressLine(seller.address, 'en'),
+      sellerAddressAr: addressLine(seller.address, 'ar'),
       buyerName: buyer.name,
       buyerNameAr: buyer.nameAr,
       buyerCrNumber: buyer.crNumber,
@@ -129,8 +135,8 @@ export async function issueInvoice(ctx: TenantContext, input: IssueInvoiceInput,
 
 type InvoiceRowDb = typeof invoices.$inferSelect;
 
-const party = (name: string | null, nameAr: string | null, cr: string | null, vat: string | null, address: string | null): InvoiceParty =>
-  ({ name: name ?? '', nameAr, crNumber: cr, vatNumber: vat, address });
+const party = (name: string | null, nameAr: string | null, cr: string | null, vat: string | null, address: string | null, addressAr: string | null = null): InvoiceParty =>
+  ({ name: name ?? '', nameAr, crNumber: cr, vatNumber: vat, address, addressAr });
 
 function documentOf(row: InvoiceRowDb, lines: (typeof invoiceLines.$inferSelect)[]): InvoiceDocument {
   return {
@@ -142,7 +148,7 @@ function documentOf(row: InvoiceRowDb, lines: (typeof invoiceLines.$inferSelect)
     issuedAt: (row.issuedAt ?? row.createdAt).toISOString(),
     dueAt: row.dueAt?.toISOString() ?? null,
     paidAt: row.paidAt?.toISOString() ?? null,
-    seller: party(row.sellerName, row.sellerNameAr, row.sellerCrNumber, row.sellerVatNumber, row.sellerAddress),
+    seller: party(row.sellerName, row.sellerNameAr, row.sellerCrNumber, row.sellerVatNumber, row.sellerAddress, row.sellerAddressAr),
     buyer: party(row.buyerName, row.buyerNameAr, row.buyerCrNumber, row.buyerVatNumber, row.buyerAddress),
     lines: lines.map((l) => ({
       description: l.description, descriptionAr: l.descriptionAr, quantity: l.quantity,

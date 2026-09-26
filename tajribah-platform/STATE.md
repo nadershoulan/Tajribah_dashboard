@@ -150,9 +150,10 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
   set) before the first merchant fills Starter's 2 GB. The refusal copy does not promise it.
 - (P2.2) Bytes whose delete fails after the row was marked are an orphan we pay for (never
   charged to the merchant). A storage-vs-rows reconciliation belongs with P7 cost work.
-- (P2.6) **SRO Company's VAT number and national address** are needed before the first real
-  invoice (a standard tax invoice to a VAT-registered merchant needs the seller's address too).
-  If SRO is not VAT-registered, invoices must carry no VAT at all — a different path; ask first.
+- ~~(P2.6) SRO Company's VAT number and national address~~ — supplied 2026-09-27 (T20 update):
+  314550511700003, effective 2026-02-01; National Address RRMA7169. **The VAT certificate's
+  postal code (13525) differs from the National Address (13524)** — 13524 is used; correct it
+  with ZATCA so both documents agree.
 - (P2.6) No stored PDF (`pdf_storage_key` unused): the invoice prints to PDF from the browser.
   A server-side PDF with Arabic shaping needs a renderer choice — decide with P2.7's provider,
   which may return the PDF/A-3 itself.
@@ -349,3 +350,4 @@ cleared it — if it recurs, restart before debugging.
 | 2026-09-27 | **A12 support tooling**: one box for any id, email, invoice number, name or request id; a request id shows everything it did across the store and staff trails; the store page shows its activity. Field names, never values. | `verify.mjs` Node 22 + lint: **419 pass / 0 fail**, 0 lint errors; seen to fail 14 ways (one gap closed) |
 | 2026-09-27 | **A13 coupons for staff** (platform copy ❓ — not defined): create and edit coupons the checkout honours at once; a used coupon keeps what stores got. | `verify.mjs` Node 22 + lint: **421 pass / 0 fail**, 0 lint errors; seen to fail 13 ways (one gap closed) |
 | 2026-09-27 | **A4b view as the store**: a staff session pointed at a store, read-only, 5–60 minutes, in the store's own activity; banner with Stop; ends at its time, on staff removal, or on a switch. A14 filed as blocked on two decisions (PDPL process, retention). | `verify.mjs` Node 22 + lint: **423 pass / 0 fail**, 0 lint errors; seen to fail 11 ways (1 masked by design) |
+| 2026-09-27 | Nader supplied SRO Company's **VAT registration** (314550511700003, effective 2026-02-01) and **National Address** (RRMA7169). Seller completed (T20 update): invoices can be issued; address snapshotted in Arabic and English (`drizzle/0013`); nothing dated before the registration. Found on the invoice paper: the address overlapped its label, and `13524-2369` risked reordering in Arabic. | `verify.mjs` Node 22 + lint: **423 pass / 0 fail**, 0 lint errors; seen to fail 4 ways |

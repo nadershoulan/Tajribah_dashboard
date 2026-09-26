@@ -375,6 +375,17 @@ the merchant-facing number.
 **Rollback path.** The seller constant and the number format are code; issued invoices keep
 their snapshot and number whatever changes later.
 
+**Update 2026-09-27 — SRO Company's own registration supplied.** ZATCA VAT registration
+certificate no. 100261166069860 (TIN 3145505117): VAT number **314550511700003**, registration
+**effective 2026-02-01**, quarterly returns. National Address proof no. 1081828547: building
+7169, Prince Muhammad Ibn Saad Ibn Abdulaziz Rd, Al Malqa Dist., Riyadh, postal code **13524**,
+secondary number 2369, short address RRMA7169. The VAT certificate prints postal code 13525;
+the National Address record is the authority for an address, so 13524 is used — worth
+correcting with ZATCA so the two agree. Consequences: invoices can now be issued; the seller's
+address is snapshotted in Arabic and English (`drizzle/0013`); **no invoice is dated before the
+registration took effect** (midnight 1 Feb 2026 in Riyadh), because VAT may not be charged
+before it — the certificate says so. The address is kept structured for ZATCA Phase 2 (P2.7).
+
 ## T21 · 2026-09-26 · A table created after 0001 carries its own generated RLS block (P2.12)
 
 **Decision.** `scripts/gen-rls.mjs` reads which migration creates each schema table. Tables

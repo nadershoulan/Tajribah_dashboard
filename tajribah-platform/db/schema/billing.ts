@@ -127,6 +127,8 @@ export const invoices = pgTable('invoices', {
   sellerCrNumber: text('seller_cr_number'),
   sellerVatNumber: text('seller_vat_number'),
   sellerAddress: text('seller_address'),
+  /** drizzle/0013: the seller's address in Arabic, as issued. */
+  sellerAddressAr: text('seller_address_ar'),
   buyerName: text('buyer_name'),
   buyerNameAr: text('buyer_name_ar'),
   buyerAddress: text('buyer_address'),

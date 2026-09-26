@@ -18,7 +18,7 @@ import { allocateInvoiceNumber, invoiceOf, invoicesOf, issueInvoice } from '@/se
 setLogLevel('error');
 
 /** A seller with a VAT number, for the tests only: the real one is not configured yet. */
-const TEST_SELLER: Seller = { ...SELLER, vatNumber: '300000000000003', nationalAddress: 'RRRD2929, Riyadh' };
+const TEST_SELLER: Seller = SELLER; // SRO Company's own registration, as supplied (T20)
 const GROWTH = [{ description: 'Growth plan — October 2026', descriptionAr: 'باقة النمو — أكتوبر 2026', quantity: 1, unitPriceMinor: 29_900 }];
 
 async function store(harness: TestDb, name: string, role: 'owner' | 'editor' = 'owner') {
@@ -51,13 +51,16 @@ test('VAT per line, half-up to the halala; the totals add up; impossible lines r
   }
 });
 
-test('no seller VAT number, no invoice — the real one is not configured, and a wrong one is not accepted', async () => {
+test('the seller: SRO Company as registered; no invoice without a valid VAT number, or dated before the registration took effect', async () => {
   const harness = await createTestDb();
   try {
     const { ctx } = await store(harness, 'alpha');
-    assert.equal(SELLER.vatNumber, null, 'SRO Company’s TRN has not been supplied yet');
-    await assert.rejects(() => issueInvoice(ctx, { lines: GROWTH }), (e: any) => e.code === 'conflict' && /VAT number/.test(e.message));
+    assert.deepEqual([SELLER.vatNumber, SELLER.vatEffectiveFrom, SELLER.crNumber, SELLER.address?.postalCode], ['314550511700003', '2026-02-01', '7033242079', '13524']);
+    await assert.rejects(() => issueInvoice(ctx, { lines: GROWTH }, { ...SELLER, vatNumber: null }), (e: any) => e.code === 'conflict' && /VAT number/.test(e.message));
     await assert.rejects(() => issueInvoice(ctx, { lines: GROWTH }, { ...SELLER, vatNumber: '123' }), (e: any) => e.code === 'conflict');
+    // 31 Jan 20:59 UTC is still 31 Jan in Riyadh: before the registration took effect.
+    await assert.rejects(() => issueInvoice(ctx, { lines: GROWTH, issuedAt: new Date('2026-01-31T20:59:00Z') }), (e: any) => e.code === 'conflict' && /2026-02-01/.test(e.message));
+    await assert.rejects(() => issueInvoice(ctx, { lines: GROWTH, issuedAt: new Date('2026-06-01T00:00:00Z') }, { ...SELLER, vatEffectiveFrom: null }), (e: any) => e.code === 'conflict');
     assert.equal((await harness.asAdmin(() => harness.db.select().from(invoices))).length, 0, 'nothing written');
   } finally { await harness.close(); }
 });
@@ -73,8 +76,14 @@ test('an invoice is issued complete: number, both parties as they were, lines, a
     const issued = await issueInvoice(ctx, { lines: GROWTH, paid: true, issuedAt: new Date('2026-10-05T09:00:00Z') }, TEST_SELLER);
     assert.match(issued.number, /^TJ-2026-[0-9A-F]{8}-000001$/);
     assert.deepEqual([issued.status, issued.kind, issued.totalMinor, issued.vatRateBp], ['paid', 'standard', 34_385, 1500]);
-    assert.deepEqual(issued.seller, { name: 'SRO Company', nameAr: 'شركة إس أر أو', crNumber: '7033242079', vatNumber: '300000000000003', address: 'RRRD2929, Riyadh' });
-    assert.deepEqual(issued.buyer, { name: 'Oud House', nameAr: 'بيت العود', crNumber: '1010123456', vatNumber: '310123456700003', address: 'ABCD1234, Riyadh' });
+    assert.deepEqual(issued.seller, {
+      name: 'SRO Company', nameAr: 'شركة إس أر أو', crNumber: '7033242079', vatNumber: '314550511700003',
+      address: '7169 Prince Muhammad Ibn Saad Ibn Abdulaziz Rd, Al Malqa Dist., Riyadh 13524-2369, Saudi Arabia (RRMA7169)',
+      addressAr: '7169 طريق الأمير محمد بن سعد بن عبدالعزيز، حي الملقا، الرياض، الرمز البريدي 13524، الرقم الفرعي 2369، المملكة العربية السعودية، العنوان المختصر RRMA7169',
+    });
+    assert.deepEqual(issued.buyer, { name: 'Oud House', nameAr: 'بيت العود', crNumber: '1010123456', vatNumber: '310123456700003', address: 'ABCD1234, Riyadh', addressAr: null });
+    // The first instant of 1 Feb in Riyadh is the first an invoice can carry VAT.
+    await issueInvoice(ctx, { lines: GROWTH, issuedAt: new Date('2026-01-31T21:00:00Z') });
     assert.equal(issued.lines[0].descriptionAr, 'باقة النمو — أكتوبر 2026');
     assert.deepEqual(issued.zatca, { status: null, qr: null }, 'ZATCA fields are the provider’s, never invented');
 
@@ -84,12 +93,12 @@ test('an invoice is issued complete: number, both parties as they were, lines, a
     assert.deepEqual(later, issued, 'an issued invoice reads exactly as it did');
 
     const second = await issueInvoice(ctx, { lines: GROWTH, issuedAt: new Date('2026-11-05T09:00:00Z') }, TEST_SELLER);
-    assert.match(second.number, /-000002$/);
+    assert.match(second.number, /-000003$/);
     assert.equal(second.kind, 'simplified', 'no buyer VAT number: a simplified tax invoice');
     assert.equal(second.status, 'issued');
 
     const audit = await harness.asAdmin(() => harness.db.select().from(auditLogs));
-    assert.equal(audit.filter((r) => r.resourceType === 'invoice' && r.action === 'create').length, 2);
+    assert.equal(audit.filter((r) => r.resourceType === 'invoice' && r.action === 'create').length, 3);
   } finally { await harness.close(); }
 });
 

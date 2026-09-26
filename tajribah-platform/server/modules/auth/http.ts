@@ -15,7 +15,8 @@ import {
   actorOf, clearRefreshCookie, readRefreshCookie, refreshCookie, revokeByRefreshToken,
   rotateSession, setSessionTenant, type IssuedSession,
 } from '@/server/core/auth/session';
-import { buildTenantContext, membershipsOf } from '@/server/core/tenancy/context';
+import { buildTenantContext, membershipsOf, staffViewedStore } from '@/server/core/tenancy/context';
+import { endStaffView } from '@/server/modules/admin/staff-view';
 import { planCodesFor, readOnlyFor } from '@/server/core/billing/entitlements';
 import { errors, problemResponse } from '@/server/core/errors/problem';
 import { EMAIL, sendEmail } from '@/server/core/notify/messages';
@@ -121,14 +122,25 @@ export const logoutHandler = route(async (request) => {
 
 /** API-005 — GET /api/auth/me: who is signed in, and which stores they can switch between. */
 export const meHandler = route(async (request) => {
-  const caller = await authenticate(request);
+  let caller = await authenticate(request);
   const actor = await actorOf(caller.userId);
+  // A4b: a staff view that has run out (or whose owner is no longer staff) ends here, and the
+  // session goes back to its own store before anything is answered.
+  if (caller.staffViewUntil && (caller.staffViewUntil.getTime() <= Date.now() || !actor.isStaff)) {
+    await endStaffView(caller.sessionId, { userId: caller.userId, requestId: currentScope()?.requestId ?? 'unscoped', why: actor.isStaff ? 'expired' : 'no longer staff' });
+    caller = await authenticate(request);
+  }
   const stores = await membershipsOf(caller.userId);
+  const viewed = caller.staffViewUntil && caller.tenantId && !stores.some(({ tenant }) => tenant.id === caller.tenantId)
+    ? await staffViewedStore(caller.tenantId) : null;
+  if (viewed) stores.push({ tenant: viewed, role: 'viewer' });
   const plans = await planCodesFor(stores.map(({ tenant }) => tenant.id));
   const readOnly = await readOnlyFor(stores.map(({ tenant }) => tenant));
   return json({
     user: { id: actor.userId, email: actor.email, fullName: actor.fullName, emailVerified: actor.emailVerified, locale: actor.locale, isStaff: actor.isStaff },
     currentTenantId: caller.tenantId,
+    // A4b: this session is a read-only staff view of the current store until then.
+    staffView: caller.staffViewUntil ? { storeId: caller.tenantId, until: caller.staffViewUntil.toISOString() } : null,
     tenants: stores.map(({ tenant, role }) => ({
       id: tenant.id, slug: tenant.slug, name: tenant.name, status: tenant.status, role,
       plan: plans.get(tenant.id) ?? 'starter',

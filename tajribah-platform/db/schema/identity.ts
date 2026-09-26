@@ -145,6 +145,10 @@ export const sessions = pgTable('sessions', {
   revokedAt: ts('revoked_at'),
   revokedReason: revokedReason('revoked_reason'),
   lastSeenAt: ts('last_seen_at'),
+  /** A4b (drizzle/0012): staff viewing `tenantId` read-only until then; null otherwise. */
+  impersonatingUntil: ts('impersonating_until'),
+  /** A4b: the store this staff session goes back to when the view ends. */
+  impersonationReturnTenantId: uuid('impersonation_return_tenant_id'),
   createdAt: createdAt(),
 }, (t) => [index('sessions_user_idx').on(t.userId)]);
 

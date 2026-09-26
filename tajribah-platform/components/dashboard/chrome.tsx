@@ -9,7 +9,7 @@
 import { useState, type ReactNode } from 'react';
 import {
   BarChart3, Box, CreditCard, Code2, Home, Link2, Lock, Menu, Package, QrCode,
-  Scan, Settings, ShieldAlert, ShieldCheck, SlidersHorizontal, Users, ChevronDown, X, LogOut,
+  Scan, Settings, ShieldAlert, ShieldCheck, SlidersHorizontal, Users, ChevronDown, X, LogOut, Eye,
 } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
@@ -22,7 +22,7 @@ import { navGroupsFor } from '@/lib/nav';
 import { ROLE_PERMISSIONS } from '@/lib/permissions';
 import { planByCode } from '@/lib/plans';
 import type { TenantSummary } from '@/lib/view-models';
-import { formatDate, formatRelative } from '@/lib/format';
+import { formatDate, formatDateTime, formatRelative } from '@/lib/format';
 
 const ICONS: Record<string, typeof Home> = {
   home: Home, package: Package, box: Box, scan: Scan, sliders: SlidersHorizontal,
@@ -119,6 +119,30 @@ function Sidebar({ tenant, open, onClose }: { tenant: TenantSummary | null; open
 }
 
 /** P2.11: a store whose trial or subscription ended can read everything but change nothing — say so, and the way out. */
+/** A4b: a staff member is looking at this store's dashboard — say so on every screen, with Stop. */
+function StaffViewBanner({ store }: { store: TenantSummary | null }) {
+  const { t, lang } = useLang();
+  const auth = useAuth();
+  const env = useEnv();
+  const [busy, setBusy] = useState(false);
+  const view = auth.me?.staffView;
+  if (!view) return null;
+  const stop = async () => {
+    setBusy(true);
+    try { await auth.admin.endView(); env.navigate(`/admin/stores/${view.storeId}`); } finally { setBusy(false); }
+  };
+  return (
+    <div className="notice staff-view" role="status">
+      <Eye size={18} aria-hidden />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <strong>{t(`عرض الموظفين لمتجر ${store?.name ?? ''}`, `Staff view of ${store?.name ?? 'this store'}`)}</strong>
+        <p>{t(`للاطلاع فقط — لا يمكن تغيير شيء. ينتهي ${formatDateTime(view.until, lang)}، ويرى المتجر ذلك في سجل نشاطه.`, `Read-only — nothing can be changed. Ends ${formatDateTime(view.until, lang)}; the store sees it in its activity.`)}</p>
+      </div>
+      <button type="button" className="btn btn-primary btn-sm" onClick={stop} disabled={busy}>{t('إنهاء العرض', 'Stop viewing')}</button>
+    </div>
+  );
+}
+
 function ReadOnlyBanner({ store }: { store: TenantSummary | null }) {
   const { t, lang } = useLang();
   if (!store?.readOnly) return null;
@@ -224,6 +248,7 @@ export function Shell({ tenant, crumbs = [], children }: {
         </header>
 
         <main className="page" id="main">
+          <StaffViewBanner store={store} />
           <ReadOnlyBanner store={store} />
           <RequireSession>{children}</RequireSession>
         </main>

@@ -31,6 +31,8 @@ export class ApiError extends Error {
 export type MeResponse = {
   user: { id: string; email: string; fullName: string; emailVerified: boolean; locale: string; isStaff?: boolean };
   currentTenantId: string | null;
+  /** A4b: this session is a staff member's read-only view of `storeId` until then. */
+  staffView?: { storeId: string; until: string } | null;
   tenants: {
     id: string; slug: string; name: string; status: string; role: string;
     plan: PlanCode; trialEndsAt: string | null; logoUrl: string | null;

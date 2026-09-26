@@ -22,7 +22,8 @@ import { errors } from '@/server/core/errors/problem';
 import { log } from '@/server/core/observability/log';
 import { currentScope } from '@/server/core/observability/scope';
 
-export type StaffContext = { userId: string; email: string; fullName: string; requestId: string };
+/** `sessionId`: the staff member's session, when the request has one (A4b points it at a store). */
+export type StaffContext = { userId: string; email: string; fullName: string; requestId: string; sessionId?: string };
 
 /** The staff member behind this request, or a 404 (not staff) / 403 (no two-step sign-in). */
 export async function staffContextFor(request: Request, config: ApiConfig = apiConfig()): Promise<StaffContext> {
@@ -30,7 +31,7 @@ export async function staffContextFor(request: Request, config: ApiConfig = apiC
   const [user] = await unsafeAdminDb().select().from(users).where(eq(users.id, caller.userId)).limit(1);
   if (!user || user.deletedAt || !user.isStaff) throw errors.notFound('page');
   if (!user.totpEnabled) throw errors.forbidden('staff accounts must use two-step sign-in — turn it on in Sign-in security');
-  return { userId: user.id, email: user.email, fullName: user.fullName, requestId: currentScope()?.requestId ?? 'unscoped' };
+  return { userId: user.id, email: user.email, fullName: user.fullName, requestId: currentScope()?.requestId ?? 'unscoped', sessionId: caller.sessionId };
 }
 
 export type StaffAction = {

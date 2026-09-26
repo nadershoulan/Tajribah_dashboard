@@ -225,7 +225,7 @@ export async function requireSession(sessionId: string, now = new Date()): Promi
 export async function setSessionTenant(sessionId: string, tenantId: string, config: SessionSecrets): Promise<string> {
   const db = unsafeAdminDb();
   const [updated] = await db.update(sessions)
-    .set({ tenantId, lastSeenAt: new Date() })
+    .set({ tenantId, lastSeenAt: new Date(), impersonatingUntil: null, impersonationReturnTenantId: null }) // switching ends a staff view (A4b)
     .where(and(eq(sessions.id, sessionId), isNull(sessions.revokedAt)))
     .returning();
   if (!updated) throw errors.unauthenticated();

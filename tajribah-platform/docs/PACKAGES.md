@@ -116,7 +116,7 @@ only. Screen IDs from the inventory (`ADM-*`).
 | A2 ✅ | Platform overview | — (numbers); real revenue 🔒 | ADM-02: stores by status, trials ending, MRR/ARR from subscriptions × the plan rows, new stores — from the database |
 | A3 ✅ | Tenant management | — | ADM-03…07: every store, filterable; one store's profile, usage, billing and connections |
 | A4 ✅ | Tenant actions | — | ADM-08: suspend/restore, extend a trial, credit adjustment — each with a reason, in both the store's and the staff trail |
-| A4b | Impersonation (split from A4) | A4 | ADM-08: view the dashboard as the store — read-only, time-limited, shown to staff by a banner and to the store in its activity |
+| A4b ✅ | Impersonation (split from A4) | A4 | ADM-08: view the dashboard as the store — read-only, time-limited, shown to staff by a banner and to the store in its activity |
 | A5 ✅ | User management | — | ADM-11/12: find a person, their stores; end their sessions, reset their two-step sign-in — audited |
 | A6 ✅ | Plans & pricing management | — | ADM-13/14: edit a plan's prices, limits and features (T19: applies to everyone), audited |
 | A7 ◐ | Subscriptions & invoices | — (view); refunds 🔒 | ADM-17…19: subscriptions and invoices across stores |
@@ -126,7 +126,7 @@ only. Screen IDs from the inventory (`ADM-*`).
 | A11 ✅ | Platform operations | — | Queue health, stuck jobs, webhook failures, key rotation state |
 | A12 ✅ | Support tooling | — | Look up a store/person/request id and see what happened |
 | A13 ◐ | Content management | ❓ what "platform copy" is | Coupons (ADM-15) ✅; platform copy — no copy is database-held today (all of it is code, reviewed like code); needs a decision on what, if anything, staff should edit without a deploy |
-| A14 | Compliance & system | — (view); PDPL process ❓ | Data requests, retention, the staff trail |
+| A14 ❓ | Compliance & system | PDPL process ❓, retention policy ❓ | Data requests, retention, the staff trail. **Blocked on decisions, not accounts:** nothing in the product creates a data request yet, and no retention period is defined anywhere (plan, DECISIONS) — building screens for either would invent the rules. The staff trail itself is A1 (ADM-43) |
 
 ## P3–P8 and the parallel tracks
 

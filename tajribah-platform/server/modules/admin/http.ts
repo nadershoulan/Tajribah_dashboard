@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 import { route } from '@/server/core/observability/request';
-import { apiConfig, assertSameOrigin, json, readJson } from '@/server/core/http/api';
+import { apiConfig, assertSameOrigin, authenticate, json, readJson } from '@/server/core/http/api';
 import { staffContextFor, staffTrail } from './access';
 import { platformOverview } from './overview';
 import { listStores, storeDetail } from './stores';
@@ -15,6 +15,8 @@ import { invoiceForStaff, listInvoices, listSubscriptions } from './billing';
 import { operations, replayDelivery, retryJob } from './operations';
 import { lookup, storeActivity } from './support';
 import { createCoupon, listCoupons, updateCoupon } from './coupons';
+import { endStaffView, startStaffView } from './staff-view';
+import { currentScope } from '@/server/core/observability/scope';
 import { errors } from '@/server/core/errors/problem';
 
 /** API-A00 — GET /api/admin/whoami: the console's own guard asks this first. */
@@ -246,4 +248,27 @@ export const updateCouponHandler = route(async (request) => {
   const id = new URL(request.url).pathname.split('/').filter(Boolean).pop() ?? '';
   if (!z.string().uuid().safeParse(id).success) throw errors.notFound('coupon');
   return json(await updateCoupon(staff, id, await readJson(request, COUPON.partial().required({ reason: true }))));
+});
+
+/** API-A22 — POST /api/admin/stores/[id]/view: view the dashboard as the store, read-only, for 5–60 minutes (A4b). */
+export const startStaffViewHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const id = idBeforeLast(request);
+  if (!z.string().uuid().safeParse(id).success) throw errors.notFound('store');
+  const body = await readJson(request, z.object({ minutes: z.number().int(), reason: z.string().max(500) }));
+  return json(await startStaffView(staff, staff.sessionId!, id, body));
+});
+
+/**
+ * API-A23 — POST /api/admin/view/end: stop viewing and go back. Only a session — not the
+ * console's staff check — so someone whose staff status was just removed can still end it.
+ */
+export const endStaffViewHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const caller = await authenticate(request, config);
+  await endStaffView(caller.sessionId, { userId: caller.userId, requestId: currentScope()?.requestId ?? 'unscoped', why: 'stopped' });
+  return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
 });

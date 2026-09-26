@@ -78,6 +78,7 @@ function Detail() {
           )}
         </Panel>
       </div>
+      <div style={{ marginTop: 18 }}><ViewAsStore storeId={store.id} /></div>
       <div style={{ marginTop: 18 }}><Actions store={store} onDone={() => setVersion((v) => v + 1)} /></div>
       <div style={{ marginTop: 18 }}><Activity storeId={store.id} version={version} /></div>
       <div className="grid grid-2" style={{ marginTop: 18 }}>
@@ -95,6 +96,44 @@ function Detail() {
         </Panel>
       </div>
     </>
+  );
+}
+
+/** A4b — see the dashboard exactly as the store does, read-only, for a limited time. */
+function ViewAsStore({ storeId }: { storeId: string }) {
+  const { t } = useLang();
+  const auth = useAuth();
+  const env = useEnv();
+  const [minutes, setMinutes] = useState(30);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const start = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (reason.trim().length < 5) return;
+    setBusy(true); setProblem(null);
+    try { await auth.admin.viewStore(storeId, minutes, reason.trim()); env.navigate('/dashboard'); }
+    catch (err) { setProblem((err as Error).message); setBusy(false); }
+  };
+  return (
+    <Panel title={t('عرض لوحة المتجر', 'View as the store')} sub={t('ترى لوحة المتجر كما يراها، للاطلاع فقط ولمدة محددة. يُسجَّل في سجل نشاط المتجر.', 'See the store’s dashboard as it does — read-only, for a set time. Recorded in the store’s activity.')}>
+      <form className="admin-actions" onSubmit={start} noValidate>
+        <div className="field act-amount">
+          <label htmlFor="view-minutes">{t('المدة', 'For')}</label>
+          <select id="view-minutes" value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
+            {[15, 30, 60].map((m) => <option key={m} value={m}>{t(`${m} دقيقة`, `${m} minutes`)}</option>)}
+          </select>
+        </div>
+        <div className="field act-reason">
+          <label htmlFor="view-reason">{t('السبب', 'Reason')}</label>
+          <input id="view-reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder={t('مثال: التاجر يقول إن منتجًا اختفى', 'e.g. merchant says a product disappeared')} />
+        </div>
+        <div className="btn-row">
+          <button type="submit" className="btn btn-primary" disabled={busy || reason.trim().length < 5}>{t('اعرض كالمتجر', 'View as the store')}</button>
+        </div>
+      </form>
+      {problem && <p className="field-error" role="alert" style={{ margin: '8px 0 0' }}><span dir="ltr">{problem}</span></p>}
+    </Panel>
   );
 }
 

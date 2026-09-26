@@ -12,7 +12,7 @@ import { loadEnv } from '../config/env';
 import { errors, fieldErrorsFrom } from '../errors/problem';
 import { actorOf, readAccessToken, requireSession, type SessionSecrets } from '../auth/session';
 import { bindActor, currentScope } from '../observability/scope';
-import { buildTenantContext, type TenantContext } from '../tenancy/context';
+import { buildStaffViewContext, buildTenantContext, type TenantContext } from '../tenancy/context';
 
 export type ApiConfig = SessionSecrets & {
   appUrl: string;
@@ -58,7 +58,8 @@ export function assertSameOrigin(request: Request, config: ApiConfig): void {
   throw errors.forbidden('cross-origin request refused');
 }
 
-export type Caller = { userId: string; sessionId: string; tenantId: string | null };
+/** `staffViewUntil` (A4b): this session is a staff member's read-only view of `tenantId` until then. */
+export type Caller = { userId: string; sessionId: string; tenantId: string | null; staffViewUntil: Date | null };
 
 /** The authenticated caller, or 401. Binds the user (and tenant) to every later log line. */
 export async function authenticate(request: Request, config: ApiConfig = apiConfig()): Promise<Caller> {
@@ -67,7 +68,7 @@ export async function authenticate(request: Request, config: ApiConfig = apiConf
   if (!match) throw errors.unauthenticated();
   const claims = await readAccessToken(match[1], config.authSecret);
   const session = await requireSession(claims.sid);
-  const caller = { userId: claims.sub, sessionId: session.id, tenantId: session.tenantId ?? null };
+  const caller = { userId: claims.sub, sessionId: session.id, tenantId: session.tenantId ?? null, staffViewUntil: session.impersonatingUntil ?? null };
   bindActor({ userId: caller.userId, tenantId: caller.tenantId });
   return caller;
 }
@@ -81,6 +82,15 @@ export async function tenantContextFor(request: Request, config: ApiConfig = api
   const caller = await authenticate(request, config);
   if (!caller.tenantId) throw errors.forbidden('choose a store first');
   const actor = await actorOf(caller.userId);
+  if (caller.staffViewUntil) {
+    // A4b: a staff view ends at its time, whatever the page is still asking for.
+    if (caller.staffViewUntil.getTime() <= Date.now()) throw errors.forbidden('the staff view of this store has ended');
+    return buildStaffViewContext({
+      actor: { userId: actor.userId, email: actor.email, isStaff: actor.isStaff },
+      tenantId: caller.tenantId,
+      requestId: currentScope()?.requestId ?? 'unscoped',
+    });
+  }
   return buildTenantContext({
     actor: { userId: actor.userId, email: actor.email, isStaff: actor.isStaff },
     tenantId: caller.tenantId,

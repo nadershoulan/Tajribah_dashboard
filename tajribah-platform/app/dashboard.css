@@ -727,6 +727,9 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .seg button { padding: 7px 14px; border: 0; border-radius: 9px; background: transparent; color: var(--text-2); font: inherit; font-weight: 500; cursor: pointer; }
 .seg button.on { background: var(--tint); color: var(--text); }
 
+/* A4b — staff view banner */
+.notice.staff-view { border-color: var(--warn); background: var(--warn-bg); }
+
 /* A13 — coupons */
 .coupon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 14px; }
 .coupon-grid input:disabled, .coupon-grid select:disabled { background: var(--tint); color: var(--text-3); cursor: not-allowed; }

@@ -196,6 +196,9 @@ export type AdminApi = {
   coupons(): Promise<AdminCoupon[]>;
   createCoupon(fields: AdminCouponFields & { reason: string }): Promise<AdminCoupon>;
   updateCoupon(id: string, patch: Partial<AdminCouponFields> & { reason: string }): Promise<AdminCoupon>;
+  /** A4b: point this session at the store, read-only, then re-read `me`. */
+  viewStore(id: string, minutes: number, reason: string): Promise<void>;
+  endView(): Promise<void>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -267,6 +270,8 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       coupons: async () => (await client.call<{ coupons: AdminCoupon[] }>('/api/admin/coupons')).coupons,
       createCoupon: (fields) => client.call('/api/admin/coupons', { body: fields }),
       updateCoupon: (id, patch) => client.call(`/api/admin/coupons/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch }),
+      viewStore: async (id, minutes, reason) => { await client.call(`/api/admin/stores/${encodeURIComponent(id)}/view`, { body: { minutes, reason } }); await load(); },
+      endView: async () => { await client.call('/api/admin/view/end', { method: 'POST' }); await load(); },
     },
     twoFactor: {
       status: () => client.twoFactorStatus(),
@@ -332,7 +337,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

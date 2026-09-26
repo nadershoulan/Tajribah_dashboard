@@ -18,7 +18,7 @@ P6 AI+connectors  ░░░░░░░░░░░░░░░░░░░░�
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13
 P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 M  Marketing      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12   (separate site in tajribah-try-on)
-A  Admin console  █████████████████░░░░░░░░░░░░░░░   8 / 15   ← started 2026-09-26
+A  Admin console  ███████████████████░░░░░░░░░░░░░   9 / 15   ← started 2026-09-26
                                             overall  38 / 168
 ```
 
@@ -98,6 +98,7 @@ The internal console for running Tajribah: stores, people, plans, coupons, what 
 
 | | Package | In plain words |
 |---|---|---|
+| ✅ | A4b See what the merchant sees | Staff can open a store's dashboard exactly as the store sees it, for 15 minutes to an hour, with a written reason — and change nothing. A banner on every screen says so, the store's own activity shows that Tajribah staff looked, and it ends by itself |
 | ◐ | A13 Coupons | Staff can create discount codes — a percentage, a fixed amount, or free months — for all plans or some, with start and end days and a use limit, and switch them off. The checkout accepts or refuses them straight away. Once a store has used a code, its discount can't be changed, so records stay true. ("Platform copy" in the plan isn't defined yet — see the question in STATE) |
 | ✅ | A12 Support lookup | Support pastes whatever a merchant sends — a store or invoice id, an email, an invoice number, a store name, or the reference number shown with an error — and sees what it is. For an error's reference number, it shows exactly what that request changed, in which store, and by whom. Each store's page now also shows its full activity. Only which fields changed is shown, never the store's data itself |
 | ✅ | A11 Is the platform working? | One screen shows staff whether background work is keeping up (how long the oldest waiting job has waited, per queue), what is stuck or has given up, which store updates from Salla or Zid failed, and how far an encryption-key change has got — including when the old key can safely be removed. A job that gave up or an update that failed can be tried again, with a reason |
@@ -220,3 +221,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-27 | A11 platform operations | 416 pass / 0 fail |
 | 2026-09-27 | A12 support tooling | 419 pass / 0 fail |
 | 2026-09-27 | A13 coupons for staff | 421 pass / 0 fail |
+| 2026-09-27 | A4b view as the store | 423 pass / 0 fail |

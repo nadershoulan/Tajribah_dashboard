@@ -14,6 +14,7 @@ import { subscriptions, tenantMemberships, tenants, type Tenant } from '@/db/sch
 import type { MemberRole } from '@/lib/permissions';
 import { allowedWhileReadOnly, writeStateOf, type ReadOnlyReason } from '../billing/lifecycle';
 import { errors } from '../errors/problem';
+import { PERMISSIONS } from '@/lib/permissions';
 import { permissionsFor, requirePermission, type Permission } from '../rbac/permissions';
 import { TenantDb } from './tenant-db';
 
@@ -100,6 +101,30 @@ export async function buildTenantContext(input: {
   };
 }
 
+/** A4b: what a staff view may do — read, and nothing else. */
+const STAFF_VIEW: ReadonlySet<Permission> = new Set(PERMISSIONS.filter((p) => p.endsWith(':read')));
+
+/**
+ * A4b — a staff member viewing a store's dashboard. No membership: the right comes from the
+ * session (set by the staff console, time-limited) and from being staff, re-read on every
+ * request — removing staff status ends the view at once. Reads only: every write permission is
+ * refused, whatever the screen asks. A suspended store can be viewed (that is often why).
+ */
+export async function buildStaffViewContext(input: { actor: Actor; tenantId: string; requestId: string }): Promise<TenantContext> {
+  if (!input.actor.isStaff) throw errors.notFound('tenant');
+  const [tenant] = await unsafeAdminDb().select().from(tenants).where(eq(tenants.id, input.tenantId)).limit(1);
+  if (!tenant || tenant.deletedAt) throw errors.notFound('tenant');
+  const permissions = new Set(STAFF_VIEW);
+  return {
+    tenantId: tenant.id, tenant, actor: input.actor, role: 'system', actorType: 'staff', permissions,
+    requestId: input.requestId, db: TenantDb.for(tenant.id), readOnly: null,
+    require: (permission) => {
+      if (!permissions.has(permission)) throw errors.forbidden('this is a read-only staff view of the store');
+    },
+    can: (permission) => permissions.has(permission),
+  };
+}
+
 /**
  * The context for background work on one tenant — a sync job, a webhook handler. There is
  * no session and no membership, so nothing is inherited: the caller names the tenant (from
@@ -135,6 +160,12 @@ export async function systemContext(input: {
 }
 
 /** Every store the user can switch between, for the tenant switcher (§P1 dashboard shell). */
+/** A4b: the store a staff view points at, for `/me` — null if it no longer exists. */
+export async function staffViewedStore(tenantId: string): Promise<Tenant | null> {
+  const [tenant] = await unsafeAdminDb().select().from(tenants).where(eq(tenants.id, tenantId)).limit(1);
+  return tenant && !tenant.deletedAt ? tenant : null;
+}
+
 export async function membershipsOf(userId: string): Promise<{ tenant: Tenant; role: MemberRole }[]> {
   const db = unsafeAdminDb();
   const rows = await db

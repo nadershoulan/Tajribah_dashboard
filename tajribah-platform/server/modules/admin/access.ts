@@ -13,7 +13,7 @@
  * Staff read across stores by definition, so this module (and the admin screens' services)
  * use the admin handle; each query filters explicitly.
  */
-import { desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
 import { staffAudit, users } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
@@ -57,11 +57,14 @@ export type StaffTrailRow = {
   storeId: string | null; reason: string | null;
 };
 
-/** The newest staff actions, optionally for one store. */
-export async function staffTrail(input: { storeId?: string; limit?: number } = {}): Promise<StaffTrailRow[]> {
+/** The newest staff actions, optionally for one store or one target (a person, say). */
+export async function staffTrail(input: { storeId?: string; target?: { type: string; id: string }; limit?: number } = {}): Promise<StaffTrailRow[]> {
   const db = unsafeAdminDb();
   const rows = await db.select().from(staffAudit)
-    .where(input.storeId ? eq(staffAudit.storeId, input.storeId) : undefined)
+    .where(and(
+      input.storeId ? eq(staffAudit.storeId, input.storeId) : undefined,
+      input.target ? and(eq(staffAudit.targetType, input.target.type), eq(staffAudit.targetId, input.target.id)) : undefined,
+    ))
     .orderBy(desc(staffAudit.createdAt), desc(staffAudit.id)).limit(Math.min(input.limit ?? 50, 200));
   const ids = [...new Set(rows.map((r) => r.staffUserId))];
   const people = ids.length ? await db.select({ id: users.id, email: users.email }).from(users).where(inArray(users.id, ids)) : [];

@@ -127,6 +127,14 @@ export const EMAIL = {
         en: `Hello,\n\nTwo-step sign-in is now off for your account: your password alone signs you in.\n\nIf this was not you, change your password now and contact us.`,
       },
   })),
+  /** A5: staff reset it (the lost-phone case). Every session was ended with it. */
+  twoFactorResetByStaff: emailTemplate(() => ({
+    subject: { ar: `أوقف فريق ${BRAND.ar} التحقق بخطوتين على حسابك`, en: `${BRAND.en} support turned off two-step sign-in on your account` },
+    text: {
+      ar: `مرحباً،\n\nأوقف فريق دعم ${BRAND.ar} التحقق بخطوتين على حسابك، وأُنهيت كل جلساتك. سجّل الدخول بكلمة المرور، ثم فعّله من جديد من صفحة الأمان.\n\nإن لم تطلب ذلك فغيّر كلمة المرور فوراً وتواصل معنا.`,
+      en: `Hello,\n\n${BRAND.en} support turned off two-step sign-in on your account and signed you out everywhere. Sign in with your password, then turn it back on from the Security page.\n\nIf you did not ask for this, change your password now and contact us.`,
+    },
+  })),
 };
 
 export async function sendEmail<P>(to: string, template: EmailTemplate<P>, params: P, lang: Lang): Promise<void> {

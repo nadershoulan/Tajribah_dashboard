@@ -8,7 +8,7 @@
  * to turn it on. The server refuses the same people on every admin endpoint regardless.
  */
 import { useEffect, useState, type ReactNode } from 'react';
-import { ArrowLeft, LayoutDashboard, ShieldAlert, ScrollText, Store } from 'lucide-react';
+import { ArrowLeft, LayoutDashboard, ShieldAlert, ScrollText, Store, Users } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { ApiError } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
@@ -23,6 +23,7 @@ type Access = { state: 'checking' } | { state: 'staff'; email: string } | { stat
 const NAV = [
   { href: '/admin', icon: LayoutDashboard, label: { ar: 'نظرة عامة', en: 'Overview' } },
   { href: '/admin/stores', icon: Store, label: { ar: 'المتاجر', en: 'Stores' } },
+  { href: '/admin/people', icon: Users, label: { ar: 'الأشخاص', en: 'People' } },
   { href: '/admin/audit', icon: ScrollText, label: { ar: 'سجل الموظفين', en: 'Staff activity' } },
 ];
 

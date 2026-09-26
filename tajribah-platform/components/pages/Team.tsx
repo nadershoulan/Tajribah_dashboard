@@ -14,7 +14,7 @@ import { Badge, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboa
 import type { Bi, Lang } from '@/lib/lang';
 import type { TeamMemberRow } from '@/lib/view-models';
 
-const ROLE_LABEL: Record<TeamMemberRow['role'], Bi> = {
+export const ROLE_LABEL: Record<TeamMemberRow['role'], Bi> = {
   owner: { ar: 'مالك', en: 'Owner' },
   admin: { ar: 'مدير', en: 'Admin' },
   editor: { ar: 'محرّر', en: 'Editor' },

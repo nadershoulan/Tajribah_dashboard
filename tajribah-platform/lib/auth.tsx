@@ -93,6 +93,19 @@ export type AdminStoreAction =
   | { type: 'suspend' | 'restore'; reason: string }
   | { type: 'adjust_credits'; delta: number; reason: string };
 
+/** A5 — server/modules/admin/users.ts */
+export type AdminPersonRow = {
+  id: string; email: string; fullName: string; isStaff: boolean; twoFactor: boolean; emailVerified: boolean;
+  stores: number; lastLoginAt: string | null; lockedUntil: string | null; createdAt: string;
+};
+export type AdminPersonDetail = {
+  person: AdminPersonRow & { locale: string; phone: string | null; backupCodesLeft: number };
+  stores: { id: string; name: string; nameAr: string | null; slug: string; status: AdminStoreRow['status']; role: TeamMemberRow['role']; membership: string }[];
+  sessions: { id: string; userAgent: string | null; createdAt: string; lastSeenAt: string | null; expiresAt: string }[];
+  staffTrail: StaffTrailRow[];
+};
+export type AdminPersonAction = { type: 'end_sessions' | 'reset_two_factor'; reason: string };
+
 export type AdminApi = {
   whoami(): Promise<{ email: string; fullName: string }>;
   trail(storeId?: string): Promise<StaffTrailRow[]>;
@@ -100,6 +113,9 @@ export type AdminApi = {
   stores(query: { q?: string; status?: string; plan?: string; before?: string }): Promise<{ stores: AdminStoreRow[]; next: string | null }>;
   store(id: string): Promise<AdminStoreDetail>;
   act(id: string, action: AdminStoreAction): Promise<void>;
+  people(query: { q?: string; before?: string }): Promise<{ people: AdminPersonRow[]; next: string | null }>;
+  person(id: string): Promise<AdminPersonDetail>;
+  actOnPerson(id: string, action: AdminPersonAction): Promise<{ sessionsEnded: number }>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -152,6 +168,12 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       },
       store: (id) => client.call(`/api/admin/stores/${encodeURIComponent(id)}`),
       act: async (id, action) => { await client.call(`/api/admin/stores/${encodeURIComponent(id)}/actions`, { body: action }); },
+      people: (query) => {
+        const params = new URLSearchParams(Object.entries(query).filter((e): e is [string, string] => !!e[1]));
+        return client.call(`/api/admin/users${params.size ? `?${params}` : ''}`);
+      },
+      person: (id) => client.call(`/api/admin/users/${encodeURIComponent(id)}`),
+      actOnPerson: (id, action) => client.call(`/api/admin/users/${encodeURIComponent(id)}/actions`, { body: action }),
     },
     twoFactor: {
       status: () => client.twoFactorStatus(),
@@ -217,7 +239,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

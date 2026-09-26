@@ -9,6 +9,7 @@ import { staffContextFor, staffTrail } from './access';
 import { platformOverview } from './overview';
 import { listStores, storeDetail } from './stores';
 import { actOnStore } from './actions';
+import { actOnPerson, listPeople, personDetail } from './users';
 import { errors } from '@/server/core/errors/problem';
 
 /** API-A00 — GET /api/admin/whoami: the console's own guard asks this first. */
@@ -74,4 +75,33 @@ export const storeActionHandler = route(async (request) => {
   if (!z.string().uuid().safeParse(id).success) throw errors.notFound('store');
   await actOnStore(staff, id, await readJson(request, ACTION));
   return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+});
+
+/** API-A06 — GET /api/admin/users?q=&before=: people, newest first (A5, ADM-11). */
+export const listPeopleHandler = route(async (request) => {
+  await staffContextFor(request);
+  const params = new URL(request.url).searchParams;
+  const before = z.string().uuid().safeParse(params.get('before'));
+  return json(await listPeople({ q: params.get('q')?.slice(0, 100) ?? undefined, before: before.success ? before.data : undefined }));
+});
+
+/** API-A07 — GET /api/admin/users/[id]: one person, their stores and live sessions (ADM-12). */
+export const personDetailHandler = route(async (request) => {
+  await staffContextFor(request);
+  const id = new URL(request.url).pathname.split('/').filter(Boolean).pop() ?? '';
+  if (!z.string().uuid().safeParse(id).success) throw errors.notFound('person');
+  return json(await personDetail(id));
+});
+
+const PERSON_ACTION = z.object({ type: z.enum(['end_sessions', 'reset_two_factor']), reason: z.string().max(500) });
+
+/** API-A08 — POST /api/admin/users/[id]/actions: end every session, or reset two-step sign-in (ADM-12). */
+export const personActionHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const segments = new URL(request.url).pathname.split('/').filter(Boolean);
+  const id = segments[segments.length - 2] ?? '';
+  if (!z.string().uuid().safeParse(id).success) throw errors.notFound('person');
+  return json(await actOnPerson(staff, id, await readJson(request, PERSON_ACTION)));
 });

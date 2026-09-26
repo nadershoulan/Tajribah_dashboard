@@ -15,7 +15,7 @@ import { loadEnv, resetEnv } from '@/server/core/config/env';
 import { setLogLevel } from '@/server/core/observability/log';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
 import { staffLog, staffTrail, type StaffContext } from '@/server/modules/admin/access';
-import { listStoresHandler, overviewHandler, staffTrailHandler, storeActionHandler, whoamiHandler } from '@/server/modules/admin/http';
+import { listPeopleHandler, listStoresHandler, overviewHandler, personActionHandler, staffTrailHandler, storeActionHandler, whoamiHandler } from '@/server/modules/admin/http';
 
 setLogLevel('error');
 const APP = 'http://localhost:5173';
@@ -41,7 +41,7 @@ test('only staff with two-step sign-in get in; everyone else is told the page do
     const staff = await person(harness, 'staff@tajribah.test', { isStaff: true, totpEnabled: true });
     const gone = await person(harness, 'left@tajribah.test', { isStaff: true, totpEnabled: true });
 
-    for (const handler of [whoamiHandler, staffTrailHandler, overviewHandler, listStoresHandler]) {
+    for (const handler of [whoamiHandler, staffTrailHandler, overviewHandler, listStoresHandler, listPeopleHandler]) {
       assert.equal((await get(handler, '/api/admin/x')).status, 401, 'no session');
       const notStaff = await get(handler, '/api/admin/x', merchant.token);
       assert.equal(notStaff.status, 404, 'a merchant is not even told the console exists');
@@ -63,6 +63,20 @@ test('only staff with two-step sign-in get in; everyone else is told the page do
     assert.equal((await act(staff.token)).status, 204);
     const [after] = await harness.asAdmin(() => harness.db.select().from(tenants).where(eq(tenants.id, store.tenantId)));
     assert.equal(after!.status, 'suspended');
+
+    // A5: acting on a person — the same guard; the answer says how many sessions ended.
+    const actOn = (token: string | undefined, id: string, headers: Record<string, string> = {}) => personActionHandler(new Request(`${APP}/api/admin/users/${id}/actions`, {
+      method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers },
+      body: JSON.stringify({ type: 'end_sessions', reason: 'access test' }),
+    }));
+    assert.equal((await actOn(undefined, merchant.id)).status, 401);
+    assert.equal((await actOn(merchant.token, staff.id)).status, 404, 'a merchant cannot sign staff out');
+    assert.equal((await actOn(staffNo2fa.token, merchant.id)).status, 403);
+    assert.equal((await actOn(staff.token, merchant.id, { origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' })).status, 403, 'cross-origin refused');
+    const ended = await actOn(staff.token, merchant.id);
+    assert.equal(ended.status, 200);
+    assert.deepEqual(await ended.json(), { sessionsEnded: 1 });
+    assert.equal((await get(whoamiHandler, '/api/admin/whoami', merchant.token)).status, 401, 'the ended session is refused at once');
 
     const me = await (await get(whoamiHandler, '/api/admin/whoami', staff.token)).json() as any;
     assert.equal(me.email, 'staff@tajribah.test');

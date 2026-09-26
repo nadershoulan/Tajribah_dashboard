@@ -11,6 +11,7 @@ import { formatMoney } from '@/lib/money';
 import { planByCode } from '@/lib/plans';
 import { AdminShell } from '@/components/admin/shell';
 import { Badge, Empty, ErrorNote, Loading, Meter, Panel } from '@/components/dashboard/ui';
+import { ROLE_LABEL } from '@/components/pages/Team';
 import { STATUS_LABEL } from './AdminStores';
 
 export default function AdminStore() {
@@ -80,7 +81,7 @@ function Detail() {
       <div className="grid grid-2" style={{ marginTop: 18 }}>
         <Panel flush title={t('الفريق', 'Team')}>
           <div className="table-wrap"><table className="data"><tbody>
-            {members.map((m) => <tr key={m.id}><td>{m.fullName || '—'}</td><td dir="ltr">{m.email}</td><td>{m.role}</td><td>{m.status}</td></tr>)}
+            {members.map((m) => <tr key={m.id}><td>{m.fullName || '—'}</td><td dir="ltr">{m.email}</td><td>{pick(ROLE_LABEL[m.role])}</td><td>{m.status}</td></tr>)}
           </tbody></table></div>
         </Panel>
         <Panel flush title={t('ما فعله الموظفون في هذا المتجر', 'Staff actions on this store')}>

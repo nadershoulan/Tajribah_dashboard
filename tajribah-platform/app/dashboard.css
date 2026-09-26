@@ -704,6 +704,7 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 @media (max-width: 860px) {
   .admin-body { grid-template-columns: minmax(0, 1fr); }
   .admin-nav { display: flex; overflow-x: auto; border-inline-end: 0; border-bottom: 1px solid var(--line); padding: 10px 12px; }
+  .admin-nav .side-link { flex: none; white-space: nowrap; }
   .admin-who { margin-inline-start: 0; }
 }
 

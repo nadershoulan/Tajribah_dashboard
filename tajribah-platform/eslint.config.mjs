@@ -41,6 +41,7 @@ const eslintConfig = defineConfig([
       "server/modules/billing/coupons.ts",
       "server/modules/billing/notices.ts",
       "server/modules/admin/access.ts",
+      "server/modules/admin/overview.ts",
       "server/core/jobs/queue.ts",
       "server/core/billing/entitlements.ts",
       "server/modules/webhooks/ingest.ts",

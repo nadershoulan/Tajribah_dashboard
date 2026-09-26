@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { route } from '@/server/core/observability/request';
 import { json } from '@/server/core/http/api';
 import { staffContextFor, staffTrail } from './access';
+import { platformOverview } from './overview';
 
 /** API-A00 — GET /api/admin/whoami: the console's own guard asks this first. */
 export const whoamiHandler = route(async (request) => {
@@ -19,4 +20,10 @@ export const staffTrailHandler = route(async (request) => {
   const store = new URL(request.url).searchParams.get('store');
   const storeId = store && z.string().uuid().safeParse(store).success ? store : undefined;
   return json({ entries: await staffTrail({ storeId }) });
+});
+
+/** API-A02 — GET /api/admin/overview: the platform at a glance (A2, ADM-02). */
+export const overviewHandler = route(async (request) => {
+  await staffContextFor(request);
+  return json(await platformOverview());
 });

@@ -8,7 +8,7 @@
  * to turn it on. The server refuses the same people on every admin endpoint regardless.
  */
 import { useEffect, useState, type ReactNode } from 'react';
-import { ArrowLeft, ShieldAlert, ScrollText } from 'lucide-react';
+import { ArrowLeft, LayoutDashboard, ShieldAlert, ScrollText } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { ApiError } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
@@ -21,6 +21,7 @@ import NotFound from '@/components/pages/NotFound';
 type Access = { state: 'checking' } | { state: 'staff'; email: string } | { state: 'not-found' } | { state: 'needs-2fa' } | { state: 'error'; message: string };
 
 const NAV = [
+  { href: '/admin', icon: LayoutDashboard, label: { ar: 'نظرة عامة', en: 'Overview' } },
   { href: '/admin/audit', icon: ScrollText, label: { ar: 'سجل الموظفين', en: 'Staff activity' } },
 ];
 
@@ -63,7 +64,7 @@ function Guarded({ title, children }: { title: string; children: ReactNode }) {
       <div className="admin-body">
         <nav className="admin-nav" aria-label={t('أقسام لوحة الموظفين', 'Staff console sections')}>
           {NAV.map((item) => (
-            <AppLink key={item.href} href={item.href} className="side-link" aria-current={env.path === item.href || (env.path === '/admin' && item.href === '/admin/audit') ? 'page' : undefined}>
+            <AppLink key={item.href} href={item.href} className="side-link" aria-current={env.path === item.href ? 'page' : undefined}>
               <item.icon size={17} aria-hidden /><span>{pick(item.label)}</span>
             </AppLink>
           ))}

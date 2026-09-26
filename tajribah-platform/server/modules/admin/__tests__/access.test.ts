@@ -15,7 +15,7 @@ import { loadEnv, resetEnv } from '@/server/core/config/env';
 import { setLogLevel } from '@/server/core/observability/log';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
 import { staffLog, staffTrail, type StaffContext } from '@/server/modules/admin/access';
-import { staffTrailHandler, whoamiHandler } from '@/server/modules/admin/http';
+import { overviewHandler, staffTrailHandler, whoamiHandler } from '@/server/modules/admin/http';
 
 setLogLevel('error');
 const APP = 'http://localhost:5173';
@@ -41,7 +41,7 @@ test('only staff with two-step sign-in get in; everyone else is told the page do
     const staff = await person(harness, 'staff@tajribah.test', { isStaff: true, totpEnabled: true });
     const gone = await person(harness, 'left@tajribah.test', { isStaff: true, totpEnabled: true });
 
-    for (const handler of [whoamiHandler, staffTrailHandler]) {
+    for (const handler of [whoamiHandler, staffTrailHandler, overviewHandler]) {
       assert.equal((await get(handler, '/api/admin/x')).status, 401, 'no session');
       const notStaff = await get(handler, '/api/admin/x', merchant.token);
       assert.equal(notStaff.status, 404, 'a merchant is not even told the console exists');

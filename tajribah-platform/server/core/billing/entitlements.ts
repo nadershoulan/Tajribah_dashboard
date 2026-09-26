@@ -12,11 +12,12 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
 import {
-  plans, products, subscriptions, tenantMemberships, usageCounters, models3d,
+  LIMIT_KEY, planFeatures, planLimits, plans, products, subscriptions, tenantMemberships, usageCounters, models3d,
   type LimitKey,
 } from '@/db/schema';
-import { UNLIMITED, planByCode, type PlanCode, type PlanDefinition } from '@/lib/plans';
+import { UNLIMITED, planByCode, type PlanCode, type PlanDefinition, type PlanLimits } from '@/lib/plans';
 import { errors } from '../errors/problem';
+import { log } from '../observability/log';
 import type { TenantContext } from '../tenancy/context';
 
 export type Entitlements = {
@@ -32,11 +33,17 @@ export type Entitlements = {
  * Resolve what a tenant is entitled to. A tenant with no subscription row is on the trial
  * of the Starter plan: the product is usable immediately after signup, which is what the
  * onboarding flow depends on.
+ *
+ * P2.1: limits and features are the plan's **rows** (`plan_limits`, `plan_features`, seeded
+ * from lib/plans.ts by drizzle/0006), so a change made in the database — the admin console,
+ * a support fix — applies on the next request without a deploy. Names and marketing copy
+ * still come from lib/plans.ts. A limit with no row is 0 and a feature with no row is off:
+ * a catalogue that is missing something refuses, it never gives the plan away.
  */
 export async function entitlementsOf(ctx: TenantContext): Promise<Entitlements> {
-  const db = unsafeAdminDb(); // subscription is platform billing state, keyed by tenant
+  const db = unsafeAdminDb(); // subscription and catalogue are platform billing state
   const [found] = await db
-    .select({ subscription: subscriptions, code: plans.code })
+    .select({ subscription: subscriptions, planId: plans.id, code: plans.code })
     .from(subscriptions)
     .innerJoin(plans, eq(plans.id, subscriptions.planId))
     .where(eq(subscriptions.tenantId, ctx.tenantId))
@@ -44,7 +51,22 @@ export async function entitlementsOf(ctx: TenantContext): Promise<Entitlements> 
   const subscription = found?.subscription;
 
   const code: PlanCode = found?.code ?? 'starter';
-  const plan = planByCode(code);
+  const planId = found?.planId
+    ?? (await db.select({ id: plans.id }).from(plans).where(eq(plans.code, code)).limit(1))[0]?.id;
+  if (!planId) log.error('plan catalogue is missing a plan — every limit reads as 0', { code });
+  const [limitRows, featureRows] = planId
+    ? await Promise.all([
+      db.select().from(planLimits).where(eq(planLimits.planId, planId)),
+      db.select().from(planFeatures).where(and(eq(planFeatures.planId, planId), eq(planFeatures.enabled, true))),
+    ])
+    : [[], []];
+  const limits = new Map<LimitKey, number>(limitRows.map((row) => [row.key, row.value]));
+  const features = new Set(featureRows.map((row) => row.featureKey));
+  const plan: PlanDefinition = {
+    ...planByCode(code),
+    limits: Object.fromEntries(LIMIT_KEY.map((key) => [key, limits.get(key) ?? 0])) as PlanLimits,
+    features: [...features],
+  };
   const status = subscription?.status ?? (ctx.tenant.status === 'trial' ? 'trialing' : 'none');
 
   const trialOver = ctx.tenant.trialEndsAt ? ctx.tenant.trialEndsAt.getTime() < Date.now() : false;
@@ -56,8 +78,8 @@ export async function entitlementsOf(ctx: TenantContext): Promise<Entitlements> 
     plan,
     status,
     canWrite,
-    has: (feature: string) => plan.features.includes(feature),
-    limit: (key: LimitKey) => plan.limits[key as keyof typeof plan.limits] ?? 0,
+    has: (feature: string) => features.has(feature),
+    limit: (key: LimitKey) => limits.get(key) ?? 0,
   };
 }
 

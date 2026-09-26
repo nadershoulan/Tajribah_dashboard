@@ -41,8 +41,9 @@ export const plans = pgTable('plans', {
   code: planCode('code').notNull(),
   name: text('name').notNull(),
   nameAr: text('name_ar').notNull(),
-  priceMonthlyMinor: amountMinor('price_monthly_minor'),
-  priceAnnualMinor: amountMinor('price_annual_minor'),
+  /** Null = no list price ("talk to us", Enterprise) — never a made-up 0 (P2.1, drizzle/0006). */
+  priceMonthlyMinor: integer('price_monthly_minor'),
+  priceAnnualMinor: integer('price_annual_minor'),
   currency: currency(),
   isPublic: bool('is_public').notNull().default(true),
   sortOrder: integer('sort_order').notNull().default(0),

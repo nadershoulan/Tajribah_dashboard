@@ -10,7 +10,7 @@ _Last updated: 2026-09-26 · updated at the end of every work session_
 ```
 P0 Foundation     ████████████████████████████░░░░  19 / 22   (+ P0.20 mostly done, 2 blocked)
 P1 Core loop      ████████████████████████░░░░░░░░  20 / 26   ← first sellable product (started)
-P2 Billing        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 15
+P2 Billing        ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   1 / 15   ← started 2026-09-26 (parts needing no account)
 P3 3D pipeline    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 P4 Analytics      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 P5 Try-on         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 14   (engine already exists in tajribah-try-on)
@@ -92,6 +92,16 @@ marked 🔒 in `docs/PACKAGES.md` wait for Salla / Cloudflare / the domain.
 | ✅ | P1.13 Shrink models for phones | After an upload is accepted, the model is automatically cleaned up and compressed so it opens faster on a phone (unused parts removed, repeated parts shared). Each model shows its size before and after, and whether it's under the 2 MB target. The original is kept. It is marked ready, but only goes live when you publish it |
 | ❓ | P1.13b Texture compression + iPhone files | Compressing textures (usually most of a model's size) and making the iPhone (.usdz) version automatically both need extra tools installed on the server that runs background work. **Decision needed** — see below |
 
+## P2 — billing (started 2026-09-26, parts needing no account)
+
+You asked to carry on in a later phase while P1 waits on accounts. Billing is next in line;
+about half of it needs no Moyasar account. Payments, ZATCA and anything that charges a card
+wait for those accounts.
+
+| | Package | In plain words |
+|---|---|---|
+| ✅ | P2.1 Plans in the database | The four plans (Starter, Growth, Pro, Enterprise) — prices, limits and what each includes — now live in the database, copied exactly from the pricing list and checked by a test. Every limit (products, team size…) is read from there, so a limit changed in the database applies at once, without a new release; the admin console will edit them later. Before this, a real database had no plans at all, so no store could ever have been subscribed. If something is missing from a plan, the answer is "no", never "unlimited". Enterprise shows no price instead of 0 |
+
 ---
 
 ## Waiting on you
@@ -117,6 +127,12 @@ Zid app names, Saudi trademark search).
   machine is enough to start). Until it exists, sign-in cannot work in the browser.
 - Arabic text uses **ASCII digits** (30, 15%) — done; a test keeps it that way.
 - **Start P1 without waiting** for CI/staging — only the parts that need no account.
+
+**Decided 2026-09-26:** start the later phases' no-account parts too (billing first).
+
+**Coming up for you (not urgent):** when a plan's price or limits change, should existing
+subscribers keep what they signed up for, or move to the new terms? Today a change applies to
+everyone at once.
 
 **This machine:** the app now runs here using a temporary Node 22 (your installed Node 20
 is untouched). Installing Node 22 properly would make that permanent — optional.
@@ -162,3 +178,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-26 | Fixes from the backlog: duplicate jobs, sidebar by role, abandoned uploads, why a model failed, encryption key rotation, webhook retry pacing and fairness, invitation email language | 338 pass / 0 fail |
 | 2026-09-26 | P1.2 setup guide, email confirmation and password reset screens; two-factor sign-in split off as P1.2b | 348 pass / 0 fail |
 | 2026-09-26 | Windows line-ending fix (`.gitattributes`) · P1.2b two-step sign-in (authenticator app + backup codes) | 363 pass / 0 fail |
+| 2026-09-26 | **P2 opened** (your call). P2.1 plans in the database | 366 pass / 0 fail |

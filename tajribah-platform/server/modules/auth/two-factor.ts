@@ -31,6 +31,12 @@ import { LIMITS, rateLimiter } from '@/server/core/ratelimit/limiter';
 import { completeLogin, countFailedLogin, openTwoFactorChallenge } from './service';
 
 const ISSUER = 'Tajribah';
+
+/** The wall clock; tests move time on step by step instead of racing real 30-second windows. */
+let clock: () => number = () => Date.now();
+export function setTwoFactorClock(next: (() => number) | null): void {
+  clock = next ?? (() => Date.now());
+}
 const boundTo = (userId: string) => `totp:${userId}`;
 
 function keys(): { current: string; all: string[] } {
@@ -70,7 +76,7 @@ async function openSecret(user: User): Promise<string | null> {
 async function acceptCode(user: User, code: string): Promise<boolean> {
   const secret = await openSecret(user);
   if (!secret) return false;
-  const step = await matchTotp(secret, code, { afterStep: user.totpLastStep });
+  const step = await matchTotp(secret, code, { now: clock(), afterStep: user.totpLastStep });
   if (step === null) return false;
   const current = keys().current;
   const resealed = user.totpSecretEncrypted!.startsWith(`v2.${await encryptionKeyId(current)}.`)

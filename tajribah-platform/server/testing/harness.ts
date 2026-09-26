@@ -18,7 +18,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
 import { drizzle } from 'drizzle-orm/pglite';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import * as schema from '@/db/schema';
 import { clearDb, registerDb, type Db } from '@/db/client';
 import { uuidv7 } from '@/lib/ids';
@@ -83,7 +83,8 @@ export function rollbackStatements(): { file: string; statements: string[] }[] {
     const statements = block.split('\n')
       .map((line) => line.replace(/^--\s?/, '').trim())
       // CREATE / INSERT / GRANT too: undoing a table rebuild (0002) has to build the old one back.
-      .filter((line) => /^(DROP|ALTER|REVOKE|CREATE|INSERT|GRANT)\b/i.test(line));
+      // DELETE: undoing a seed (0006, the plan catalogue) removes its rows.
+      .filter((line) => /^(DROP|ALTER|REVOKE|CREATE|INSERT|GRANT|DELETE)\b/i.test(line));
     return { file, statements };
   });
 }
@@ -138,6 +139,13 @@ export async function setTenant(db: Db, tenantId: string | null): Promise<void> 
  * A tenant with an owner, ready to act. Written as the superuser, because creating a tenant
  * is exactly the operation that cannot be scoped to one.
  */
+/** A plan from the catalogue drizzle/0006 seeds (P2.1): tests subscribe stores to the real rows. */
+export async function seededPlanId(harness: TestDb, code: (typeof schema.PLAN_CODE)[number]): Promise<string> {
+  const [row] = await harness.asAdmin(() => harness.db.select({ id: schema.plans.id }).from(schema.plans).where(eq(schema.plans.code, code)));
+  if (!row) throw new Error(`plan "${code}" is not seeded — is drizzle/0006 applied?`);
+  return row.id;
+}
+
 export async function seedTenant(harness: TestDb, name: string): Promise<{
   tenantId: string; userId: string; email: string;
 }> {

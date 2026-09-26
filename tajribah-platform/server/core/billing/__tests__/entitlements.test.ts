@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { plans, products, subscriptions } from '@/db/schema';
+import { products, subscriptions } from '@/db/schema';
 import { UNLIMITED } from '@/lib/plans';
 import { uuidv7 } from '@/lib/ids';
 import { planByCode } from '@/lib/plans';
 import { buildTenantContext } from '@/server/core/tenancy/context';
 import { assertFeature, assertWithinQuota, currentPeriodStart, entitlementsOf } from '@/server/core/billing/entitlements';
 import { problemResponse } from '@/server/core/errors/problem';
-import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
+import { createTestDb, seedTenant, seededPlanId, type TestDb } from '@/server/testing/harness';
 
 async function starterStore(harness: TestDb) {
   const seeded = await seedTenant(harness, 'alpha');
@@ -28,10 +28,9 @@ test('a subscribed tenant gets its plan, found through the plans table', async (
   const harness = await createTestDb();
   try {
     const ctx = await starterStore(harness);
-    const planId = uuidv7();
+    const planId = await seededPlanId(harness, 'enterprise');
     const now = new Date();
     await harness.asAdmin(async () => {
-      await harness.db.insert(plans).values({ id: planId, code: 'enterprise', name: 'Enterprise', nameAr: 'المؤسسات', priceMonthlyMinor: 0, priceAnnualMinor: 0 } as any);
       await harness.db.insert(subscriptions).values({
         id: uuidv7(), tenantId: ctx.tenantId, planId, status: 'active',
         currentPeriodStart: now, currentPeriodEnd: new Date(now.getTime() + 30 * 86_400_000),

@@ -322,3 +322,18 @@ token cannot switch the protection off, or turn it on to lock the owner out.
 password alone signs in again. Code rollback: `login()` returning a challenge is the only
 behaviour change for existing accounts, and only for those with it on; migration 0005 has its
 `-- ROLLBACK:`.
+
+## T18 · 2026-09-26 · Later phases open for account-free work before the P1 gate (extends T12)
+
+**Decision (Nader's, 2026-09-26: "start work in a later phase that needs no account").** Every
+account-free P1 package is built; everything left in P1 needs Salla, Cloudflare, the domain or
+a decision. Rather than idle, packages of **later phases whose "Needs" column is empty** may
+start, in spine order: P2 first (Billing), then the parallel tracks as the plan allows (Track A
+after P2.1).
+
+**Guard rails.** Same as T12: a 🔒 package may be prepared but is never marked done without its
+real service; every package meets its own "done when", runs `verify.mjs`, and is seen to fail.
+The P0 gate re-run and the P1 gate still come first before any phase gate is claimed —
+`STATE.md` keeps both overrides at the top.
+
+**Rollback path.** None needed: the work is additive and behind the same checks.

@@ -16,6 +16,10 @@ view of the same facts for Nader — update it in the same session. Counts are d
 > **Gate override in force (T12).** P0's code gate passed; its infrastructure half (CI,
 > staging) did not. Nader chose to start **account-free P1 packages** meanwhile. This is not a
 > passed gate: re-run `docs/gates/P0.md` before P1's own gate.
+>
+> **Extended (T18, 2026-09-26).** With every account-free P1 package built, Nader opened
+> **account-free packages of later phases**, spine order (P2 first). No phase gate is claimed:
+> P0's re-run and P1's gate still come first.
 
 ## Progress
 
@@ -23,6 +27,7 @@ view of the same facts for Nader — update it in the same session. Counts are d
 |---|---|
 | P0 Foundation | **19 / 22 done, P0.20 partly** — its last browser step needs a database; P0.21 CI / P0.22 staging need accounts |
 | P1 Core loop | **20 / 26** + P1.6b + P1.2b (account-free work only, T12) · P1.13b needs a decision · P1.20 blocked on the domain · **every other open P1 package needs an account** |
+| P2 Billing | **1 / 15** (T18: account-free only — P2.2, P2.6, P2.9, P2.11 and parts of P2.10/12/13 need no account; the rest wait on Moyasar / ZATCA) |
 | later | not opened |
 
 ## Next up
@@ -136,6 +141,16 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
 - (P1.2b) The per-user code rate limit is in memory, per isolate (like every limiter here);
   the durable guard is the lockout counter in `users`. Move limiters to KV with P1.15.
 - (P1.2b) SMS two-step (AUTH-13) waits on Unifonic; the method is shown disabled with the reason.
+- ~~(P1.2b) the two-step tests raced real 30-second windows~~ — fixed during P2.1 after one
+  failed under full-suite load: `setTwoFactorClock()`; the tests move time on explicitly.
+- (P2.1) A limit or feature changed in the database applies to **every** store on that plan
+  at once — there is no grandfathering or plan versioning. Decide before the first price
+  change (P2.4 / Track A): version the plan rows, or pin a subscription's limits.
+- (P2.1) The dashboard's sidebar and pricing screens still read features from `lib/plans.ts`
+  (display only — the API enforces from the rows). If a feature is changed in the database the
+  menu can disagree until `/api/auth/me` carries the plan's features.
+- (P2.1) `entitlementsOf` is 3–4 small queries per call; fine now, cache per request when P7
+  load tests say so.
 - (P1.2) `ad2d474` left `server/modules/models/__tests__/process.test.ts` failing the full
   typecheck on TypeScript 5.9 (`Float32Array` → `Float32Array<ArrayBuffer>`); annotation
   fixed, no behaviour change.
@@ -146,6 +161,12 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
 returns the verification token and a route handler will send it; `configureNotify` has no
 boot to be called from until the first route handler exists; the `notify.email` /
 `notify.sms` queues have no handler.
+
+**P2 — done and verified (under the T18 override)**
+
+| ID | Package | Verified by |
+|---|---|---|
+| P2.1 | Plans & entitlements — **`drizzle/0006_plan_catalogue.sql`** seeds `plans`, `plan_limits`, `plan_features` from `lib/plans.ts` (with ROLLBACK; until now nothing outside tests inserted a plan, so on a real database no subscription could be created and the two tables were unused). Price columns allow NULL: Enterprise has no list price, not a made-up 0. `entitlementsOf` reads the plan's limit and feature **rows** (subscription → plan, else the Starter row), so every quota and feature gate — products, team seats, sync, dashboard usage — follows the database on the next request; names and copy still come from `lib/plans.ts`. **A missing limit row is 0 and a missing feature row is off** (fail closed, logged). Harness: `seededPlanId()`; rollback runner now runs `DELETE` lines; isolation suite reuses an existing platform reference row as an FK parent instead of inventing one that collides | 3 catalogue tests (migrated database = `lib/plans.ts` exactly: plans, prices, currency, order, every limit, every feature; a limit lowered in the database refuses the next product; a disabled feature refused, and `plan.features` agrees; a subscribed store gets its own plan and another store's does not leak; a deleted row reads 0) + migration forward/rollback/forward with the seed. **Seen to fail** 10 ways, restored byte-identical: limits from code, features from code, missing row = unlimited, disabled rows counted, plan object disagreeing with `has()`, every store on Starter, a seeded limit drifted, a seeded feature missing, Enterprise priced 0, rollback leaving the rows |
 
 **P1 — done and verified (under the T12 override)**
 
@@ -265,3 +286,4 @@ cleared it — if it recurs, restart before debugging.
 | 2026-09-25 | **P1.18 shopper AR**: Quick Look / Scene Viewer / in-page viewer chosen per device, true size enforced, failure message. **P1's account-free packages are all done.** | `verify.mjs` Node 24 + lint: **325 pass / 0 fail**, 0 lint errors |
 | 2026-09-26 | **P1.2 onboarding UI** (Windows, portable Node 22): setup guide with each step's action and the store address chosen once (API-023 `slug`), verify-email + resend (API-010), password reset — three screens whose links went nowhere. 2FA split to **P1.2b**. Fixed: `confirmStoreStep` answered with stale facts (P1.1); password eye over the text in Arabic; `process.test.ts` typing on TS 5.9. Fresh `pnpm install` needed here for P1.13's deps. | `verify.mjs` Node 22 + lint: **348 pass / 0 fail**, 0 lint errors; seen to fail 13 ways; CDP screenshots ar 390 / en 1440, all 390 px exact |
 | 2026-09-26 | Root `.gitattributes` (LF everywhere; Windows checkouts no longer fail the byte checks). **P1.2b two-step sign-in** (T17): RFC 6238 TOTP on WebCrypto, stateless 5-minute challenge bound to the password hash, replay guard (`drizzle/0005`), backup codes, lockout across both steps, on/off emails, rotation sweep for the secrets; sign-in code step + `/dashboard/security`. | `verify.mjs` Node 22 + lint: **363 pass / 0 fail**, 0 lint errors; seen to fail 20 ways; CDP ar 390 / en 1440 incl. a real TOTP accepted, 390 px exact |
+| 2026-09-26 | **T18: later phases opened for account-free work** (Nader). P2 package table with needs. **P2.1 plans & entitlements**: catalogue seeded by `drizzle/0006` and checked equal to `lib/plans.ts`; entitlements read the rows (fail closed on a missing row). Fixed on the way: a P1.2b test raced real 30-second windows (now an injected clock); the isolation suite invented a colliding plan row. | `verify.mjs` Node 22 + lint: **366 pass / 0 fail**, 0 lint errors; P2.1 seen to fail 10 ways; P1.2b's 20 re-checked with the new clock |

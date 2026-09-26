@@ -81,6 +81,12 @@ async function seedRow(
     if (parentName === 'tenants') { row[keyOf(column, columns)] = tenantId; continue; }
     if (depth > 6) throw new Error(`foreign keys from ${getTableName(table)} nest too deep to seed`);
 
+    if (!made.has(parentName) && !tenantColumnOf(parent)) {
+      // Platform reference data a migration seeds (the plan catalogue, P2.1): point at a real
+      // row rather than invent one that collides with it on a unique code.
+      const [existing] = await harness.db.select().from(parent as any).limit(1) as any[];
+      if (existing) made.set(parentName, existing[keyOf(ref.foreignColumns[0], getTableColumns(parent) as Record<string, PgColumn>)]);
+    }
     if (!made.has(parentName)) {
       const parentRow = await seedRow(harness, parent, tenantId, `parent-${parentName}`, made, depth + 1);
       const [inserted] = await harness.db.insert(parent as any).values(parentRow as any).returning() as any[];

@@ -82,9 +82,32 @@ not marked done until it has run against the real service.
 
 **Gate:** a real merchant completes signup → connect → sync → AR live, unaided.
 
-## P2–P8 and the parallel tracks
+## P2 — Billing (15)
 
-As in the plan's Appendix A, unchanged: P2 Billing (15) · P3 3D pipeline (12) ·
+**Open under T18: only packages whose "Needs" column is empty.** Moyasar (payments) and the
+ZATCA provider block the rest; they may be prepared against fakes, not marked done.
+
+| ID | Package | Needs | Done when |
+|---|---|---|---|
+| P2.1 ✅ | Plans & entitlements | — | Plans, limits and features are rows, seeded by a migration from `lib/plans.ts` and checked equal to it by a test; every quota and feature gate reads the rows (a limit changed in the database takes effect without a deploy); Track A can build on it |
+| P2.2 | Usage metering | — | Metered usage (AR sessions, storage, bandwidth, AI credits) counted atomically per Riyadh month — concurrent increments never lost, a retried event never counted twice |
+| P2.3 | Payment provider adapter | 🔒 Moyasar | Charge, refund, 3-D Secure redirect against Moyasar's sandbox; a fake for tests |
+| P2.4 | **Subscription lifecycle ⭐** | 🔒 Moyasar | Trial → active → past_due → cancelled/expired, upgrades/downgrades with proration, every move in `subscription_changes` |
+| P2.5 | **Payment webhooks ⭐** | 🔒 Moyasar | `billing_events` insert first; a duplicate delivery changes nothing — the gate's duplicate-webhook test |
+| P2.6 | Invoices & VAT | — | Gapless invoice numbers per store per year (allocated in the invoice transaction), VAT 15 % shown separately, bilingual invoice document; ZATCA fields left for P2.7 |
+| P2.7 | ZATCA e-invoicing | 🔒 ZATCA provider + CSID | Invoices reported/cleared through a certified provider, QR on the document |
+| P2.8 | Dunning | 🔒 Moyasar | Failed renewals retried on a schedule, merchant told, store read-only only after the grace period |
+| P2.9 | AI credits ledger | — | Append-only `credit_ledger`; balance = sum of deltas; plan grants per period, consumption refused below zero; a dispute answerable by replay |
+| P2.10 | Billing UI | — (UI); pay button 🔒 | Plan, usage, invoices and credits from the API; choose-plan flow up to the payment step |
+| P2.11 | Trial lifecycle | — | Trial reminders before the end; a lapsed trial is read-only everywhere writes happen (not only where remembered), with the reason shown |
+| P2.12 | Coupons | — (model); redemption at checkout 🔒 | Percent / fixed / free-months coupons with limits and expiry; validated server-side |
+| P2.13 | Billing notifications | — (email); SMS 🔒 | Trial ending, payment failed, invoice issued — bilingual, once each |
+| P2.14 | Financial reporting | 🔒 real payments | MRR, churn, revenue by plan — from invoices and payments |
+| P2.15 | Billing integrity tests | 🔒 Moyasar | The gate: full payment cycle incl. failure, refund and duplicate webhook |
+
+## P3–P8 and the parallel tracks
+
+As in the plan's Appendix A, unchanged: P3 3D pipeline (12) ·
 P4 Analytics (12) · P5 Try-on (14) · P6 AI + connectors (16) · P7 Scale (13) ·
 P8 Enterprise (12) · Track M Marketing (12) · Track A Admin (14).
 

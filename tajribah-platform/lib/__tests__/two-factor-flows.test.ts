@@ -16,7 +16,7 @@ import { stepAt, totpCode } from '@/server/core/auth/totp';
 import { createTestDb, type TestDb } from '@/server/testing/harness';
 import * as auth from '@/server/modules/auth/http';
 import { openTwoFactorChallenge, twoFactorChallenge } from '@/server/modules/auth/service';
-import { resealTwoFactorSecrets } from '@/server/modules/auth/two-factor';
+import { resealTwoFactorSecrets, setTwoFactorClock } from '@/server/modules/auth/two-factor';
 
 const APP = 'http://localhost:5173';
 const KEY_A = 'a'.repeat(40);
@@ -55,6 +55,13 @@ function browser(origin = APP) {
   return { fetchImpl, jar };
 }
 
+/**
+ * The server's two-step clock, moved on by the phone below — no race with real 30-second
+ * windows. It only ever goes forward, across tests too (each test has a fresh database).
+ */
+let now = 1_790_000_000_000;
+setTwoFactorClock(() => now);
+
 function setup(keys: { current: string; previous?: string } = { current: KEY_A }) {
   resetEnv();
   loadEnv({
@@ -78,15 +85,14 @@ const is = (status: number, code?: string, field?: string) => (e: unknown) =>
 
 const ACCOUNT = { email: 'owner@example.test', password: 'a-long-enough-password', fullName: 'نادر', storeName: 'Oud House' };
 
-/** The phone: hands out the code for the next unused step, starting one step back. */
+/** The phone: 30 seconds pass, and it shows the code for the new time step. */
 function phone(secret: string) {
   let last: number | null = null;
   return {
     async next(): Promise<string> {
-      const step = last === null ? stepAt() - 1 : Math.max(last + 1, stepAt() - 1);
-      assert.ok(step <= stepAt() + 1, 'the test ran out of time steps');
-      last = step;
-      return totpCode(secret, step);
+      now += 30_000;
+      last = stepAt(now);
+      return totpCode(secret, last);
     },
     /** The code for a step already used — what someone who watched the screen would type. */
     replay: () => totpCode(secret, last!),

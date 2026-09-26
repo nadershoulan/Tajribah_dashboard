@@ -2,13 +2,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  analyticsEvents, auditLogs, models3d, plans, products, storeConnections, subscriptions,
+  analyticsEvents, auditLogs, models3d, products, storeConnections, subscriptions,
   tenantMemberships, tenants, users,
 } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { buildTenantContext } from '@/server/core/tenancy/context';
 import { setLogLevel } from '@/server/core/observability/log';
-import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
+import { createTestDb, seedTenant, seededPlanId, type TestDb } from '@/server/testing/harness';
 import { SKIPPABLE, STEPS, evaluate, skip, type Facts } from '@/server/modules/onboarding/machine';
 import { confirmStoreStep, onboardingOf, skipStep, unskipStep } from '@/server/modules/onboarding/service';
 
@@ -85,8 +85,7 @@ test('each step turns done when its fact appears in the database — and only fo
     await confirmStoreStep(ctx);
     assert.equal((await onboardingOf(ctx)).current, 'plan');
 
-    const planId = uuidv7();
-    await plant(harness, plans, { id: planId, code: 'starter', name: 'Starter', nameAr: 'المبتدئة', priceMonthlyMinor: 9900, priceAnnualMinor: 99000 });
+    const planId = await seededPlanId(harness, 'starter');
     await plant(harness, subscriptions, { tenantId, planId, currentPeriodStart: new Date(), currentPeriodEnd: new Date(Date.now() + 864e5) });
     assert.equal((await onboardingOf(ctx)).current, 'connect');
 

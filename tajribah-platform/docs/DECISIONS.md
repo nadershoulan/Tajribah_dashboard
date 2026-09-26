@@ -297,3 +297,28 @@ previous key, not a keyring: rotations are rare, and each finishes in minutes.
 **Rollback path.** Put the old key back as `ENCRYPTION_KEY` with the new one as previous; the
 same sweep moves everything back. Code rollback: `v2` envelopes would need re-sealing as `v1`
 first — drop the key id segment (`v1.<iv>.<ciphertext>` opens under the same key).
+
+## T17 · 2026-09-26 · Two-step sign-in: TOTP, a stateless challenge, the password again for changes (P1.2b)
+
+**Decision.** Authenticator apps (RFC 6238: SHA-1, 30 s, 6 digits, ±1 step) on WebCrypto, no
+new dependency (`server/core/auth/totp.ts`, checked against the RFC's test vectors). The secret
+is sealed like store tokens (AES-GCM under `ENCRYPTION_KEY`, bound to `totp:{userId}`) and
+re-sealed by the rotation sweep (T16). A code is accepted once: `users.totp_last_step`
+(`drizzle/0005`) is written only if the step is newer, in the checking statement. Ten backup
+codes (`xxxx-xxxx`, ~40 bits), stored as keyed hashes, removed on use by compare-and-swap.
+
+Sign-in: a correct password on a two-step account returns a **stateless challenge** —
+`userId.exp.MAC(userId, exp, password hash)`, five minutes — instead of a session; API-011
+exchanges it plus a code for the session. The failure count is not reset at the password
+step, so wrong codes reach the same lockout as wrong passwords. Turning it on or off and new
+backup codes need the password again; every on/off is emailed to the account holder.
+
+**Why.** TOTP needs no account and works offline — SMS (AUTH-13) waits on Unifonic and is the
+weaker factor anyway. A stateless challenge needs no table and dies by itself (expiry) or with
+a password change (the MAC covers the hash). Re-asking the password means a stolen access
+token cannot switch the protection off, or turn it on to lock the owner out.
+
+**Rollback path.** Disable per user (`totp_enabled = false`, the three columns nulled) and the
+password alone signs in again. Code rollback: `login()` returning a challenge is the only
+behaviour change for existing accounts, and only for those with it on; migration 0005 has its
+`-- ROLLBACK:`.

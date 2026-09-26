@@ -22,11 +22,13 @@ import Register from '@/components/pages/Register';
 import VerifyEmail from '@/components/pages/VerifyEmail';
 import ResetPassword from '@/components/pages/ResetPassword';
 import Onboarding from '@/components/pages/Onboarding';
+import Security from '@/components/pages/Security';
 import NotFound from '@/components/pages/NotFound';
 
 export const ROUTES: Record<string, () => ReactElement> = {
   '/dashboard': DashboardHome,
   '/dashboard/onboarding': Onboarding,
+  '/dashboard/security': Security,
   '/dashboard/products': Products,
   '/dashboard/models': Models,
   '/dashboard/connections': Connections,

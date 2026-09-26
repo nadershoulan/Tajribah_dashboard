@@ -23,6 +23,9 @@ import { recordSessionEvent } from '@/server/core/audit/audit';
 import { log } from '@/server/core/observability/log';
 import { currentScope } from '@/server/core/observability/scope';
 import { login, register, requestPasswordReset, resendEmailVerification, resetPassword, verifyEmail } from './service';
+import {
+  completeTwoFactorLogin, disableTwoFactor, enableTwoFactor, regenerateBackupCodes, startTwoFactorSetup, twoFactorStatus,
+} from './two-factor';
 
 const PASSWORD = z.string().min(10, 'at least 10 characters').max(200);
 const EMAIL_FIELD = z.string().trim().email().max(254);
@@ -72,6 +75,18 @@ export const loginHandler = route(async (request) => {
   assertSameOrigin(request, config);
   const body = await readJson(request, z.object({ email: EMAIL_FIELD, password: z.string().min(1).max(200) }));
   const issued = await login({ ...body, userAgent: userAgent(request), ip: clientIp(request) }, config);
+  // P1.2b: the password was right but a code is still needed — no session, no cookie yet.
+  if ('twoFactorChallenge' in issued) return json({ twoFactorRequired: true, challenge: issued.twoFactorChallenge });
+  await recordSessionEvent({ action: 'login', tenantId: issued.session.tenantId, userId: issued.session.userId, sessionId: issued.session.id });
+  return sessionResponse(issued);
+});
+
+/** API-011 — POST /api/auth/login/2fa: the second sign-in step (AUTH-12 code, AUTH-14 backup code). */
+export const loginTwoFactorHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const body = await readJson(request, z.object({ challenge: z.string().min(10).max(300), code: z.string().trim().min(1).max(20) }));
+  const issued = await completeTwoFactorLogin({ ...body, userAgent: userAgent(request), ip: clientIp(request) }, config);
   await recordSessionEvent({ action: 'login', tenantId: issued.session.tenantId, userId: issued.session.userId, sessionId: issued.session.id });
   return sessionResponse(issued);
 });
@@ -157,6 +172,53 @@ export const resendVerificationHandler = route(async (request) => {
     }, resent.locale);
   }
   return json({ sent: resent !== null, alreadyVerified: resent === null }, { status: 202 });
+});
+
+// ------------------------------------------------------------ two-step sign-in (P1.2b)
+
+const PASSWORD_AGAIN = z.object({ password: z.string().min(1).max(200) });
+
+/** API-012 — GET /api/auth/2fa: is it on, and how many backup codes are left. */
+export const twoFactorStatusHandler = route(async (request) => {
+  const caller = await authenticate(request);
+  return json(await twoFactorStatus(caller.userId));
+});
+
+/** API-013 — POST /api/auth/2fa/setup: a new secret to scan. Needs the password. */
+export const twoFactorSetupHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const caller = await authenticate(request, config);
+  const { password } = await readJson(request, PASSWORD_AGAIN);
+  return json(await startTwoFactorSetup(caller.userId, password));
+});
+
+/** API-014 — POST /api/auth/2fa/enable: the first code; the backup codes come back once. */
+export const twoFactorEnableHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const caller = await authenticate(request, config);
+  const { code } = await readJson(request, z.object({ code: z.string().trim().min(1).max(20) }));
+  return json(await enableTwoFactor(caller.userId, code, config.authSecret));
+});
+
+/** API-015 — POST /api/auth/2fa/disable: the password and a code (or a backup code). */
+export const twoFactorDisableHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const caller = await authenticate(request, config);
+  const body = await readJson(request, PASSWORD_AGAIN.extend({ code: z.string().trim().min(1).max(20) }));
+  await disableTwoFactor(caller.userId, body, config.authSecret);
+  return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+});
+
+/** API-016 — POST /api/auth/2fa/backup-codes: new backup codes; the old ones stop working. */
+export const twoFactorBackupCodesHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const caller = await authenticate(request, config);
+  const { password } = await readJson(request, PASSWORD_AGAIN);
+  return json(await regenerateBackupCodes(caller.userId, password, config.authSecret));
 });
 
 /**

@@ -17,6 +17,7 @@ const ADMIN_ALLOWED: Record<string, string> = {
   'server/core/tenancy/context.ts': 'the membership lookup that precedes any tenant scope',
   'server/core/auth/session.ts': 'sessions are keyed by user and span every tenant the user can switch to',
   'server/modules/auth/service.ts': 'registration and login happen before a tenant is known',
+  'server/modules/auth/two-factor.ts': 'two-step sign-in belongs to the account, which spans every store it can switch to',
   'server/core/jobs/queue.ts': 'the worker claims across tenants in one statement (RLS_EXEMPT: jobs)',
   'server/core/billing/entitlements.ts': 'subscription and membership counts are platform billing state, filtered by tenant explicitly',
   'server/modules/webhooks/ingest.ts': 'a delivery precedes any tenant scope: find the connection by provider + a store id the signature vouched for',

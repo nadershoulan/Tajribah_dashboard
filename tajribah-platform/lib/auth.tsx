@@ -8,7 +8,8 @@
  * signed in as the demo store, and says so rather than pretending to sign anyone in.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { ApiClient, MeResponse, RegisterBody } from './api-client';
+import { ApiError, type ApiClient, type MeResponse, type RegisterBody, type TwoFactorStatus } from './api-client';
+import { matchTotp, newBackupCodes, newTotpSecret, otpauthUrl } from '@/server/core/auth/totp';
 import { DEMO_DASHBOARD } from './demo-data';
 
 export type AuthStatus = 'loading' | 'signed-in' | 'signed-out';
@@ -18,7 +19,12 @@ export type AuthApi = {
   me: MeResponse | null;
   /** False in the preview: the forms explain there is no server instead of submitting. */
   live: boolean;
-  login(email: string, password: string): Promise<void>;
+  /** Resolves with a challenge when two-step sign-in still needs a code (P1.2b), else null. */
+  login(email: string, password: string): Promise<{ twoFactorChallenge: string } | null>;
+  /** P1.2b. `ApiError` 401 `invalid_credentials` for a wrong code, 401 `unauthenticated` for an expired step. */
+  completeTwoFactor(challenge: string, code: string): Promise<void>;
+  /** P1.2b: the signed-in person's own two-step sign-in. */
+  twoFactor: TwoFactorApi;
   register(body: RegisterBody): Promise<{ slugNeedsConfirmation: boolean }>;
   logout(): Promise<void>;
   switchTenant(tenantId: string): Promise<void>;
@@ -31,6 +37,14 @@ export type AuthApi = {
   /** P1.2. `ApiError` 422 for an expired, used or unknown link. */
   verifyEmail(token: string): Promise<void>;
   resendVerification(): Promise<{ sent: boolean; alreadyVerified: boolean }>;
+};
+
+export type TwoFactorApi = {
+  status(): Promise<TwoFactorStatus>;
+  startSetup(password: string): Promise<{ secret: string; otpauthUrl: string }>;
+  enable(code: string): Promise<{ backupCodes: string[] }>;
+  disable(password: string, code: string): Promise<void>;
+  regenerateBackupCodes(password: string): Promise<{ backupCodes: string[] }>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -67,7 +81,19 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
   const api = useMemo<AuthApi>(() => ({
     ...state,
     live: true,
-    login: async (email, password) => { await client.login(email, password); await load(); },
+    login: async (email, password) => {
+      const pending = await client.login(email, password);
+      if (!pending) await load();
+      return pending;
+    },
+    completeTwoFactor: async (challenge, code) => { await client.completeTwoFactor(challenge, code); await load(); },
+    twoFactor: {
+      status: () => client.twoFactorStatus(),
+      startSetup: (password) => client.startTwoFactorSetup(password),
+      enable: (code) => client.enableTwoFactor(code),
+      disable: (password, code) => client.disableTwoFactor(password, code),
+      regenerateBackupCodes: (password) => client.regenerateBackupCodes(password),
+    },
     register: async (body) => { const result = await client.register(body); await load(); return result; },
     logout: async () => { await client.logout(); setState({ status: 'signed-out', me: null }); },
     switchTenant: async (tenantId) => { await client.switchTenant(tenantId); await load(); },
@@ -89,6 +115,41 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>;
 }
 
+/**
+ * The preview's two-step sign-in, for this page load. It runs the real TOTP code
+ * (server/core/auth/totp.ts) in the browser, so a code from a real authenticator app works;
+ * the preview has no password, so any non-empty one is taken.
+ */
+const demoTwoFactorState: { secret: string | null; enabled: boolean; codes: string[]; lastStep: number | null } =
+  { secret: null, enabled: false, codes: [], lastStep: null };
+const refuse = (field: string, message: string) => new ApiError(422, 'validation_failed', 'Validation failed', { [field]: [message] });
+const demoTwoFactor: TwoFactorApi = {
+  async status() { return { enabled: demoTwoFactorState.enabled, backupCodesLeft: demoTwoFactorState.enabled ? demoTwoFactorState.codes.length : 0 }; },
+  async startSetup(password) {
+    if (!password) throw refuse('password', 'the password is not right');
+    demoTwoFactorState.secret = newTotpSecret();
+    return { secret: demoTwoFactorState.secret, otpauthUrl: otpauthUrl({ secret: demoTwoFactorState.secret, account: 'demo@example.com', issuer: 'Tajribah' }) };
+  },
+  async enable(code) {
+    const step = demoTwoFactorState.secret ? await matchTotp(demoTwoFactorState.secret, code, { afterStep: demoTwoFactorState.lastStep }) : null;
+    if (step === null) throw refuse('code', 'that code is not right');
+    Object.assign(demoTwoFactorState, { enabled: true, lastStep: step, codes: newBackupCodes() });
+    return { backupCodes: [...demoTwoFactorState.codes] };
+  },
+  async disable(password, code) {
+    if (!password) throw refuse('password', 'the password is not right');
+    const step = demoTwoFactorState.secret ? await matchTotp(demoTwoFactorState.secret, code, { afterStep: demoTwoFactorState.lastStep }) : null;
+    const backup = demoTwoFactorState.codes.indexOf(code.trim().toLowerCase());
+    if (step === null && backup < 0) throw refuse('code', 'that code is not right');
+    Object.assign(demoTwoFactorState, { secret: null, enabled: false, codes: [], lastStep: null });
+  },
+  async regenerateBackupCodes(password) {
+    if (!password) throw refuse('password', 'the password is not right');
+    demoTwoFactorState.codes = newBackupCodes();
+    return { backupCodes: [...demoTwoFactorState.codes] };
+  },
+};
+
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {
   const tenant = DEMO_DASHBOARD.tenant;
@@ -103,7 +164,9 @@ export function DemoAuthProvider({ children }: { children: ReactNode }) {
         plan: tenant.plan, trialEndsAt: tenant.trialEndsAt, logoUrl: tenant.logoUrl,
       }],
     },
-    login: async () => {},
+    login: async () => null,
+    completeTwoFactor: async () => {},
+    twoFactor: demoTwoFactor,
     register: async () => ({ slugNeedsConfirmation: false }),
     logout: async () => {},
     switchTenant: async () => {},

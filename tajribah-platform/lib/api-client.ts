@@ -51,6 +51,8 @@ export function currentStore(me: MeResponse | null): TenantSummary | null {
 
 type TokenBody = { accessToken: string; expiresIn: number };
 
+export type TwoFactorStatus = { enabled: boolean; backupCodesLeft: number };
+
 export type RegisterBody = {
   email: string; password: string; fullName: string; storeName: string; locale?: 'ar' | 'en'; phone?: string;
 };
@@ -131,10 +133,35 @@ export class ApiClient {
   /** On page load: is there a session behind the cookie? */
   restore(): Promise<boolean> { return this.refresh(); }
 
-  async login(email: string, password: string): Promise<void> {
+  /**
+   * The password step. With two-step sign-in on, nothing is signed in yet: the challenge comes
+   * back for `completeTwoFactor` (P1.2b).
+   */
+  async login(email: string, password: string): Promise<{ twoFactorChallenge: string } | null> {
     const response = await this.send('/api/auth/login', { body: { email, password } });
     if (!response.ok) return ApiClient.fail(response);
+    const body = await response.json() as TokenBody | { twoFactorRequired: true; challenge: string };
+    if ('twoFactorRequired' in body) return { twoFactorChallenge: body.challenge };
+    this.setToken(body.accessToken);
+    return null;
+  }
+
+  /** P1.2b: the code from the authenticator app, or a backup code. */
+  async completeTwoFactor(challenge: string, code: string): Promise<void> {
+    const response = await this.send('/api/auth/login/2fa', { body: { challenge, code } });
+    if (!response.ok) return ApiClient.fail(response);
     this.setToken(((await response.json()) as TokenBody).accessToken);
+  }
+
+  // P1.2b — the signed-in person's own two-step sign-in (AUTH-20…22).
+  twoFactorStatus(): Promise<TwoFactorStatus> { return this.call('/api/auth/2fa'); }
+  startTwoFactorSetup(password: string): Promise<{ secret: string; otpauthUrl: string }> {
+    return this.call('/api/auth/2fa/setup', { body: { password } });
+  }
+  enableTwoFactor(code: string): Promise<{ backupCodes: string[] }> { return this.call('/api/auth/2fa/enable', { body: { code } }); }
+  async disableTwoFactor(password: string, code: string): Promise<void> { await this.call('/api/auth/2fa/disable', { body: { password, code } }); }
+  regenerateBackupCodes(password: string): Promise<{ backupCodes: string[] }> {
+    return this.call('/api/auth/2fa/backup-codes', { body: { password } });
   }
 
   async register(body: RegisterBody): Promise<{ slugNeedsConfirmation: boolean; tenant: { id: string; slug: string; name: string } }> {

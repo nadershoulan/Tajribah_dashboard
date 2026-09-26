@@ -6,7 +6,8 @@
  *  1. Set `ENCRYPTION_KEY_PREVIOUS` to the old key and `ENCRYPTION_KEY` to a new one; deploy.
  *  2. Tokens move to the new key when used (`accessTokenFor`), and this sweep — on the
  *     worker's schedule tick — moves the idle ones.
- *  3. When the sweep reports nothing resealed on a tick, remove `ENCRYPTION_KEY_PREVIOUS`.
+ *  3. When this sweep and `resealTwoFactorSecrets` (P1.2b, authenticator secrets) both
+ *     report nothing resealed on a tick, remove `ENCRYPTION_KEY_PREVIOUS`.
  *
  * Nothing is audited: the change is the same tokens under another key, and the audit trail
  * must never hold token ciphertext. A row no key opens is counted and left alone — its next

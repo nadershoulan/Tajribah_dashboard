@@ -83,6 +83,22 @@ export const EMAIL = {
       en: `Hello,\n\nYou have been invited to join the team of "${store}" on ${BRAND.en}. To accept, open this link and sign in with this email address:\n${link}\n\nThe link is valid for ${days} days and works once. If you were not expecting this, ignore this message.`,
     },
   })),
+
+  /** P1.2b: sent on every change, so a change the owner did not make is noticed. */
+  twoFactorChanged: emailTemplate(({ on }: { on: boolean }) => ({
+    subject: on
+      ? { ar: `تم تفعيل التحقق بخطوتين في ${BRAND.ar}`, en: `Two-step sign-in is on for your ${BRAND.en} account` }
+      : { ar: `تم إيقاف التحقق بخطوتين في ${BRAND.ar}`, en: `Two-step sign-in is off for your ${BRAND.en} account` },
+    text: on
+      ? {
+        ar: `مرحباً،\n\nفُعّل التحقق بخطوتين على حسابك: سيُطلب رمز من تطبيق المصادقة بعد كلمة المرور. احتفظ برموز الاستعداد في مكان آمن.\n\nإن لم تفعل ذلك بنفسك فغيّر كلمة المرور فوراً وتواصل معنا.`,
+        en: `Hello,\n\nTwo-step sign-in is now on for your account: after your password you will be asked for a code from your authenticator app. Keep your backup codes somewhere safe.\n\nIf this was not you, change your password now and contact us.`,
+      }
+      : {
+        ar: `مرحباً،\n\nأُوقف التحقق بخطوتين على حسابك: كلمة المرور وحدها تكفي الآن لتسجيل الدخول.\n\nإن لم تفعل ذلك بنفسك فغيّر كلمة المرور فوراً وتواصل معنا.`,
+        en: `Hello,\n\nTwo-step sign-in is now off for your account: your password alone signs you in.\n\nIf this was not you, change your password now and contact us.`,
+      },
+  })),
 };
 
 export async function sendEmail<P>(to: string, template: EmailTemplate<P>, params: P, lang: Lang): Promise<void> {

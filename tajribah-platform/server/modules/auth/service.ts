@@ -20,7 +20,7 @@ import { secret, uuidv7 } from '@/lib/ids';
 import { foldDigits } from '@/lib/money';
 import { generatedSlug, nextAvailable, slugify } from '@/lib/slug';
 import { TRIAL_DAYS } from '@/lib/plans';
-import { hashPassword, keyedHash, needsRehash, otpCode, verifyPassword } from '@/server/core/auth/crypto';
+import { hashPassword, keyedHash, needsRehash, otpCode, timingSafeEqual, verifyPassword } from '@/server/core/auth/crypto';
 import {
   issueSession, revokeFamily, type IssuedSession, type SessionSecrets,
 } from '@/server/core/auth/session';
@@ -114,7 +114,10 @@ export type LoginInput = {
   ip?: string | null;
 };
 
-export async function login(input: LoginInput, config: SessionSecrets): Promise<IssuedSession> {
+/** P1.2b: a correct password for an account with two-factor on — the code is still to come. */
+export type TwoFactorPending = { twoFactorChallenge: string };
+
+export async function login(input: LoginInput, config: SessionSecrets): Promise<IssuedSession | TwoFactorPending> {
   const db = unsafeAdminDb();
   const email = normaliseEmail(input.email);
 
@@ -132,33 +135,78 @@ export async function login(input: LoginInput, config: SessionSecrets): Promise<
   }
 
   if (!(await verifyPassword(input.password, user.passwordHash))) {
-    const failed = user.failedLoginCount + 1;
-    await db.update(users).set({
-      failedLoginCount: failed,
-      lockedUntil: failed >= MAX_FAILED_LOGINS ? new Date(Date.now() + LOCKOUT_MINUTES * 60_000) : null,
-    }).where(eq(users.id, user.id));
+    await countFailedLogin(user.id, user.failedLoginCount);
     throw errors.credentials('wrong password');
   }
 
   // The hash was correct; upgrade it if the parameters have moved on since (T3).
-  const patch: Partial<typeof users.$inferInsert> = {
-    failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date(),
-  };
-  if (needsRehash(user.passwordHash)) patch.passwordHash = await hashPassword(input.password);
-  await db.update(users).set(patch).where(eq(users.id, user.id));
+  if (needsRehash(user.passwordHash)) {
+    await db.update(users).set({ passwordHash: await hashPassword(input.password) }).where(eq(users.id, user.id));
+  }
+
+  // P1.2b: the failure count is *not* reset here when a code is still needed — otherwise
+  // someone holding the password could re-enter it between guesses and never be locked out.
+  if (user.totpEnabled) {
+    const [fresh] = await db.select({ passwordHash: users.passwordHash }).from(users).where(eq(users.id, user.id)).limit(1);
+    return { twoFactorChallenge: await twoFactorChallenge(user.id, fresh.passwordHash, config.authSecret) };
+  }
+  return completeLogin(user.id, input, config);
+}
+
+/** The last step of every sign-in: counters cleared, a session for the user's first store. */
+export async function completeLogin(
+  userId: string, input: { userAgent?: string | null; ip?: string | null }, config: SessionSecrets,
+): Promise<IssuedSession> {
+  const db = unsafeAdminDb();
+  await db.update(users).set({ failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() }).where(eq(users.id, userId));
 
   const [membership] = await db.select().from(tenantMemberships).where(and(
-    eq(tenantMemberships.userId, user.id),
+    eq(tenantMemberships.userId, userId),
     eq(tenantMemberships.status, 'active'),
   )).limit(1);
 
   return issueSession({
-    userId: user.id,
+    userId,
     tenantId: membership?.tenantId ?? null,
     userAgent: input.userAgent,
     ip: input.ip,
     config,
   });
+}
+
+/** One failed sign-in step (password or code), counted toward the lockout. */
+export async function countFailedLogin(userId: string, failedSoFar: number): Promise<void> {
+  const failed = failedSoFar + 1;
+  await unsafeAdminDb().update(users).set({
+    failedLoginCount: failed,
+    lockedUntil: failed >= MAX_FAILED_LOGINS ? new Date(Date.now() + LOCKOUT_MINUTES * 60_000) : null,
+  }).where(eq(users.id, userId));
+}
+
+// ------------------------------------------------------------ two-factor challenge (P1.2b)
+
+const CHALLENGE_TTL_SECONDS = 5 * 60;
+
+/**
+ * Proof that the password step passed, for five minutes. Stateless: `user.exp.mac`, the MAC
+ * covering the current password hash too — a password change voids every open challenge.
+ */
+export async function twoFactorChallenge(userId: string, passwordHash: string, authSecret: string, now = Date.now()): Promise<string> {
+  const exp = Math.floor(now / 1000) + CHALLENGE_TTL_SECONDS;
+  return `${userId}.${exp}.${await keyedHash(authSecret, 'mfa-challenge', `${userId}.${exp}.${passwordHash}`)}`;
+}
+
+/** The user a challenge was issued to, if it is genuine, unexpired and the password unchanged. */
+export async function openTwoFactorChallenge(challenge: string, authSecret: string, now = Date.now()): Promise<User | null> {
+  const [userId, expText, mac] = challenge.split('.');
+  const exp = Number(expText);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId ?? '')) return null;
+  if (!mac || !Number.isInteger(exp) || exp * 1000 <= now) return null;
+  const [user] = await unsafeAdminDb().select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!user || user.deletedAt || !user.totpEnabled) return null;
+  const expected = await keyedHash(authSecret, 'mfa-challenge', `${userId}.${exp}.${user.passwordHash}`);
+  const enc = new TextEncoder();
+  return timingSafeEqual(enc.encode(expected), enc.encode(mac)) ? user : null;
 }
 
 // ----------------------------------------------------------------- verification tokens

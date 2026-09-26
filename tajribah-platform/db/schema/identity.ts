@@ -87,6 +87,8 @@ export const users = pgTable('users', {
   totpSecretEncrypted: text('totp_secret_encrypted'),
   totpEnabled: bool('totp_enabled').default(false),
   backupCodesHash: json<string[]>('backup_codes_hash'),
+  /** P1.2b: the last authenticator time step accepted — a code is never accepted twice. */
+  totpLastStep: integer('totp_last_step'),
   lastLoginAt: ts('last_login_at'),
   failedLoginCount: integer('failed_login_count').notNull().default(0),
   lockedUntil: ts('locked_until'),

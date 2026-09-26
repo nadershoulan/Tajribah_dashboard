@@ -79,7 +79,7 @@ test('login succeeds, and every failure looks the same', async () => {
     await register(account, config);
 
     const session = await login({ email: account.email, password: account.password }, config);
-    assert.ok(session.accessToken);
+    assert.ok('accessToken' in session && session.accessToken, 'no two-step sign-in on this account: a session at once');
 
     const shapes: string[] = [];
     for (const attempt of [

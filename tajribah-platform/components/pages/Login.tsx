@@ -1,9 +1,10 @@
 'use client';
 
-// AUTH-001 — Sign in
+// AUTH-001 — Sign in · AUTH-12 — two-step code · AUTH-14 — backup code
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { Check, Eye, EyeOff } from 'lucide-react';
+import { Check, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { ApiError } from '@/lib/api-client';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
 import { LangToggle } from '@/components/dashboard/chrome';
@@ -18,6 +19,9 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [pending, setPending] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // P1.2b: set once the password was right and a code is still needed.
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [useBackup, setUseBackup] = useState(false);
   const next = safeNext(new URLSearchParams(env.search).get('next'));
 
   // Already signed in (a restored session): go straight on.
@@ -36,10 +40,38 @@ export default function Login() {
     setPending(true);
     setNote(null);
     try {
-      await auth.login(String(form.get('email') ?? ''), String(form.get('password') ?? ''));
+      const pending = await auth.login(String(form.get('email') ?? ''), String(form.get('password') ?? ''));
+      if (pending) { setChallenge(pending.twoFactorChallenge); return; }
       env.navigate(next);
     } catch (error) {
       setNote(authErrorMessage(error, t));
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const onCode = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!challenge) return;
+    const code = String(new FormData(event.currentTarget).get('code') ?? '').trim();
+    if (!code) return;
+    setPending(true);
+    setNote(null);
+    try {
+      await auth.completeTwoFactor(challenge, code);
+      env.navigate(next);
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'unauthenticated') {
+        // The five minutes ran out, or the password changed meanwhile: back to the first step.
+        setChallenge(null);
+        setNote(t('انتهت مهلة هذه الخطوة. أدخل كلمة المرور مرة أخرى.', 'That step timed out. Enter your password again.'));
+      } else if (error instanceof ApiError && error.code === 'invalid_credentials') {
+        setNote(useBackup
+          ? t('رمز الاستعداد غير صحيح أو استُخدم من قبل.', 'That backup code is not right, or it was already used.')
+          : t('الرمز غير صحيح. أدخل الرمز الظاهر الآن في تطبيق المصادقة.', 'That code is not right. Enter the code your authenticator app shows now.'));
+      } else {
+        setNote(authErrorMessage(error, t));
+      }
     } finally {
       setPending(false);
     }
@@ -64,6 +96,36 @@ export default function Login() {
       <main className="auth-main">
         <div className="auth-card">
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 18 }}><LangToggle /></div>
+          {challenge ? (
+            <>
+              <span className="empty-icon" style={{ margin: '0 0 12px' }}><ShieldCheck size={22} aria-hidden /></span>
+              <h1>{t('التحقق بخطوتين', 'Two-step sign-in')}</h1>
+              <p>{useBackup
+                ? t('أدخل أحد رموز الاستعداد التي حفظتها. كل رمز يعمل مرة واحدة.', 'Enter one of the backup codes you saved. Each code works once.')
+                : t('أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة.', 'Enter the 6-digit code from your authenticator app.')}</p>
+              <form onSubmit={onCode} noValidate key={useBackup ? 'backup' : 'code'}>
+                <div className="field">
+                  <label htmlFor="code">{useBackup ? t('رمز الاستعداد', 'Backup code') : t('رمز التحقق', 'Verification code')}</label>
+                  <input
+                    id="code" name="code" dir="ltr" required autoFocus
+                    {...(useBackup
+                      ? { autoComplete: 'off', placeholder: 'xxxx-xxxx', maxLength: 20 }
+                      : { autoComplete: 'one-time-code', inputMode: 'numeric' as const, placeholder: '123456', maxLength: 8 })}
+                  />
+                </div>
+                {note && <p className="field-hint" role="alert" style={{ color: 'var(--warn)', marginBottom: 12 }}>{note}</p>}
+                <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={pending}>
+                  {pending ? t('جارٍ التحقق…', 'Checking…') : t('تحقّق', 'Verify')}
+                </button>
+              </form>
+              <p style={{ marginTop: 16, fontSize: 14 }}>
+                <button type="button" className="linklike" style={{ color: 'var(--aqua)', display: 'inline' }} onClick={() => { setUseBackup((v) => !v); setNote(null); }}>
+                  {useBackup ? t('استخدم تطبيق المصادقة', 'Use the authenticator app') : t('لا يمكنك استخدام التطبيق؟ استخدم رمز استعداد', 'Can’t use the app? Use a backup code')}
+                </button>
+              </p>
+            </>
+          ) : (
+          <>
           <h1>{t('تسجيل الدخول', 'Sign in')}</h1>
           <p>{t('أدخل بريدك وكلمة المرور للمتابعة.', 'Enter your email and password to continue.')}</p>
 
@@ -103,6 +165,8 @@ export default function Login() {
             {t('ليس لديك حساب؟', 'No account yet?')}{' '}
             <AppLink href="/register" style={{ color: 'var(--aqua)' }}>{t('أنشئ متجرك', 'Create your store')}</AppLink>
           </p>
+          </>
+          )}
         </div>
       </main>
     </div>

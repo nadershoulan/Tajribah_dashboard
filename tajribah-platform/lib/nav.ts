@@ -67,6 +67,7 @@ export const navByHref = (href: string): NavItem | undefined =>
 export const EXTRA_TITLES: Record<string, Bi> = {
   '/dashboard/products/new': { ar: 'منتج جديد', en: 'New product' },
   '/dashboard/onboarding': { ar: 'لنبدأ', en: 'Get started' },
+  '/dashboard/security': { ar: 'أمان تسجيل الدخول', en: 'Sign-in security' },
   '/login': { ar: 'تسجيل الدخول', en: 'Sign in' },
   '/register': { ar: 'إنشاء حساب', en: 'Create an account' },
 };

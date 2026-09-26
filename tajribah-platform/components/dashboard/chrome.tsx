@@ -9,7 +9,7 @@
 import { useState, type ReactNode } from 'react';
 import {
   BarChart3, Box, CreditCard, Code2, Home, Link2, Lock, Menu, Package, QrCode,
-  Scan, Settings, SlidersHorizontal, Users, ChevronDown, X, LogOut,
+  Scan, Settings, ShieldCheck, SlidersHorizontal, Users, ChevronDown, X, LogOut,
 } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
@@ -101,6 +101,11 @@ function Sidebar({ tenant, open, onClose }: { tenant: TenantSummary | null; open
             </AppLink>
           </div>
         )}
+        {/* Personal, for every role: not a store screen, so not in the permission-filtered nav. */}
+        <AppLink href="/dashboard/security" className="side-link" aria-current={env.path === '/dashboard/security' ? 'page' : undefined}>
+          <ShieldCheck size={17} aria-hidden />
+          <span>{t('أمان تسجيل الدخول', 'Sign-in security')}</span>
+        </AppLink>
         <button type="button" className="side-link side-signout" onClick={() => void signOut()}>
           <LogOut size={17} aria-hidden />
           <span>{t('تسجيل الخروج', 'Sign out')}</span>

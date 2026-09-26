@@ -606,3 +606,25 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .linklike { all: unset; cursor: pointer; display: block; text-align: start; }
 .linklike:focus-visible { outline: 2px solid var(--aqua); outline-offset: 2px; border-radius: 4px; }
 .linklike[aria-current="step"] strong { color: var(--aqua); }
+
+/* P1.2b — sign-in security */
+.method-list { display: grid; gap: 10px; margin-top: 14px; }
+.method {
+  display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 14px 16px; text-align: start;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface, #fff); color: var(--text); font: inherit; cursor: pointer;
+}
+.method:hover:not([aria-disabled="true"]) { border-color: var(--aqua); }
+.method[aria-disabled="true"] { cursor: default; opacity: .6; }
+.method > svg { flex: 0 0 auto; margin-top: 2px; color: var(--aqua); }
+.method strong { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14.5px; }
+.method small { display: block; margin-top: 3px; font-size: 13px; color: var(--text-3); }
+.scan-grid { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: 24px; align-items: start; }
+.qr-box { width: 216px; height: 216px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: #fff; display: grid; place-items: center; }
+.scan-steps { margin: 0 0 16px; padding-inline-start: 20px; display: grid; gap: 8px; font-size: 14px; }
+.secret { display: block; margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: var(--tint); font-family: var(--mono, monospace); font-size: 13.5px; letter-spacing: .04em; overflow-wrap: anywhere; text-align: left; }
+.codes { margin: 14px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; max-width: 360px; font-family: var(--mono, monospace); font-size: 15px; }
+.codes li { padding: 6px 10px; border-radius: 8px; background: var(--tint); text-align: center; }
+@media (max-width: 560px) {
+  .scan-grid { grid-template-columns: minmax(0, 1fr); }
+  .qr-box { margin-inline: auto; }
+}

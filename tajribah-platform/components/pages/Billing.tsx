@@ -3,6 +3,7 @@
 // MD-160 — Subscription and invoices
 
 import { CheckCircle2, CreditCard, FileText, Sparkles } from 'lucide-react';
+import { AppLink } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
 import { useResource } from '@/lib/data';
 import { formatDate, formatNumber, formatRelative } from '@/lib/format';
@@ -136,7 +137,7 @@ export default function Billing() {
                     <tbody>
                       {data.invoices.map((invoice) => (
                         <tr key={invoice.id}>
-                          <td className="num">{invoice.number}</td>
+                          <td className="num"><AppLink href={`/dashboard/billing/invoices/${encodeURIComponent(invoice.id)}`}>{invoice.number}</AppLink></td>
                           <td>{invoice.issuedAt ? formatDate(invoice.issuedAt, lang) : '—'}</td>
                           <td className="num">{formatMoney(invoice.totalMinor, invoice.currency, lang)}</td>
                           <td>

@@ -94,7 +94,7 @@ ZATCA provider block the rest; they may be prepared against fakes, not marked do
 | P2.3 | Payment provider adapter | 🔒 Moyasar | Charge, refund, 3-D Secure redirect against Moyasar's sandbox; a fake for tests |
 | P2.4 | **Subscription lifecycle ⭐** | 🔒 Moyasar | Trial → active → past_due → cancelled/expired, upgrades/downgrades with proration, every move in `subscription_changes` |
 | P2.5 | **Payment webhooks ⭐** | 🔒 Moyasar | `billing_events` insert first; a duplicate delivery changes nothing — the gate's duplicate-webhook test |
-| P2.6 | Invoices & VAT | — | Gapless invoice numbers per store per year (allocated in the invoice transaction), VAT 15 % shown separately, bilingual invoice document; ZATCA fields left for P2.7 |
+| P2.6 ✅ | Invoices & VAT | — | Gapless invoice numbers per store per year (allocated in the invoice transaction), VAT 15 % shown separately, bilingual invoice document; ZATCA fields left for P2.7 |
 | P2.7 | ZATCA e-invoicing | 🔒 ZATCA provider + CSID | Invoices reported/cleared through a certified provider, QR on the document |
 | P2.8 | Dunning | 🔒 Moyasar | Failed renewals retried on a schedule, merchant told, store read-only only after the grace period |
 | P2.9 | AI credits ledger | — | Append-only `credit_ledger`; balance = sum of deltas; plan grants per period, consumption refused below zero; a dispute answerable by replay |

@@ -25,6 +25,8 @@ import { MODEL_TARGET_BYTES } from './model-size';
 import { embedSnippet } from '../widget/src/snippet';
 import { applyEdit, editErrors, type ProductEdit } from './product-edit';
 import { STEP_COPY } from './onboarding-steps';
+import { priceInvoiceLines, type InvoiceDocument } from './contracts/invoices';
+import { SELLER } from '@/server/core/billing/seller';
 import { slugProblem } from './slug';
 import type { OnboardingState } from '@/db/schema';
 import {
@@ -77,6 +79,8 @@ export interface DataSource {
   unskipStep(step: StepKey): Promise<OnboardingView>;
   /** `slug` chooses the store's address; refused once the store is confirmed. */
   confirmStore(slug?: string): Promise<OnboardingView>;
+  /** P2.6: one invoice exactly as issued, or null (not this store's, or no such invoice). */
+  invoice(id: string): Promise<InvoiceDocument | null>;
 }
 
 /**
@@ -177,6 +181,33 @@ export function apiSource(client: ApiClient): DataSource {
     async confirmStore(slug) {
       return client.call<OnboardingView>('/api/onboarding/confirm-store', slug === undefined ? { method: 'POST' } : { body: { slug } });
     },
+    async invoice(id) {
+      try {
+        return await client.call<InvoiceDocument>(`/api/billing/invoices/${encodeURIComponent(id)}`);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return null;
+        throw error;
+      }
+    },
+  };
+}
+
+/**
+ * The preview's one invoice, at `/dashboard/billing/invoices/sample` only — the demo store is on
+ * its trial, so its invoice list stays empty rather than invent history. The screen marks it a
+ * sample. Seller details are the real ones (`SELLER`); the VAT number is empty until supplied.
+ */
+function sampleInvoice(): InvoiceDocument {
+  const priced = priceInvoiceLines([
+    { description: 'Growth plan — monthly subscription', descriptionAr: 'باقة النمو — اشتراك شهري', quantity: 1, unitPriceMinor: 29_900 },
+    { description: 'AI credits pack (20)', descriptionAr: 'باقة أرصدة ذكاء اصطناعي (20)', quantity: 1, unitPriceMinor: 9_900 },
+  ]);
+  return {
+    ...priced, id: 'sample', number: 'TJ-2026-SAMPLE00-000001', status: 'paid', kind: 'simplified', currency: 'SAR',
+    issuedAt: '2026-10-05T09:00:00.000Z', dueAt: '2026-10-05T09:00:00.000Z', paidAt: '2026-10-05T09:00:00.000Z',
+    seller: { name: SELLER.nameEn, nameAr: SELLER.nameAr, crNumber: SELLER.crNumber, vatNumber: SELLER.vatNumber, address: SELLER.nationalAddress },
+    buyer: { name: 'Failet', nameAr: 'فايلت', crNumber: null, vatNumber: null, address: null },
+    zatca: { status: null, qr: null },
   };
 }
 
@@ -397,6 +428,7 @@ export const demoSource: DataSource = {
     return { ...DEMO_ANALYTICS, range, series };
   },
   async onboarding() { return evaluate(demoFacts(), demoOnboardingState); },
+  async invoice(id) { return id === 'sample' ? sampleInvoice() : null; },
   async skipStep(step) { return demoOnboardingChange((s, f) => skipRule(s, step, f)); },
   async unskipStep(step) { return demoOnboardingChange((s, f) => unskipRule(s, step, f)); },
   async confirmStore(slug) {

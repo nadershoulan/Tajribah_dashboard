@@ -120,6 +120,15 @@ export const invoices = pgTable('invoices', {
   zatcaStatus: zatcaStatus('zatca_status'),
   buyerVatNumber: text('buyer_vat_number'),
   buyerCrNumber: text('buyer_cr_number'),
+  // P2.6 (drizzle/0008): both parties as they were at issue — an invoice never changes afterwards.
+  sellerName: text('seller_name'),
+  sellerNameAr: text('seller_name_ar'),
+  sellerCrNumber: text('seller_cr_number'),
+  sellerVatNumber: text('seller_vat_number'),
+  sellerAddress: text('seller_address'),
+  buyerName: text('buyer_name'),
+  buyerNameAr: text('buyer_name_ar'),
+  buyerAddress: text('buyer_address'),
   ...timestamps(),
 }, (t) => [
   uniqueIndex('invoices_number_unq').on(t.invoiceNumber),

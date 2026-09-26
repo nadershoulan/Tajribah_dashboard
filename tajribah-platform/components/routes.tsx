@@ -23,6 +23,7 @@ import VerifyEmail from '@/components/pages/VerifyEmail';
 import ResetPassword from '@/components/pages/ResetPassword';
 import Onboarding from '@/components/pages/Onboarding';
 import Security from '@/components/pages/Security';
+import InvoiceView from '@/components/pages/InvoiceView';
 import NotFound from '@/components/pages/NotFound';
 
 export const ROUTES: Record<string, () => ReactElement> = {
@@ -48,6 +49,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
 const PATTERNS: [RegExp, () => ReactElement][] = [
   [/^\/dashboard\/products\/(?!new$)[^/]+$/, ProductDetail],
   [/^\/invite\/[^/]+$/, InviteAccept],
+  [/^\/dashboard\/billing\/invoices\/[^/]+$/, InvoiceView],
 ];
 
 /** The rendered screen for a path — an element, so no component is chosen during render. */

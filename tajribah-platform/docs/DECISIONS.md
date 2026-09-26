@@ -352,3 +352,25 @@ takes something away; that is a message, not a code path.
 
 **Rollback path.** Put the old values back in the rows. If grandfathering is ever wanted,
 add a `plan_version` to `subscriptions` and read limits through it.
+
+## T20 · 2026-09-26 · SRO Company is the seller; invoices number per store per year (P2.6)
+
+**Decision.** Nader supplied the operating company: **SRO Company** (شركة إس أر أو), one-person
+LLC, Ministry of Commerce unified national number **7033242079** (used as the CR number). It
+lives in `server/core/billing/seller.ts`, reviewed like code, and is snapshotted onto every
+invoice. **Its VAT number is not known yet.** The documents supplied with the CR (an SNB IBAN
+letter) show 300002471110003, which is **Saudi National Bank's** VAT number; it is recorded
+here only so nobody uses it. Until SRO's own TRN is set, `issueInvoice` refuses.
+
+Numbers: gapless per store per Riyadh year, as §7.4 rule 3 asks, allocated by one upsert on
+`invoice_sequences` inside the invoice transaction. The number carries the store
+(`TJ-2026-A1B2C3D4-000001`, the last 8 characters of the tenant id — stable, unlike the slug)
+so `invoice_number` stays unique across stores.
+
+**Why.** An invoice without the seller's own VAT number is not a tax invoice, and a wrong one
+is worse than none. ZATCA's own gapless counter (ICV) and hash chain run per e-invoicing unit
+on the seller's side, which the certified provider operates (P2.7); the store-level sequence is
+the merchant-facing number.
+
+**Rollback path.** The seller constant and the number format are code; issued invoices keep
+their snapshot and number whatever changes later.

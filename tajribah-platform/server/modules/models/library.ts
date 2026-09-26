@@ -16,6 +16,7 @@ import { record } from '@/server/core/audit/audit';
 import { errors } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
+import { fileFor } from './files';
 
 export async function listModels(ctx: TenantContext): Promise<ModelRow[]> {
   ctx.require('models:read');
@@ -32,7 +33,7 @@ export async function listModels(ctx: TenantContext): Promise<ModelRow[]> {
   return models.map((model) => {
     const version = shown.get(model.id) ?? null;
     const own = files.filter((f) => f.modelVersionId === version?.id);
-    const served = own.find((f) => f.variant === 'optimized') ?? own.find((f) => f.variant === 'original');
+    const served = fileFor(own, 'web') ?? fileFor(own, 'original');
     const product = productRows.find((p) => p.id === model.productId);
     return {
       id: model.id,

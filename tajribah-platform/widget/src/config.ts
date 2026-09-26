@@ -16,7 +16,13 @@ export type Placement = 'floor' | 'wall' | 'table' | 'face' | 'wrist';
 export type ViewerConfig = {
   v: 1;
   product: { name: string; nameAr: string | null; widthMm: number | null; heightMm: number | null };
-  model: { glb: string; usdz: string | null };
+  /**
+   * `glb`: the web file (meshopt, later KTX2) for `<model-viewer>`. `glbNative`: a plain GLB
+   * for Android's Scene Viewer, which reads neither compression; null when none could be made.
+   * `usdz`: iPhone Quick Look. Both optional fields were added without a version bump: an
+   * older widget ignores them, and no config has been published yet (P1.15).
+   */
+  model: { glb: string; glbNative: string | null; usdz: string | null };
   button: { labelAr: string; labelEn: string; color: string; radius: number; variant: 'solid' | 'outline'; icon: boolean };
   placement: Placement;
   scale: number;
@@ -46,7 +52,8 @@ export function parseConfig(input: unknown): ViewerConfig | null {
     const widthMm = mm(product.widthMm);
     const heightMm = mm(product.heightMm);
     if (widthMm === undefined || heightMm === undefined) return null;
-    if (!httpsUrl(model.glb) || !(model.usdz === null || model.usdz === undefined || httpsUrl(model.usdz))) return null;
+    const optionalUrl = (v: unknown) => v === null || v === undefined || httpsUrl(v);
+    if (!httpsUrl(model.glb) || !optionalUrl(model.usdz) || !optionalUrl(model.glbNative)) return null;
     if (!str(button.labelAr, 40) || !str(button.labelEn, 40)) return null;
     if (typeof button.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(button.color)) return null;
     if (!num(button.radius, 0, 24) || (button.variant !== 'solid' && button.variant !== 'outline') || typeof button.icon !== 'boolean') return null;
@@ -55,7 +62,7 @@ export function parseConfig(input: unknown): ViewerConfig | null {
     return {
       v: 1,
       product: { name: product.name, nameAr: (product.nameAr as string | null) ?? null, widthMm, heightMm },
-      model: { glb: model.glb, usdz: (model.usdz as string | null | undefined) ?? null },
+      model: { glb: model.glb, glbNative: (model.glbNative as string | null | undefined) ?? null, usdz: (model.usdz as string | null | undefined) ?? null },
       button: { labelAr: button.labelAr, labelEn: button.labelEn, color: button.color, radius: button.radius, variant: button.variant, icon: button.icon },
       placement: input.placement as Placement,
       scale: input.scale,

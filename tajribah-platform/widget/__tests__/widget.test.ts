@@ -19,7 +19,7 @@ test('config v1: a good one parses; anything off is null, never a throw', () => 
   assert.equal(parseConfig(GOOD)?.button.labelEn, 'View in your space');
   const bad: [string, unknown][] = [
     ['v', 2], ['v', undefined], ['model.glb', 'http://cdn.example.test/m.glb'], ['model.glb', 'javascript:alert(1)'],
-    ['model.glb', undefined], ['model.usdz', 'ftp://x/y.usdz'], ['button.color', 'red'], ['button.color', '#0B7A75; background:url(x)'],
+    ['model.glb', undefined], ['model.usdz', 'ftp://x/y.usdz'], ['model.glbNative', 'http://cdn.example.test/native.glb'], ['model.glbNative', 7], ['button.color', 'red'], ['button.color', '#0B7A75; background:url(x)'],
     ['button.radius', 99], ['button.variant', 'ghost'], ['button.labelAr', 'x'.repeat(41)], ['placement', 'ceiling'],
     ['scale', 9], ['shadow', -1], ['product.widthMm', 5000], ['product.name', ''],
   ];

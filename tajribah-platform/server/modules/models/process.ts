@@ -1,13 +1,14 @@
 /**
  * P1.13 — the `ai.postprocess` job: turn a confirmed upload into files a phone can use.
  *
- * For a GLB: optimise (`optimize.ts`), store `v{n}/optimized.glb` as its own `model_files`
- * row (`variant: optimized`, `compression: meshopt`), record what the model is made of, and
- * mark the version `ready`. Publishing is still a separate step (P1.14): a ready version is
- * not a live one.
+ * For a GLB: optimise (`optimize.ts`) into the files `files.ts` names — `v{n}/optimized.glb`
+ * for the web and, when the model can be made plain, `v{n}/native.glb` for Scene Viewer —
+ * each its own `model_files` row; record what the model is made of, and mark the version
+ * `ready`. Publishing is still a separate step (P1.14): a ready version is not a live one.
+ * No native file is not a failure: Android then uses the in-page viewer.
  *
- * Idempotent: only a version still `processing` is worked on, the optimised file has a fixed
- * key (a retry overwrites it with the same bytes), and the file row is written once.
+ * Idempotent: only a version still `processing` is worked on, each made file has a fixed key
+ * (a retry overwrites it with the same bytes), and each file row is written once.
  * A file that cannot be read fails the version for good; a storage error is thrown so the
  * queue retries it with backoff.
  */
@@ -23,6 +24,7 @@ import { forTenant } from '@/server/core/storage/storage';
 import { systemContext, type TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
 import { CONTENT_TYPES } from './inspect';
+import { fileFor, MADE_FILES } from './files';
 import { optimizeGlb, TARGET_BYTES, UnreadableModelError, type ModelStats } from './optimize';
 import { notifyIn } from '@/server/modules/notifications/service';
 
@@ -61,28 +63,38 @@ export async function processVersion(tenantId: string, versionId: string, reques
     if (error instanceof UnreadableModelError) return finish(ctx, versionId, { failure: error.message });
     throw error;
   }
-  const key = store.key({ kind: 'model', id: version.modelId, filename: 'optimized.glb', version: version.version });
-  await store.put(key, toArrayBuffer(optimized.bytes), { contentType: CONTENT_TYPES.glb, immutable: true });
-  return finish(ctx, versionId, { stats: optimized.stats, optimized: { key, size: optimized.bytes.byteLength, originalSize: bytes.byteLength } });
+  const put = async (role: 'web' | 'native', data: Uint8Array): Promise<MadeFile> => {
+    const key = store.key({ kind: 'model', id: version.modelId, filename: MADE_FILES[role].filename, version: version.version });
+    await store.put(key, toArrayBuffer(data), { contentType: CONTENT_TYPES[MADE_FILES[role].format], immutable: true });
+    return { role, key, size: data.byteLength };
+  };
+  const made = [await put('web', optimized.bytes)];
+  if ('bytes' in optimized.native) made.push(await put('native', optimized.native.bytes));
+  return finish(ctx, versionId, {
+    stats: optimized.stats, made, originalSize: bytes.byteLength,
+    notes: 'skipped' in optimized.native ? { native: `none: ${optimized.native.skipped}` } : {},
+  });
 }
+
+type MadeFile = { role: 'web' | 'native' | 'quickLook'; key: string; size: number };
 
 async function finish(
   ctx: TenantContext, versionId: string,
-  result: { failure?: string; stats?: ModelStats; optimized?: { key: string; size: number; originalSize: number } },
+  result: { failure?: string; stats?: ModelStats; made?: MadeFile[]; originalSize?: number; notes?: Record<string, string> },
 ): Promise<ProcessOutcome> {
   return withTenant(ctx.tenantId, async (db) => {
     const before = await db.lockById(modelVersions, versionId);
     if (before.status !== 'processing') return 'skipped' as const; // another run finished it
     const status = result.failure ? 'failed' as const : 'ready' as const;
 
-    if (result.optimized) {
-      const existing = await db.findOne(modelFiles, and(eq(modelFiles.modelVersionId, versionId), eq(modelFiles.variant, 'optimized')));
-      if (!existing) {
-        await db.insert(modelFiles, {
-          id: uuidv7(), tenantId: ctx.tenantId, modelVersionId: versionId, format: 'glb', variant: 'optimized',
-          storageKey: result.optimized.key, fileSizeBytes: result.optimized.size, compression: 'meshopt',
-        });
-      }
+    const existing = await db.find(modelFiles, eq(modelFiles.modelVersionId, versionId), { limit: 10 });
+    for (const file of result.made ?? []) {
+      if (fileFor(existing, file.role)) continue;
+      const { format, compression } = MADE_FILES[file.role];
+      await db.insert(modelFiles, {
+        id: uuidv7(), tenantId: ctx.tenantId, modelVersionId: versionId, format, variant: 'optimized',
+        storageKey: file.key, fileSizeBytes: file.size, compression,
+      });
     }
     const after = await db.updateById(modelVersions, versionId, {
       status,
@@ -95,9 +107,13 @@ async function finish(
     const model = await db.requireById(models3d, before.modelId);
     if (!model.currentVersionId) await db.updateById(models3d, model.id, { status });
 
-    const report = result.optimized
-      ? { originalBytes: result.optimized.originalSize, optimizedBytes: result.optimized.size, withinTarget: result.optimized.size <= TARGET_BYTES }
-      : {};
+    const sizeOf = (role: MadeFile['role']) => result.made?.find((f) => f.role === role)?.size;
+    const web = sizeOf('web');
+    const report = web === undefined ? {} : {
+      originalBytes: result.originalSize, optimizedBytes: web, withinTarget: web <= TARGET_BYTES,
+      ...(sizeOf('native') === undefined ? {} : { nativeBytes: sizeOf('native') }),
+      ...result.notes,
+    };
     await record(ctx, {
       action: 'update', resourceType: 'model_version', resourceId: versionId,
       before, after: { ...after, ...report },

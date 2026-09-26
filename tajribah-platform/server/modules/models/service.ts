@@ -23,6 +23,7 @@ import { errors } from '@/server/core/errors/problem';
 import { forTenant } from '@/server/core/storage/storage';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
+import { fileFor } from './files';
 import { CONTENT_TYPES, formatOf, HEADER_BYTES, inspect, MAX_MODEL_BYTES } from './inspect';
 import { TARGET_BYTES } from './optimize';
 import { enqueueProcessing } from './process';
@@ -141,10 +142,10 @@ export async function modelVersionsOf(ctx: TenantContext, modelId: string): Prom
   const files = versions.length
     ? await ctx.db.find(modelFiles, inArray(modelFiles.modelVersionId, versions.map((v) => v.id)), { limit: 1000 })
     : [];
-  const sizeOf = (versionId: string, variant: 'original' | 'optimized') =>
-    files.find((f) => f.modelVersionId === versionId && f.variant === variant)?.fileSizeBytes ?? null;
+  const sizeOf = (versionId: string, role: 'original' | 'web') =>
+    fileFor(files.filter((f) => f.modelVersionId === versionId), role)?.fileSizeBytes ?? null;
   return versions.map((v) => {
-    const optimizedBytes = sizeOf(v.id, 'optimized');
+    const optimizedBytes = sizeOf(v.id, 'web');
     return {
       id: v.id, version: v.version, status: v.status, isCurrent: v.id === model.currentVersionId,
       polyCount: v.polyCount, originalBytes: sizeOf(v.id, 'original'), optimizedBytes,

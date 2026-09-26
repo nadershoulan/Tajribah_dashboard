@@ -5,12 +5,17 @@
  *  - **iPhone / iPad with a USDZ** → Quick Look, straight from a `rel="ar"` link: native,
  *    instant, and no 200 KB viewer download. Content scaling is switched off — the product at
  *    its true size is the point.
- *  - **Android with a GLB** → Scene Viewer through an intent URL, `resizable=false` for the
- *    same reason; if Scene Viewer is missing, Android opens `browser_fallback_url` (this page).
+ *  - **Android with a plain GLB** (`model.glbNative`) → Scene Viewer through an intent URL,
+ *    `resizable=false` for the same reason; if Scene Viewer is missing, Android opens
+ *    `browser_fallback_url` (this page). Never the web GLB: Scene Viewer reads neither meshopt
+ *    nor KTX2 (its documented extensions are `KHR_materials_unlit` and `KHR_texture_transform`).
  *  - **Everything else** (desktop, iPhone without a USDZ, face/wrist items until try-on in
  *    P5) → `<model-viewer>` in the page, which also offers WebXR where the browser has it.
  */
 import type { ViewerConfig } from './config';
+
+/** The in-page viewer's AR modes. No `scene-viewer`: it would be handed the compressed web file. */
+export const VIEWER_AR_MODES = 'webxr quick-look';
 
 export type Device = { ios: boolean; quickLook: boolean; android: boolean };
 export type ArPath =
@@ -33,16 +38,20 @@ export function arPath(device: Device, config: ViewerConfig, pageUrl: string): A
   if (!tryOn && device.quickLook && config.model.usdz) {
     return { kind: 'quick-look', href: `${config.model.usdz}#allowsContentScaling=0` };
   }
-  if (!tryOn && device.android) {
-    return { kind: 'scene-viewer', href: sceneViewerIntent(config, pageUrl) };
+  const plain = config.model.glbNative;
+  if (!tryOn && device.android && plain) {
+    return { kind: 'scene-viewer', href: sceneViewerIntent(plain, config, pageUrl) };
   }
   return { kind: 'viewer' };
 }
 
-/** Google's documented Scene Viewer intent (developers.google.com/ar/develop/scene-viewer). */
-export function sceneViewerIntent(config: ViewerConfig, pageUrl: string): string {
+/**
+ * Google's documented Scene Viewer intent (developers.google.com/ar/develop/scene-viewer).
+ * `file` is the plain GLB (`model.glbNative`) — taken explicitly so the web file cannot slip in.
+ */
+export function sceneViewerIntent(file: string, config: ViewerConfig, pageUrl: string): string {
   const params = new URLSearchParams({
-    file: config.model.glb,
+    file,
     mode: 'ar_preferred',
     resizable: 'false',
     title: config.product.nameAr ?? config.product.name,

@@ -3,8 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq } from 'drizzle-orm';
 import { Document, WebIO } from '@gltf-transform/core';
-import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
+import { ALL_EXTENSIONS, EXTTextureWebP, KHRMaterialsClearcoat, KHRTextureBasisu } from '@gltf-transform/extensions';
 import { MeshoptDecoder } from 'meshoptimizer';
+import sharp from 'sharp';
 import { auditLogs, jobs, modelFiles, models3d, modelVersions, type Job } from '@/db/schema';
 import { clearHandlers, registerHandler, tick } from '@/server/core/jobs/runner';
 import { setLogLevel } from '@/server/core/observability/log';
@@ -13,7 +14,7 @@ import { buildTenantContext } from '@/server/core/tenancy/context';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
 import { confirmUpload, modelVersionsOf, startUpload } from '@/server/modules/models/service';
 import { handleProcessJob, processVersion } from '@/server/modules/models/process';
-import { optimizeGlb, statsOf, TARGET_BYTES } from '@/server/modules/models/optimize';
+import { NATIVE_EXTENSIONS, NATIVE_MAX_TEXTURE, optimizeGlb, statsOf, TARGET_BYTES } from '@/server/modules/models/optimize';
 
 setLogLevel('error');
 const admin = <T>(harness: TestDb, fn: () => Promise<T>) => harness.asAdmin(fn);
@@ -42,6 +43,48 @@ async function wastefulGlb(): Promise<Uint8Array> {
   doc.getRoot().setDefaultScene(scene);
   return new WebIO().writeBinary(doc);
 }
+
+/** Noise, not a flat colour: `prune()` rightly turns a single-colour texture into a factor. */
+const image = async (width: number, height: number, format: 'png' | 'webp' | 'jpeg') =>
+  new Uint8Array(await sharp({ create: { width, height, channels: 3, background: '#000', noise: { type: 'gaussian', mean: 128, sigma: 40 } } })[format]().toBuffer());
+
+/**
+ * A textured quad with what Android's Scene Viewer cannot take: a 3000 px texture (its limit
+ * is 2048), a WebP texture (PNG/JPEG only), and a second UV set, used by the occlusion map
+ * (one UV set per mesh, a hard limit). `ktx2` swaps the base colour for a KTX2 image, which
+ * nothing here can turn back into PNG.
+ */
+async function texturedGlb(options: { ktx2?: boolean; requireClearcoat?: boolean } = {}): Promise<Uint8Array> {
+  const doc = new Document();
+  const buffer = doc.createBuffer();
+  const accessor = (type: 'VEC3' | 'VEC2' | 'SCALAR', array: Float32Array | Uint16Array) => doc.createAccessor().setType(type).setArray(array).setBuffer(buffer);
+  const uv = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
+  const base = doc.createTexture('base').setImage(await image(3000, 1500, 'png')).setMimeType('image/png');
+  const glow = doc.createTexture('glow').setImage(await image(64, 64, 'webp')).setMimeType('image/webp');
+  const ao = doc.createTexture('ao').setImage(await image(64, 64, 'jpeg')).setMimeType('image/jpeg');
+  doc.createExtension(EXTTextureWebP).setRequired(true);
+  if (options.ktx2) {
+    base.setImage(new Uint8Array([0xab, 0x4b, 0x54, 0x58, 0x20, 0x32, 0x30, 0xbb, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0])).setMimeType('image/ktx2');
+    doc.createExtension(KHRTextureBasisu).setRequired(true);
+  }
+  if (options.requireClearcoat) doc.createExtension(KHRMaterialsClearcoat).setRequired(true);
+  const material = doc.createMaterial('paint').setBaseColorTexture(base).setEmissiveTexture(glow).setEmissiveFactor([1, 1, 1]).setOcclusionTexture(ao);
+  material.getOcclusionTextureInfo()!.setTexCoord(1);
+  const primitive = doc.createPrimitive()
+    .setAttribute('POSITION', accessor('VEC3', new Float32Array([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0])))
+    .setAttribute('TEXCOORD_0', accessor('VEC2', uv))
+    .setAttribute('TEXCOORD_1', accessor('VEC2', uv.slice()))
+    .setIndices(accessor('SCALAR', new Uint16Array([0, 1, 2, 0, 2, 3])))
+    .setMaterial(material);
+  const scene = doc.createScene();
+  scene.addChild(doc.createNode('quad').setMesh(doc.createMesh().addPrimitive(primitive)));
+  doc.getRoot().setDefaultScene(scene);
+  return new WebIO().registerExtensions(ALL_EXTENSIONS).writeBinary(doc);
+}
+
+/** The JSON chunk of a GLB, as a viewer would see it before loading anything. */
+const glbJson = (bytes: Uint8Array) =>
+  JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + new DataView(bytes.buffer, bytes.byteOffset).getUint32(12, true))));
 
 async function merchant(harness: TestDb, name: string) {
   const seeded = await seedTenant(harness, name);
@@ -78,6 +121,44 @@ test('optimizeGlb: smaller, same triangles, readable again with the meshopt deco
   assert.ok(again.getRoot().listExtensionsUsed().some((e) => e.extensionName === 'EXT_meshopt_compression'));
 });
 
+test('the native GLB is one Android\'s Scene Viewer can read: no compression, PNG/JPEG ≤ 2048 px, one UV set', async () => {
+  const result = await optimizeGlb(await texturedGlb());
+  assert.ok(glbJson(result.bytes).extensionsUsed.includes('EXT_meshopt_compression'), 'the web file stays compressed');
+  assert.ok('bytes' in result.native, `no native file: ${'skipped' in result.native ? result.native.skipped : ''}`);
+  const native = result.native.bytes;
+
+  const json = glbJson(native);
+  const outside = (list: string[] = []) => list.filter((name) => !NATIVE_EXTENSIONS.includes(name));
+  assert.deepEqual(outside(json.extensionsRequired), [], 'nothing required beyond what Scene Viewer documents');
+  assert.deepEqual(outside(json.extensionsUsed), []);
+
+  // Readable with no decoder registered at all — as a viewer without meshopt would read it.
+  const doc = await new WebIO().readBinary(native);
+  const sizes = await Promise.all(doc.getRoot().listTextures().map(async (t) => {
+    const meta = await sharp(t.getImage()!).metadata();
+    return [t.getName(), t.getMimeType(), meta.format, meta.width, meta.height];
+  }));
+  assert.deepEqual(sizes.sort(), [
+    ['base', 'image/png', 'png', NATIVE_MAX_TEXTURE, NATIVE_MAX_TEXTURE / 2],
+    ['glow', 'image/png', 'png', 64, 64],
+  ], 'the big one scaled to fit 2048 keeping its shape, WebP turned into PNG, the occlusion map on UV 2 dropped');
+  const [primitive] = doc.getRoot().listMeshes()[0].listPrimitives();
+  assert.deepEqual(primitive.listSemantics().filter((s) => s.startsWith('TEXCOORD')), ['TEXCOORD_0']);
+  assert.equal(primitive.getMaterial()!.getOcclusionTexture(), null);
+  assert.equal(statsOf(doc).polyCount, 2);
+});
+
+test('no native GLB, with the reason, when a texture cannot become PNG or JPEG', async () => {
+  const result = await optimizeGlb(await texturedGlb({ ktx2: true }));
+  assert.ok('skipped' in result.native);
+  assert.match(result.native.skipped, /image\/ktx2/);
+  assert.ok(result.bytes.byteLength > 0, 'the web file is still made');
+
+  const strict = await optimizeGlb(await texturedGlb({ requireClearcoat: true }));
+  assert.ok('skipped' in strict.native, 'an extension the file requires and Scene Viewer lacks');
+  assert.match(strict.native.skipped, /KHR_materials_clearcoat/);
+});
+
 test('confirm queues processing; the worker makes an optimised file and a ready version, never a live one', async () => {
   const harness = await createTestDb();
   setStorage(new MemoryStorage());
@@ -89,20 +170,26 @@ test('confirm queues processing; the worker makes an optimised file and a ready 
 
     await drain();
     const files = await admin(harness, () => harness.db.select().from(modelFiles).where(eq(modelFiles.modelVersionId, started.versionId))) as any[];
-    const optimized = files.find((f) => f.variant === 'optimized');
-    assert.deepEqual([optimized.format, optimized.compression], ['glb', 'meshopt']);
+    const optimized = files.find((f) => f.variant === 'optimized' && f.compression === 'meshopt');
+    assert.equal(optimized.format, 'glb');
     assert.ok(optimized.storageKey.endsWith(`/v1/optimized.glb`));
     assert.equal((await storage().head(optimized.storageKey))?.size, optimized.fileSizeBytes);
+    const native = files.find((f) => f.variant === 'optimized' && f.compression === 'none');
+    assert.equal(native?.format, 'glb', 'a plain GLB for Scene Viewer, beside the web one');
+    assert.ok(native.storageKey.endsWith(`/v1/native.glb`));
+    assert.equal((await storage().head(native.storageKey))?.size, native.fileSizeBytes);
 
     const [version] = await modelVersionsOf(ctx, started.modelId);
     assert.deepEqual([version.status, version.isCurrent, version.polyCount, version.originalBytes, version.withinTarget],
       ['ready', false, 1600, bytes.byteLength, true]);
     assert.ok(version.optimizedBytes! < version.originalBytes!);
+    assert.equal(version.optimizedBytes, optimized.fileSizeBytes, 'the size report is the web file, not the native one');
     const model = (await admin(harness, () => harness.db.select().from(models3d).where(eq(models3d.id, started.modelId))))[0] as any;
     assert.deepEqual([model.status, model.currentVersionId], ['ready', null]);
     const trail = await admin(harness, () => harness.db.select().from(auditLogs).where(eq(auditLogs.resourceId, started.versionId))) as any[];
     const done = trail.find((r) => r.changes?.after?.status === 'ready');
     assert.deepEqual([done.actorType, done.changes.after.withinTarget], ['system', true]);
+    assert.equal(done.changes.after.nativeBytes, native.fileSizeBytes);
   } finally { await harness.close(); }
 });
 
@@ -114,7 +201,7 @@ test('processing twice changes nothing; a file that passed the header check but 
     const { started } = await upload(ctx, await wastefulGlb());
     assert.equal(await processVersion(tenantId, started.versionId, 'r1'), 'ready');
     assert.equal(await processVersion(tenantId, started.versionId, 'r2'), 'skipped');
-    assert.equal((await admin(harness, () => harness.db.select().from(modelFiles).where(eq(modelFiles.variant, 'optimized')))).length, 1);
+    assert.equal((await admin(harness, () => harness.db.select().from(modelFiles).where(eq(modelFiles.variant, 'optimized')))).length, 2, 'web + native, each written once');
 
     // A valid GLB header around JSON that is not glTF.
     const json = new TextEncoder().encode('{"not":"gltf"}  ');

@@ -19,7 +19,7 @@
  *    (`<model-viewer>`) loads only where there is none.
  */
 import { parseConfig, type ViewerConfig } from './config';
-import { arPath, detectDevice } from './ar';
+import { arPath, detectDevice, VIEWER_AR_MODES } from './ar';
 
 export const WIDGET_VERSION = '1.0.0';
 export const CONFIG_TIMEOUT_MS = 3000;
@@ -185,7 +185,7 @@ async function openViewer(host: HTMLElement, config: ViewerConfig, lang: 'ar' | 
   viewer.setAttribute('src', config.model.glb);
   if (config.model.usdz) viewer.setAttribute('ios-src', config.model.usdz);
   viewer.setAttribute('ar', '');
-  viewer.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
+  viewer.setAttribute('ar-modes', VIEWER_AR_MODES);
   viewer.setAttribute('ar-placement', config.placement === 'wall' ? 'wall' : 'floor');
   viewer.setAttribute('camera-controls', '');
   viewer.setAttribute('shadow-intensity', String(config.shadow));

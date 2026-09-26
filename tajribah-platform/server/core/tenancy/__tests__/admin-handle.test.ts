@@ -28,6 +28,7 @@ const ADMIN_ALLOWED: Record<string, string> = {
   'server/modules/admin/billing.ts': 'staff read subscriptions and invoices across every store (A7); reads only',
   'server/modules/admin/operations.ts': 'staff see queue, webhook and key-rotation health across the platform and retry a dead job (A11); jobs are platform rows',
   'server/modules/admin/support.ts': 'support looks up any store, person, invoice, job, delivery or request id across the platform (A12); reads only',
+  'server/modules/admin/coupons.ts': 'staff write the coupon catalogue (A13), which the app role may only read; redemptions counted across stores',
   'server/modules/admin/plans.ts': 'staff change the platform plan catalogue (A6, T19): the rows, the reach count and the staff trail in one transaction',
   'server/modules/admin/users.ts': 'staff find people across every store and end their sessions or reset two-step sign-in (A5); users are not tenant-scoped',
   'server/core/jobs/queue.ts': 'the worker claims across tenants in one statement (RLS_EXEMPT: jobs)',

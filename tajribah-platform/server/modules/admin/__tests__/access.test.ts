@@ -15,7 +15,7 @@ import { loadEnv, resetEnv } from '@/server/core/config/env';
 import { setLogLevel } from '@/server/core/observability/log';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
 import { staffLog, staffTrail, type StaffContext } from '@/server/modules/admin/access';
-import { storeActivityHandler, supportLookupHandler, invoiceForStaffHandler, listInvoicesHandler, operationsHandler, replayDeliveryHandler, retryJobHandler, listPeopleHandler, listStoresHandler, listSubscriptionsHandler, overviewHandler, personActionHandler, plansHandler, updatePlanHandler, staffTrailHandler, storeActionHandler, whoamiHandler } from '@/server/modules/admin/http';
+import { createCouponHandler, listCouponsHandler, updateCouponHandler, storeActivityHandler, supportLookupHandler, invoiceForStaffHandler, listInvoicesHandler, operationsHandler, replayDeliveryHandler, retryJobHandler, listPeopleHandler, listStoresHandler, listSubscriptionsHandler, overviewHandler, personActionHandler, plansHandler, updatePlanHandler, staffTrailHandler, storeActionHandler, whoamiHandler } from '@/server/modules/admin/http';
 
 setLogLevel('error');
 const APP = 'http://localhost:5173';
@@ -41,7 +41,7 @@ test('only staff with two-step sign-in get in; everyone else is told the page do
     const staff = await person(harness, 'staff@tajribah.test', { isStaff: true, totpEnabled: true });
     const gone = await person(harness, 'left@tajribah.test', { isStaff: true, totpEnabled: true });
 
-    for (const handler of [whoamiHandler, staffTrailHandler, overviewHandler, listStoresHandler, listPeopleHandler, plansHandler, listSubscriptionsHandler, listInvoicesHandler, operationsHandler]) {
+    for (const handler of [whoamiHandler, staffTrailHandler, overviewHandler, listStoresHandler, listPeopleHandler, plansHandler, listSubscriptionsHandler, listInvoicesHandler, operationsHandler, listCouponsHandler]) {
       assert.equal((await get(handler, '/api/admin/x')).status, 401, 'no session');
       const notStaff = await get(handler, '/api/admin/x', merchant.token);
       assert.equal(notStaff.status, 404, 'a merchant is not even told the console exists');
@@ -113,6 +113,19 @@ test('only staff with two-step sign-in get in; everyone else is told the page do
     assert.equal(((await (await get(supportLookupHandler, `/api/admin/support?q=${store.tenantId}`, staff.token)).json()) as any).stores.length, 1);
     assert.equal((await get(storeActivityHandler, `/api/admin/stores/${store.tenantId}/activity`, shopper.token)).status, 404);
     assert.equal((await get(storeActivityHandler, `/api/admin/stores/${store.tenantId}/activity`, staff.token)).status, 200);
+    // A13: coupons — the same guard on create and edit.
+    const coupon = { code: 'ACCESS10', kind: 'percent', percentOff: 10, amountOffMinor: null, freeMonths: null, appliesTo: null, maxRedemptions: null, validFrom: null, validUntil: null, active: true, note: null, reason: 'access test' };
+    const send = (handler: typeof createCouponHandler, method: string, path: string, token: string, body: unknown, headers: Record<string, string> = {}) =>
+      handler(new Request(`${APP}${path}`, { method, headers: { 'content-type': 'application/json', authorization: `Bearer ${token}`, ...headers }, body: JSON.stringify(body) }));
+    assert.equal((await send(createCouponHandler, 'POST', '/api/admin/coupons', shopper.token, coupon)).status, 404);
+    assert.equal((await send(createCouponHandler, 'POST', '/api/admin/coupons', staffNo2fa.token, coupon)).status, 403);
+    assert.equal((await send(createCouponHandler, 'POST', '/api/admin/coupons', staff.token, coupon, { origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' })).status, 403);
+    const made = await send(createCouponHandler, 'POST', '/api/admin/coupons', staff.token, coupon);
+    assert.equal(made.status, 201);
+    const madeId = ((await made.json()) as any).id;
+    assert.equal((await send(updateCouponHandler, 'PATCH', `/api/admin/coupons/${madeId}`, shopper.token, { active: false, reason: 'access test' })).status, 404);
+    assert.equal((await send(updateCouponHandler, 'PATCH', `/api/admin/coupons/${madeId}`, staff.token, { active: false, reason: 'access test' })).status, 200);
+    assert.equal((await send(updateCouponHandler, 'PATCH', `/api/admin/coupons/${madeId}`, staff.token, { active: false })).status, 422, 'a reason is required');
     const me = await (await get(whoamiHandler, '/api/admin/whoami', staff.token)).json() as any;
     assert.equal(me.email, 'staff@tajribah.test');
 

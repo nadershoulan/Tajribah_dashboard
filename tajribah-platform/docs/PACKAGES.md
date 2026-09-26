@@ -125,7 +125,7 @@ only. Screen IDs from the inventory (`ADM-*`).
 | A10 | Content & QA queues | 🔒 P3 | Model QA review |
 | A11 ✅ | Platform operations | — | Queue health, stuck jobs, webhook failures, key rotation state |
 | A12 ✅ | Support tooling | — | Look up a store/person/request id and see what happened |
-| A13 | Content management | — | Coupons (ADM-15) and platform copy |
+| A13 ◐ | Content management | ❓ what "platform copy" is | Coupons (ADM-15) ✅; platform copy — no copy is database-held today (all of it is code, reviewed like code); needs a decision on what, if anything, staff should edit without a deploy |
 | A14 | Compliance & system | — (view); PDPL process ❓ | Data requests, retention, the staff trail |
 
 ## P3–P8 and the parallel tracks

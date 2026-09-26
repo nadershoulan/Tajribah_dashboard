@@ -35,6 +35,7 @@ import AdminBilling from '@/components/pages/admin/AdminBilling';
 import AdminInvoice from '@/components/pages/admin/AdminInvoice';
 import AdminOperations from '@/components/pages/admin/AdminOperations';
 import AdminSupport from '@/components/pages/admin/AdminSupport';
+import AdminCoupons from '@/components/pages/admin/AdminCoupons';
 import NotFound from '@/components/pages/NotFound';
 
 export const ROUTES: Record<string, () => ReactElement> = {
@@ -60,6 +61,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/admin/billing': AdminBilling,
   '/admin/operations': AdminOperations,
   '/admin/support': AdminSupport,
+  '/admin/coupons': AdminCoupons,
   '/admin/audit': AdminAudit,
   '/verify-email': VerifyEmail,
   '/reset-password': ResetPassword,

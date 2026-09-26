@@ -98,6 +98,7 @@ The internal console for running Tajribah: stores, people, plans, coupons, what 
 
 | | Package | In plain words |
 |---|---|---|
+| ◐ | A13 Coupons | Staff can create discount codes — a percentage, a fixed amount, or free months — for all plans or some, with start and end days and a use limit, and switch them off. The checkout accepts or refuses them straight away. Once a store has used a code, its discount can't be changed, so records stay true. ("Platform copy" in the plan isn't defined yet — see the question in STATE) |
 | ✅ | A12 Support lookup | Support pastes whatever a merchant sends — a store or invoice id, an email, an invoice number, a store name, or the reference number shown with an error — and sees what it is. For an error's reference number, it shows exactly what that request changed, in which store, and by whom. Each store's page now also shows its full activity. Only which fields changed is shown, never the store's data itself |
 | ✅ | A11 Is the platform working? | One screen shows staff whether background work is keeping up (how long the oldest waiting job has waited, per queue), what is stuck or has given up, which store updates from Salla or Zid failed, and how far an encryption-key change has got — including when the old key can safely be removed. A job that gave up or an update that failed can be tried again, with a reason |
 | ◐ | A7 Subscriptions and invoices | Staff can see every store's subscription (filter by status, plan, monthly or annual) and every invoice (by status, month or number), with totals that count only invoices that are due or paid, and open any invoice exactly as the store sees it. Refunds come with the payment gateway |
@@ -218,3 +219,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-27 | A7 subscriptions and invoices for staff (view) | 413 pass / 0 fail |
 | 2026-09-27 | A11 platform operations | 416 pass / 0 fail |
 | 2026-09-27 | A12 support tooling | 419 pass / 0 fail |
+| 2026-09-27 | A13 coupons for staff | 421 pass / 0 fail |

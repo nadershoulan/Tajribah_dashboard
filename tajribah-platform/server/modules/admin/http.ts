@@ -14,6 +14,7 @@ import { plansForStaff, updatePlan } from './plans';
 import { invoiceForStaff, listInvoices, listSubscriptions } from './billing';
 import { operations, replayDelivery, retryJob } from './operations';
 import { lookup, storeActivity } from './support';
+import { createCoupon, listCoupons, updateCoupon } from './coupons';
 import { errors } from '@/server/core/errors/problem';
 
 /** API-A00 — GET /api/admin/whoami: the console's own guard asks this first. */
@@ -212,4 +213,37 @@ export const storeActivityHandler = route(async (request) => {
   const id = idBeforeLast(request);
   if (!z.string().uuid().safeParse(id).success) throw errors.notFound('store');
   return json(await storeActivity(id, { before: pick(z.string().uuid(), url.searchParams.get('before')) }));
+});
+
+const DATE = z.string().datetime({ offset: true }).nullable();
+const COUPON = z.object({
+  code: z.string().max(64), kind: z.enum(['percent', 'fixed', 'free_months']),
+  percentOff: z.number().int().nullable(), amountOffMinor: z.number().int().nullable(), freeMonths: z.number().int().nullable(),
+  appliesTo: z.array(PLAN).nullable(), maxRedemptions: z.number().int().nullable(),
+  validFrom: DATE, validUntil: DATE, active: z.boolean(), note: z.string().max(500).nullable(),
+  reason: z.string().max(500),
+});
+
+/** API-A19 — GET /api/admin/coupons: the catalogue with uses (A13, ADM-15). */
+export const listCouponsHandler = route(async (request) => {
+  await staffContextFor(request);
+  return json({ coupons: await listCoupons() });
+});
+
+/** API-A20 — POST /api/admin/coupons: a new coupon. */
+export const createCouponHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  return json(await createCoupon(staff, await readJson(request, COUPON)), { status: 201 });
+});
+
+/** API-A21 — PATCH /api/admin/coupons/[id]: dates, limit, plans, note, on/off; code/kind/value until first use. */
+export const updateCouponHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const id = new URL(request.url).pathname.split('/').filter(Boolean).pop() ?? '';
+  if (!z.string().uuid().safeParse(id).success) throw errors.notFound('coupon');
+  return json(await updateCoupon(staff, id, await readJson(request, COUPON.partial().required({ reason: true }))));
 });

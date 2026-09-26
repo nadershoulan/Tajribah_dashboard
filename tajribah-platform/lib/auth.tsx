@@ -166,6 +166,13 @@ export type AdminLookup = {
   request: AdminTrailEntry[];
 };
 
+/** A13 — server/modules/admin/coupons.ts */
+export type AdminCouponFields = {
+  code: string; kind: 'percent' | 'fixed' | 'free_months'; percentOff: number | null; amountOffMinor: number | null; freeMonths: number | null;
+  appliesTo: PlanCode[] | null; maxRedemptions: number | null; validFrom: string | null; validUntil: string | null; active: boolean; note: string | null;
+};
+export type AdminCoupon = AdminCouponFields & { id: string; redemptions: number; createdAt: string };
+
 export type AdminApi = {
   whoami(): Promise<{ email: string; fullName: string }>;
   trail(storeId?: string): Promise<StaffTrailRow[]>;
@@ -186,6 +193,9 @@ export type AdminApi = {
   replayWebhook(id: string, reason: string): Promise<void>;
   lookup(q: string): Promise<AdminLookup>;
   storeActivity(id: string, before?: string): Promise<{ entries: AdminTrailEntry[]; next: string | null }>;
+  coupons(): Promise<AdminCoupon[]>;
+  createCoupon(fields: AdminCouponFields & { reason: string }): Promise<AdminCoupon>;
+  updateCoupon(id: string, patch: Partial<AdminCouponFields> & { reason: string }): Promise<AdminCoupon>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -254,6 +264,9 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       replayWebhook: async (id, reason) => { await client.call(`/api/admin/webhooks/${encodeURIComponent(id)}/replay`, { body: { reason } }); },
       lookup: (q) => client.call(`/api/admin/support${queryString({ q })}`),
       storeActivity: (id, before) => client.call(`/api/admin/stores/${encodeURIComponent(id)}/activity${queryString({ before })}`),
+      coupons: async () => (await client.call<{ coupons: AdminCoupon[] }>('/api/admin/coupons')).coupons,
+      createCoupon: (fields) => client.call('/api/admin/coupons', { body: fields }),
+      updateCoupon: (id, patch) => client.call(`/api/admin/coupons/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch }),
     },
     twoFactor: {
       status: () => client.twoFactorStatus(),
@@ -319,7 +332,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

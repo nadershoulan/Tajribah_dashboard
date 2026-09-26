@@ -12,6 +12,7 @@ import { ApiError, type ApiClient, type MeResponse, type RegisterBody, type TwoF
 import { matchTotp, newBackupCodes, newTotpSecret, otpauthUrl } from '@/server/core/auth/totp';
 import { DEMO_DASHBOARD } from './demo-data';
 import type { ConnectionSummary, TeamMemberRow } from './view-models';
+import type { PlanCode, PlanLimits } from './plans';
 
 export type AuthStatus = 'loading' | 'signed-in' | 'signed-out';
 
@@ -106,6 +107,17 @@ export type AdminPersonDetail = {
 };
 export type AdminPersonAction = { type: 'end_sessions' | 'reset_two_factor'; reason: string };
 
+/** A6 — server/modules/admin/plans.ts */
+export type AdminPlan = {
+  code: PlanCode; name: string; nameAr: string; currency: string; isPublic: boolean; subscribers: number;
+  priceMonthlyMinor: number | null; priceAnnualMinor: number | null;
+  limits: PlanLimits; features: Record<string, boolean>;
+};
+export type AdminPlanChange = {
+  priceMonthlyMinor?: number | null; priceAnnualMinor?: number | null;
+  limits?: Partial<PlanLimits>; features?: Record<string, boolean>; reason: string;
+};
+
 export type AdminApi = {
   whoami(): Promise<{ email: string; fullName: string }>;
   trail(storeId?: string): Promise<StaffTrailRow[]>;
@@ -116,6 +128,8 @@ export type AdminApi = {
   people(query: { q?: string; before?: string }): Promise<{ people: AdminPersonRow[]; next: string | null }>;
   person(id: string): Promise<AdminPersonDetail>;
   actOnPerson(id: string, action: AdminPersonAction): Promise<{ sessionsEnded: number }>;
+  plans(): Promise<AdminPlan[]>;
+  updatePlan(code: PlanCode, change: AdminPlanChange): Promise<{ changed: string[] }>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -174,6 +188,8 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       },
       person: (id) => client.call(`/api/admin/users/${encodeURIComponent(id)}`),
       actOnPerson: (id, action) => client.call(`/api/admin/users/${encodeURIComponent(id)}/actions`, { body: action }),
+      plans: async () => (await client.call<{ plans: AdminPlan[] }>('/api/admin/plans')).plans,
+      updatePlan: (code, change) => client.call(`/api/admin/plans/${code}`, { method: 'PATCH', body: change }),
     },
     twoFactor: {
       status: () => client.twoFactorStatus(),
@@ -239,7 +255,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

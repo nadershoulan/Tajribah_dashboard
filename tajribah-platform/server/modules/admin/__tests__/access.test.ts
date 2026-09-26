@@ -15,7 +15,7 @@ import { loadEnv, resetEnv } from '@/server/core/config/env';
 import { setLogLevel } from '@/server/core/observability/log';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
 import { staffLog, staffTrail, type StaffContext } from '@/server/modules/admin/access';
-import { listPeopleHandler, listStoresHandler, overviewHandler, personActionHandler, staffTrailHandler, storeActionHandler, whoamiHandler } from '@/server/modules/admin/http';
+import { listPeopleHandler, listStoresHandler, overviewHandler, personActionHandler, plansHandler, updatePlanHandler, staffTrailHandler, storeActionHandler, whoamiHandler } from '@/server/modules/admin/http';
 
 setLogLevel('error');
 const APP = 'http://localhost:5173';
@@ -41,7 +41,7 @@ test('only staff with two-step sign-in get in; everyone else is told the page do
     const staff = await person(harness, 'staff@tajribah.test', { isStaff: true, totpEnabled: true });
     const gone = await person(harness, 'left@tajribah.test', { isStaff: true, totpEnabled: true });
 
-    for (const handler of [whoamiHandler, staffTrailHandler, overviewHandler, listStoresHandler, listPeopleHandler]) {
+    for (const handler of [whoamiHandler, staffTrailHandler, overviewHandler, listStoresHandler, listPeopleHandler, plansHandler]) {
       assert.equal((await get(handler, '/api/admin/x')).status, 401, 'no session');
       const notStaff = await get(handler, '/api/admin/x', merchant.token);
       assert.equal(notStaff.status, 404, 'a merchant is not even told the console exists');
@@ -77,6 +77,21 @@ test('only staff with two-step sign-in get in; everyone else is told the page do
     assert.equal(ended.status, 200);
     assert.deepEqual(await ended.json(), { sessionsEnded: 1 });
     assert.equal((await get(whoamiHandler, '/api/admin/whoami', merchant.token)).status, 401, 'the ended session is refused at once');
+
+    // A6: changing a plan — the same guard.
+    const patch = (token: string | undefined, code: string, headers: Record<string, string> = {}) => updatePlanHandler(new Request(`${APP}/api/admin/plans/${code}`, {
+      method: 'PATCH', headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers },
+      body: JSON.stringify({ limits: { products: 25 }, reason: 'access test' }),
+    }));
+    const outsider = await person(harness, 'outsider@example.test');
+    assert.equal((await patch(undefined, 'starter')).status, 401);
+    assert.equal((await patch(outsider.token, 'starter')).status, 404, 'a merchant cannot change prices, nor learn the console exists');
+    assert.equal((await patch(staffNo2fa.token, 'starter')).status, 403);
+    assert.equal((await patch(staff.token, 'starter', { origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' })).status, 403, 'cross-origin refused');
+    assert.equal((await patch(staff.token, 'platinum')).status, 404, 'no such plan');
+    const changed = await patch(staff.token, 'starter');
+    assert.equal(changed.status, 200);
+    assert.deepEqual(await changed.json(), { changed: ['limits.products'] });
 
     const me = await (await get(whoamiHandler, '/api/admin/whoami', staff.token)).json() as any;
     assert.equal(me.email, 'staff@tajribah.test');

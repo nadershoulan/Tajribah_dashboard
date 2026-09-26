@@ -10,6 +10,7 @@ import { platformOverview } from './overview';
 import { listStores, storeDetail } from './stores';
 import { actOnStore } from './actions';
 import { actOnPerson, listPeople, personDetail } from './users';
+import { plansForStaff, updatePlan } from './plans';
 import { errors } from '@/server/core/errors/problem';
 
 /** API-A00 — GET /api/admin/whoami: the console's own guard asks this first. */
@@ -104,4 +105,29 @@ export const personActionHandler = route(async (request) => {
   const id = segments[segments.length - 2] ?? '';
   if (!z.string().uuid().safeParse(id).success) throw errors.notFound('person');
   return json(await actOnPerson(staff, id, await readJson(request, PERSON_ACTION)));
+});
+
+/** API-A09 — GET /api/admin/plans: every plan's terms and reach (A6, ADM-13). */
+export const plansHandler = route(async (request) => {
+  await staffContextFor(request);
+  return json({ plans: await plansForStaff() });
+});
+
+const PRICE = z.number().int().nullable().optional();
+const PLAN_CHANGE = z.object({
+  priceMonthlyMinor: PRICE,
+  priceAnnualMinor: PRICE,
+  limits: z.record(z.string(), z.number().int()).optional(),
+  features: z.record(z.string(), z.boolean()).optional(),
+  reason: z.string().max(500),
+});
+
+/** API-A10 — PATCH /api/admin/plans/[code]: change a plan for every store on it (ADM-14, T19). */
+export const updatePlanHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const code = PLAN.safeParse(new URL(request.url).pathname.split('/').filter(Boolean).pop());
+  if (!code.success) throw errors.notFound('plan');
+  return json(await updatePlan(staff, code.data, await readJson(request, PLAN_CHANGE)));
 });

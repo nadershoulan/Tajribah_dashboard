@@ -18,7 +18,7 @@ P6 AI+connectors  ░░░░░░░░░░░░░░░░░░░░�
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13
 P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 M  Marketing      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12   (separate site in tajribah-try-on)
-A  Admin console  ███████████░░░░░░░░░░░░░░░░░░░░░   5 / 15   ← started 2026-09-26
+A  Admin console  █████████████░░░░░░░░░░░░░░░░░░░   6 / 15   ← started 2026-09-26
                                             overall  38 / 168
 ```
 
@@ -98,6 +98,7 @@ The internal console for running Tajribah: stores, people, plans, coupons, what 
 
 | | Package | In plain words |
 |---|---|---|
+| ✅ | A6 Plans and prices | Staff can change a plan's monthly and annual price, its limits and its features. The change reaches every store on that plan straight away (as decided: nobody keeps old terms), and the screen says how many stores that is before saving. Lowering a limit deletes nothing — a store over it just can't add more — and the screen warns you to tell them first. The price a store sees on its plan cards is now always the price it will be charged |
 | ✅ | A5 People | Staff can find anyone by email or name, see which stores they belong to and on which devices they are signed in, and — with a written reason — sign them out everywhere (a stolen laptop) or turn off their two-step sign-in (a lost phone; they get an email saying so, in their language). Nobody can do this to their own account |
 | ✅ | A4 Changing a store | Staff can give a store more trial days, suspend it and bring it back, and add or take away AI credits. Each needs a written reason, and each shows up twice: in the staff activity, and in the store's own activity as done by Tajribah staff. A store that already pays can't be given trial days, credits never go below zero, and a store brought back returns to where its subscription says |
 | ✅ | A3 Every store | Staff can find any store — by name (Arabic too), web address or id — filter by status and plan, and open a store to see its details, how much of its plan it uses (the same numbers the store sees), its invoices, connection, team, and anything staff changed on it. Looking changes nothing |
@@ -210,3 +211,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-26 | A3 stores list and store page for staff | 402 pass / 0 fail |
 | 2026-09-27 | A4 store actions for staff | 405 pass / 0 fail |
 | 2026-09-27 | A5 people for staff | 408 pass / 0 fail |
+| 2026-09-27 | A6 plans and pricing for staff | 411 pass / 0 fail |

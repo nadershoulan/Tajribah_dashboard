@@ -171,7 +171,11 @@ export default function Billing() {
 
           <h2 id="plans" style={{ fontSize: 19, margin: '26px 0 14px' }}>{t('الباقات', 'Plans')}</h2>
           <div className="grid grid-4">
-            {PLANS.map((plan) => {
+            {PLANS.flatMap((copy) => {
+              // A6: the price is the catalogue row's — staff can change it (T19), and checkout charges it.
+              const row = data.catalogue.find((c) => c.code === copy.code);
+              return row ? [{ ...copy, priceMonthlyMinor: row.priceMonthlyMinor }] : [];
+            }).map((plan) => {
               const isCurrent = plan.code === data.plan;
               // During a trial the current plan is the one being tried — it can still be chosen and paid for.
               const isPaidFor = isCurrent && data.status === 'active';

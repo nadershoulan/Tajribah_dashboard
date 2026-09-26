@@ -22,7 +22,7 @@ import { EMAIL, sendEmail } from '@/server/core/notify/messages';
 import { recordSessionEvent } from '@/server/core/audit/audit';
 import { log } from '@/server/core/observability/log';
 import { currentScope } from '@/server/core/observability/scope';
-import { login, register, requestPasswordReset, resetPassword, verifyEmail } from './service';
+import { login, register, requestPasswordReset, resendEmailVerification, resetPassword, verifyEmail } from './service';
 
 const PASSWORD = z.string().min(10, 'at least 10 characters').max(200);
 const EMAIL_FIELD = z.string().trim().email().max(254);
@@ -143,6 +143,20 @@ export const verifyEmailHandler = route(async (request) => {
   const { token } = await readJson(request, z.object({ token: z.string().min(10).max(200) }));
   if (!(await verifyEmail(token, config))) throw errors.validation({ token: ['invalid or expired'] });
   return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+});
+
+/** API-010 — POST /api/auth/verify-email/resend: a new link to the signed-in user's own address. */
+export const resendVerificationHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const caller = await authenticate(request, config);
+  const resent = await resendEmailVerification(caller.userId, config);
+  if (resent) {
+    await sendEmail(resent.email, EMAIL.verifyEmail, {
+      link: `${config.appUrl}/verify-email?token=${encodeURIComponent(resent.token)}`,
+    }, resent.locale);
+  }
+  return json({ sent: resent !== null, alreadyVerified: resent === null }, { status: 202 });
 });
 
 /**

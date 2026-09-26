@@ -593,3 +593,16 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 
 /* P1.17 — install check */
 .check-result { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg, #f6f8fa); }
+
+/* P1.2 — setup guide */
+.notice {
+  display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--warn-bg); color: var(--text);
+}
+.notice > svg { flex: 0 0 auto; margin-top: 2px; color: var(--warn); }
+.notice strong { font-size: 14.5px; }
+.notice p { margin: 2px 0 0; font-size: 13.5px; color: var(--text-2); overflow-wrap: anywhere; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.linklike { all: unset; cursor: pointer; display: block; text-align: start; }
+.linklike:focus-visible { outline: 2px solid var(--aqua); outline-offset: 2px; border-radius: 4px; }
+.linklike[aria-current="step"] strong { color: var(--aqua); }

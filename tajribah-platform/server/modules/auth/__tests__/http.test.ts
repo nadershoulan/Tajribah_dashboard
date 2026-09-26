@@ -11,7 +11,7 @@ import { REFRESH_COOKIE } from '@/server/core/auth/session';
 import { createTestDb, type TestDb } from '@/server/testing/harness';
 import {
   confirmResetHandler, loginHandler, logoutHandler, meHandler, refreshHandler, registerHandler,
-  requestResetHandler, switchTenantHandler, verifyEmailHandler,
+  requestResetHandler, resendVerificationHandler, switchTenantHandler, verifyEmailHandler,
 } from '@/server/modules/auth/http';
 
 const APP = 'http://localhost:5173';
@@ -244,6 +244,24 @@ test('verify-email accepts the emailed token once', async () => {
     assert.equal((await verifyEmailHandler(req('/api/auth/verify-email', { body: { token } }))).status, 422);
     const me = await (await meHandler(req('/api/auth/me', { method: 'GET', token: access }))).json() as any;
     assert.equal(me.user.emailVerified, true);
+  } finally { await harness.close(); }
+});
+
+test('verify-email resend (API-010): own address only, refused cross-site, and rate limited per user', async () => {
+  setup();
+  const harness = await createTestDb();
+  try {
+    const { token } = await signUp(harness);
+    assert.equal((await resendVerificationHandler(req('/api/auth/verify-email/resend'))).status, 401);
+    assert.equal((await resendVerificationHandler(req('/api/auth/verify-email/resend', { token, origin: 'https://evil.example' }))).status, 403);
+
+    const statuses: number[] = [];
+    const mail = await printed(async () => {
+      for (let i = 0; i < 6; i++) statuses.push((await resendVerificationHandler(req('/api/auth/verify-email/resend', { token }))).status);
+    });
+    assert.deepEqual(statuses, [202, 202, 202, 202, 202, 429], 'five resends an hour, then a wait');
+    assert.equal(mail.match(/verify-email\?token=/g)?.length, 5);
+    assert.deepEqual([...new Set(mail.match(/email to (\S+)/g))], ['email to owner@example.test'], 'every resend goes to the account’s own address');
   } finally { await harness.close(); }
 });
 

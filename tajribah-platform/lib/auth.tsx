@@ -24,6 +24,13 @@ export type AuthApi = {
   switchTenant(tenantId: string): Promise<void>;
   /** P1.24. Rejects with `ApiError` 404 for a used, expired, revoked or someone-else's link. */
   acceptInvitation(token: string): Promise<void>;
+  /** P1.2. Always resolves: whether the address has an account is not the caller's to learn. */
+  requestPasswordReset(email: string, locale: 'ar' | 'en'): Promise<void>;
+  /** P1.2. Ends every session, this one included. `ApiError` 422 for a bad or used link. */
+  resetPassword(token: string, password: string): Promise<void>;
+  /** P1.2. `ApiError` 422 for an expired, used or unknown link. */
+  verifyEmail(token: string): Promise<void>;
+  resendVerification(): Promise<{ sent: boolean; alreadyVerified: boolean }>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -65,6 +72,18 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
     logout: async () => { await client.logout(); setState({ status: 'signed-out', me: null }); },
     switchTenant: async (tenantId) => { await client.switchTenant(tenantId); await load(); },
     acceptInvitation: async (token) => { await client.acceptInvitation(token); await load(); },
+    requestPasswordReset: (email, locale) => client.requestPasswordReset(email, locale),
+    resetPassword: async (token, password) => {
+      await client.confirmPasswordReset(token, password);
+      setState({ status: 'signed-out', me: null });
+    },
+    // Signed in (the same browser): re-read `me` so "confirm your email" disappears at once.
+    verifyEmail: async (token) => { await client.verifyEmail(token); if (client.signedIn) await load(); },
+    resendVerification: async () => {
+      const result = await client.resendVerification();
+      if (result.alreadyVerified) await load();
+      return result;
+    },
   }), [state, client, load]);
 
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>;
@@ -89,6 +108,10 @@ export function DemoAuthProvider({ children }: { children: ReactNode }) {
     logout: async () => {},
     switchTenant: async () => {},
     acceptInvitation: async () => {},
+    requestPasswordReset: async () => {},
+    resetPassword: async () => {},
+    verifyEmail: async () => {},
+    resendVerification: async () => ({ sent: false, alreadyVerified: true }),
   }), [tenant]);
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>;
 }

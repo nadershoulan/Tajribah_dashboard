@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   analyticsEvents, auditLogs, models3d, plans, products, storeConnections, subscriptions,
-  tenantMemberships, users,
+  tenantMemberships, tenants, users,
 } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { buildTenantContext } from '@/server/core/tenancy/context';
@@ -133,5 +133,35 @@ test('skips are recorded in the audit trail; a viewer cannot skip; bad skips are
     });
     const viewer = await buildTenantContext({ actor: { userId: viewerId, email: 'v@example.test', isStaff: false }, tenantId, requestId: 'r' });
     await assert.rejects(() => skipStep(viewer, 'plan'), (e: any) => e.code === 'forbidden');
+  } finally { await harness.close(); }
+});
+
+test('P1.2: the store address can be chosen while confirming — not once a storefront has reported, and not by a viewer', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, tenantId } = await store(harness, 'alpha');
+    const other = await store(harness, 'bravo');
+    await plant(harness, analyticsEvents, { tenantId: other.tenantId, eventType: 'product_view', sessionId: 's', occurredAt: new Date() });
+
+    const viewerId = uuidv7();
+    await harness.asAdmin(async () => {
+      await harness.db.insert(users).values({ id: viewerId, email: 'v@example.test', passwordHash: 'x', fullName: 'v' } as any);
+      await harness.db.insert(tenantMemberships).values({ id: uuidv7(), tenantId, userId: viewerId, role: 'viewer', status: 'active' } as any);
+    });
+    const viewer = await buildTenantContext({ actor: { userId: viewerId, email: 'v@example.test', isStaff: false }, tenantId, requestId: 'r' });
+    await assert.rejects(() => confirmStoreStep(viewer, { slug: 'viewer-pick' }), (e: any) => e.code === 'forbidden');
+
+    // Bravo's widget has reported a view from its storefront: its snippet carries the address.
+    await assert.rejects(() => confirmStoreStep(other.ctx, { slug: 'bravo-new' }), (e: any) => e.code === 'validation_failed' && /fixed/.test(e.errors?.slug?.[0]));
+    const same = await confirmStoreStep(other.ctx, { slug: other.ctx.tenant.slug });
+    assert.equal(same.steps.find((s) => s.key === 'store')!.done, true, 'the same address is not a change');
+
+    // Only another store has reported: alpha may still choose, and the answer says it is confirmed.
+    const view = await confirmStoreStep(ctx, { slug: 'alpha-shop' });
+    assert.equal(view.steps.find((s) => s.key === 'store')!.done, true);
+    assert.equal(view.current, 'plan');
+    const rows = await harness.asAdmin(() => harness.db.select().from(tenants));
+    assert.equal(rows.find((r: any) => r.id === tenantId)!.slug, 'alpha-shop');
+    await assert.rejects(() => confirmStoreStep(ctx, { slug: 'alpha-again' }), (e: any) => /fixed/.test(e.errors?.slug?.[0]), 'fixed once confirmed');
   } finally { await harness.close(); }
 });

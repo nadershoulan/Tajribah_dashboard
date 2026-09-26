@@ -57,7 +57,7 @@ const image = async (width: number, height: number, format: 'png' | 'webp' | 'jp
 async function texturedGlb(options: { ktx2?: boolean; requireClearcoat?: boolean } = {}): Promise<Uint8Array> {
   const doc = new Document();
   const buffer = doc.createBuffer();
-  const accessor = (type: 'VEC3' | 'VEC2' | 'SCALAR', array: Float32Array | Uint16Array) => doc.createAccessor().setType(type).setArray(array).setBuffer(buffer);
+  const accessor = (type: 'VEC3' | 'VEC2' | 'SCALAR', array: Float32Array<ArrayBuffer> | Uint16Array<ArrayBuffer>) => doc.createAccessor().setType(type).setArray(array).setBuffer(buffer);
   const uv = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
   const base = doc.createTexture('base').setImage(await image(3000, 1500, 'png')).setMimeType('image/png');
   const glow = doc.createTexture('glow').setImage(await image(64, 64, 'webp')).setMimeType('image/webp');

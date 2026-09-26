@@ -39,6 +39,17 @@ export function generatedSlug(prefix = 'store'): string {
   return `${prefix}-${shortCode(6)}`;
 }
 
+/**
+ * P1.2 — why a store address the merchant typed cannot be used, or null if it can. The same
+ * rule for the setup screen (instant feedback) and the API (the real check).
+ */
+export function slugProblem(slug: string): string | null {
+  if (!/^[a-z0-9-]{3,40}$/.test(slug)) return 'use 3–40 lowercase Latin letters, digits and dashes';
+  if (slug.startsWith('-') || slug.endsWith('-') || slug.includes('--')) return 'a dash cannot start, end or repeat';
+  if (RESERVED.has(slug)) return 'this address is reserved';
+  return null;
+}
+
 export function isReserved(slug: string): boolean {
   return RESERVED.has(slug);
 }

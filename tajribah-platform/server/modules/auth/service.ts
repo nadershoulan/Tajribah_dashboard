@@ -221,6 +221,33 @@ export async function verifyEmail(token: string, config: SessionSecrets): Promis
 }
 
 /**
+ * P1.2 — a fresh verification link for a signed-in user whose first one expired or got lost.
+ * Every older unused link stops working, so only the newest email in the inbox is live.
+ * `null` when the address is already confirmed: nothing to send.
+ */
+export async function resendEmailVerification(
+  userId: string, config: SessionSecrets,
+): Promise<{ email: string; locale: 'ar' | 'en'; token: string } | null> {
+  const limit = await rateLimiter().hit(`verify-resend:${userId}`, LIMITS.verifyResend.limit, LIMITS.verifyResend.windowSeconds);
+  if (!limit.allowed) throw errors.rateLimited(limit.retryAfter);
+
+  const db = unsafeAdminDb();
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!user || user.deletedAt) throw errors.unauthenticated();
+  if (user.emailVerifiedAt) return null;
+
+  await db.update(verificationTokens).set({ consumedAt: new Date() }).where(and(
+    eq(verificationTokens.userId, userId),
+    eq(verificationTokens.purpose, 'email_verify'),
+    isNull(verificationTokens.consumedAt),
+  ));
+  const token = await createVerificationToken({
+    userId, purpose: 'email_verify', destination: user.email, ttlMinutes: 60 * 24, config,
+  });
+  return { email: user.email, locale: user.locale, token };
+}
+
+/**
  * Always reports success. Whether an address is registered is not something an unauthenticated
  * caller gets to learn, so the response is identical either way and only the email differs.
  */

@@ -75,8 +75,8 @@ export default function Login() {
 
             <div className="field">
               <label htmlFor="password">{t('كلمة المرور', 'Password')}</label>
-              <div style={{ position: 'relative' }}>
-                <input id="password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" dir="ltr" required />
+              <div style={{ position: 'relative' }} dir="ltr">
+                <input id="password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" dir="ltr" required style={{ paddingInlineEnd: 44 }} />
                 <button
                   type="button"
                   className="btn btn-quiet btn-sm"
@@ -97,7 +97,7 @@ export default function Login() {
           </form>
 
           <p style={{ marginTop: 16, fontSize: 14, color: 'var(--text-2)' }}>
-            <AppLink href="/reset" style={{ color: 'var(--aqua)' }}>{t('نسيت كلمة المرور؟', 'Forgot your password?')}</AppLink>
+            <AppLink href="/reset-password" style={{ color: 'var(--aqua)' }}>{t('نسيت كلمة المرور؟', 'Forgot your password?')}</AppLink>
           </p>
           <p style={{ marginTop: 4, fontSize: 14, color: 'var(--text-2)' }}>
             {t('ليس لديك حساب؟', 'No account yet?')}{' '}

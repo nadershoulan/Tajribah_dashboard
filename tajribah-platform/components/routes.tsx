@@ -19,10 +19,14 @@ import SettingsPage from '@/components/pages/Settings';
 import Embed from '@/components/pages/Embed';
 import Login from '@/components/pages/Login';
 import Register from '@/components/pages/Register';
+import VerifyEmail from '@/components/pages/VerifyEmail';
+import ResetPassword from '@/components/pages/ResetPassword';
+import Onboarding from '@/components/pages/Onboarding';
 import NotFound from '@/components/pages/NotFound';
 
 export const ROUTES: Record<string, () => ReactElement> = {
   '/dashboard': DashboardHome,
+  '/dashboard/onboarding': Onboarding,
   '/dashboard/products': Products,
   '/dashboard/models': Models,
   '/dashboard/connections': Connections,
@@ -34,6 +38,8 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/dashboard/ar-settings': ArSettings,
   '/login': Login,
   '/register': Register,
+  '/verify-email': VerifyEmail,
+  '/reset-password': ResetPassword,
 };
 
 /** Routes with an id in them: the screen reads the id from the path itself. */

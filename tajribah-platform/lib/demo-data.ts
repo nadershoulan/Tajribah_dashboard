@@ -204,7 +204,7 @@ export const DEMO_DASHBOARD: DashboardSummary = {
   onboarding: {
     complete: false,
     // The shared copy (lib/onboarding-steps.ts); only whether each is done is demo data.
-    steps: STEP_COPY.map((step) => ({ ...step, done: !['catalogue', 'embed'].includes(step.key) })),
+    steps: STEP_COPY.map((step) => ({ ...step, done: !['catalogue', 'embed'].includes(step.key), skipped: false })),
   },
   counts: { products: 64, arEnabled: 41, models: 6, modelsReady: 4, teamMembers: 3 },
   usage: {

@@ -10,7 +10,8 @@ import {
   type OnboardingState,
 } from '@/db/schema';
 import { auditedUpdate } from '@/server/core/audit/audit';
-import { errors } from '@/server/core/errors/problem';
+import { errors, isUniqueViolation } from '@/server/core/errors/problem';
+import { slugProblem } from '@/lib/slug';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import {
   OnboardingError, confirmStore, evaluate, skip, unskip,
@@ -47,7 +48,7 @@ export async function onboardingOf(ctx: TenantContext): Promise<OnboardingView> 
 
 type Change = (state: OnboardingState | null | undefined, facts: Facts) => OnboardingState;
 
-async function change(ctx: TenantContext, apply: Change): Promise<OnboardingView> {
+async function change(ctx: TenantContext, apply: Change, extra: Partial<typeof tenants.$inferInsert> = {}): Promise<OnboardingView> {
   ctx.require('settings:write');
   const tenant = await ctx.db.requireById(tenants, ctx.tenantId);
   const facts = await factsFor(ctx);
@@ -58,10 +59,32 @@ async function change(ctx: TenantContext, apply: Change): Promise<OnboardingView
     if (error instanceof OnboardingError) throw errors.validation({ step: [error.message] });
     throw error;
   }
-  await auditedUpdate(ctx, tenants, ctx.tenantId, { onboardingState: next }, { resourceType: 'onboarding' });
-  return evaluate(facts, next);
+  try {
+    await auditedUpdate(ctx, tenants, ctx.tenantId, { ...extra, onboardingState: next }, { resourceType: 'onboarding' });
+  } catch (error) {
+    if (isUniqueViolation(error)) throw errors.validation({ slug: ['this address is taken'] });
+    throw error;
+  }
+  // `storeConfirmed` is the one fact read from the state just written — not the stale read.
+  return evaluate({ ...facts, storeConfirmed: next.completedSteps.includes('store') }, next);
 }
 
 export const skipStep = (ctx: TenantContext, step: StepKey) => change(ctx, (s, f) => skip(s, step, f));
 export const unskipStep = (ctx: TenantContext, step: StepKey) => change(ctx, (s, f) => unskip(s, step, f));
-export const confirmStoreStep = (ctx: TenantContext) => change(ctx, (s, f) => confirmStore(s, f));
+
+/**
+ * P1.2 — the merchant confirms the store, and may choose its address (slug) while doing so.
+ * The address is in the embed snippet, so it can change only before the store is confirmed
+ * and before the widget has reported from a storefront; after that it is fixed.
+ */
+export async function confirmStoreStep(ctx: TenantContext, input: { slug?: string } = {}): Promise<OnboardingView> {
+  const extra: Partial<typeof tenants.$inferInsert> = {};
+  if (input.slug !== undefined && input.slug !== ctx.tenant.slug) {
+    const problem = slugProblem(input.slug);
+    if (problem) throw errors.validation({ slug: [problem] });
+    const facts = await factsFor(ctx);
+    if (facts.storeConfirmed || facts.widgetSeen) throw errors.validation({ slug: ['the store address is fixed once the store is confirmed'] });
+    extra.slug = input.slug;
+  }
+  return change(ctx, (s, f) => confirmStore(s, f), extra);
+}

@@ -34,10 +34,12 @@ export const unskipStepHandler = route(async (request) => {
   return json(await unskipStep(ctx, step));
 });
 
-/** API-023 — POST /api/onboarding/confirm-store */
+/** API-023 — POST /api/onboarding/confirm-store. Body optional: `{ slug }` to choose the store's address first. */
 export const confirmStoreHandler = route(async (request) => {
   const config = apiConfig();
   assertSameOrigin(request, config);
   const ctx = await tenantContextFor(request, config);
-  return json(await confirmStoreStep(ctx));
+  const hasBody = (request.headers.get('content-type') ?? '').includes('application/json');
+  const body = hasBody ? await readJson(request, z.object({ slug: z.string().trim().toLowerCase().max(60).optional() }).strict()) : {};
+  return json(await confirmStoreStep(ctx, body));
 });

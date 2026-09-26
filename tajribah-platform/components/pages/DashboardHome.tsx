@@ -34,7 +34,8 @@ export default function DashboardHome() {
 
   const { tenant, counts, usage, last30, series, connection, onboarding, activity } = data;
   const plan = planByCode(tenant.plan);
-  const remaining = onboarding.steps.filter((step) => !step.done);
+  // A skipped step is put off, not pending: it does not count as left to do.
+  const remaining = onboarding.steps.filter((step) => !step.done && !step.skipped);
 
   return (
     <Shell tenant={tenant} crumbs={crumbs}>
@@ -60,6 +61,7 @@ export default function DashboardHome() {
         <Panel
           flush
           title={t('لنكمل الإعداد', 'Finish setting up')}
+          actions={<AppLink href="/dashboard/onboarding" className="btn btn-quiet btn-sm">{t('دليل الإعداد', 'Setup guide')}<Forward size={14} /></AppLink>}
           sub={t(
             `بقيت ${remaining.length} من ${onboarding.steps.length} خطوات — حوالي ${remaining.reduce((m, s) => m + s.minutes, 0)} دقيقة`,
             `${remaining.length} of ${onboarding.steps.length} steps left — about ${remaining.reduce((m, s) => m + s.minutes, 0)} minutes`,
@@ -76,7 +78,7 @@ export default function DashboardHome() {
                 <div className="step-side">
                   {step.done
                     ? <Badge tone="ok">{t('تم', 'Done')}</Badge>
-                    : (
+                    : step.skipped ? <Badge>{t('مؤجّلة', 'Skipped')}</Badge> : (
                       <>
                         <span className="minutes">{t(`${step.minutes} دقائق`, `${step.minutes} min`)}</span>
                         <AppLink href={step.href} className="btn btn-ghost btn-sm">

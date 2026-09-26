@@ -47,7 +47,10 @@ export async function dashboardSummary(ctx: TenantContext, now = new Date()): Pr
   const periodStart = riyadhDay(currentPeriodStart(now));
   const arThisPeriod = rows.filter((r) => String(r.day) >= periodStart).reduce((t, r) => t + r.arSessions, 0);
 
-  const steps = STEP_COPY.map((copy) => ({ ...copy, done: onboarding.steps.find((s) => s.key === copy.key)?.done ?? false }));
+  const steps = STEP_COPY.map((copy) => {
+    const step = onboarding.steps.find((s) => s.key === copy.key);
+    return { ...copy, done: step?.done ?? false, skipped: step?.skipped ?? false };
+  });
   const connection = connections.find((c) => c.status === 'active') ?? connections[0] ?? null;
 
   return {

@@ -51,7 +51,8 @@ not marked done until it has run against the real service.
 | ID | Package | Needs | Done when |
 |---|---|---|---|
 | P1.1 ✅ | Onboarding state machine | — | Each step is done because the database says so (connection, dimensions, ready model, widget event), not a stored flag; skipping only where the plan allows |
-| P1.2 | Onboarding UI (wizard, verify email, reset password, 2FA) | — | The checklist renders from P1.1; each step's action works, in both mirrors |
+| P1.2 ✅ | Onboarding UI (wizard, verify email, reset password) | — | The checklist renders from P1.1; each step's action works, in both mirrors. **2FA split to P1.2b** (§14: bigger than one session) |
+| P1.2b | Two-factor sign-in (TOTP) | — (TOTP); SMS 🔒 Unifonic | AUTH-12/14/20–22: enrol with a QR + a code, backup codes shown once, sign-in asks for the code after the password; TOTP secret sealed like store tokens. SMS codes (AUTH-13) wait on Unifonic |
 | P1.3 ✅ | **Connector abstraction ⭐** | — | Connection model + encrypted token vault; outbound HTTP with timeout, retry, circuit breaker, per-connection rate limit — each tested against a fake server |
 | P1.4 | Salla OAuth | 🔒 Salla Partner | A real Salla store connects and refreshes its token |
 | P1.5 | Salla product mapping | 🔒 Salla Partner | Real Salla payloads map to products, incl. Arabic names and variants |

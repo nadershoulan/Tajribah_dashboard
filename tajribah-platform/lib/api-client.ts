@@ -172,4 +172,22 @@ export class ApiClient {
     const response = await this.send('/api/auth/password-reset', { body: { email, locale } });
     if (!response.ok) return ApiClient.fail(response);
   }
+
+  /** P1.2. The server ends every session on success, so this one ends locally too. */
+  async confirmPasswordReset(token: string, password: string): Promise<void> {
+    const response = await this.send('/api/auth/password-reset/confirm', { body: { token, password } });
+    if (!response.ok) return ApiClient.fail(response);
+    this.setToken(null);
+  }
+
+  /** P1.2. Needs no session: the link may be opened in another browser than the one signed in. */
+  async verifyEmail(token: string): Promise<void> {
+    const response = await this.send('/api/auth/verify-email', { body: { token } });
+    if (!response.ok) return ApiClient.fail(response);
+  }
+
+  /** P1.2. A new link to the signed-in user's own address; older links stop working. */
+  resendVerification(): Promise<{ sent: boolean; alreadyVerified: boolean }> {
+    return this.call('/api/auth/verify-email/resend', { method: 'POST' });
+  }
 }

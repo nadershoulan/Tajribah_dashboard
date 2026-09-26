@@ -44,8 +44,9 @@ export default function Register() {
         locale: lang,
         ...(phone ? { phone } : {}),
       });
-      // Back to where the visitor was sent from (an invitation), through the same allow-list as sign-in.
-      env.navigate(safeNext(new URLSearchParams(env.search).get('next')));
+      // Back to where the visitor was sent from (an invitation), through the same allow-list as
+      // sign-in; otherwise straight into the setup guide (P1.2).
+      env.navigate(safeNext(new URLSearchParams(env.search).get('next'), '/dashboard/onboarding'));
     } catch (error) {
       setNote(authErrorMessage(error, t));
     } finally {

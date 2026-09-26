@@ -1,15 +1,15 @@
 # Tajribah — where the build is
 
-_Last updated: 2026-09-23 · updated at the end of every work session_
+_Last updated: 2026-09-26 · updated at the end of every work session_
 
 > **Now:** **P1 has started** (your call, 2026-09-23) — only the parts that need no account. Done so far: the onboarding checklist, the real product catalogue, the store-connection plumbing, the sync engine, receiving webhooks from the store, uploading 3D models, and shrinking them for phones.
-> **Next:** everything in P1 that needs no account is built. The rest waits on the Salla Partner account, Cloudflare, the domain — and one decision from you (P1.13b below).
+> **Next:** P1.2b, two-factor sign-in with an authenticator app — the last P1 piece that needs no account. The rest waits on the Salla Partner account, Cloudflare, the domain — and one decision from you (P1.13b below).
 > **P0:** code gate passed; the rest waits on you — see below. [Gate report](docs/gates/P0.md)
 > **Waiting on you:** a **Hetzner server** for the database (your choice), and the accounts below.
 
 ```
 P0 Foundation     ████████████████████████████░░░░  19 / 22   (+ P0.20 mostly done, 2 blocked)
-P1 Core loop      ███████████████████████░░░░░░░░░  19 / 26   ← first sellable product (started)
+P1 Core loop      ████████████████████████░░░░░░░░  20 / 26   ← first sellable product (started)
 P2 Billing        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 15
 P3 3D pipeline    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 P4 Analytics      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
@@ -69,6 +69,8 @@ marked 🔒 in `docs/PACKAGES.md` wait for Salla / Cloudflare / the domain.
 | | Package | In plain words |
 |---|---|---|
 | ✅ | P1.1 Onboarding checklist | The "finish setting up" list ticks itself off from what the store has actually done (connected Salla, sized a product, a model is ready, the button is live) — not from a checkbox that can go stale |
+| ✅ | P1.2 Setup guide, email check, password reset | A new merchant now lands on a **setup guide** after signing up: the seven steps, which are done, and one clear action for the next one. They confirm the store's name and choose its web address (an Arabic store name no longer gets a random address they never saw — they pick it, once, before it goes into the install code). They can carry on with the free trial instead of picking a plan, and skip connecting Salla for now — and undo either. The **"confirm your email"** link now opens a real page (it went nowhere before), with "send me a new link" if it expired. **Forgot password** now works end to end (the link on the sign-in page went nowhere): ask for a link, set a new password, and every open session is ended for safety. Also fixed: the "store details" step could never be completed from any screen, and the show-password eye sat on top of the password in Arabic |
+| ⬜ | P1.2b Two-factor sign-in | A code from an authenticator app after the password, with backup codes. Needs no account (SMS codes wait on Unifonic) |
 | ✅ | P1.8 Products | The real product catalogue behind the Products screen: search (Arabic too), filters, paging; AR can only be switched on once the size in mm is filled in; products that come from Salla keep their name and price from Salla; deleting is recoverable; every change is logged |
 | ✅ | P1.3 Store connections | The plumbing every store connector (Salla, Zid…) uses. Store passwords (tokens) are locked away encrypted and never shown or logged; a store can belong to one Tajribah account only; tokens renew themselves before they expire, and if the store cuts us off the merchant is told to reconnect. Calls to the store give up on a hung store, retry sensibly, back off when the store is struggling, and never spend one merchant's API allowance on another. Testing found one real bug (an order-type request could have been sent twice after a dropped connection) — fixed |
 | ✅ | P1.6 Product sync | Copies a store's whole catalogue into Tajribah — tested with 10,000 products — then keeps it up to date with only what changed. It works in short steps, so if the store goes down halfway it picks up where it stopped instead of starting over, and running it twice never creates duplicates. It only changes what the store owns (name, price, photos…) — sizes and AR settings you set are never overwritten. Products removed from the store are archived, but if a store suddenly seems to have lost most of its catalogue, nothing is archived and you're told why. Plan limits are respected, and the reason is shown |
@@ -158,3 +160,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-25 | P1.17 install snippet + checker; all screens fit phones | 322 pass / 0 fail |
 | 2026-09-25 | P1.18 AR on phones — all no-account parts of P1 now done | 325 pass / 0 fail |
 | 2026-09-26 | Fixes from the backlog: duplicate jobs, sidebar by role, abandoned uploads, why a model failed, encryption key rotation, webhook retry pacing and fairness, invitation email language | 338 pass / 0 fail |
+| 2026-09-26 | P1.2 setup guide, email confirmation and password reset screens; two-factor sign-in split off as P1.2b | 348 pass / 0 fail |

@@ -24,6 +24,13 @@ import { pageOf } from './product-list';
 import { MODEL_TARGET_BYTES } from './model-size';
 import { embedSnippet } from '../widget/src/snippet';
 import { applyEdit, editErrors, type ProductEdit } from './product-edit';
+import { STEP_COPY } from './onboarding-steps';
+import { slugProblem } from './slug';
+import type { OnboardingState } from '@/db/schema';
+import {
+  OnboardingError, confirmStore as confirmStoreRule, evaluate, skip as skipRule, unskip as unskipRule,
+  type Facts, type OnboardingView, type StepKey,
+} from '@/server/modules/onboarding/machine';
 
 export interface DataSource {
   /** The store being viewed. The shell reads it on every screen for the store switcher. */
@@ -64,6 +71,12 @@ export interface DataSource {
   saveArConfig(productId: string, input: ArConfigInput): Promise<ArConfigView>;
   updateSettings(patch: Record<string, unknown>): Promise<StoreSettings>;
   analytics(range: '7d' | '30d' | '90d'): Promise<AnalyticsView>;
+  /** P1.2: the setup checklist as the database decides it (P1.1), and the merchant's moves on it. */
+  onboarding(): Promise<OnboardingView>;
+  skipStep(step: StepKey): Promise<OnboardingView>;
+  unskipStep(step: StepKey): Promise<OnboardingView>;
+  /** `slug` chooses the store's address; refused once the store is confirmed. */
+  confirmStore(slug?: string): Promise<OnboardingView>;
 }
 
 /**
@@ -158,6 +171,12 @@ export function apiSource(client: ApiClient): DataSource {
     },
     async updateSettings(patch) { return client.call<StoreSettings>('/api/settings', { method: 'PATCH', body: patch }); },
     analytics: pending('Analytics'),
+    async onboarding() { return client.call<OnboardingView>('/api/onboarding'); },
+    async skipStep(step) { return client.call<OnboardingView>('/api/onboarding/skip', { body: { step } }); },
+    async unskipStep(step) { return client.call<OnboardingView>('/api/onboarding/unskip', { body: { step } }); },
+    async confirmStore(slug) {
+      return client.call<OnboardingView>('/api/onboarding/confirm-store', slug === undefined ? { method: 'POST' } : { body: { slug } });
+    },
   };
 }
 
@@ -209,9 +228,46 @@ function demoConnections(): ConnectionDetail[] {
   }];
 }
 
+/**
+ * The preview's setup state. The facts come from the demo catalogue, so a dimension added or
+ * a model published in the preview moves the checklist exactly as the database would; the
+ * rules are the server's own (server/modules/onboarding/machine.ts). The demo store starts
+ * unconfirmed and on the trial, so every step of the guide can be tried.
+ */
+let demoOnboardingState: OnboardingState = { step: 'store', completedSteps: ['account'], skipped: [] };
+const demoTenant = { ...DEMO_DASHBOARD.tenant };
+function demoFacts(): Facts {
+  const products = DEMO_PRODUCTS.map((p) => demoEdits.get(p.id) ?? p);
+  return {
+    storeConfirmed: demoOnboardingState.completedSteps.includes('store'),
+    hasPlan: false,
+    hasActiveConnection: demoConnectionState.status === 'active',
+    hasSizedProduct: products.some((p) => p.status === 'active' && p.dimensions?.widthMm != null && p.dimensions?.heightMm != null),
+    hasReadyModel: demoModels.some((m) => m.status === 'ready'),
+    widgetSeen: false,
+  };
+}
+function demoOnboardingChange(apply: (s: OnboardingState, f: Facts) => OnboardingState): OnboardingView {
+  const facts = demoFacts();
+  try {
+    demoOnboardingState = apply(demoOnboardingState, facts);
+  } catch (error) {
+    if (error instanceof OnboardingError) throw new ApiError(422, 'validation_failed', 'Validation failed', { step: [error.message] });
+    throw error;
+  }
+  return evaluate(demoFacts(), demoOnboardingState); // facts re-read: the demo's come from the state
+}
+
 export const demoSource: DataSource = {
-  async currentTenant() { return DEMO_DASHBOARD.tenant; },
-  async dashboard() { return DEMO_DASHBOARD; },
+  async currentTenant() { return { ...demoTenant }; },
+  async dashboard() {
+    const view = evaluate(demoFacts(), demoOnboardingState);
+    const steps = STEP_COPY.map((copy) => {
+      const step = view.steps.find((s) => s.key === copy.key);
+      return { ...copy, done: step?.done ?? false, skipped: step?.skipped ?? false };
+    });
+    return { ...DEMO_DASHBOARD, tenant: { ...demoTenant }, onboarding: { complete: view.complete, steps } };
+  },
   async products(query = {}) { return pageOf(DEMO_PRODUCTS.map((p) => demoEdits.get(p.id) ?? p), query); },
   async product(id) { return demoEdits.get(id) ?? DEMO_PRODUCTS.find((p) => p.id === id) ?? null; },
   async updateProduct(id, edit) {
@@ -339,6 +395,19 @@ export const demoSource: DataSource = {
     const days = range === '7d' ? 7 : range === '30d' ? 30 : 90;
     const series = DEMO_ANALYTICS.series.slice(-Math.min(days, DEMO_ANALYTICS.series.length));
     return { ...DEMO_ANALYTICS, range, series };
+  },
+  async onboarding() { return evaluate(demoFacts(), demoOnboardingState); },
+  async skipStep(step) { return demoOnboardingChange((s, f) => skipRule(s, step, f)); },
+  async unskipStep(step) { return demoOnboardingChange((s, f) => unskipRule(s, step, f)); },
+  async confirmStore(slug) {
+    if (slug !== undefined && slug !== demoTenant.slug) {
+      const problem = slugProblem(slug);
+      if (problem) throw new ApiError(422, 'validation_failed', 'Validation failed', { slug: [problem] });
+      if (demoFacts().storeConfirmed) throw new ApiError(422, 'validation_failed', 'Validation failed', { slug: ['the store address is fixed once the store is confirmed'] });
+      demoTenant.slug = slug;
+      demoSettings.slug = slug;
+    }
+    return demoOnboardingChange((s, f) => confirmStoreRule(s, f));
   },
 };
 

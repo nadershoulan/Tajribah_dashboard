@@ -25,6 +25,8 @@ export type OnboardingStep = {
   description: Bi;
   href: string;
   done: boolean;
+  /** P1.2: put off by the merchant (only `connect` here); not counted as left to do. */
+  skipped: boolean;
   /** Minutes, honestly estimated — an underestimate here is a broken promise later. */
   minutes: number;
 };

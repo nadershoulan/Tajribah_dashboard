@@ -8,12 +8,13 @@
  */
 import type { OnboardingStep } from './view-models';
 
-export const STEP_COPY: Omit<OnboardingStep, 'done'>[] = [
+export const STEP_COPY: Omit<OnboardingStep, 'done' | 'skipped'>[] = [
   { key: 'account', title: { ar: 'إنشاء الحساب', en: 'Create your account' },
     description: { ar: 'تم', en: 'Done' }, href: '/dashboard', minutes: 2 },
   { key: 'store', title: { ar: 'بيانات المتجر', en: 'Store details' },
     description: { ar: 'الاسم والسجل التجاري والرقم الضريبي', en: 'Name, CR and VAT number' },
-    href: '/dashboard/settings', minutes: 3 },
+    // Confirming the store happens only in the setup guide (P1.2), not in settings.
+    href: '/dashboard/onboarding', minutes: 3 },
   { key: 'connect', title: { ar: 'ربط سلة', en: 'Connect Salla' },
     description: { ar: 'نستورد منتجاتك تلقائيًا', en: 'We import your catalogue automatically' },
     href: '/dashboard/connections', minutes: 2 },
@@ -27,3 +28,15 @@ export const STEP_COPY: Omit<OnboardingStep, 'done'>[] = [
     description: { ar: 'سطر واحد في قالب صفحة المنتج', en: 'One line in your product page template' },
     href: '/dashboard/embed', minutes: 5 },
 ];
+
+/**
+ * P1.2 — `plan` as the setup guide shows it. The trial runs without a plan, so the guide
+ * offers to carry on with the trial (a skip) and points at billing for the rest.
+ */
+export const PLAN_STEP_COPY = {
+  key: 'plan' as const,
+  title: { ar: 'الباقة', en: 'Your plan' },
+  description: { ar: 'تجربتك المجانية تعمل الآن — تختار الباقة لاحقًا', en: 'Your free trial is running — choose a plan later' },
+  href: '/dashboard/billing',
+  minutes: 1,
+};

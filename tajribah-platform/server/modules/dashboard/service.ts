@@ -12,7 +12,7 @@ import { auditLogs, dailyTenantStats, models3d, products, tenantMemberships } fr
 import { riyadhDay } from '@/lib/format';
 import { STEP_COPY } from '@/lib/onboarding-steps';
 import type { ActivityItem, DashboardSummary, MetricPoint } from '@/lib/view-models';
-import { currentPeriodStart, currentUsage, entitlementsOf } from '@/server/core/billing/entitlements';
+import { currentUsage, entitlementsOf } from '@/server/core/billing/entitlements';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { listConnections } from '@/server/modules/connections/service';
 import { onboardingOf } from '@/server/modules/onboarding/service';
@@ -44,8 +44,13 @@ export async function dashboardSummary(ctx: TenantContext, now = new Date()): Pr
   const sum = (key: 'views' | 'arSessions' | 'tryonSessions' | 'addToCart' | 'purchases' | 'revenueMinor') =>
     days.reduce((total, day) => total + Number(byDay.get(day)?.[key] ?? 0), 0);
 
-  const periodStart = riyadhDay(currentPeriodStart(now));
-  const arThisPeriod = rows.filter((r) => String(r.day) >= periodStart).reduce((t, r) => t + r.arSessions, 0);
+  // P2.2: the quota's own figures. The home screen used to count live products only (the quota
+  // counts archived ones too) and summed AR sessions from a 30-day window, which missed the 1st
+  // of a 31-day month on the 31st.
+  const [productsUsed, arThisPeriod, aiCreditsUsed, storageUsed] = await Promise.all([
+    currentUsage(ctx, 'products', now), currentUsage(ctx, 'ar_sessions', now),
+    currentUsage(ctx, 'ai_credits', now), currentUsage(ctx, 'storage_gb', now),
+  ]);
 
   const steps = STEP_COPY.map((copy) => {
     const step = onboarding.steps.find((s) => s.key === copy.key);
@@ -62,9 +67,10 @@ export async function dashboardSummary(ctx: TenantContext, now = new Date()): Pr
     onboarding: { complete: onboarding.complete, steps },
     counts: { products: productCount, arEnabled, models, modelsReady, teamMembers },
     usage: {
-      products: { used: productCount, limit: entitlements.limit('products') },
+      products: { used: productsUsed, limit: entitlements.limit('products') },
       arSessions: { used: arThisPeriod, limit: entitlements.limit('ar_sessions') },
-      aiCredits: { used: await currentUsage(ctx, 'ai_credits'), limit: entitlements.limit('ai_credits') },
+      aiCredits: { used: aiCreditsUsed, limit: entitlements.limit('ai_credits') },
+      storage: { used: Math.round(storageUsed * 100) / 100, limit: entitlements.limit('storage_gb') },
     },
     last30: {
       views: sum('views'), arSessions: sum('arSessions'), tryonSessions: sum('tryonSessions'),

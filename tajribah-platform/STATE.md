@@ -27,7 +27,7 @@ view of the same facts for Nader — update it in the same session. Counts are d
 |---|---|
 | P0 Foundation | **19 / 22 done, P0.20 partly** — its last browser step needs a database; P0.21 CI / P0.22 staging need accounts |
 | P1 Core loop | **20 / 26** + P1.6b + P1.2b (account-free work only, T12) · P1.13b needs a decision · P1.20 blocked on the domain · **every other open P1 package needs an account** |
-| P2 Billing | **1 / 15** (T18: account-free only — P2.2, P2.6, P2.9, P2.11 and parts of P2.10/12/13 need no account; the rest wait on Moyasar / ZATCA) |
+| P2 Billing | **2 / 15** (T18: account-free only — P2.2, P2.6, P2.9, P2.11 and parts of P2.10/12/13 need no account; the rest wait on Moyasar / ZATCA) |
 | later | not opened |
 
 ## Next up
@@ -96,8 +96,7 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
   first upload shows `failed`, a live model is untouched. 2 tests; seen red 5 ways (TTL,
   live model failed, bytes kept, not audited, both draft guards off). Dropping only the
   query's `draft` filter stays green by design — the lock re-check guards it.
-- (P1.12) No storage quota check on upload: `storage_gb` is metered per period, which is the
-  wrong shape for "bytes held". Decide with P2 billing.
+- ~~(P1.12) No storage quota check on upload~~ — closed by P2.2 (bytes held, checked before upload).
 - (P1.13) The optimiser must run in the **Node** worker (the plan's Hetzner container), not in
   a Cloudflare Worker: `ndarray-pixels` (pulled in by `@gltf-transform/functions`) imports the
   native `sharp` at load. Nothing bundles the worker for Workers today; keep it that way.
@@ -143,9 +142,15 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
 - (P1.2b) SMS two-step (AUTH-13) waits on Unifonic; the method is shown disabled with the reason.
 - ~~(P1.2b) the two-step tests raced real 30-second windows~~ — fixed during P2.1 after one
   failed under full-suite load: `setTwoFactorClock()`; the tests move time on explicitly.
-- (P2.1) A limit or feature changed in the database applies to **every** store on that plan
-  at once — there is no grandfathering or plan versioning. Decide before the first price
-  change (P2.4 / Track A): version the plan rows, or pin a subscription's limits.
+- ~~(P2.1) no grandfathering — decide before the first price change~~ — decided 2026-09-26
+  (T19): a change applies to every subscriber at once, which is the current behaviour.
+- (P2.2) **There is no way to delete a model or a version**, so a store at its storage limit
+  can only upgrade. Now that the limit is enforced, add deletion (bytes freed, `bytes_deleted_at`
+  set) before the first merchant fills Starter's 2 GB. The refusal copy does not promise it.
+- (P2.2) Bytes whose delete fails after the row was marked are an orphan we pay for (never
+  charged to the merchant). A storage-vs-rows reconciliation belongs with P7 cost work.
+- (P2.2) Nothing reports bandwidth yet — the CDN import arrives with Cloudflare (P4/P7).
+  AI credits still read the old monthly rows until the ledger (P2.9).
 - (P2.1) The dashboard's sidebar and pricing screens still read features from `lib/plans.ts`
   (display only — the API enforces from the rows). If a feature is changed in the database the
   menu can disagree until `/api/auth/me` carries the plan's features.
@@ -166,6 +171,7 @@ boot to be called from until the first route handler exists; the `notify.email` 
 
 | ID | Package | Verified by |
 |---|---|---|
+| P2.2 | Usage metering — one idempotent source per metric (`currentUsage`, `server/core/billing/entitlements.ts`): products / team live; **storage = bytes held** (`storageBytesHeld`: files whose bytes were not deleted — **`drizzle/0007`** adds `model_files.bytes_deleted_at`, set in the same transaction by a refused confirm and by the draft sweep); **AR sessions = the rollup's days in the Riyadh month** (a re-run rewrites a day); **bandwidth = per-day MB set by `reportDailyBandwidth`** through the new `TenantDb.upsert` (one statement; conflict target must include the tenant; tenant id cannot be moved or foreign). The old `recordUsage` (read-then-write, additive, no callers) is gone. **`assertStorageRoom` before an upload** (P1.12 filed item closed; GiB, exactly-at-limit allowed; a draft reserves its declared size until confirmed or expired). Home: usage now = the quota's figures, plus a storage meter — it counted live products only (the quota counts archived too) and summed AR sessions over a 30-day window that **dropped the 1st of a 31-day month on the 31st**. Uploader: storage refusal in plain Arabic/English | 5 metering tests (month boundaries on 31 Oct, other store excluded, re-run day replaces; home = quota; refused and expired bytes freed, other store excluded, over-limit refused with the limit named, at-limit allowed; bandwidth replay + 10 concurrent reports = one row; upsert guards ×3). **Seen to fail** 10 ways, restored byte-identical. Browser (preview): storage meter ar 390 / en 1440, 390 px exact |
 | P2.1 | Plans & entitlements — **`drizzle/0006_plan_catalogue.sql`** seeds `plans`, `plan_limits`, `plan_features` from `lib/plans.ts` (with ROLLBACK; until now nothing outside tests inserted a plan, so on a real database no subscription could be created and the two tables were unused). Price columns allow NULL: Enterprise has no list price, not a made-up 0. `entitlementsOf` reads the plan's limit and feature **rows** (subscription → plan, else the Starter row), so every quota and feature gate — products, team seats, sync, dashboard usage — follows the database on the next request; names and copy still come from `lib/plans.ts`. **A missing limit row is 0 and a missing feature row is off** (fail closed, logged). Harness: `seededPlanId()`; rollback runner now runs `DELETE` lines; isolation suite reuses an existing platform reference row as an FK parent instead of inventing one that collides | 3 catalogue tests (migrated database = `lib/plans.ts` exactly: plans, prices, currency, order, every limit, every feature; a limit lowered in the database refuses the next product; a disabled feature refused, and `plan.features` agrees; a subscribed store gets its own plan and another store's does not leak; a deleted row reads 0) + migration forward/rollback/forward with the seed. **Seen to fail** 10 ways, restored byte-identical: limits from code, features from code, missing row = unlimited, disabled rows counted, plan object disagreeing with `has()`, every store on Starter, a seeded limit drifted, a seeded feature missing, Enterprise priced 0, rollback leaving the rows |
 
 **P1 — done and verified (under the T12 override)**
@@ -287,3 +293,4 @@ cleared it — if it recurs, restart before debugging.
 | 2026-09-26 | **P1.2 onboarding UI** (Windows, portable Node 22): setup guide with each step's action and the store address chosen once (API-023 `slug`), verify-email + resend (API-010), password reset — three screens whose links went nowhere. 2FA split to **P1.2b**. Fixed: `confirmStoreStep` answered with stale facts (P1.1); password eye over the text in Arabic; `process.test.ts` typing on TS 5.9. Fresh `pnpm install` needed here for P1.13's deps. | `verify.mjs` Node 22 + lint: **348 pass / 0 fail**, 0 lint errors; seen to fail 13 ways; CDP screenshots ar 390 / en 1440, all 390 px exact |
 | 2026-09-26 | Root `.gitattributes` (LF everywhere; Windows checkouts no longer fail the byte checks). **P1.2b two-step sign-in** (T17): RFC 6238 TOTP on WebCrypto, stateless 5-minute challenge bound to the password hash, replay guard (`drizzle/0005`), backup codes, lockout across both steps, on/off emails, rotation sweep for the secrets; sign-in code step + `/dashboard/security`. | `verify.mjs` Node 22 + lint: **363 pass / 0 fail**, 0 lint errors; seen to fail 20 ways; CDP ar 390 / en 1440 incl. a real TOTP accepted, 390 px exact |
 | 2026-09-26 | **T18: later phases opened for account-free work** (Nader). P2 package table with needs. **P2.1 plans & entitlements**: catalogue seeded by `drizzle/0006` and checked equal to `lib/plans.ts`; entitlements read the rows (fail closed on a missing row). Fixed on the way: a P1.2b test raced real 30-second windows (now an injected clock); the isolation suite invented a colliding plan row. | `verify.mjs` Node 22 + lint: **366 pass / 0 fail**, 0 lint errors; P2.1 seen to fail 10 ways; P1.2b's 20 re-checked with the new clock |
+| 2026-09-26 | T19 recorded (Nader: plan changes apply to every subscriber). **P2.2 usage metering**: one idempotent source per metric, storage = bytes held (`drizzle/0007`), upload storage check (closes P1.12's item), bandwidth set per day via `TenantDb.upsert`; home shows the quota's figures (fixed: live-only product count; the 1st dropped on the 31st). Filed: no way to delete a model to free storage. | `verify.mjs` Node 22 + lint: **371 pass / 0 fail**, 0 lint errors; seen to fail 10 ways; preview ar 390 / en 1440 |

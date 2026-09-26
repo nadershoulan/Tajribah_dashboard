@@ -37,7 +37,8 @@ export type DashboardSummary = {
   tenant: TenantSummary;
   onboarding: { complete: boolean; steps: OnboardingStep[] };
   counts: { products: number; arEnabled: number; models: number; modelsReady: number; teamMembers: number };
-  usage: { products: { used: number; limit: number }; arSessions: { used: number; limit: number }; aiCredits: { used: number; limit: number } };
+  /** P2.2: the same figures the quotas check (`currentUsage`), so a screen can never say "room left" while the API refuses. Storage in GB. */
+  usage: { products: { used: number; limit: number }; arSessions: { used: number; limit: number }; aiCredits: { used: number; limit: number }; storage: { used: number; limit: number } };
   last30: {
     views: number; arSessions: number; tryonSessions: number;
     addToCart: number; purchases: number; revenueMinor: number;

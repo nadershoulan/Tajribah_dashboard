@@ -9,10 +9,10 @@
  * (products, team members). A counter that drifts is worse than a query that is slightly
  * slower, because a drifted counter either blocks a paying merchant or gives away the plan.
  */
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, lt } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
 import {
-  LIMIT_KEY, planFeatures, planLimits, plans, products, subscriptions, tenantMemberships, usageCounters, models3d,
+  LIMIT_KEY, dailyTenantStats, modelFiles, planFeatures, planLimits, plans, products, subscriptions, tenantMemberships, usageCounters, models3d,
   type LimitKey,
 } from '@/db/schema';
 import { UNLIMITED, planByCode, type PlanCode, type PlanDefinition, type PlanLimits } from '@/lib/plans';
@@ -103,8 +103,22 @@ export function assertFeature(entitlements: Entitlements, feature: string): void
   if (!entitlements.has(feature)) throw errors.planRequired(feature);
 }
 
-/** The live count for a metric, per tenant. */
-export async function currentUsage(ctx: TenantContext, metric: LimitKey): Promise<number> {
+/** Storage limits are in GiB (1024³ bytes) — the generous reading of "2 GB" for the merchant. */
+export const BYTES_PER_GB = 1024 ** 3;
+
+/**
+ * P2.2 — what a store has used, in the limit's own unit. Every metric has **one** source, and
+ * each source is idempotent by construction, so a retried event can never be counted twice
+ * and two concurrent writers can never lose one:
+ *
+ *  - products, team members, storage: **live**, from the rows themselves. Storage is the bytes
+ *    held now (files whose bytes were not deleted), not an amount that accumulates per month.
+ *  - AR sessions: the days of the analytics rollup in this Riyadh month. The rollup rewrites
+ *    a whole day, so a replay writes the same number; the home screen reads this same figure.
+ *  - bandwidth: a per-day total the CDN reports and `reportDailyBandwidth` *sets* (never adds).
+ *  - AI credits: this month's rows until the credit ledger (P2.9) replaces them.
+ */
+export async function currentUsage(ctx: TenantContext, metric: LimitKey, now = new Date()): Promise<number> {
   switch (metric) {
     case 'products':
       return ctx.db.count(products, isNull(products.deletedAt));
@@ -116,19 +130,59 @@ export async function currentUsage(ctx: TenantContext, metric: LimitKey): Promis
       ));
       return rows.length;
     }
-    case 'ai_credits':
-    case 'ar_sessions':
     case 'storage_gb':
+      return (await storageBytesHeld(ctx)) / BYTES_PER_GB;
+    case 'ar_sessions': {
+      const { first, next } = periodDays(now);
+      const days = await ctx.db.find(dailyTenantStats, and(gte(dailyTenantStats.day, first), lt(dailyTenantStats.day, next)), { limit: 40 });
+      return days.reduce((sum, day) => sum + day.arSessions, 0);
+    }
     case 'bandwidth_gb':
+    case 'ai_credits':
     default: {
-      // Metered rather than counted: these accumulate over a billing period.
-      const rows = await ctx.db.find(usageCounters, eq(usageCounters.metric, metric));
-      const period = currentPeriodStart();
-      return rows
-        .filter((r) => r.periodStart.getTime() === period.getTime())
-        .reduce((sum, r) => sum + r.value, 0);
+      const start = currentPeriodStart(now);
+      const rows = await ctx.db.find(usageCounters, and(
+        eq(usageCounters.metric, metric),
+        gte(usageCounters.periodStart, start),
+        lt(usageCounters.periodStart, nextPeriodStart(now)),
+      ), { limit: 40 });
+      const total = rows.reduce((sum, r) => sum + r.value, 0);
+      return metric === 'bandwidth_gb' ? total / 1024 : total; // bandwidth rows are MB per day
     }
   }
+}
+
+/** Bytes this store holds in storage: every model file whose bytes were not deleted. */
+export async function storageBytesHeld(ctx: TenantContext): Promise<number> {
+  const files = await ctx.db.find(modelFiles, isNull(modelFiles.bytesDeletedAt), { limit: 100_000 });
+  return files.reduce((sum, file) => sum + file.fileSizeBytes, 0);
+}
+
+/**
+ * Refuse an upload that would take the store over its storage limit, before a byte is sent
+ * (filed under P1.12: there was no check at all).
+ */
+export async function assertStorageRoom(ctx: TenantContext, incomingBytes: number): Promise<void> {
+  const limit = (await entitlementsOf(ctx)).limit('storage_gb');
+  if (limit === UNLIMITED) return;
+  if ((await storageBytesHeld(ctx)) + incomingBytes > limit * BYTES_PER_GB) throw errors.quota('storage_gb', limit);
+}
+
+/**
+ * The CDN's bandwidth for one Riyadh day, in MB. **Set, not added**: reporting the same day
+ * again — a retry, a re-run of the import — writes the same number, and a later, more complete
+ * report replaces an earlier one. One statement, so concurrent reports cannot interleave.
+ */
+export async function reportDailyBandwidth(ctx: TenantContext, day: string, megabytes: number): Promise<void> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error(`not a day: ${day}`);
+  if (!Number.isInteger(megabytes) || megabytes < 0) throw new Error(`not a whole number of MB: ${megabytes}`);
+  const periodStart = new Date(`${day}T00:00:00+03:00`);
+  await ctx.db.upsert(
+    usageCounters,
+    { metric: 'bandwidth_gb', periodStart, value: megabytes } as never,
+    [usageCounters.tenantId, usageCounters.periodStart, usageCounters.metric],
+    { value: megabytes } as never,
+  );
 }
 
 /**
@@ -150,28 +204,22 @@ export async function assertWithinQuota(
   if (used + increment > limit) throw errors.quota(metric, limit);
 }
 
-/** Record metered usage for the current period. Additive, so a retry over-counts — callers pass an idempotent delta. */
-export async function recordUsage(ctx: TenantContext, metric: LimitKey, delta: number): Promise<void> {
-  const period = currentPeriodStart();
-  const existing = await ctx.db.findOne(usageCounters, and(
-    eq(usageCounters.metric, metric),
-    eq(usageCounters.periodStart, period),
-  )!);
-
-  if (existing) {
-    await ctx.db.update(usageCounters, and(
-      eq(usageCounters.metric, metric),
-      eq(usageCounters.periodStart, period),
-    )!, { value: existing.value + delta });
-    return;
-  }
-  await ctx.db.insert(usageCounters, { metric, periodStart: period, value: delta } as never);
-}
-
 /** Calendar month in Asia/Riyadh — the billing period for metered usage. */
 export function currentPeriodStart(now = new Date()): Date {
   const riyadh = new Date(now.getTime() + 3 * 60 * 60 * 1000); // UTC+3, no DST in KSA
   return new Date(Date.UTC(riyadh.getUTCFullYear(), riyadh.getUTCMonth(), 1) - 3 * 60 * 60 * 1000);
+}
+
+/** The first instant of next month in Asia/Riyadh. */
+export function nextPeriodStart(now = new Date()): Date {
+  const riyadh = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+  return new Date(Date.UTC(riyadh.getUTCFullYear(), riyadh.getUTCMonth() + 1, 1) - 3 * 60 * 60 * 1000);
+}
+
+/** This Riyadh month as `date` strings: `first` included, `next` (next month's 1st) excluded. */
+function periodDays(now: Date): { first: string; next: string } {
+  const day = (d: Date) => new Date(d.getTime() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return { first: day(currentPeriodStart(now)), next: day(nextPeriodStart(now)) };
 }
 
 /** A tenant's model count, used by the storage and QA screens. */

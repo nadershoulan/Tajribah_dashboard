@@ -62,7 +62,12 @@ export default function Models() {
       reload();
     } catch (failure) {
       const fields = (failure as { fields?: Record<string, string[]> }).fields;
-      const reason = fields ? Object.values(fields).flat().map(say).join(' · ') : (failure as Error).message;
+      const storageFull = /plan limit reached for storage_gb \((\d+)\)/.exec((failure as Error).message);
+      const reason = fields ? Object.values(fields).flat().map(say).join(' · ')
+        : storageFull
+          ? t(`مساحة التخزين في باقتك ممتلئة (${storageFull[1]} GB). رقِّ باقتك لإضافة المزيد، أو تواصل معنا.`,
+            `your plan’s storage is full (${storageFull[1]} GB). Upgrade your plan to add more, or contact us.`)
+          : (failure as Error).message;
       setUpload({ state: 'failed', message: t(`تعذّر الرفع: ${reason}`, `Upload failed: ${reason}`) });
     }
   };

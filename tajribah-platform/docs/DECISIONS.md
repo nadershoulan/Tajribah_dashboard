@@ -337,3 +337,18 @@ The P0 gate re-run and the P1 gate still come first before any phase gate is cla
 `STATE.md` keeps both overrides at the top.
 
 **Rollback path.** None needed: the work is additive and behind the same checks.
+
+## T19 · 2026-09-26 · A plan change applies to every subscriber at once — no grandfathering
+
+**Decision (Nader's: "move to the new ones").** When a plan's price, limits or features change,
+existing subscribers move to the new terms; nobody keeps the terms they signed up under. This
+is how P2.1 already behaves: `entitlementsOf` reads the plan's rows on every request.
+
+**Consequences.** No plan versioning, no per-subscription snapshot of limits. A change that
+*lowers* a limit can leave a store over it: nothing is deleted — the next create is refused
+with the limit named, as for any full store. A price change takes effect from the next billing
+period (P2.4 decides the exact moment, with Moyasar). Tell merchants before a change that
+takes something away; that is a message, not a code path.
+
+**Rollback path.** Put the old values back in the rows. If grandfathering is ever wanted,
+add a `plan_version` to `subscriptions` and read limits through it.

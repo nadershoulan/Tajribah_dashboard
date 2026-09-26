@@ -10,7 +10,7 @@ _Last updated: 2026-09-26 · updated at the end of every work session_
 ```
 P0 Foundation     ████████████████████████████░░░░  19 / 22   (+ P0.20 mostly done, 2 blocked)
 P1 Core loop      ████████████████████████░░░░░░░░  20 / 26   ← first sellable product (started)
-P2 Billing        ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   1 / 15   ← started 2026-09-26 (parts needing no account)
+P2 Billing        ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░   2 / 15   ← started 2026-09-26 (parts needing no account)
 P3 3D pipeline    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 P4 Analytics      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 P5 Try-on         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 14   (engine already exists in tajribah-try-on)
@@ -100,6 +100,7 @@ wait for those accounts.
 
 | | Package | In plain words |
 |---|---|---|
+| ✅ | P2.2 Counting what each store uses | Each number a plan limits is counted from one place that cannot double-count: storage is what the store actually holds now (a refused or abandoned upload no longer counts), AR sessions come from the daily analytics for this month, and bandwidth is recorded as a daily total that is replaced, never added to, if it is reported twice. Uploads are now refused up front when the plan's storage is full, with the limit named. The home screen shows exactly the numbers the limits check — it had been showing a smaller product count than the limit used, and on the 31st of a month it forgot the 1st. A storage meter was added. Still to come: deleting a model to free space |
 | ✅ | P2.1 Plans in the database | The four plans (Starter, Growth, Pro, Enterprise) — prices, limits and what each includes — now live in the database, copied exactly from the pricing list and checked by a test. Every limit (products, team size…) is read from there, so a limit changed in the database applies at once, without a new release; the admin console will edit them later. Before this, a real database had no plans at all, so no store could ever have been subscribed. If something is missing from a plan, the answer is "no", never "unlimited". Enterprise shows no price instead of 0 |
 
 ---
@@ -130,9 +131,7 @@ Zid app names, Saudi trademark search).
 
 **Decided 2026-09-26:** start the later phases' no-account parts too (billing first).
 
-**Coming up for you (not urgent):** when a plan's price or limits change, should existing
-subscribers keep what they signed up for, or move to the new terms? Today a change applies to
-everyone at once.
+**Decided 2026-09-26:** when a plan's price or limits change, existing subscribers **move to the new terms** (no grandfathering).
 
 **This machine:** the app now runs here using a temporary Node 22 (your installed Node 20
 is untouched). Installing Node 22 properly would make that permanent — optional.
@@ -179,3 +178,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-26 | P1.2 setup guide, email confirmation and password reset screens; two-factor sign-in split off as P1.2b | 348 pass / 0 fail |
 | 2026-09-26 | Windows line-ending fix (`.gitattributes`) · P1.2b two-step sign-in (authenticator app + backup codes) | 363 pass / 0 fail |
 | 2026-09-26 | **P2 opened** (your call). P2.1 plans in the database | 366 pass / 0 fail |
+| 2026-09-26 | Your call recorded: plan changes apply to everyone. P2.2 usage counting; uploads checked against storage | 371 pass / 0 fail |

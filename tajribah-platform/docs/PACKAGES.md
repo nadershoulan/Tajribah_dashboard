@@ -90,7 +90,7 @@ ZATCA provider block the rest; they may be prepared against fakes, not marked do
 | ID | Package | Needs | Done when |
 |---|---|---|---|
 | P2.1 ✅ | Plans & entitlements | — | Plans, limits and features are rows, seeded by a migration from `lib/plans.ts` and checked equal to it by a test; every quota and feature gate reads the rows (a limit changed in the database takes effect without a deploy); Track A can build on it |
-| P2.2 | Usage metering | — | Metered usage (AR sessions, storage, bandwidth, AI credits) counted atomically per Riyadh month — concurrent increments never lost, a retried event never counted twice |
+| P2.2 ✅ | Usage metering | — | Every metered number has one source, idempotent by construction: live counts (products, team, **storage = bytes held**), AR sessions from the rollup's days in the Riyadh month, bandwidth as per-day totals that are *set* (a replay or concurrent report writes one number); storage checked before an upload; the home screen shows the quota's own figures. AI credits move to the ledger in P2.9 |
 | P2.3 | Payment provider adapter | 🔒 Moyasar | Charge, refund, 3-D Secure redirect against Moyasar's sandbox; a fake for tests |
 | P2.4 | **Subscription lifecycle ⭐** | 🔒 Moyasar | Trial → active → past_due → cancelled/expired, upgrades/downgrades with proration, every move in `subscription_changes` |
 | P2.5 | **Payment webhooks ⭐** | 🔒 Moyasar | `billing_events` insert first; a duplicate delivery changes nothing — the gate's duplicate-webhook test |

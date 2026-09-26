@@ -211,6 +211,7 @@ export const DEMO_DASHBOARD: DashboardSummary = {
     products: { used: 64, limit: 200 },
     arSessions: { used: TOTALS.arSessions, limit: 50_000 },
     aiCredits: { used: 12, limit: 40 },
+    storage: { used: 0.42, limit: 20 },
   },
   last30: TOTALS,
   series: SERIES,

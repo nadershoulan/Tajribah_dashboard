@@ -19,6 +19,7 @@ import { modelFiles, models3d, modelVersions, products } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import type { ModelVersionRow } from '@/lib/view-models';
 import { record } from '@/server/core/audit/audit';
+import { assertStorageRoom } from '@/server/core/billing/entitlements';
 import { errors } from '@/server/core/errors/problem';
 import { forTenant } from '@/server/core/storage/storage';
 import type { TenantContext } from '@/server/core/tenancy/context';
@@ -58,6 +59,8 @@ export async function startUpload(ctx: TenantContext, input: StartUploadInput): 
   if (!Number.isInteger(input.sizeBytes) || input.sizeBytes <= 0) problems.sizeBytes = ['the file is empty'];
   else if (input.sizeBytes > MAX_MODEL_BYTES) problems.sizeBytes = [`larger than ${MAX_MODEL_BYTES / 1024 / 1024} MB`];
   if (Object.keys(problems).length) throw errors.validation(problems);
+  // P2.2 (filed under P1.12): refused before a byte is sent, naming the limit.
+  await assertStorageRoom(ctx, input.sizeBytes);
 
   const store = forTenant(ctx.tenantId);
   const started = await withTenant(ctx.tenantId, async (db) => {
@@ -121,7 +124,8 @@ export async function confirmUpload(ctx: TenantContext, versionId: string): Prom
     if (before.status !== 'draft') return { versionId, status: before.status === 'failed' ? 'failed' as const : 'processing' as const, error: null, fresh: false };
     const status = problem ? 'failed' as const : 'processing' as const;
     const after = await db.updateById(modelVersions, versionId, { status, error: problem });
-    await db.updateById(modelFiles, file.id, { fileSizeBytes: stored.size, checksum: stored.checksum });
+    // The refused bytes were deleted above: the row keeps the size, and says they are gone (P2.2).
+    await db.updateById(modelFiles, file.id, { fileSizeBytes: stored.size, checksum: stored.checksum, ...(problem ? { bytesDeletedAt: new Date() } : {}) });
     const model = await db.requireById(models3d, version.modelId);
     // A model with no live version shows the state of its first upload.
     if (!model.currentVersionId) await db.updateById(models3d, model.id, { status: problem ? 'failed' : 'processing' });

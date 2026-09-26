@@ -79,6 +79,8 @@ export const modelFiles = pgTable('model_files', {
   storageKey: text('storage_key').notNull(),
   cdnUrl: text('cdn_url'),
   fileSizeBytes: integer('file_size_bytes').notNull().default(0),
+  /** P2.2: set when the bytes were deleted (refused, expired). Storage held counts only null rows. */
+  bytesDeletedAt: ts('bytes_deleted_at'),
   checksum: text('checksum'),
   originalFilename: text('original_filename'),
   compression: compression('compression').notNull().default('none'),

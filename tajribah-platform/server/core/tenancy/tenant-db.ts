@@ -144,6 +144,31 @@ export class TenantDb {
     return (Array.isArray(values) ? inserted : inserted[0]) as Row<T> | Row<T>[];
   }
 
+  /**
+   * P2.2 — insert, or on a conflict with `target` set `set` instead: one statement, so two racing
+   * writers can neither both insert nor lose an update. The tenant column is forced as in
+   * `insert`, and `target` must include it — the conflicting row can only be this tenant's.
+   */
+  async upsert<T extends PgTable>(table: T, values: NewRow<T>, target: PgColumn[], set: Partial<NewRow<T>>): Promise<Row<T>> {
+    const column = scopeColumnOf(table);
+    if (!target.some((c) => c.name === column.name)) {
+      throw new Error(`upsert on "${getTableName(table)}" must name ${column.name} in its conflict target`);
+    }
+    const key = Object.entries(getTableColumns(table) as Record<string, PgColumn>).find(([, c]) => c.name === column.name)![0];
+    if (key in (set as object)) {
+      throw new Error(`Refusing to change ${column.name} on "${getTableName(table)}": rows do not move between tenants`);
+    }
+    const given = (values as any)[key];
+    if (given !== undefined && given !== this.tenantId) {
+      throw new Error(`Refusing to upsert into "${getTableName(table)}" with ${column.name}=${String(given)} while scoped to ${this.tenantId}`);
+    }
+    const [row]: any = await this.db.insert(table as any)
+      .values({ ...values, [key]: this.tenantId } as any)
+      .onConflictDoUpdate({ target: target as any, set: set as any })
+      .returning();
+    return row as Row<T>;
+  }
+
   async update<T extends PgTable>(table: T, where: SQL, values: Partial<NewRow<T>>): Promise<Row<T>[]> {
     const column = scopeColumnOf(table);
     const key = Object.entries(getTableColumns(table) as Record<string, PgColumn>)

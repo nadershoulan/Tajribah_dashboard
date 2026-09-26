@@ -41,6 +41,9 @@ export async function expireStaleDrafts(now = new Date(), limit = 100): Promise<
         if (!model.currentVersionId && model.status === 'draft') await db.updateById(models3d, model.id, { status: 'failed' });
         await record(ctx, { action: 'update', resourceType: 'model_version', resourceId: id, before, after }, db);
         const files = await db.find(modelFiles, eq(modelFiles.modelVersionId, id), { limit: 10 });
+        // P2.2: storage held stops counting them now. If the delete below fails, the bytes are an
+        // orphan we pay for, never a charge against the merchant's plan.
+        for (const file of files) await db.updateById(modelFiles, file.id, { bytesDeletedAt: now });
         return files.map((f) => f.storageKey);
       });
       if (!keys) continue;

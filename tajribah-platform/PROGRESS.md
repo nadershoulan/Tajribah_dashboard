@@ -18,7 +18,7 @@ P6 AI+connectors  ░░░░░░░░░░░░░░░░░░░░�
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13
 P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 M  Marketing      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12   (separate site in tajribah-try-on)
-A  Admin console  ███████████████░░░░░░░░░░░░░░░░░   7 / 15   ← started 2026-09-26
+A  Admin console  █████████████████░░░░░░░░░░░░░░░   8 / 15   ← started 2026-09-26
                                             overall  38 / 168
 ```
 
@@ -98,6 +98,7 @@ The internal console for running Tajribah: stores, people, plans, coupons, what 
 
 | | Package | In plain words |
 |---|---|---|
+| ✅ | A12 Support lookup | Support pastes whatever a merchant sends — a store or invoice id, an email, an invoice number, a store name, or the reference number shown with an error — and sees what it is. For an error's reference number, it shows exactly what that request changed, in which store, and by whom. Each store's page now also shows its full activity. Only which fields changed is shown, never the store's data itself |
 | ✅ | A11 Is the platform working? | One screen shows staff whether background work is keeping up (how long the oldest waiting job has waited, per queue), what is stuck or has given up, which store updates from Salla or Zid failed, and how far an encryption-key change has got — including when the old key can safely be removed. A job that gave up or an update that failed can be tried again, with a reason |
 | ◐ | A7 Subscriptions and invoices | Staff can see every store's subscription (filter by status, plan, monthly or annual) and every invoice (by status, month or number), with totals that count only invoices that are due or paid, and open any invoice exactly as the store sees it. Refunds come with the payment gateway |
 | ✅ | A6 Plans and prices | Staff can change a plan's monthly and annual price, its limits and its features. The change reaches every store on that plan straight away (as decided: nobody keeps old terms), and the screen says how many stores that is before saving. Lowering a limit deletes nothing — a store over it just can't add more — and the screen warns you to tell them first. The price a store sees on its plan cards is now always the price it will be charged |
@@ -216,3 +217,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-27 | A6 plans and pricing for staff | 411 pass / 0 fail |
 | 2026-09-27 | A7 subscriptions and invoices for staff (view) | 413 pass / 0 fail |
 | 2026-09-27 | A11 platform operations | 416 pass / 0 fail |
+| 2026-09-27 | A12 support tooling | 419 pass / 0 fail |

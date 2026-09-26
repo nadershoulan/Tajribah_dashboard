@@ -150,6 +150,22 @@ export type AdminOperations = {
   asOf: string;
 };
 
+/** A12 — server/modules/admin/support.ts */
+export type AdminTrailEntry = {
+  id: string; at: string; source: 'store' | 'staff'; store: { id: string; name: string; nameAr: string | null } | null;
+  actorType: string; actor: string | null; action: string; resourceType: string; resourceId: string | null;
+  requestId: string | null; fields: string[]; reason: string | null;
+};
+export type AdminLookup = {
+  kind: 'id' | 'email' | 'invoice-number' | 'text';
+  stores: { id: string; name: string; nameAr: string | null; slug: string; status: string }[];
+  people: { id: string; email: string; fullName: string }[];
+  invoices: { id: string; number: string; status: string; store: { id: string; name: string; nameAr: string | null; slug: string; status: string } }[];
+  jobs: { id: string; queue: string; state: string; storeId: string | null }[];
+  deliveries: { id: string; provider: string; topic: string; status: string; storeId: string }[];
+  request: AdminTrailEntry[];
+};
+
 export type AdminApi = {
   whoami(): Promise<{ email: string; fullName: string }>;
   trail(storeId?: string): Promise<StaffTrailRow[]>;
@@ -168,6 +184,8 @@ export type AdminApi = {
   operations(): Promise<AdminOperations>;
   retryJob(id: string, reason: string): Promise<void>;
   replayWebhook(id: string, reason: string): Promise<void>;
+  lookup(q: string): Promise<AdminLookup>;
+  storeActivity(id: string, before?: string): Promise<{ entries: AdminTrailEntry[]; next: string | null }>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -234,6 +252,8 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       operations: () => client.call('/api/admin/operations'),
       retryJob: async (id, reason) => { await client.call(`/api/admin/jobs/${encodeURIComponent(id)}/retry`, { body: { reason } }); },
       replayWebhook: async (id, reason) => { await client.call(`/api/admin/webhooks/${encodeURIComponent(id)}/replay`, { body: { reason } }); },
+      lookup: (q) => client.call(`/api/admin/support${queryString({ q })}`),
+      storeActivity: (id, before) => client.call(`/api/admin/stores/${encodeURIComponent(id)}/activity${queryString({ before })}`),
     },
     twoFactor: {
       status: () => client.twoFactorStatus(),
@@ -299,7 +319,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

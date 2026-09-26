@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { AppLink, useEnv } from '@/lib/app-env';
-import { useAuth, type AdminStoreAction, type AdminStoreDetail } from '@/lib/auth';
+import { useAuth, type AdminStoreAction, type AdminStoreDetail, type AdminTrailEntry } from '@/lib/auth';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { useLang } from '@/lib/i18n';
 import { formatMoney } from '@/lib/money';
@@ -12,6 +12,7 @@ import { planByCode } from '@/lib/plans';
 import { AdminShell } from '@/components/admin/shell';
 import { Badge, Empty, ErrorNote, Loading, Meter, Panel } from '@/components/dashboard/ui';
 import { ROLE_LABEL } from '@/components/pages/Team';
+import { TrailTable } from '@/components/admin/trail';
 import { STATUS_LABEL } from './AdminStores';
 
 export default function AdminStore() {
@@ -78,6 +79,7 @@ function Detail() {
         </Panel>
       </div>
       <div style={{ marginTop: 18 }}><Actions store={store} onDone={() => setVersion((v) => v + 1)} /></div>
+      <div style={{ marginTop: 18 }}><Activity storeId={store.id} version={version} /></div>
       <div className="grid grid-2" style={{ marginTop: 18 }}>
         <Panel flush title={t('الفريق', 'Team')}>
           <div className="table-wrap"><table className="data"><tbody>
@@ -93,6 +95,35 @@ function Detail() {
         </Panel>
       </div>
     </>
+  );
+}
+
+/** A12 — the store's own activity trail: what it did, and what was done to it. */
+function Activity({ storeId, version }: { storeId: string; version: number }) {
+  const { t } = useLang();
+  const auth = useAuth();
+  const [page, setPage] = useState<{ key: string; entries: AdminTrailEntry[]; next: string | null } | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const key = `${storeId}:${version}`;
+  useEffect(() => {
+    let live = true;
+    auth.admin.storeActivity(storeId).then((p) => { if (live) setPage({ key, ...p }); }, (e: Error) => { if (live) setError(e); });
+    return () => { live = false; };
+  }, [auth.admin, storeId, key]);
+  const more = async () => {
+    if (!page?.next) return;
+    const p = await auth.admin.storeActivity(storeId, page.next);
+    setPage({ key: page.key, entries: [...page.entries, ...p.entries], next: p.next });
+  };
+  const current = page?.key === key ? page : null;
+  return (
+    <Panel flush title={t('نشاط المتجر', 'Store activity')} sub={t('الأحدث أولًا — أسماء الحقول دون قيمها', 'Newest first — field names, not values')}>
+      {error && <ErrorNote error={error} />}
+      {!current && !error && <Loading rows={3} />}
+      {current && current.entries.length === 0 && <Empty title={t('لا نشاط', 'No activity')} body={t('لم يُسجَّل شيء لهذا المتجر بعد.', 'Nothing has been recorded for this store yet.')} />}
+      {current && current.entries.length > 0 && <TrailTable entries={current.entries} />}
+      {current?.next && <div className="btn-row" style={{ padding: 16 }}><button type="button" className="btn btn-ghost" onClick={more}>{t('المزيد', 'Show more')}</button></div>}
+    </Panel>
   );
 }
 

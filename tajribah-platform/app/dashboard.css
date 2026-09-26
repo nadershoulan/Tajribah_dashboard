@@ -727,6 +727,15 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .seg button { padding: 7px 14px; border: 0; border-radius: 9px; background: transparent; color: var(--text-2); font: inherit; font-weight: 500; cursor: pointer; }
 .seg button.on { background: var(--tint); color: var(--text); }
 
+/* A12 — support */
+.support-box { display: flex; flex-wrap: wrap; gap: 10px; }
+.support-box .search { display: flex; align-items: center; gap: 8px; flex: 1 1 260px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface, #fff); }
+.support-box .search input { border: 0; outline: 0; flex: 1; min-width: 0; font: inherit; background: transparent; color: var(--text); }
+.support-hits { list-style: none; margin: 0; padding: 0; }
+.support-hits li { padding: 12px 18px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.support-hits li:first-child { border-top: 0; }
+.support-hits .muted { color: var(--text-3); font-size: 13px; }
+
 /* A11 — operations */
 .ops { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
 .ops .grid { margin: 0; }

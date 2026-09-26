@@ -13,6 +13,7 @@ import { actOnPerson, listPeople, personDetail } from './users';
 import { plansForStaff, updatePlan } from './plans';
 import { invoiceForStaff, listInvoices, listSubscriptions } from './billing';
 import { operations, replayDelivery, retryJob } from './operations';
+import { lookup, storeActivity } from './support';
 import { errors } from '@/server/core/errors/problem';
 
 /** API-A00 — GET /api/admin/whoami: the console's own guard asks this first. */
@@ -196,4 +197,19 @@ export const replayDeliveryHandler = route(async (request) => {
   if (!z.string().uuid().safeParse(id).success) throw errors.notFound('webhook delivery');
   await replayDelivery(staff, id, (await readJson(request, REASON)).reason);
   return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+});
+
+/** API-A17 — GET /api/admin/support?q=: what this id / email / number / name is, and what that request did (A12). */
+export const supportLookupHandler = route(async (request) => {
+  await staffContextFor(request);
+  return json(await lookup(new URL(request.url).searchParams.get('q') ?? ''));
+});
+
+/** API-A18 — GET /api/admin/stores/[id]/activity?before=: the store's own activity trail (A12). */
+export const storeActivityHandler = route(async (request) => {
+  await staffContextFor(request);
+  const url = new URL(request.url);
+  const id = idBeforeLast(request);
+  if (!z.string().uuid().safeParse(id).success) throw errors.notFound('store');
+  return json(await storeActivity(id, { before: pick(z.string().uuid(), url.searchParams.get('before')) }));
 });

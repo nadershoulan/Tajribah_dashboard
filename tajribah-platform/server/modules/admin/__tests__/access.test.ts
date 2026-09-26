@@ -15,7 +15,7 @@ import { loadEnv, resetEnv } from '@/server/core/config/env';
 import { setLogLevel } from '@/server/core/observability/log';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
 import { staffLog, staffTrail, type StaffContext } from '@/server/modules/admin/access';
-import { invoiceForStaffHandler, listInvoicesHandler, operationsHandler, replayDeliveryHandler, retryJobHandler, listPeopleHandler, listStoresHandler, listSubscriptionsHandler, overviewHandler, personActionHandler, plansHandler, updatePlanHandler, staffTrailHandler, storeActionHandler, whoamiHandler } from '@/server/modules/admin/http';
+import { storeActivityHandler, supportLookupHandler, invoiceForStaffHandler, listInvoicesHandler, operationsHandler, replayDeliveryHandler, retryJobHandler, listPeopleHandler, listStoresHandler, listSubscriptionsHandler, overviewHandler, personActionHandler, plansHandler, updatePlanHandler, staffTrailHandler, storeActionHandler, whoamiHandler } from '@/server/modules/admin/http';
 
 setLogLevel('error');
 const APP = 'http://localhost:5173';
@@ -107,6 +107,12 @@ test('only staff with two-step sign-in get in; everyone else is told the page do
       assert.equal((await post(staff.token, { origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' })).status, 403);
       assert.equal((await post(staff.token)).status, 404, 'unknown id');
     }
+    // A12: the support box and a store's activity — the same guard.
+    assert.equal((await get(supportLookupHandler, `/api/admin/support?q=${store.tenantId}`, shopper.token)).status, 404);
+    assert.equal((await get(supportLookupHandler, `/api/admin/support?q=${store.tenantId}`, staffNo2fa.token)).status, 403);
+    assert.equal(((await (await get(supportLookupHandler, `/api/admin/support?q=${store.tenantId}`, staff.token)).json()) as any).stores.length, 1);
+    assert.equal((await get(storeActivityHandler, `/api/admin/stores/${store.tenantId}/activity`, shopper.token)).status, 404);
+    assert.equal((await get(storeActivityHandler, `/api/admin/stores/${store.tenantId}/activity`, staff.token)).status, 200);
     const me = await (await get(whoamiHandler, '/api/admin/whoami', staff.token)).json() as any;
     assert.equal(me.email, 'staff@tajribah.test');
 

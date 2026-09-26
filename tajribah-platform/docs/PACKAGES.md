@@ -124,7 +124,7 @@ only. Screen IDs from the inventory (`ADM-*`).
 | A9 | AI operations | 🔒 P3 | AI jobs, cost, failures |
 | A10 | Content & QA queues | 🔒 P3 | Model QA review |
 | A11 ✅ | Platform operations | — | Queue health, stuck jobs, webhook failures, key rotation state |
-| A12 | Support tooling | — | Look up a store/person/request id and see what happened |
+| A12 ✅ | Support tooling | — | Look up a store/person/request id and see what happened |
 | A13 | Content management | — | Coupons (ADM-15) and platform copy |
 | A14 | Compliance & system | — (view); PDPL process ❓ | Data requests, retention, the staff trail |
 

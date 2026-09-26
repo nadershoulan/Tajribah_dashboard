@@ -98,6 +98,7 @@ The internal console for running Tajribah: stores, people, plans, coupons, what 
 
 | | Package | In plain words |
 |---|---|---|
+| ◐ | A7 Subscriptions and invoices | Staff can see every store's subscription (filter by status, plan, monthly or annual) and every invoice (by status, month or number), with totals that count only invoices that are due or paid, and open any invoice exactly as the store sees it. Refunds come with the payment gateway |
 | ✅ | A6 Plans and prices | Staff can change a plan's monthly and annual price, its limits and its features. The change reaches every store on that plan straight away (as decided: nobody keeps old terms), and the screen says how many stores that is before saving. Lowering a limit deletes nothing — a store over it just can't add more — and the screen warns you to tell them first. The price a store sees on its plan cards is now always the price it will be charged |
 | ✅ | A5 People | Staff can find anyone by email or name, see which stores they belong to and on which devices they are signed in, and — with a written reason — sign them out everywhere (a stolen laptop) or turn off their two-step sign-in (a lost phone; they get an email saying so, in their language). Nobody can do this to their own account |
 | ✅ | A4 Changing a store | Staff can give a store more trial days, suspend it and bring it back, and add or take away AI credits. Each needs a written reason, and each shows up twice: in the staff activity, and in the store's own activity as done by Tajribah staff. A store that already pays can't be given trial days, credits never go below zero, and a store brought back returns to where its subscription says |
@@ -212,3 +213,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-27 | A4 store actions for staff | 405 pass / 0 fail |
 | 2026-09-27 | A5 people for staff | 408 pass / 0 fail |
 | 2026-09-27 | A6 plans and pricing for staff | 411 pass / 0 fail |
+| 2026-09-27 | A7 subscriptions and invoices for staff (view) | 413 pass / 0 fail |

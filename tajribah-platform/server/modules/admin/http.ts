@@ -11,6 +11,7 @@ import { listStores, storeDetail } from './stores';
 import { actOnStore } from './actions';
 import { actOnPerson, listPeople, personDetail } from './users';
 import { plansForStaff, updatePlan } from './plans';
+import { invoiceForStaff, listInvoices, listSubscriptions } from './billing';
 import { errors } from '@/server/core/errors/problem';
 
 /** API-A00 — GET /api/admin/whoami: the console's own guard asks this first. */
@@ -130,4 +131,37 @@ export const updatePlanHandler = route(async (request) => {
   const code = PLAN.safeParse(new URL(request.url).pathname.split('/').filter(Boolean).pop());
   if (!code.success) throw errors.notFound('plan');
   return json(await updatePlan(staff, code.data, await readJson(request, PLAN_CHANGE)));
+});
+
+const SUB_STATUS = z.enum(['trialing', 'active', 'past_due', 'paused', 'cancelled', 'expired']);
+const INVOICE_STATUS = z.enum(['draft', 'issued', 'paid', 'void', 'refunded']);
+const CYCLE = z.enum(['monthly', 'annual']);
+const pick = <T>(schema: z.ZodType<T>, value: string | null): T | undefined => { const r = schema.safeParse(value); return r.success ? r.data : undefined; };
+
+/** API-A11 — GET /api/admin/subscriptions?status=&plan=&cycle=&before= (A7, ADM-17). */
+export const listSubscriptionsHandler = route(async (request) => {
+  await staffContextFor(request);
+  const params = new URL(request.url).searchParams;
+  return json(await listSubscriptions({
+    status: pick(SUB_STATUS, params.get('status')), plan: pick(PLAN, params.get('plan')), cycle: pick(CYCLE, params.get('cycle')),
+    before: pick(z.string().uuid(), params.get('before')),
+  }));
+});
+
+/** API-A12 — GET /api/admin/invoices?status=&month=YYYY-MM&q=&before= (ADM-18). */
+export const listInvoicesHandler = route(async (request) => {
+  await staffContextFor(request);
+  const params = new URL(request.url).searchParams;
+  return json(await listInvoices({
+    status: pick(INVOICE_STATUS, params.get('status')), month: params.get('month') || undefined,
+    q: params.get('q')?.slice(0, 60) || undefined, before: pick(z.string().uuid(), params.get('before')),
+  }));
+});
+
+/** API-A13 — GET /api/admin/invoices/[id]: the invoice as its store sees it (ADM-19). */
+export const invoiceForStaffHandler = route(async (request) => {
+  const staff = await staffContextFor(request);
+  const id = new URL(request.url).pathname.split('/').filter(Boolean).pop() ?? '';
+  if (!z.string().uuid().safeParse(id).success) throw errors.notFound('invoice');
+  return json(await invoiceForStaff(staff, id));
 });

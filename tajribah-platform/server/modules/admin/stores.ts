@@ -29,7 +29,7 @@ import { staffTrail, type StaffContext } from './access';
 /** Read everything, change nothing: the merchant's own reads, run for staff. */
 const READS: Set<Permission> = new Set(PERMISSIONS.filter((p) => p.endsWith(':read')));
 
-function inspectionContext(tenant: Tenant, staff: StaffContext): TenantContext {
+export function inspectionContext(tenant: Tenant, staff: StaffContext): TenantContext {
   return {
     tenantId: tenant.id, tenant, role: 'system', actorType: 'system',
     actor: { userId: staff.userId, email: staff.email, isStaff: true },

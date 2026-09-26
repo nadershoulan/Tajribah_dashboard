@@ -7,8 +7,8 @@
  * "page not found" anyone sees for a wrong address; staff without two-step sign-in → the way
  * to turn it on. The server refuses the same people on every admin endpoint regardless.
  */
-import { useEffect, useState, type ReactNode } from 'react';
-import { ArrowLeft, LayoutDashboard, ShieldAlert, ScrollText, Store, Tags, Users } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ArrowLeft, LayoutDashboard, Receipt, ShieldAlert, ScrollText, Store, Tags, Users } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { ApiError } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
@@ -25,6 +25,7 @@ const NAV = [
   { href: '/admin/stores', icon: Store, label: { ar: 'المتاجر', en: 'Stores' } },
   { href: '/admin/people', icon: Users, label: { ar: 'الأشخاص', en: 'People' } },
   { href: '/admin/plans', icon: Tags, label: { ar: 'الباقات', en: 'Plans' } },
+  { href: '/admin/billing', icon: Receipt, label: { ar: 'الفوترة', en: 'Billing' }, also: ['/admin/invoices/'] },
   { href: '/admin/audit', icon: ScrollText, label: { ar: 'سجل الموظفين', en: 'Staff activity' } },
 ];
 
@@ -37,6 +38,11 @@ function Guarded({ title, children }: { title: string; children: ReactNode }) {
   const auth = useAuth();
   const env = useEnv();
   const [access, setAccess] = useState<Access>({ state: 'checking' });
+  const nav = useRef<HTMLElement>(null);
+  // On a phone the nav is one scrolling row: keep the current section in sight.
+  useEffect(() => {
+    nav.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [env.path, access.state]);
 
   useEffect(() => {
     let live = true;
@@ -65,9 +71,9 @@ function Guarded({ title, children }: { title: string; children: ReactNode }) {
         <AppLink href="/dashboard" className="btn btn-ghost btn-sm"><ArrowLeft size={14} aria-hidden />{t('لوحة المتجر', 'Store dashboard')}</AppLink>
       </header>
       <div className="admin-body">
-        <nav className="admin-nav" aria-label={t('أقسام لوحة الموظفين', 'Staff console sections')}>
+        <nav ref={nav} className="admin-nav" aria-label={t('أقسام لوحة الموظفين', 'Staff console sections')}>
           {NAV.map((item) => (
-            <AppLink key={item.href} href={item.href} className="side-link" aria-current={env.path === item.href || (item.href !== '/admin' && env.path.startsWith(`${item.href}/`)) ? 'page' : undefined}>
+            <AppLink key={item.href} href={item.href} className="side-link" aria-current={env.path === item.href || (item.href !== '/admin' && env.path.startsWith(`${item.href}/`)) || item.also?.some((prefix) => env.path.startsWith(prefix)) ? 'page' : undefined}>
               <item.icon size={17} aria-hidden /><span>{pick(item.label)}</span>
             </AppLink>
           ))}

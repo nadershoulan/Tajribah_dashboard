@@ -119,7 +119,7 @@ only. Screen IDs from the inventory (`ADM-*`).
 | A4b | Impersonation (split from A4) | A4 | ADM-08: view the dashboard as the store — read-only, time-limited, shown to staff by a banner and to the store in its activity |
 | A5 ✅ | User management | — | ADM-11/12: find a person, their stores; end their sessions, reset their two-step sign-in — audited |
 | A6 ✅ | Plans & pricing management | — | ADM-13/14: edit a plan's prices, limits and features (T19: applies to everyone), audited |
-| A7 | Subscriptions & invoices | — (view); refunds 🔒 | ADM-17…19: subscriptions and invoices across stores |
+| A7 ◐ | Subscriptions & invoices | — (view); refunds 🔒 | ADM-17…19: subscriptions and invoices across stores |
 | A8 | Payments & revenue | 🔒 Moyasar | Payments, refunds, revenue |
 | A9 | AI operations | 🔒 P3 | AI jobs, cost, failures |
 | A10 | Content & QA queues | 🔒 P3 | Model QA review |

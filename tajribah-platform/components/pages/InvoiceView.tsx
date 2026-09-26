@@ -40,7 +40,8 @@ export default function InvoiceView() {
   );
 }
 
-function Document({ invoice, sample }: { invoice: InvoiceDocument; sample: boolean }) {
+/** The invoice paper itself — also what staff see (A7). */
+export function Document({ invoice, sample, backHref = '/dashboard/billing' }: { invoice: InvoiceDocument; sample: boolean; backHref?: string }) {
   const { t, lang } = useLang();
   const money = (minor: number) => formatMoney(minor, invoice.currency, lang);
   const title = invoice.kind === 'standard'
@@ -51,7 +52,7 @@ function Document({ invoice, sample }: { invoice: InvoiceDocument; sample: boole
   return (
     <>
       <div className="invoice-actions no-print">
-        <AppLink href="/dashboard/billing" className="btn btn-ghost">{t('رجوع إلى الفواتير', 'Back to invoices')}</AppLink>
+        <AppLink href={backHref} className="btn btn-ghost">{t('رجوع إلى الفواتير', 'Back to invoices')}</AppLink>
         <button type="button" className="btn btn-primary" onClick={() => window.print()}>
           <Printer size={16} aria-hidden />{t('طباعة أو حفظ PDF', 'Print or save as PDF')}
         </button>
@@ -128,7 +129,7 @@ function Document({ invoice, sample }: { invoice: InvoiceDocument; sample: boole
   );
 }
 
-const STATUS: Record<InvoiceDocument['status'], { ar: string; en: string }> = {
+export const STATUS: Record<InvoiceDocument['status'], { ar: string; en: string }> = {
   draft: { ar: 'مسودة', en: 'Draft' },
   issued: { ar: 'مستحقة', en: 'Due' },
   paid: { ar: 'مدفوعة', en: 'Paid' },

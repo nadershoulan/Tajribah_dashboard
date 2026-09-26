@@ -15,7 +15,7 @@ import { loadEnv, resetEnv } from '@/server/core/config/env';
 import { setLogLevel } from '@/server/core/observability/log';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
 import { staffLog, staffTrail, type StaffContext } from '@/server/modules/admin/access';
-import { listPeopleHandler, listStoresHandler, overviewHandler, personActionHandler, plansHandler, updatePlanHandler, staffTrailHandler, storeActionHandler, whoamiHandler } from '@/server/modules/admin/http';
+import { invoiceForStaffHandler, listInvoicesHandler, listPeopleHandler, listStoresHandler, listSubscriptionsHandler, overviewHandler, personActionHandler, plansHandler, updatePlanHandler, staffTrailHandler, storeActionHandler, whoamiHandler } from '@/server/modules/admin/http';
 
 setLogLevel('error');
 const APP = 'http://localhost:5173';
@@ -41,7 +41,7 @@ test('only staff with two-step sign-in get in; everyone else is told the page do
     const staff = await person(harness, 'staff@tajribah.test', { isStaff: true, totpEnabled: true });
     const gone = await person(harness, 'left@tajribah.test', { isStaff: true, totpEnabled: true });
 
-    for (const handler of [whoamiHandler, staffTrailHandler, overviewHandler, listStoresHandler, listPeopleHandler, plansHandler]) {
+    for (const handler of [whoamiHandler, staffTrailHandler, overviewHandler, listStoresHandler, listPeopleHandler, plansHandler, listSubscriptionsHandler, listInvoicesHandler]) {
       assert.equal((await get(handler, '/api/admin/x')).status, 401, 'no session');
       const notStaff = await get(handler, '/api/admin/x', merchant.token);
       assert.equal(notStaff.status, 404, 'a merchant is not even told the console exists');
@@ -93,6 +93,10 @@ test('only staff with two-step sign-in get in; everyone else is told the page do
     assert.equal(changed.status, 200);
     assert.deepEqual(await changed.json(), { changed: ['limits.products'] });
 
+    // A7: one invoice — a merchant is told nothing, staff get 404 for an unknown id.
+    const shopper = await person(harness, 'another-owner@example.test');
+    assert.equal((await get(invoiceForStaffHandler, `/api/admin/invoices/${uuidv7()}`, shopper.token)).status, 404);
+    assert.equal(((await (await get(invoiceForStaffHandler, `/api/admin/invoices/${uuidv7()}`, staff.token)).json()) as any).code, 'not_found');
     const me = await (await get(whoamiHandler, '/api/admin/whoami', staff.token)).json() as any;
     assert.equal(me.email, 'staff@tajribah.test');
 

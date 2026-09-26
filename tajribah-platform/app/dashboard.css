@@ -712,7 +712,7 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .admin-filters { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
 .admin-filters .search { display: flex; align-items: center; gap: 8px; flex: 1 1 240px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface, #fff); }
 .admin-filters .search input { border: 0; outline: 0; flex: 1; min-width: 0; font: inherit; background: transparent; color: var(--text); }
-.admin-filters select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; font: inherit; background: var(--surface, #fff); color: var(--text); }
+.admin-filters select, .admin-filters input[type="month"] { padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; font: inherit; background: var(--surface, #fff); color: var(--text); }
 
 /* A4 — staff actions on a store */
 .admin-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
@@ -721,6 +721,11 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .admin-actions .field.act-reason { flex: 1 1 260px; }
 .admin-actions .btn-row { margin: 0; }
 @media (max-width: 860px) { .admin-actions { flex-direction: column; align-items: stretch; } .admin-actions .field, .admin-actions .field.act-amount, .admin-actions .field.act-reason { flex: 0 0 auto; } }
+
+/* A7 — a two-way switch */
+.seg { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface, #fff); }
+.seg button { padding: 7px 14px; border: 0; border-radius: 9px; background: transparent; color: var(--text-2); font: inherit; font-weight: 500; cursor: pointer; }
+.seg button.on { background: var(--tint); color: var(--text); }
 
 /* A6 — plans editor */
 .plan-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }

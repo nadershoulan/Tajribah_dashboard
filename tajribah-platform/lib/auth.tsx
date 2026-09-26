@@ -13,6 +13,13 @@ import { matchTotp, newBackupCodes, newTotpSecret, otpauthUrl } from '@/server/c
 import { DEMO_DASHBOARD } from './demo-data';
 import type { ConnectionSummary, TeamMemberRow } from './view-models';
 import type { PlanCode, PlanLimits } from './plans';
+import type { InvoiceDocument } from './contracts/invoices';
+
+/** `?a=1&b=2` from the set values only, or nothing. */
+const queryString = (query: Record<string, string | undefined>) => {
+  const params = new URLSearchParams(Object.entries(query).filter((e): e is [string, string] => !!e[1]));
+  return params.size ? `?${params}` : '';
+};
 
 export type AuthStatus = 'loading' | 'signed-in' | 'signed-out';
 
@@ -118,6 +125,17 @@ export type AdminPlanChange = {
   limits?: Partial<PlanLimits>; features?: Record<string, boolean>; reason: string;
 };
 
+/** A7 — server/modules/admin/billing.ts */
+type AdminStoreRef = { id: string; name: string; nameAr: string | null; slug: string };
+export type AdminSubscriptionRow = {
+  id: string; store: AdminStoreRef; plan: PlanCode; status: 'trialing' | 'active' | 'past_due' | 'paused' | 'cancelled' | 'expired';
+  cycle: 'monthly' | 'annual'; listPriceMinor: number | null; currency: string; currentPeriodEnd: string; cancelAtPeriodEnd: boolean; provider: string; createdAt: string;
+};
+export type AdminInvoiceRow = {
+  id: string; number: string; store: AdminStoreRef; status: InvoiceDocument['status'];
+  subtotalMinor: number; vatMinor: number; totalMinor: number; currency: string; issuedAt: string | null; paidAt: string | null; zatcaStatus: string | null;
+};
+
 export type AdminApi = {
   whoami(): Promise<{ email: string; fullName: string }>;
   trail(storeId?: string): Promise<StaffTrailRow[]>;
@@ -130,6 +148,9 @@ export type AdminApi = {
   actOnPerson(id: string, action: AdminPersonAction): Promise<{ sessionsEnded: number }>;
   plans(): Promise<AdminPlan[]>;
   updatePlan(code: PlanCode, change: AdminPlanChange): Promise<{ changed: string[] }>;
+  subscriptions(query: { status?: string; plan?: string; cycle?: string; before?: string }): Promise<{ subscriptions: AdminSubscriptionRow[]; next: string | null; byStatus: Partial<Record<AdminSubscriptionRow['status'], number>> }>;
+  invoices(query: { status?: string; month?: string; q?: string; before?: string }): Promise<{ invoices: AdminInvoiceRow[]; next: string | null; totals: { count: number; totalMinor: number; vatMinor: number } }>;
+  invoice(id: string): Promise<{ store: AdminStoreRef; invoice: InvoiceDocument }>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -190,6 +211,9 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       actOnPerson: (id, action) => client.call(`/api/admin/users/${encodeURIComponent(id)}/actions`, { body: action }),
       plans: async () => (await client.call<{ plans: AdminPlan[] }>('/api/admin/plans')).plans,
       updatePlan: (code, change) => client.call(`/api/admin/plans/${code}`, { method: 'PATCH', body: change }),
+      subscriptions: (query) => client.call(`/api/admin/subscriptions${queryString(query)}`),
+      invoices: (query) => client.call(`/api/admin/invoices${queryString(query)}`),
+      invoice: (id) => client.call(`/api/admin/invoices/${encodeURIComponent(id)}`),
     },
     twoFactor: {
       status: () => client.twoFactorStatus(),
@@ -255,7 +279,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

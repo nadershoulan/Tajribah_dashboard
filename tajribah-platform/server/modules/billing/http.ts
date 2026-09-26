@@ -7,6 +7,7 @@ import { json, tenantContextFor } from '@/server/core/http/api';
 import { errors } from '@/server/core/errors/problem';
 import { invoiceOf, invoicesOf } from './invoices';
 import { creditSummary } from './credits';
+import { billingSummary } from './summary';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -29,4 +30,10 @@ export const getInvoiceHandler = route(async (request) => {
 export const creditsHandler = route(async (request) => {
   const ctx = await tenantContextFor(request);
   return json(await creditSummary(ctx));
+});
+
+/** API-133 — GET /api/billing: plan, status, prices, AI credits and invoices for the billing screen (P2.10). */
+export const billingHandler = route(async (request) => {
+  const ctx = await tenantContextFor(request);
+  return json(await billingSummary(ctx));
 });

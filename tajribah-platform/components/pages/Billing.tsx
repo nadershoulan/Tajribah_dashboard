@@ -1,20 +1,29 @@
 'use client';
 
-// MD-160 — Subscription and invoices
+// MD-160 — Subscription and invoices · P2.10: checkout up to the payment step
 
-import { CheckCircle2, CreditCard, FileText, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle2, CreditCard, FileText, Lock, Sparkles, X } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
 import { useResource } from '@/lib/data';
 import { formatDate, formatNumber, formatRelative } from '@/lib/format';
 import { formatMoney, vatOf } from '@/lib/money';
-import { PLANS, planByCode } from '@/lib/plans';
+import { PLANS, planByCode, type PlanCode } from '@/lib/plans';
+import { priceInvoiceLines } from '@/lib/contracts/invoices';
+import type { BillingSummary } from '@/lib/view-models';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, Empty, ErrorNote, Loading, Meter, PageHead, Panel } from '@/components/dashboard/ui';
 
 export default function Billing() {
   const { t, pick, lang } = useLang();
   const { data, loading, error } = useResource((source) => source.billing());
+  // P2.10: the plan and cycle being checked out, or null. Nothing is charged: payment opens with Moyasar (P2.3).
+  const [checkout, setCheckout] = useState<{ plan: PlanCode; cycle: 'monthly' | 'annual' } | null>(null);
+  const openCheckout = (plan: PlanCode, cycle: 'monthly' | 'annual') => {
+    setCheckout({ plan, cycle });
+    requestAnimationFrame(() => document.getElementById('checkout')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
 
   const crumbs = [
     { label: t('الرئيسية', 'Home'), href: '/dashboard' },
@@ -28,8 +37,8 @@ export default function Billing() {
       <PageHead
         title={t('الاشتراك والفواتير', 'Subscription and invoices')}
         lead={t(
-          'الأسعار شهرية بالريال السعودي، وتُضاف ضريبة القيمة المضافة 15% عند الدفع. الفواتير متوافقة مع فاتورة (ZATCA).',
-          'Prices are monthly in Saudi riyals; 15% VAT is added at checkout. Invoices are ZATCA-compliant.',
+          'الأسعار شهرية بالريال السعودي، وتُضاف ضريبة القيمة المضافة 15% عند الدفع. كل فاتورة تُظهر الرقمين الضريبيين، ويُربط نظام الفوترة الإلكترونية (ZATCA) قبل أول عملية دفع.',
+          'Prices are monthly in Saudi riyals; 15% VAT is added at checkout. Every invoice shows both VAT numbers; ZATCA e-invoicing is connected before the first charge.',
         )}
       />
 
@@ -40,7 +49,7 @@ export default function Billing() {
         <>
           <Panel
             title={t('باقتك الحالية', 'Your plan')}
-            actions={<button type="button" className="btn btn-ghost btn-sm">{t('قارن الباقات', 'Compare plans')}</button>}
+            actions={<button type="button" className="btn btn-ghost btn-sm" onClick={() => document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth' })}>{t('قارن الباقات', 'Compare plans')}</button>}
           >
             <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', alignItems: 'flex-start' }}>
               <div style={{ flex: '1 1 260px' }}>
@@ -61,7 +70,7 @@ export default function Billing() {
 
                 {data.priceMinor != null && (
                   <p style={{ marginTop: 10, fontSize: 14, color: 'var(--text-2)' }}>
-                    {formatMoney(data.priceMinor, data.currency, lang)} / {t('شهريًا', 'month')}
+                    {formatMoney(data.priceMinor, data.currency, lang)} / {data.cycle === 'annual' ? t('سنويًا', 'year') : t('شهريًا', 'month')}
                     {' · '}
                     <span className="mm">
                       {t('ضريبة', 'VAT')} {formatMoney(vatOf(data.priceMinor), data.currency, lang)}
@@ -70,10 +79,12 @@ export default function Billing() {
                 )}
 
                 <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-                  <button type="button" className="btn btn-accent">
-                    {data.status === 'trialing' ? t('فعّل الاشتراك', 'Start your subscription') : t('غيّر الباقة', 'Change plan')}
+                  <button type="button" className="btn btn-accent" onClick={() => openCheckout(data.plan, data.cycle)}>
+                    {data.status === 'active' ? t('غيّر الباقة', 'Change plan') : t('فعّل الاشتراك', 'Start your subscription')}
                   </button>
-                  <button type="button" className="btn btn-ghost">{t('الفوترة السنوية (شهران مجانًا)', 'Switch to annual (2 months free)')}</button>
+                  {data.cycle !== 'annual' && (
+                    <button type="button" className="btn btn-ghost" onClick={() => openCheckout(data.plan, 'annual')}>{t('الفوترة السنوية (شهران مجانًا)', 'Switch to annual (2 months free)')}</button>
+                  )}
                 </div>
               </div>
 
@@ -93,6 +104,9 @@ export default function Billing() {
             </div>
           </Panel>
 
+          {checkout && <Checkout data={data} plan={checkout.plan} cycle={checkout.cycle}
+            onCycle={(cycle) => setCheckout({ ...checkout, cycle })} onClose={() => setCheckout(null)} />}
+
           <div className="grid grid-2" style={{ marginTop: 18 }}>
             <Panel title={t('طريقة الدفع', 'Payment method')}>
               {data.paymentMethod ? (
@@ -105,10 +119,10 @@ export default function Billing() {
                   icon={<CreditCard size={22} />}
                   title={t('لا توجد طريقة دفع', 'No payment method')}
                   body={t(
-                    'أضف مدى أو بطاقة أو Apple Pay أو STC Pay قبل انتهاء التجربة حتى لا يتوقف العرض في متجرك.',
-                    'Add mada, a card, Apple Pay or STC Pay before the trial ends so AR keeps running in your store.',
+                    'ستتمكن من إضافة مدى أو بطاقة أو Apple Pay أو STC Pay عند ربط بوابة الدفع. بعد انتهاء التجربة دون باقة يصبح متجرك للاطلاع فقط.',
+                    'You will be able to add mada, a card, Apple Pay or STC Pay once the payment gateway is connected. When a trial ends without a plan, the store becomes read-only.',
                   )}
-                  action={<button type="button" className="btn btn-accent">{t('أضف طريقة دفع', 'Add a payment method')}</button>}
+                  action={<button type="button" className="btn btn-accent" disabled title={t('يتاح عند ربط بوابة الدفع', 'Available once the payment gateway is connected')}>{t('أضف طريقة دفع', 'Add a payment method')}</button>}
                 />
               )}
             </Panel>
@@ -119,8 +133,8 @@ export default function Billing() {
                   icon={<FileText size={22} />}
                   title={t('لا فواتير بعد', 'No invoices yet')}
                   body={t(
-                    'ستصدر أول فاتورة عند بدء الاشتراك. كل فاتورة تحمل رقم ضريبي ورمز فاتورة (ZATCA) ويمكن تنزيلها PDF.',
-                    'Your first invoice is issued when the subscription starts. Each one carries a VAT number and a ZATCA QR, and downloads as a PDF.',
+                    'ستصدر أول فاتورة عند بدء الاشتراك. كل فاتورة تُظهر الضريبة منفصلة، ويمكن طباعتها أو حفظها PDF.',
+                    'Your first invoice is issued when the subscription starts. Each shows VAT separately and prints or saves as a PDF.',
                   )}
                 />
               ) : (
@@ -154,10 +168,12 @@ export default function Billing() {
             </Panel>
           </div>
 
-          <h2 style={{ fontSize: 19, margin: '26px 0 14px' }}>{t('الباقات', 'Plans')}</h2>
+          <h2 id="plans" style={{ fontSize: 19, margin: '26px 0 14px' }}>{t('الباقات', 'Plans')}</h2>
           <div className="grid grid-4">
             {PLANS.map((plan) => {
               const isCurrent = plan.code === data.plan;
+              // During a trial the current plan is the one being tried — it can still be chosen and paid for.
+              const isPaidFor = isCurrent && data.status === 'active';
               return (
                 <section
                   className="panel"
@@ -188,12 +204,15 @@ export default function Billing() {
                       </li>
                     ))}
                   </ul>
-                  <button type="button" className={`btn ${plan.featured ? 'btn-accent' : 'btn-ghost'}`}
-                    style={{ width: '100%', justifyContent: 'center', marginTop: 16 }} disabled={isCurrent}>
-                    {isCurrent ? t('باقتك الحالية', 'Your plan')
-                      : plan.priceMonthlyMinor == null ? t('تواصل معنا', 'Contact us')
-                        : <><Sparkles size={15} aria-hidden />{t('اختر هذه', 'Choose this')}</>}
-                  </button>
+                  {plan.priceMonthlyMinor == null ? (
+                    <p className="hint" style={{ marginTop: 16, textAlign: 'center' }}>{t('سعر حسب الاتفاق — نتواصل معك.', 'Priced by agreement — we get in touch.')}</p>
+                  ) : (
+                    <button type="button" className={`btn ${plan.featured ? 'btn-accent' : 'btn-ghost'}`}
+                      style={{ width: '100%', justifyContent: 'center', marginTop: 16 }} disabled={isPaidFor}
+                      onClick={() => openCheckout(plan.code, checkout?.cycle ?? data.cycle)}>
+                      {isPaidFor ? t('باقتك الحالية', 'Your plan') : <><Sparkles size={15} aria-hidden />{t('اختر هذه', 'Choose this')}</>}
+                    </button>
+                  )}
                 </section>
               );
             })}
@@ -208,5 +227,62 @@ export default function Billing() {
         </>
       )}
     </Shell>
+  );
+}
+
+/**
+ * P2.10 — the checkout up to the payment step. The quote is priced exactly as the invoice will
+ * be (the shared contract, prices from the plan rows). Paying opens with the payment gateway
+ * (P2.3, Moyasar); until then the button says so and nothing is charged.
+ */
+function Checkout({ data, plan, cycle, onCycle, onClose }: {
+  data: BillingSummary; plan: PlanCode; cycle: 'monthly' | 'annual';
+  onCycle: (cycle: 'monthly' | 'annual') => void; onClose: () => void;
+}) {
+  const { t, pick, lang } = useLang();
+  const prices = data.catalogue.find((p) => p.code === plan);
+  const unit = cycle === 'annual' ? prices?.priceAnnualMinor : prices?.priceMonthlyMinor;
+  const name = planByCode(plan).name;
+  if (unit == null) return null;
+  const quote = priceInvoiceLines([{ description: `${name.en} — ${cycle}`, descriptionAr: name.ar, quantity: 1, unitPriceMinor: unit }]);
+  const saving = prices?.priceMonthlyMinor != null && prices.priceAnnualMinor != null ? prices.priceMonthlyMinor * 12 - prices.priceAnnualMinor : 0;
+  const money = (minor: number) => formatMoney(minor, data.currency, lang);
+
+  return (
+    <div id="checkout" style={{ marginTop: 18 }}>
+      <Panel
+        title={t(`الاشتراك في باقة ${pick(name)}`, `Subscribe to ${pick(name)}`)}
+        actions={<button type="button" className="btn btn-quiet btn-sm" onClick={onClose} aria-label={t('إغلاق', 'Close')}><X size={16} aria-hidden /></button>}
+      >
+        <div className="checkout">
+          <fieldset className="cycle">
+            <legend>{t('طريقة الفوترة', 'Billing')}</legend>
+            <label><input type="radio" name="cycle" checked={cycle === 'monthly'} onChange={() => onCycle('monthly')} /> {t('شهريًا', 'Monthly')}</label>
+            <label>
+              <input type="radio" name="cycle" checked={cycle === 'annual'} onChange={() => onCycle('annual')} /> {t('سنويًا', 'Annually')}
+              {saving > 0 && <Badge tone="ok">{t(`وفّر ${money(saving)}`, `Save ${money(saving)}`)}</Badge>}
+            </label>
+          </fieldset>
+          <dl className="quote">
+            <div><dt>{t('الباقة', 'Plan')} · {cycle === 'annual' ? t('سنة', '1 year') : t('شهر', '1 month')}</dt><dd className="num">{money(quote.subtotalMinor)}</dd></div>
+            <div><dt>{t('ضريبة القيمة المضافة 15%', 'VAT 15%')}</dt><dd className="num">{money(quote.vatMinor)}</dd></div>
+            <div className="total"><dt>{t('الإجمالي', 'Total')}</dt><dd className="num">{money(quote.totalMinor)}</dd></div>
+          </dl>
+        </div>
+        <p className="hint">
+          {t('تصدر الفاتورة باسم منشأتك ورقمها الضريبي كما في ', 'The invoice is issued to your business name and VAT number as entered in ')}
+          <AppLink href="/dashboard/settings">{t('الإعدادات', 'Settings')}</AppLink>.
+        </p>
+        <div className="btn-row">
+          <button type="button" className="btn btn-primary" disabled aria-describedby="pay-note">
+            <Lock size={15} aria-hidden />{t(`ادفع ${money(quote.totalMinor)}`, `Pay ${money(quote.totalMinor)}`)}
+          </button>
+        </div>
+        <p id="pay-note" className="hint">{t(
+          'الدفع يُفتح عند ربط بوابة الدفع (Moyasar). لا يُخصم أي مبلغ الآن.',
+          'Payment opens once the payment gateway (Moyasar) is connected. Nothing is charged now.',
+        )}</p>
+      </Panel>
+    </div>
   );
 }

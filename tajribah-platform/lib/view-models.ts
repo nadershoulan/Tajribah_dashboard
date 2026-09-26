@@ -214,6 +214,8 @@ export type BillingSummary = {
   invoices: InvoiceRow[];
   /** Null means no payment method on file — the merchant sees "add one", not a fake card. */
   paymentMethod: { type: 'mada' | 'card' | 'applepay' | 'stcpay'; last4: string; expiry: string } | null;
+  /** P2.10: list prices from the plan rows (P2.1) — what a checkout quotes. Null = "talk to us". */
+  catalogue: { code: PlanCode; priceMonthlyMinor: number | null; priceAnnualMinor: number | null }[];
 };
 
 export type AnalyticsView = {

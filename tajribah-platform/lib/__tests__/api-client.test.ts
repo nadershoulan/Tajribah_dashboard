@@ -162,7 +162,7 @@ test('refusals arrive as typed errors the forms can explain', async () => {
     await assert.rejects(() => quiet(() => client.register(ACCOUNT)), (e: any) => e.code === 'conflict');
 
     await client.login(ACCOUNT.email, ACCOUNT.password);
-    await assert.rejects(() => apiSource(client).billing(), (e: any) => e.status === 501,
+    await assert.rejects(() => apiSource(client).analytics('30d'), (e: any) => e.status === 501,
       'screens without an API yet say so — they do not fall back to demo numbers');
     const empty = await apiSource(client).products();
     assert.deepEqual([empty.rows, empty.counts.all, empty.nextCursor], [[], 0, null], 'a new store has an empty catalogue, from the real API');

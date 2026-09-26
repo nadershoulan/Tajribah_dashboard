@@ -161,7 +161,7 @@ export function apiSource(client: ApiClient): DataSource {
     async removeMember(id) {
       await client.call<void>(`/api/team/members/${encodeURIComponent(id)}`, { method: 'DELETE' });
     },
-    billing: pending('Billing'),
+    async billing() { return client.call<BillingSummary>('/api/billing'); },
     async settings() { return client.call<StoreSettings>('/api/settings'); },
     async arConfigs() { return (await client.call<{ configs: ArConfigView[] }>('/api/ar-configs')).configs; },
     async notifications() { return client.call<{ items: NotificationItem[]; unread: number }>('/api/notifications'); },

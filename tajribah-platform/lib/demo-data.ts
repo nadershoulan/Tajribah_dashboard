@@ -15,6 +15,7 @@ import type {
   MetricPoint, ModelRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, WebhookHealth,
 } from './view-models';
 import { STEP_COPY } from './onboarding-steps';
+import { PLANS } from './plans';
 
 /** Deterministic: the same preview build always renders the same numbers. */
 function seeded(seed: number): () => number {
@@ -237,6 +238,7 @@ export const DEMO_BILLING: BillingSummary = {
   // No invoices during a trial, and no invented payment method.
   invoices: [],
   paymentMethod: null,
+  catalogue: PLANS.map((p) => ({ code: p.code, priceMonthlyMinor: p.priceMonthlyMinor, priceAnnualMinor: p.priceAnnualMinor })),
 };
 
 export const DEMO_ANALYTICS: AnalyticsView = {

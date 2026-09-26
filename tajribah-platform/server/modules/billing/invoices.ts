@@ -160,7 +160,9 @@ export async function invoiceOf(ctx: TenantContext, id: string): Promise<Invoice
   return documentOf(row, lines);
 }
 
-export type InvoiceSummary = Pick<InvoiceDocument, 'id' | 'number' | 'status' | 'subtotalMinor' | 'vatMinor' | 'totalMinor' | 'currency' | 'issuedAt' | 'paidAt'>;
+export type InvoiceSummary = Pick<InvoiceDocument, 'id' | 'number' | 'status' | 'subtotalMinor' | 'vatMinor' | 'totalMinor' | 'currency' | 'issuedAt' | 'paidAt'> & {
+  zatcaStatus: InvoiceDocument['zatca']['status'];
+};
 
 /** This store's invoices, newest first. */
 export async function invoicesOf(ctx: TenantContext): Promise<InvoiceSummary[]> {
@@ -170,6 +172,7 @@ export async function invoicesOf(ctx: TenantContext): Promise<InvoiceSummary[]> 
     id: row.id, number: row.invoiceNumber, status: row.status, subtotalMinor: row.subtotalMinor,
     vatMinor: row.vatMinor, totalMinor: row.totalMinor, currency: row.currency,
     issuedAt: (row.issuedAt ?? row.createdAt).toISOString(), paidAt: row.paidAt?.toISOString() ?? null,
+    zatcaStatus: row.zatcaStatus,
   }));
 }
 

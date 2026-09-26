@@ -99,6 +99,12 @@ export async function planCodesFor(tenantIds: readonly string[]): Promise<Map<st
   return codes;
 }
 
+/** P2.10: the public plan rows (prices included), in pricing order — the catalogue is platform state. */
+export async function planCatalogue(): Promise<(typeof plans.$inferSelect)[]> {
+  const rows = await unsafeAdminDb().select().from(plans);
+  return rows.sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
 /** P2.11: why each store is read-only (or null), for the session — the same rule as the request context. */
 export async function readOnlyFor(stores: readonly { id: string; trialEndsAt: Date | null }[], now = new Date()): Promise<Map<string, ReadOnlyReason | null>> {
   const result = new Map<string, ReadOnlyReason | null>();

@@ -12,6 +12,7 @@
  *
  * Money is integer halalas plus a currency (T5).
  */
+import { sql } from 'drizzle-orm';
 import { index, integer, pgEnum, pgTable, primaryKey, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { amountMinor, bool, createdAt, currency, json, pk, tenantId, timestamps, ts } from './_shared';
 import { tenants } from './identity';
@@ -179,7 +180,11 @@ export const creditLedger = pgTable('credit_ledger', {
   referenceId: uuid('reference_id'),
   note: text('note'),
   createdAt: createdAt(),
-}, (t) => [index('credit_ledger_tenant_idx').on(t.tenantId, t.createdAt)]);
+}, (t) => [
+  index('credit_ledger_tenant_idx').on(t.tenantId, t.createdAt),
+  // P2.9 (drizzle/0009): one row per reference — a retried job, grant or refund is a no-op.
+  uniqueIndex('credit_ledger_reference_unq').on(t.tenantId, t.referenceType, t.referenceId).where(sql`${t.referenceId} is not null`),
+]);
 
 export const usageCounters = pgTable('usage_counters', {
   tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),

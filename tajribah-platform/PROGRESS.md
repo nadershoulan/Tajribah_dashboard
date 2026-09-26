@@ -10,7 +10,7 @@ _Last updated: 2026-09-26 · updated at the end of every work session_
 ```
 P0 Foundation     ████████████████████████████░░░░  19 / 22   (+ P0.20 mostly done, 2 blocked)
 P1 Core loop      ████████████████████████░░░░░░░░  20 / 26   ← first sellable product (started)
-P2 Billing        ██████░░░░░░░░░░░░░░░░░░░░░░░░░░   3 / 15   ← started 2026-09-26 (parts needing no account)
+P2 Billing        █████████░░░░░░░░░░░░░░░░░░░░░░░   4 / 15   ← started 2026-09-26 (parts needing no account)
 P3 3D pipeline    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 P4 Analytics      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 P5 Try-on         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 14   (engine already exists in tajribah-try-on)
@@ -100,6 +100,7 @@ wait for those accounts.
 
 | | Package | In plain words |
 |---|---|---|
+| ✅ | P2.9 AI credits | Each store's AI credits are now kept as a running list of entries that can only be added to, never edited — so any question about a balance can be answered by reading the list. Each month the plan's credits arrive (Starter 5, Growth 40, Pro 200); what isn't used by month-end lapses, while credits a store buys never expire, and the plan's are used first. A job that is retried is charged once, a payment delivered twice is credited once, a failed job is refunded once, and nobody can spend more than they have. Support corrections need a written reason and are logged. The 3D generation and payments that will use this come later |
 | ✅ | P2.6 Invoices | Tajribah's invoices now exist: issued by **SRO Company** (your CR 7033242079) to the store, numbered in order with no gaps for each store and year, VAT 15% worked out per line so every figure adds up, and each invoice frozen as issued — if the store later renames itself, old invoices don't change. The invoice page shows everything in Arabic and English side by side, with Gregorian and Hijri dates, and prints or saves as PDF. **One thing missing: SRO Company's own VAT number.** The number on the bank letter belongs to the bank, so it isn't used — until you send SRO's, no invoice can be issued. The ZATCA QR comes with e-invoicing (needs the ZATCA account) |
 | ✅ | P2.2 Counting what each store uses | Each number a plan limits is counted from one place that cannot double-count: storage is what the store actually holds now (a refused or abandoned upload no longer counts), AR sessions come from the daily analytics for this month, and bandwidth is recorded as a daily total that is replaced, never added to, if it is reported twice. Uploads are now refused up front when the plan's storage is full, with the limit named. The home screen shows exactly the numbers the limits check — it had been showing a smaller product count than the limit used, and on the 31st of a month it forgot the 1st. A storage meter was added. Still to come: deleting a model to free space |
 | ✅ | P2.1 Plans in the database | The four plans (Starter, Growth, Pro, Enterprise) — prices, limits and what each includes — now live in the database, copied exactly from the pricing list and checked by a test. Every limit (products, team size…) is read from there, so a limit changed in the database applies at once, without a new release; the admin console will edit them later. Before this, a real database had no plans at all, so no store could ever have been subscribed. If something is missing from a plan, the answer is "no", never "unlimited". Enterprise shows no price instead of 0 |
@@ -183,3 +184,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-26 | **P2 opened** (your call). P2.1 plans in the database | 366 pass / 0 fail |
 | 2026-09-26 | Your call recorded: plan changes apply to everyone. P2.2 usage counting; uploads checked against storage | 371 pass / 0 fail |
 | 2026-09-26 | SRO Company recorded as the seller. P2.6 invoices (numbering, VAT, bilingual printable invoice) | 377 pass / 0 fail |
+| 2026-09-26 | P2.9 AI credits ledger (monthly grants, expiry, purchases, refunds — each once) | 381 pass / 0 fail |

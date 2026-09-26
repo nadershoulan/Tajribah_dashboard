@@ -87,6 +87,7 @@ export const RLS_EXEMPT: Record<string, string> = {
  */
 export const APPEND_ONLY: Record<string, string> = {
   audit_logs: 'The record of who changed what. A trail the application can rewrite proves nothing: a compromised session, or a bug, could remove the evidence of itself. Erasure (PDPL) and retention run as tajribah_admin.',
+  credit_ledger: 'AI credits (§7.4 rule 1, P2.9): the balance is the sum of the deltas, so a row changed or removed afterwards silently changes what a store has. Corrections are new rows (`adjustment`), never edits.',
 };
 
 /**

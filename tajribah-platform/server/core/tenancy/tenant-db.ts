@@ -116,6 +116,15 @@ export class TenantDb {
     return Number(rows[0]?.n ?? 0);
   }
 
+  /** P2.9 — `sum(column)` over this tenant's rows (0 when there are none). */
+  async sum(table: PgTable, column: PgColumn, where?: SQL): Promise<number> {
+    const rows: any = await this.db
+      .select({ n: sql<string>`coalesce(sum(${column}), 0)` })
+      .from(table as any)
+      .where(this.scope(table, where));
+    return Number(rows[0]?.n ?? 0);
+  }
+
   async exists(table: PgTable, where?: SQL): Promise<boolean> {
     return (await this.count(table, where)) > 0;
   }

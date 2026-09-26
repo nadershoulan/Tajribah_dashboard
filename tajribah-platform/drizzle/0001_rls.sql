@@ -102,7 +102,7 @@ ALTER TABLE "credit_ledger" FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON "credit_ledger"
   USING (tenant_id = current_tenant_id())
   WITH CHECK (tenant_id = current_tenant_id());
-GRANT SELECT, INSERT, UPDATE, DELETE ON "credit_ledger" TO tajribah_app;
+GRANT SELECT, INSERT ON "credit_ledger" TO tajribah_app;
 --> statement-breakpoint
 ALTER TABLE "daily_product_stats" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "daily_product_stats" FORCE ROW LEVEL SECURITY;

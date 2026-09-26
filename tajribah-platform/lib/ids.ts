@@ -28,6 +28,23 @@ export function uuidv7(now: number = Date.now()): string {
   );
 }
 
+/**
+ * P2.9 — the same uuid for the same inputs (RFC 9562 v8, from SHA-256). For references that
+ * are not rows — "Starter's grant for October 2026" — so a unique index can refuse the second
+ * one. Never for primary keys, and never for anything secret: it is guessable by design.
+ */
+export async function stableUuid(...parts: string[]): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(parts.join('\u001f'))));
+  const b = digest.slice(0, 16);
+  b[6] = (b[6] & 0x0f) | 0x80; // version 8
+  b[8] = (b[8] & 0x3f) | 0x80; // variant 10xx
+  const h = HEX;
+  return (
+    h[b[0]] + h[b[1]] + h[b[2]] + h[b[3]] + '-' + h[b[4]] + h[b[5]] + '-' + h[b[6]] + h[b[7]] + '-' +
+    h[b[8]] + h[b[9]] + '-' + h[b[10]] + h[b[11]] + h[b[12]] + h[b[13]] + h[b[14]] + h[b[15]]
+  );
+}
+
 /** The millisecond timestamp a v7 id was minted at. Useful in tests and admin tooling. */
 export function uuidv7Time(id: string): number {
   return parseInt(id.slice(0, 8) + id.slice(9, 13), 16);

@@ -12,13 +12,14 @@
 import { and, eq, gte, inArray, isNull, lt } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
 import {
-  LIMIT_KEY, dailyTenantStats, modelFiles, planFeatures, planLimits, plans, products, subscriptions, tenantMemberships, usageCounters, models3d,
+  LIMIT_KEY, creditLedger, dailyTenantStats, modelFiles, planFeatures, planLimits, plans, products, subscriptions, tenantMemberships, usageCounters, models3d,
   type LimitKey,
 } from '@/db/schema';
 import { UNLIMITED, planByCode, type PlanCode, type PlanDefinition, type PlanLimits } from '@/lib/plans';
 import { errors } from '../errors/problem';
 import { log } from '../observability/log';
 import type { TenantContext } from '../tenancy/context';
+import type { TenantDb } from '../tenancy/tenant-db';
 
 export type Entitlements = {
   plan: PlanDefinition;
@@ -116,7 +117,7 @@ export const BYTES_PER_GB = 1024 ** 3;
  *  - AR sessions: the days of the analytics rollup in this Riyadh month. The rollup rewrites
  *    a whole day, so a replay writes the same number; the home screen reads this same figure.
  *  - bandwidth: a per-day total the CDN reports and `reportDailyBandwidth` *sets* (never adds).
- *  - AI credits: this month's rows until the credit ledger (P2.9) replaces them.
+ *  - AI credits: this month's use, from the credit ledger (P2.9).
  */
 export async function currentUsage(ctx: TenantContext, metric: LimitKey, now = new Date()): Promise<number> {
   switch (metric) {
@@ -137,8 +138,9 @@ export async function currentUsage(ctx: TenantContext, metric: LimitKey, now = n
       const days = await ctx.db.find(dailyTenantStats, and(gte(dailyTenantStats.day, first), lt(dailyTenantStats.day, next)), { limit: 40 });
       return days.reduce((sum, day) => sum + day.arSessions, 0);
     }
-    case 'bandwidth_gb':
     case 'ai_credits':
+      return creditsUsedIn(ctx.db, currentPeriodStart(now), nextPeriodStart(now));
+    case 'bandwidth_gb':
     default: {
       const start = currentPeriodStart(now);
       const rows = await ctx.db.find(usageCounters, and(
@@ -150,6 +152,18 @@ export async function currentUsage(ctx: TenantContext, metric: LimitKey, now = n
       return metric === 'bandwidth_gb' ? total / 1024 : total; // bandwidth rows are MB per day
     }
   }
+}
+
+/**
+ * P2.9: AI credits used between `from` and `to`, from the credit ledger: what was spent, less
+ * what was refunded, never below zero. One definition for the quota, the home screen and the
+ * ledger's own expiry.
+ */
+export async function creditsUsedIn(db: TenantDb, from: Date, to: Date): Promise<number> {
+  const rows = await db.find(creditLedger, and(
+    inArray(creditLedger.reason, ['consumption', 'refund']), gte(creditLedger.createdAt, from), lt(creditLedger.createdAt, to),
+  ), { limit: 10_000 });
+  return Math.max(0, -rows.reduce((sum, r) => sum + r.delta, 0));
 }
 
 /** Bytes this store holds in storage: every model file whose bytes were not deleted. */

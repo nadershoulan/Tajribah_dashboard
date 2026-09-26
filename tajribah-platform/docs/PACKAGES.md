@@ -126,7 +126,7 @@ only. Screen IDs from the inventory (`ADM-*`).
 | A11 ✅ | Platform operations | — | Queue health, stuck jobs, webhook failures, key rotation state |
 | A12 ✅ | Support tooling | — | Look up a store/person/request id and see what happened |
 | A13 ◐ | Content management | ❓ what "platform copy" is | Coupons (ADM-15) ✅; platform copy — no copy is database-held today (all of it is code, reviewed like code); needs a decision on what, if anything, staff should edit without a deploy |
-| A14 ❓ | Compliance & system | PDPL process ❓, retention policy ❓ | Data requests, retention, the staff trail. **Blocked on decisions, not accounts:** nothing in the product creates a data request yet, and no retention period is defined anywhere (plan, DECISIONS) — building screens for either would invent the rules. The staff trail itself is A1 (ADM-43) |
+| A14 ✅ | Compliance & system | — (rules: T22, working rules until counsel reviews) | Data requests, retention, the staff trail (A1, ADM-43) |
 
 ## P3–P8 and the parallel tracks
 

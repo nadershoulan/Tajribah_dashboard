@@ -400,3 +400,49 @@ applied migration is how a database drifts from its files. The isolation suite w
 and was seen to catch a later table with RLS removed (3 failures).
 
 **Rollback path.** Revert the generator; a later table's `DROP TABLE` removes its block's effects.
+
+## T22 · 2026-09-27 · Privacy requests and retention — working rules (A14)
+
+**Decision (Nader: "do invent").** Nothing defined these, so these are Tajribah's working rules
+until counsel reviews them. They follow the Saudi PDPL's shape; the periods are ours.
+
+**Privacy requests** (`data_requests`):
+- **Who.** A person with a Tajribah account, about their own account data (Tajribah is the
+  controller). Shoppers: Tajribah holds no shopper identity — analytics sessions are a daily
+  salted hash, try-on runs on the device — so a shopper request is answered "no personal data
+  held" (rejected with that reason), and pointed to the store, which is the controller for its
+  own customers.
+- **How it arrives.** To support (email or phone); staff record it in the console with the
+  subject's email and how identity was checked. The person asks from the address on the account,
+  or support confirms by a call — never on an unverified message.
+- **Deadline.** 30 days from receipt (the PDPL response period); the console shows what is due
+  and overdue.
+- **Export.** One JSON file: the profile (no password hash, no two-step secret, no backup
+  codes), stores and roles, sessions (when, which device — the IP stays hashed and is not
+  included), notifications, and what they did (action, record, time, field names). Kept as a
+  private snapshot; staff send it.
+- **Erasure.** Refused while the person owns a store (transfer or close it first — the store's
+  data is the store's, not only theirs). Otherwise the account is anonymised (email, name,
+  phone, password, two-step cleared; `deleted_at` set), memberships removed, sessions ended,
+  their notifications and pending invitations deleted. Audit rows stay, pointing at the
+  anonymised account: the record of what was done is kept, not who did it.
+- Every step (recorded, exported, erased, rejected) is in the staff trail with a reason.
+
+**Retention** (a daily sweep, admin role — the role that keeps DML for exactly this):
+
+| Data | Kept for | Then |
+|---|---|---|
+| Raw analytics events | 90 days (as the schema already states) | deleted; daily rollups kept |
+| Ended sessions (revoked or expired) | 90 days after they ended | deleted, with their refresh tokens |
+| Used or expired one-time tokens | 7 days | deleted |
+| Read notifications | 180 days after reading | deleted; unread ones 1 year |
+| Webhook deliveries | processed / ignored 30 days; failed 90 days | deleted |
+| Finished jobs | done / cancelled 30 days; dead 90 days | deleted |
+| Store activity trail (`audit_logs`) | 3 years | deleted |
+| Staff trail (`staff_audit`) | 5 years | deleted |
+| Invoices, AI credit ledger, coupon uses | not swept (VAT records ≥ 6 years; the ledger *is* the balance) | — |
+| Deleted stores | listed for review after 90 days; never purged automatically | a person decides (purging would delete invoices) |
+
+**Rollback path.** The periods are one table in code (`server/modules/admin/retention.ts`);
+changing one changes the next sweep. Nothing deleted can be brought back — lengthen a period
+before a sweep, not after.

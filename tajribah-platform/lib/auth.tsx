@@ -173,6 +173,16 @@ export type AdminCouponFields = {
 };
 export type AdminCoupon = AdminCouponFields & { id: string; redemptions: number; createdAt: string };
 
+/** A14 — server/modules/admin/privacy.ts, retention.ts */
+export type AdminPrivacyRequest = {
+  id: string; type: 'export' | 'erase'; status: 'received' | 'processing' | 'completed' | 'rejected'; subjectEmail: string | null; subjectUserId: string | null;
+  identityCheck: string | null; note: string | null; receivedAt: string; dueAt: string | null; completedAt: string | null; overdue: boolean; hasExport: boolean;
+};
+type Bi2 = { ar: string; en: string };
+export type AdminRetention = {
+  rules: { key: string; what: Bi2; keep: Bi2; due: number }[]; never: { what: Bi2; why: Bi2 }[]; deletedStoresForReview: number; asOf: string;
+};
+
 export type AdminApi = {
   whoami(): Promise<{ email: string; fullName: string }>;
   trail(storeId?: string): Promise<StaffTrailRow[]>;
@@ -199,6 +209,13 @@ export type AdminApi = {
   /** A4b: point this session at the store, read-only, then re-read `me`. */
   viewStore(id: string, minutes: number, reason: string): Promise<void>;
   endView(): Promise<void>;
+  privacyRequests(): Promise<{ requests: AdminPrivacyRequest[]; responseDays: number }>;
+  recordPrivacy(input: { type: 'export' | 'erase'; subjectEmail: string; identityCheck: string }): Promise<AdminPrivacyRequest>;
+  fulfilExport(id: string): Promise<void>;
+  privacyExport(id: string): Promise<unknown>;
+  fulfilErasure(id: string): Promise<void>;
+  rejectPrivacy(id: string, reason: string): Promise<void>;
+  retention(): Promise<AdminRetention>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -272,6 +289,13 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       updateCoupon: (id, patch) => client.call(`/api/admin/coupons/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch }),
       viewStore: async (id, minutes, reason) => { await client.call(`/api/admin/stores/${encodeURIComponent(id)}/view`, { body: { minutes, reason } }); await load(); },
       endView: async () => { await client.call('/api/admin/view/end', { method: 'POST' }); await load(); },
+      privacyRequests: () => client.call('/api/admin/privacy'),
+      recordPrivacy: (input) => client.call('/api/admin/privacy', { body: input }),
+      fulfilExport: async (id) => { await client.call(`/api/admin/privacy/${encodeURIComponent(id)}/export`, { method: 'POST' }); },
+      privacyExport: (id) => client.call(`/api/admin/privacy/${encodeURIComponent(id)}/export`),
+      fulfilErasure: async (id) => { await client.call(`/api/admin/privacy/${encodeURIComponent(id)}/erase`, { method: 'POST' }); },
+      rejectPrivacy: async (id, reason) => { await client.call(`/api/admin/privacy/${encodeURIComponent(id)}/reject`, { body: { reason } }); },
+      retention: () => client.call('/api/admin/retention'),
     },
     twoFactor: {
       status: () => client.twoFactorStatus(),
@@ -337,7 +361,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

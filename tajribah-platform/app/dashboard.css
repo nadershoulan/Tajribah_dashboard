@@ -723,8 +723,9 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .admin-actions .field { margin-bottom: 0; flex: 0 0 220px; }
 .admin-actions .field.act-amount { flex-basis: 140px; }
 .admin-actions .field.act-reason { flex: 1 1 260px; }
+.admin-actions .field.act-email { flex-basis: 240px; }
 .admin-actions .btn-row { margin: 0; }
-@media (max-width: 860px) { .admin-actions { flex-direction: column; align-items: stretch; } .admin-actions .field, .admin-actions .field.act-amount, .admin-actions .field.act-reason { flex: 0 0 auto; } }
+@media (max-width: 860px) { .admin-actions { flex-direction: column; align-items: stretch; } .admin-actions .field, .admin-actions .field.act-amount, .admin-actions .field.act-email, .admin-actions .field.act-reason { flex: 0 0 auto; } }
 
 /* A7 — a two-way switch */
 .seg { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface, #fff); }

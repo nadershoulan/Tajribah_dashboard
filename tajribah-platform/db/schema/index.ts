@@ -100,4 +100,5 @@ export const NULLABLE_TENANT: Record<string, string> = {
   jobs: 'Platform jobs (rollups, cleanup) have no tenant; tenant jobs always set it.',
   sessions: 'A session exists before a tenant is chosen, and the switcher changes it.',
   feature_flags: 'A NULL row is the platform default; a tenant row overrides it.',
+  data_requests: 'A privacy request by a person about their own account belongs to no store (A14, T22). Such rows are invisible to the app role and handled in the admin console.',
 };

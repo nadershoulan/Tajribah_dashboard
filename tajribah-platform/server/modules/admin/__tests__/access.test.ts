@@ -15,7 +15,7 @@ import { loadEnv, resetEnv } from '@/server/core/config/env';
 import { setLogLevel } from '@/server/core/observability/log';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
 import { staffLog, staffTrail, type StaffContext } from '@/server/modules/admin/access';
-import { createCouponHandler, listCouponsHandler, updateCouponHandler, storeActivityHandler, supportLookupHandler, invoiceForStaffHandler, listInvoicesHandler, operationsHandler, replayDeliveryHandler, retryJobHandler, listPeopleHandler, listStoresHandler, listSubscriptionsHandler, overviewHandler, personActionHandler, plansHandler, updatePlanHandler, staffTrailHandler, storeActionHandler, whoamiHandler } from '@/server/modules/admin/http';
+import { listPrivacyHandler, recordPrivacyHandler, fulfilErasureHandler, retentionHandler, createCouponHandler, listCouponsHandler, updateCouponHandler, storeActivityHandler, supportLookupHandler, invoiceForStaffHandler, listInvoicesHandler, operationsHandler, replayDeliveryHandler, retryJobHandler, listPeopleHandler, listStoresHandler, listSubscriptionsHandler, overviewHandler, personActionHandler, plansHandler, updatePlanHandler, staffTrailHandler, storeActionHandler, whoamiHandler } from '@/server/modules/admin/http';
 
 setLogLevel('error');
 const APP = 'http://localhost:5173';
@@ -41,7 +41,7 @@ test('only staff with two-step sign-in get in; everyone else is told the page do
     const staff = await person(harness, 'staff@tajribah.test', { isStaff: true, totpEnabled: true });
     const gone = await person(harness, 'left@tajribah.test', { isStaff: true, totpEnabled: true });
 
-    for (const handler of [whoamiHandler, staffTrailHandler, overviewHandler, listStoresHandler, listPeopleHandler, plansHandler, listSubscriptionsHandler, listInvoicesHandler, operationsHandler, listCouponsHandler]) {
+    for (const handler of [whoamiHandler, staffTrailHandler, overviewHandler, listStoresHandler, listPeopleHandler, plansHandler, listSubscriptionsHandler, listInvoicesHandler, operationsHandler, listCouponsHandler, listPrivacyHandler, retentionHandler]) {
       assert.equal((await get(handler, '/api/admin/x')).status, 401, 'no session');
       const notStaff = await get(handler, '/api/admin/x', merchant.token);
       assert.equal(notStaff.status, 404, 'a merchant is not even told the console exists');
@@ -126,6 +126,13 @@ test('only staff with two-step sign-in get in; everyone else is told the page do
     assert.equal((await send(updateCouponHandler, 'PATCH', `/api/admin/coupons/${madeId}`, shopper.token, { active: false, reason: 'access test' })).status, 404);
     assert.equal((await send(updateCouponHandler, 'PATCH', `/api/admin/coupons/${madeId}`, staff.token, { active: false, reason: 'access test' })).status, 200);
     assert.equal((await send(updateCouponHandler, 'PATCH', `/api/admin/coupons/${madeId}`, staff.token, { active: false })).status, 422, 'a reason is required');
+    // A14: the privacy register — the same guard on recording and fulfilling.
+    const privacy = { type: 'export', subjectEmail: 'someone@example.test', identityCheck: 'asked from the account email' };
+    assert.equal((await send(recordPrivacyHandler, 'POST', '/api/admin/privacy', shopper.token, privacy)).status, 404);
+    assert.equal((await send(recordPrivacyHandler, 'POST', '/api/admin/privacy', staff.token, privacy, { origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' })).status, 403);
+    assert.equal((await send(recordPrivacyHandler, 'POST', '/api/admin/privacy', staff.token, privacy)).status, 201);
+    assert.equal((await send(fulfilErasureHandler, 'POST', `/api/admin/privacy/${uuidv7()}/erase`, shopper.token, {})).status, 404);
+    assert.equal((await send(fulfilErasureHandler, 'POST', `/api/admin/privacy/${uuidv7()}/erase`, staff.token, {})).status, 404, 'unknown request');
     const me = await (await get(whoamiHandler, '/api/admin/whoami', staff.token)).json() as any;
     assert.equal(me.email, 'staff@tajribah.test');
 

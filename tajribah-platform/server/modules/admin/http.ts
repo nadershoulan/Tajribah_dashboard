@@ -16,6 +16,8 @@ import { operations, replayDelivery, retryJob } from './operations';
 import { lookup, storeActivity } from './support';
 import { createCoupon, listCoupons, updateCoupon } from './coupons';
 import { endStaffView, startStaffView } from './staff-view';
+import { RESPONSE_DAYS, exportDocument, fulfilErasure, fulfilExport, listPrivacyRequests, recordPrivacyRequest, rejectPrivacyRequest } from './privacy';
+import { retentionState } from './retention';
 import { currentScope } from '@/server/core/observability/scope';
 import { errors } from '@/server/core/errors/problem';
 
@@ -271,4 +273,67 @@ export const endStaffViewHandler = route(async (request) => {
   const caller = await authenticate(request, config);
   await endStaffView(caller.sessionId, { userId: caller.userId, requestId: currentScope()?.requestId ?? 'unscoped', why: 'stopped' });
   return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+});
+
+/** API-A24 — GET /api/admin/privacy: the privacy-request register, open first (A14, T22). */
+export const listPrivacyHandler = route(async (request) => {
+  await staffContextFor(request);
+  return json({ requests: await listPrivacyRequests(), responseDays: RESPONSE_DAYS });
+});
+
+/** API-A25 — POST /api/admin/privacy: record a request made to support. */
+export const recordPrivacyHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const body = await readJson(request, z.object({ type: z.enum(['export', 'erase']), subjectEmail: z.string().max(254), identityCheck: z.string().max(500), note: z.string().max(1000).nullable().optional() }));
+  return json(await recordPrivacyRequest(staff, body), { status: 201 });
+});
+
+const privacyId = (request: Request) => {
+  const id = idBeforeLast(request);
+  if (!z.string().uuid().safeParse(id).success) throw errors.notFound('privacy request');
+  return id;
+};
+
+/** API-A26 — POST /api/admin/privacy/[id]/export: prepare the export and close the request. */
+export const fulfilExportHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  await fulfilExport(staff, privacyId(request));
+  return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+});
+
+/** API-A27 — GET /api/admin/privacy/[id]/export: the kept export, as a file for staff to send. */
+export const downloadExportHandler = route(async (request) => {
+  await staffContextFor(request);
+  const id = privacyId(request);
+  return new Response(await exportDocument(id), {
+    headers: { 'content-type': 'application/json; charset=utf-8', 'content-disposition': `attachment; filename="tajribah-data-export-${id}.json"`, 'cache-control': 'no-store' },
+  });
+});
+
+/** API-A28 — POST /api/admin/privacy/[id]/erase: anonymise the account and close the request. */
+export const fulfilErasureHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  await fulfilErasure(staff, privacyId(request));
+  return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+});
+
+/** API-A29 — POST /api/admin/privacy/[id]/reject: close without acting, with the reason given to the person. */
+export const rejectPrivacyHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  await rejectPrivacyRequest(staff, privacyId(request), (await readJson(request, REASON)).reason);
+  return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+});
+
+/** API-A30 — GET /api/admin/retention: the periods and what the next sweep would remove (A14, T22). */
+export const retentionHandler = route(async (request) => {
+  await staffContextFor(request);
+  return json(await retentionState());
 });

@@ -18,6 +18,7 @@ import { scheduleSyncs } from '@/server/modules/sync/schedule';
 import { expireStaleDrafts } from '@/server/modules/models/cleanup';
 import { resealConnections } from '@/server/modules/connections/rotation';
 import { resealTwoFactorSecrets } from '@/server/modules/auth/two-factor';
+import { sweepRetentionHourly } from '@/server/modules/admin/retention';
 import { sendTrialReminders } from '@/server/modules/billing/trial';
 
 export const WORKER_ID = `worker-${Math.random().toString(36).slice(2, 8)}`;
@@ -60,13 +61,14 @@ export async function runForever(options: { intervalMs?: number; limit?: number 
   }
 }
 
-/** The database-driven sweeps: due syncs, abandoned draft uploads, tokens under an old key. */
+/** The database-driven sweeps: due syncs, abandoned draft uploads, tokens under an old key, retention. */
 async function scheduled(): Promise<void> {
   await scheduleSyncs();
   await expireStaleDrafts();
   await resealConnections();
   await resealTwoFactorSecrets();
   await sendTrialReminders();
+  await sweepRetentionHourly(); // A14, T22: data past its retention period
 }
 
 /** Stored webhook deliveries are handled on the same tick as queue jobs (P1.7). */

@@ -141,13 +141,23 @@ export const notifications = pgTable('notifications', {
   createdAt: createdAt(),
 }, (t) => [index('notifications_tenant_user_idx').on(t.tenantId, t.userId, t.readAt)]);
 
-/** PDPL: a data subject's export or erasure request, and its audit trail (§7.9). */
+/**
+ * PDPL: a data subject's export or erasure request (§7.9) — the register the admin console keeps
+ * (A14, T22; drizzle/0014). `tenantId` is null for a person's request about their own account.
+ * `requestedBy` is who recorded it (staff, for a request made to support).
+ */
 export const dataRequests = pgTable('data_requests', {
   id: pk(),
-  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
   type: dataRequestType('type').notNull(),
   requestedBy: uuid('requested_by').notNull(),
   subjectEmail: text('subject_email'),
+  subjectUserId: uuid('subject_user_id'),
+  /** 30 days from receipt (T22). */
+  dueAt: ts('due_at'),
+  handledBy: uuid('handled_by'),
+  /** How the requester's identity was confirmed, in staff's words. */
+  identityCheck: text('identity_check'),
   status: dataRequestStatus('status').notNull().default('received'),
   resultStorageKey: text('result_storage_key'),
   completedAt: ts('completed_at'),

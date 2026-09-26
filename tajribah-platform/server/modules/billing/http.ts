@@ -2,8 +2,11 @@
  * P2.6 — invoices, read side. Issuing is not an endpoint: an invoice follows a payment
  * (P2.4/P2.5), inside the server. Both need `billing:read` (owner and admin).
  */
+import { z } from 'zod';
 import { route } from '@/server/core/observability/request';
-import { json, tenantContextFor } from '@/server/core/http/api';
+import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@/server/core/http/api';
+import { PLAN_CODE } from '@/db/schema';
+import { checkCoupon } from './coupons';
 import { errors } from '@/server/core/errors/problem';
 import { invoiceOf, invoicesOf } from './invoices';
 import { creditSummary } from './credits';
@@ -36,4 +39,15 @@ export const creditsHandler = route(async (request) => {
 export const billingHandler = route(async (request) => {
   const ctx = await tenantContextFor(request);
   return json(await billingSummary(ctx));
+});
+
+/** API-134 — POST /api/billing/coupons/check { code, plan, cycle }: may this store use it, and what does it take off (P2.12). */
+export const checkCouponHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  const body = await readJson(request, z.object({
+    code: z.string().trim().min(1).max(40), plan: z.enum(PLAN_CODE), cycle: z.enum(['monthly', 'annual']),
+  }));
+  return json(await checkCoupon(ctx, body));
 });

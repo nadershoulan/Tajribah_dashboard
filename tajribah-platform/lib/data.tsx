@@ -18,6 +18,7 @@ import type {
 import { ApiError, currentStore, type ApiClient } from './api-client';
 import type { Lang } from './lang';
 import type { ProductListPage, ProductListQuery } from './contracts/products';
+import type { PlanCode } from './plans';
 import { DEFAULT_BUTTON_RADIUS, SettingsPatch, type StoreSettings } from './contracts/settings';
 import { ArConfigInput, DEFAULT_AR_CONFIG, placementErrors, placementsFor, type ArConfigView } from './contracts/ar-config';
 import { pageOf } from './product-list';
@@ -81,7 +82,11 @@ export interface DataSource {
   confirmStore(slug?: string): Promise<OnboardingView>;
   /** P2.6: one invoice exactly as issued, or null (not this store's, or no such invoice). */
   invoice(id: string): Promise<InvoiceDocument | null>;
+  /** P2.12: may this store use the code for this plan and cycle — the server decides. Refusals: 422 on `code`. */
+  checkCoupon(code: string, plan: PlanCode, cycle: 'monthly' | 'annual'): Promise<CouponQuote>;
 }
+
+export type CouponQuote = { code: string; kind: 'percent' | 'fixed' | 'free_months'; discountMinor: number; freeMonths: number; description: { ar: string; en: string } };
 
 /**
  * The real API. The store summary (`/api/auth/me`) and the catalogue (`/api/products`, P1.8)
@@ -180,6 +185,9 @@ export function apiSource(client: ApiClient): DataSource {
     async unskipStep(step) { return client.call<OnboardingView>('/api/onboarding/unskip', { body: { step } }); },
     async confirmStore(slug) {
       return client.call<OnboardingView>('/api/onboarding/confirm-store', slug === undefined ? { method: 'POST' } : { body: { slug } });
+    },
+    async checkCoupon(code, plan, cycle) {
+      return client.call<CouponQuote>('/api/billing/coupons/check', { body: { code, plan, cycle } });
     },
     async invoice(id) {
       try {
@@ -429,6 +437,8 @@ export const demoSource: DataSource = {
   },
   async onboarding() { return evaluate(demoFacts(), demoOnboardingState); },
   async invoice(id) { return id === 'sample' ? sampleInvoice() : null; },
+  // The preview has no coupons: every code gets the server's answer for an unknown one.
+  async checkCoupon() { throw new ApiError(422, 'validation_failed', 'Validation failed', { code: ['this code is not valid'] }); },
   async skipStep(step) { return demoOnboardingChange((s, f) => skipRule(s, step, f)); },
   async unskipStep(step) { return demoOnboardingChange((s, f) => unskipRule(s, step, f)); },
   async confirmStore(slug) {

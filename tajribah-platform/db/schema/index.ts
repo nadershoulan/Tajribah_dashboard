@@ -62,6 +62,7 @@ export const EXEMPT: Record<string, string> = {
   plan_features: 'Feature switches belonging to a plan, not to a tenant. Per-tenant overrides live in feature_flags instead.',
   billing_events: 'Raw provider webhook envelopes, deduplicated before a tenant is known. Resolved to a tenant during processing.',
   model_registry: 'Catalogue of AI models, versions and A/B splits operated by Tajribah. It holds no tenant data and is never written by a merchant.',
+  coupons: 'Platform catalogue of discount codes (P2.12), the same for every store and written only by the admin console. Which store used which code is tenant data, in coupon_redemptions.',
 };
 
 /**

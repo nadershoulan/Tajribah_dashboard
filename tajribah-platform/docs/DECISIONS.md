@@ -374,3 +374,18 @@ the merchant-facing number.
 
 **Rollback path.** The seller constant and the number format are code; issued invoices keep
 their snapshot and number whatever changes later.
+
+## T21 · 2026-09-26 · A table created after 0001 carries its own generated RLS block (P2.12)
+
+**Decision.** `scripts/gen-rls.mjs` reads which migration creates each schema table. Tables
+from `0000_init` stay in `0001_rls.sql` (byte-identical to before). A table created by a later
+migration gets the same policy and grants written **into that migration**, between
+`-- rls:begin` and `-- rls:end`, plus the admin role's grant (0001's `ON ALL TABLES` only
+reached tables that existed then). `verify.mjs` now regenerates and compares every migration,
+not only 0001. First use: `drizzle/0010_coupons.sql`.
+
+**Why.** 0001 runs before a later table exists, so its policy cannot live there; and editing an
+applied migration is how a database drifts from its files. The isolation suite walks the schema
+and was seen to catch a later table with RLS removed (3 failures).
+
+**Rollback path.** Revert the generator; a later table's `DROP TABLE` removes its block's effects.

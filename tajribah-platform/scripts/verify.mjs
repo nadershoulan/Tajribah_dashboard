@@ -13,7 +13,7 @@
  * toolkit described in CLAUDE.md. `--tsconfig` defaults to tsconfig.json.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -41,12 +41,15 @@ step('tests', [join(ROOT, 'scripts/test.mjs'), '--modules', MODULES]);
 step('.env.example is current', [join(ROOT, 'scripts/gen-env-example.mjs'), '--modules', MODULES, '--check']);
 
 // The RLS generator has no --check mode; regenerate and compare, restoring on a mismatch.
-const rlsPath = join(ROOT, 'drizzle/0001_rls.sql');
-const before = existsSync(rlsPath) ? readFileSync(rlsPath) : Buffer.alloc(0);
+// Every migration, not only 0001: a table created later carries its own generated block (P2.12).
+const migrationDir = join(ROOT, 'drizzle');
+const migrationFiles = readdirSync(migrationDir).filter((f) => f.endsWith('.sql'));
+const before = new Map(migrationFiles.map((f) => [f, readFileSync(join(migrationDir, f))]));
 step('regenerate RLS migration', [join(ROOT, 'scripts/gen-rls.mjs'), '--modules', MODULES]);
-if (!readFileSync(rlsPath).equals(before)) {
-  writeFileSync(rlsPath, before);
-  console.error('\n✗ drizzle/0001_rls.sql is not what the schema generates — run scripts/gen-rls.mjs and commit the result.');
+const drifted = migrationFiles.filter((f) => !readFileSync(join(migrationDir, f)).equals(before.get(f)));
+if (drifted.length) {
+  for (const f of drifted) writeFileSync(join(migrationDir, f), before.get(f));
+  console.error(`\n✗ ${drifted.join(', ')}: not what the schema generates — run scripts/gen-rls.mjs and commit the result.`);
   process.exit(1);
 }
 console.log('✓ RLS migration matches the schema');

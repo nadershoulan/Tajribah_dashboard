@@ -680,3 +680,11 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .quote > div.total { border-bottom: 0; font-weight: 700; font-size: 16px; }
 .quote > div.total dt { color: var(--text); }
 @media (max-width: 640px) { .checkout { grid-template-columns: minmax(0, 1fr); } }
+
+/* P2.12 — coupon field */
+.coupon-row { display: grid; gap: 6px; margin-top: 16px; max-width: 420px; }
+.coupon-row label { font-size: 13px; color: var(--text-2); }
+.coupon-row > div { display: flex; gap: 8px; }
+.coupon-row input { flex: 1; min-width: 0; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; background: var(--surface, #fff); color: var(--text); text-transform: uppercase; }
+.coupon-row .field-error { font-size: 12.5px; color: var(--bad); }
+.coupon-row .field-hint { font-size: 12.5px; color: var(--text-3); }

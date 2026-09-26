@@ -208,6 +208,44 @@ export const billingEvents = pgTable('billing_events', {
   createdAt: createdAt(),
 }, (t) => [uniqueIndex('billing_events_provider_event_unq').on(t.provider, t.providerEventId)]);
 
+/**
+ * P2.12 (drizzle/0010) — a coupon: a percentage, a fixed amount, or free months. Platform
+ * catalogue, read-only to the app (the admin console writes it). Codes are stored upper-case.
+ * `applies_to` null = every plan; `max_redemptions` null = no limit.
+ */
+export const couponKind = pgEnum('coupon_kind', ['percent', 'fixed', 'free_months']);
+
+export const coupons = pgTable('coupons', {
+  id: pk(),
+  code: text('code').notNull(),
+  kind: couponKind('kind').notNull(),
+  percentOff: integer('percent_off'),
+  amountOffMinor: integer('amount_off_minor'),
+  freeMonths: integer('free_months'),
+  appliesTo: json<(typeof PLAN_CODE)[number][]>('applies_to'),
+  maxRedemptions: integer('max_redemptions'),
+  validFrom: ts('valid_from'),
+  validUntil: ts('valid_until'),
+  active: bool('active').notNull().default(true),
+  note: text('note'),
+  ...timestamps(),
+}, (t) => [uniqueIndex('coupons_code_unq').on(t.code)]);
+
+/** One per store per coupon: the unique index is what stops a second use. */
+export const couponRedemptions = pgTable('coupon_redemptions', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  couponId: uuid('coupon_id').notNull().references(() => coupons.id, { onDelete: 'restrict' }),
+  subscriptionId: uuid('subscription_id'),
+  invoiceId: uuid('invoice_id'),
+  discountMinor: integer('discount_minor').notNull().default(0),
+  createdAt: createdAt(),
+}, (t) => [
+  uniqueIndex('coupon_redemptions_once_unq').on(t.couponId, t.tenantId),
+  index('coupon_redemptions_tenant_idx').on(t.tenantId),
+]);
+
+export type Coupon = typeof coupons.$inferSelect;
 export type Plan = typeof plans.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Invoice = typeof invoices.$inferSelect;

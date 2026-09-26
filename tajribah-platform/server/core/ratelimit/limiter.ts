@@ -85,6 +85,8 @@ export const LIMITS = {
   /** Per session (§13.6), not per IP. */
   refresh: { limit: 60, windowSeconds: 60 },
   passwordReset: { limit: 5, windowSeconds: 60 * 60 },
+  /** Per store (P2.12): coupon codes cannot be guessed at speed. */
+  couponCheck: { limit: 20, windowSeconds: 60 * 60 },
   /** Per user: each resend is an email to their inbox. */
   verifyResend: { limit: 5, windowSeconds: 60 * 60 },
   otpSend: { limit: 5, windowSeconds: 60 * 60 },

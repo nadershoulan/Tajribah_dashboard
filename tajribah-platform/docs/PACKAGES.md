@@ -100,7 +100,7 @@ ZATCA provider block the rest; they may be prepared against fakes, not marked do
 | P2.9 ✅ | AI credits ledger | — | Append-only `credit_ledger`; balance = sum of deltas; plan grants per period, consumption refused below zero; a dispute answerable by replay |
 | P2.10 ◐ | Billing UI | — (UI); pay button 🔒 | Plan, usage, invoices and credits from the API; choose-plan flow up to the payment step |
 | P2.11 ✅ | Trial lifecycle | — | Trial reminders before the end; a lapsed trial is read-only everywhere writes happen (not only where remembered), with the reason shown |
-| P2.12 | Coupons | — (model); redemption at checkout 🔒 | Percent / fixed / free-months coupons with limits and expiry; validated server-side |
+| P2.12 ◐ | Coupons | — (model); redemption at checkout 🔒 | Percent / fixed / free-months coupons with limits and expiry; validated server-side |
 | P2.13 | Billing notifications | — (email); SMS 🔒 | Trial ending, payment failed, invoice issued — bilingual, once each |
 | P2.14 | Financial reporting | 🔒 real payments | MRR, churn, revenue by plan — from invoices and payments |
 | P2.15 | Billing integrity tests | 🔒 Moyasar | The gate: full payment cycle incl. failure, refund and duplicate webhook |

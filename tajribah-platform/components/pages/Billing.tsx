@@ -6,7 +6,8 @@ import { useState } from 'react';
 import { CheckCircle2, CreditCard, FileText, Lock, Sparkles, X } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
-import { useResource } from '@/lib/data';
+import { useData, useResource, type CouponQuote } from '@/lib/data';
+import { ApiError } from '@/lib/api-client';
 import { formatDate, formatNumber, formatRelative } from '@/lib/format';
 import { formatMoney, vatOf } from '@/lib/money';
 import { PLANS, planByCode, type PlanCode } from '@/lib/plans';
@@ -230,6 +231,19 @@ export default function Billing() {
   );
 }
 
+/** P2.12: the server's coupon refusals, in Arabic. */
+const COUPON_AR: [RegExp, string][] = [
+  [/not valid yet/, 'هذا الرمز لم يبدأ بعد'],
+  [/is not valid/, 'هذا الرمز غير صالح'],
+  [/no longer active/, 'هذا الرمز لم يعد فعّالًا'],
+  [/expired/, 'انتهت صلاحية هذا الرمز'],
+  [/is not for the/, 'هذا الرمز لا ينطبق على هذه الباقة'],
+  [/monthly billing/, 'الأشهر المجانية للفوترة الشهرية فقط'],
+  [/already used/, 'استخدم متجرك هذا الرمز من قبل'],
+  [/used up/, 'نفدت مرات استخدام هذا الرمز'],
+  [/Too many|rate/i, 'محاولات كثيرة، حاول بعد قليل'],
+];
+
 /**
  * P2.10 — the checkout up to the payment step. The quote is priced exactly as the invoice will
  * be (the shared contract, prices from the plan rows). Paying opens with the payment gateway
@@ -240,11 +254,34 @@ function Checkout({ data, plan, cycle, onCycle, onClose }: {
   onCycle: (cycle: 'monthly' | 'annual') => void; onClose: () => void;
 }) {
   const { t, pick, lang } = useLang();
+  const source = useData();
+  const [code, setCode] = useState('');
+  // The server's answer, kept with the plan and cycle it was for: changing either drops it.
+  const [coupon, setCoupon] = useState<{ for: string; quote: CouponQuote } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
   const prices = data.catalogue.find((p) => p.code === plan);
   const unit = cycle === 'annual' ? prices?.priceAnnualMinor : prices?.priceMonthlyMinor;
   const name = planByCode(plan).name;
   if (unit == null) return null;
-  const quote = priceInvoiceLines([{ description: `${name.en} — ${cycle}`, descriptionAr: name.ar, quantity: 1, unitPriceMinor: unit }]);
+  const applied = coupon?.for === `${plan}:${cycle}` ? coupon.quote : null;
+  const discount = applied?.discountMinor ?? 0;
+  // VAT on what is left after the discount — the invoice will say the same.
+  const quote = priceInvoiceLines([{ description: `${name.en} — ${cycle}`, descriptionAr: name.ar, quantity: 1, unitPriceMinor: unit - discount }]);
+  const apply = async () => {
+    if (!code.trim()) return;
+    setChecking(true);
+    setCouponError(null);
+    try {
+      setCoupon({ for: `${plan}:${cycle}`, quote: await source.checkCoupon(code, plan, cycle) });
+    } catch (error) {
+      setCoupon(null);
+      const message = error instanceof ApiError && error.fields?.code ? error.fields.code[0] : (error as Error).message;
+      setCouponError(lang === 'ar' ? COUPON_AR.find(([p]) => p.test(message))?.[1] ?? message : message);
+    } finally {
+      setChecking(false);
+    }
+  };
   const saving = prices?.priceMonthlyMinor != null && prices.priceAnnualMinor != null ? prices.priceMonthlyMinor * 12 - prices.priceAnnualMinor : 0;
   const money = (minor: number) => formatMoney(minor, data.currency, lang);
 
@@ -264,10 +301,23 @@ function Checkout({ data, plan, cycle, onCycle, onClose }: {
             </label>
           </fieldset>
           <dl className="quote">
-            <div><dt>{t('الباقة', 'Plan')} · {cycle === 'annual' ? t('سنة', '1 year') : t('شهر', '1 month')}</dt><dd className="num">{money(quote.subtotalMinor)}</dd></div>
+            <div><dt>{t('الباقة', 'Plan')} · {cycle === 'annual' ? t('سنة', '1 year') : t('شهر', '1 month')}</dt><dd className="num">{money(unit)}</dd></div>
+            {applied && (
+              <div><dt>{t('خصم', 'Discount')} · <span dir="ltr">{applied.code}</span> ({pick(applied.description)})</dt><dd className="num">{discount ? `−${money(discount)}` : '—'}</dd></div>
+            )}
             <div><dt>{t('ضريبة القيمة المضافة 15%', 'VAT 15%')}</dt><dd className="num">{money(quote.vatMinor)}</dd></div>
             <div className="total"><dt>{t('الإجمالي', 'Total')}</dt><dd className="num">{money(quote.totalMinor)}</dd></div>
           </dl>
+        </div>
+        <div className="coupon-row">
+          <label htmlFor="coupon">{t('رمز الخصم', 'Coupon code')}</label>
+          <div>
+            <input id="coupon" dir="ltr" value={code} onChange={(e) => setCode(e.target.value)} maxLength={40} aria-invalid={!!couponError}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void apply(); } }} />
+            <button type="button" className="btn btn-ghost" onClick={apply} disabled={checking || !code.trim()}>{checking ? t('لحظة…', 'Checking…') : t('طبّق', 'Apply')}</button>
+          </div>
+          {couponError && <span className="field-error" role="alert">{couponError}</span>}
+          {applied?.freeMonths ? <span className="field-hint">{t(`أول ${applied.freeMonths} أشهر مجانًا بعد الدفع الأول.`, `The first ${applied.freeMonths} months are free after the first payment.`)}</span> : null}
         </div>
         <p className="hint">
           {t('تصدر الفاتورة باسم منشأتك ورقمها الضريبي كما في ', 'The invoice is issued to your business name and VAT number as entered in ')}

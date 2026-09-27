@@ -6,12 +6,14 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { conversionDaily, dailyProductStats, dailyTenantStats, deviceBreakdownDaily, products } from '@/db/schema';
+import { conversionDaily, dailyProductStats, dailyTenantStats, deviceBreakdownDaily, products, tenantMemberships, users } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { buildTenantContext } from '@/server/core/tenancy/context';
 import { setLogLevel } from '@/server/core/observability/log';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
-import { MIN_SESSIONS, analyticsView, daysOf, upliftOf } from '@/server/modules/analytics/metrics';
+import { MIN_SESSIONS, analyticsCsv, analyticsView, daysOf, upliftOf } from '@/server/modules/analytics/metrics';
+import { dashboardSummary } from '@/server/modules/dashboard/service';
+import { formatPoints } from '@/lib/format';
 
 setLogLevel('error');
 // 22:00 UTC on 27 Sep is already 28 Sep in Riyadh: "today" is the 28th.
@@ -86,5 +88,48 @@ test('the view: the range’s days (empty ones zero), totals inside the range on
 
     const quarter = await analyticsView(ctx, '90d', NOW);
     assert.equal(quarter.totals.views, 150 + 999, 'the 21st is inside 90 days');
+  } finally { await harness.close(); }
+});
+
+test('formatPoints: points, not percent, and the sign is always written', () => {
+  assert.equal(formatPoints(0.051, 'en'), '+5.1 pts');
+  assert.equal(formatPoints(-0.02, 'en'), '−2.0 pts', 'a worse result reads as worse');
+  assert.equal(formatPoints(0, 'en'), '0.0 pts');
+  assert.equal(formatPoints(0.051, 'ar'), '+5.1 نقطة', 'ASCII digits in Arabic too');
+});
+
+test('the home screen’s uplift follows the same rule over 30 days', async () => {
+  const harness = await createTestDb();
+  try {
+    const store = await seedTenant(harness, 'alpha');
+    await seed(harness, store.tenantId);
+    const ctx = await buildTenantContext({ actor: { userId: store.userId, email: store.email, isStaff: false }, tenantId: store.tenantId, requestId: 'r' });
+    const summary = await dashboardSummary(ctx, NOW);
+    assert.equal(summary.last30.upliftPct, (await analyticsView(ctx, '30d', NOW)).totals.upliftPct, 'one rule, one number');
+    assert.equal(summary.last30.upliftPct, 0.051);
+  } finally { await harness.close(); }
+});
+
+test('the CSV: one row per day, empty days as zero, riyals with two decimals; viewers cannot export', async () => {
+  const harness = await createTestDb();
+  try {
+    const store = await seedTenant(harness, 'alpha');
+    await seed(harness, store.tenantId);
+    const ctx = await buildTenantContext({ actor: { userId: store.userId, email: store.email, isStaff: false }, tenantId: store.tenantId, requestId: 'r' });
+    const lines = (await analyticsCsv(ctx, '7d', NOW)).trimEnd().split('\r\n');
+    assert.equal(lines[0], 'day,views,ar_sessions,tryon_sessions,add_to_cart,purchases,revenue_sar');
+    assert.equal(lines.length, 8, 'a header and seven days');
+    assert.equal(lines[1], '2026-09-22,0,0,0,0,0,0.00', 'an empty day is a row of zeros');
+    assert.equal(lines[4], '2026-09-25,50,10,5,3,1,99.00');
+    assert.equal(lines[7], '2026-09-28,100,30,10,8,4,400.00');
+
+    const viewerId = uuidv7();
+    await harness.asAdmin(async () => {
+      await harness.db.insert(users).values({ id: viewerId, email: 'viewer@oud.sa', passwordHash: 'x', fullName: 'V' } as any);
+      await harness.db.insert(tenantMemberships).values({ tenantId: store.tenantId, userId: viewerId, role: 'viewer' } as any);
+    });
+    const viewer = await buildTenantContext({ actor: { userId: viewerId, email: 'viewer@oud.sa', isStaff: false }, tenantId: store.tenantId, requestId: 'r' });
+    await assert.rejects(() => analyticsCsv(viewer, '7d', NOW), (e: any) => e.code === 'forbidden');
+    assert.equal((await analyticsView(viewer, '7d', NOW)).totals.views, 150, 'but can read the screen');
   } finally { await harness.close(); }
 });

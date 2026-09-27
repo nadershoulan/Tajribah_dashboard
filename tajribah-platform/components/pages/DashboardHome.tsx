@@ -6,7 +6,7 @@ import { ArrowUpRight, Boxes, Package, Play, RefreshCw, Sparkles } from 'lucide-
 import { AppLink } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
 import { useResource } from '@/lib/data';
-import { formatDateTime, formatNumber, formatRelative } from '@/lib/format';
+import { formatDateTime, formatNumber, formatPoints, formatRelative } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
 import { planByCode } from '@/lib/plans';
 import { Shell } from '@/components/dashboard/chrome';
@@ -109,7 +109,7 @@ export default function DashboardHome() {
         />
         <Stat
           label={t('ارتفاع نسبة التحويل', 'Conversion uplift')}
-          value={last30.upliftPct == null ? null : `+${(last30.upliftPct * 100).toFixed(1)}%`}
+          value={last30.upliftPct == null ? null : formatPoints(last30.upliftPct, lang)}
           sub={t('مقارنة بمن لم يفتح العرض', 'Against shoppers who did not open AR')}
           hint={t(
             'نقارن نسبة الشراء لمن فتح العرض بنسبة من لم يفتحه، على المنتجات نفسها وفي الفترة نفسها.',

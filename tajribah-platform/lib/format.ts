@@ -102,3 +102,14 @@ export function riyadhDay(value: Date | number | string = new Date()): string {
   const riyadh = new Date(date.getTime() + 3 * 3600_000);
   return riyadh.toISOString().slice(0, 10);
 }
+
+/**
+ * P4.5 — a difference between two rates, in percentage points: `+5.1 pts` / `−2.0 pts`
+ * (`+5.1 نقطة`). Not `%`: "+5.1%" reads as a relative rise, which uplift is not. The sign is
+ * always written, so a worse result can never be mistaken for a better one.
+ */
+export function formatPoints(fraction: number, lang: Lang = 'ar'): string {
+  const points = Math.round(fraction * 1000) / 10;
+  const sign = points > 0 ? '+' : points < 0 ? '−' : '';
+  return `${sign}${Math.abs(points).toFixed(1)} ${lang === 'ar' ? 'نقطة' : 'pts'}`;
+}

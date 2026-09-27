@@ -120,3 +120,21 @@ export async function analyticsView(ctx: TenantContext, range: Range, now = new 
     ],
   };
 }
+
+/**
+ * P4.8 — the range as a CSV, one row per Riyadh day (empty days included, as zero), from the
+ * same rollup the screen reads. Money in riyals with two decimals. `analytics:export` only —
+ * viewers can read the screen but not take the data away.
+ */
+export async function analyticsCsv(ctx: TenantContext, range: Range, now = new Date()): Promise<string> {
+  ctx.require('analytics:export');
+  const days = daysOf(range, now);
+  const rows = await ctx.db.find(dailyTenantStats, and(gte(dailyTenantStats.day, days[0]!), lte(dailyTenantStats.day, days[days.length - 1]!)), { limit: 200 });
+  const byDay = new Map(rows.map((r) => [String(r.day), r]));
+  const lines = ['day,views,ar_sessions,tryon_sessions,add_to_cart,purchases,revenue_sar'];
+  for (const day of days) {
+    const r = byDay.get(day);
+    lines.push([day, r?.views ?? 0, r?.arSessions ?? 0, r?.tryonSessions ?? 0, r?.addToCart ?? 0, r?.purchases ?? 0, (Number(r?.revenueMinor ?? 0) / 100).toFixed(2)].join(','));
+  }
+  return lines.join('\r\n') + '\r\n';
+}

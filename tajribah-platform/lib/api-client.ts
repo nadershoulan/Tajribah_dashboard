@@ -117,6 +117,15 @@ export class ApiClient {
     return (response.status === 204 ? undefined : await response.json()) as T;
   }
 
+  /** P4.8 — like `call`, for a response that is a file (CSV) rather than JSON. */
+  async callText(path: string): Promise<string> {
+    let response = await this.send(path, { auth: true });
+    if (response.status === 401 && (await this.refresh())) response = await this.send(path, { auth: true });
+    if (response.status === 401) this.setToken(null);
+    if (!response.ok) return ApiClient.fail(response);
+    return response.text();
+  }
+
   /** Exchange the refresh cookie for a new access token. Concurrent callers share one attempt. */
   refresh(): Promise<boolean> {
     this.refreshing ??= (async () => {

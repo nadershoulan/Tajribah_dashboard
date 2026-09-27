@@ -79,6 +79,8 @@ export interface DataSource {
   saveArConfig(productId: string, input: ArConfigInput): Promise<ArConfigView>;
   updateSettings(patch: Record<string, unknown>): Promise<StoreSettings>;
   analytics(range: '7d' | '30d' | '90d'): Promise<AnalyticsView>;
+  /** P4.8: the range's daily figures as CSV text. */
+  analyticsCsv(range: '7d' | '30d' | '90d'): Promise<string>;
   /** P1.2: the setup checklist as the database decides it (P1.1), and the merchant's moves on it. */
   onboarding(): Promise<OnboardingView>;
   skipStep(step: StepKey): Promise<OnboardingView>;
@@ -184,6 +186,7 @@ export function apiSource(client: ApiClient): DataSource {
     },
     async updateSettings(patch) { return client.call<StoreSettings>('/api/settings', { method: 'PATCH', body: patch }); },
     async analytics(range) { return client.call<AnalyticsView>(`/api/analytics?range=${range}`); },
+    async analyticsCsv(range) { return client.callText(`/api/analytics/export?range=${range}`); },
     async onboarding() { return client.call<OnboardingView>('/api/onboarding'); },
     async skipStep(step) { return client.call<OnboardingView>('/api/onboarding/skip', { body: { step } }); },
     async unskipStep(step) { return client.call<OnboardingView>('/api/onboarding/unskip', { body: { step } }); },
@@ -435,6 +438,11 @@ export const demoSource: DataSource = {
     const { brandColor, buttonRadius, ...rest } = parsed.data;
     Object.assign(demoSettings, rest, brandColor !== undefined ? { brandColor } : {}, buttonRadius !== undefined ? { buttonRadius } : {});
     return { ...demoSettings };
+  },
+  async analyticsCsv(range) {
+    // The preview's own demo series, labelled as such in the file name the screen gives it.
+    const view = await this.analytics(range);
+    return ['day,views,ar_sessions,tryon_sessions,purchases', ...view.series.map((p) => [p.day, p.views, p.arSessions, p.tryonSessions, p.purchases].join(','))].join('\r\n') + '\r\n';
   },
   async analytics(range) {
     const days = range === '7d' ? 7 : range === '30d' ? 30 : 90;

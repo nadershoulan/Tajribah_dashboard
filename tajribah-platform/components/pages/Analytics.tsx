@@ -5,8 +5,11 @@
 import { useState } from 'react';
 import { Download, Info, Smartphone } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
-import { useResource } from '@/lib/data';
-import { formatNumber, formatPercent } from '@/lib/format';
+import { useData, useResource } from '@/lib/data';
+import { currentStore } from '@/lib/api-client';
+import { useAuth } from '@/lib/auth';
+import { ROLE_PERMISSIONS } from '@/lib/permissions';
+import { formatNumber, formatPercent, formatPoints } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
 import { Shell } from '@/components/dashboard/chrome';
 import { ErrorNote, Funnel, Loading, MiniChart, PageHead, Panel, Stat } from '@/components/dashboard/ui';
@@ -17,6 +20,23 @@ export default function Analytics() {
   const { t, lang } = useLang();
   const [range, setRange] = useState<(typeof RANGES)[number]>('30d');
   const { data, loading, error } = useResource((source) => source.analytics(range), [range]);
+  const source = useData();
+  const auth = useAuth();
+  // P4.8: exporting takes the data away, so it follows `analytics:export` (viewers can only look).
+  const role = currentStore(auth.me)?.role;
+  const canExport = !!role && (ROLE_PERMISSIONS[role] as readonly string[]).includes('analytics:export');
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<Error | null>(null);
+  const exportCsv = async () => {
+    setExporting(true); setExportError(null);
+    try {
+      const csv = await source.analyticsCsv(range);
+      const url = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = `tajribah-analytics-${range}.csv`; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { setExportError(e as Error); } finally { setExporting(false); }
+  };
 
   const crumbs = [
     { label: t('الرئيسية', 'Home'), href: '/dashboard' },
@@ -48,8 +68,9 @@ export default function Analytics() {
                 </button>
               ))}
             </div>
-            <button type="button" className="btn btn-ghost">
-              <Download size={16} aria-hidden />{t('تصدير CSV', 'Export CSV')}
+            <button type="button" className="btn btn-ghost" onClick={exportCsv} disabled={!canExport || exporting}
+              title={canExport ? undefined : t('التصدير للمالك والمسؤول والمحلّل', 'Export is for owners, admins and analysts')}>
+              <Download size={16} aria-hidden />{exporting ? t('جارٍ التصدير…', 'Exporting…') : t('تصدير CSV', 'Export CSV')}
             </button>
           </>
         }
@@ -57,19 +78,34 @@ export default function Analytics() {
 
       {loading && <Panel><Loading rows={6} /></Panel>}
       {error && <ErrorNote error={error} />}
+      {exportError && <ErrorNote error={exportError} />}
+
+      {!loading && data && data.totals.views === 0 && data.series.every((p) => p.views === 0) && (
+        <Panel>
+          <p style={{ margin: 0 }}>
+            <Info size={15} aria-hidden style={{ verticalAlign: -2 }} />{' '}
+            {t('لا توجد بيانات بعد. تبدأ الأرقام بالظهور بعد تركيب الزر في متجرك وزيارة المتسوّقين لصفحات منتجاتك — وتُحدَّث يوميًا.',
+              'No data yet. Numbers start to appear once the button is installed in your store and shoppers visit your product pages — updated daily.')}
+          </p>
+        </Panel>
+      )}
 
       {!loading && data && (
         <>
-          <div className="grid grid-4">
+          <div className="grid grid-4" style={{ marginTop: data.totals.views === 0 ? 18 : 0 }}>
             <Stat
               label={t('ارتفاع التحويل', 'Conversion uplift')}
-              value={data.totals.upliftPct == null ? null : `+${(data.totals.upliftPct * 100).toFixed(1)}%`}
-              sub={t('من فتح العرض مقابل من لم يفتحه', 'Opened AR vs did not')}
+              value={data.totals.upliftPct == null ? null : formatPoints(data.totals.upliftPct, lang)}
+              sub={data.totals.upliftPct == null
+                ? t('يظهر حين يبلغ كل من الفريقين 100 جلسة على الأقل', 'Shown once both groups reach 100 sessions')
+                : t('نسبة الشراء لمن فتح العرض ناقص من لم يفتحه', 'Purchase rate with AR minus without')}
             />
             <Stat
               label={t('تغيّر الإرجاع', 'Return rate change')}
               value={data.totals.returnDeltaPct == null ? null : formatPercent(data.totals.returnDeltaPct, lang)}
-              sub={t('انخفاض الإرجاع للمنتجات المعروضة', 'On products with AR enabled')}
+              sub={data.totals.returnDeltaPct == null
+                ? t('يحتاج بيانات الإرجاع من منصة متجرك', 'Needs return data from your store platform')
+                : t('للمنتجات المعروضة مقابل غيرها', 'Products with AR versus the rest')}
             />
             <Stat
               label={t('جلسات العرض', 'AR sessions')}
@@ -77,7 +113,7 @@ export default function Analytics() {
               sub={t(`من ${formatNumber(data.totals.views, lang)} مشاهدة`, `from ${formatNumber(data.totals.views, lang)} views`)}
             />
             <Stat
-              label={t('الإيراد المرتبط', 'Attributed revenue')}
+              label={t('إيراد المشتريات المسجّلة', 'Tracked revenue')}
               value={formatMoney(data.totals.revenueMinor, 'SAR', lang, { compact: true })}
               sub={t(`${formatNumber(data.totals.purchases, lang)} عملية شراء`, `${formatNumber(data.totals.purchases, lang)} purchases`)}
             />
@@ -120,8 +156,8 @@ export default function Analytics() {
                           <td className="num">{formatNumber(product.purchases, lang)}</td>
                           <td className="num">
                             {product.upliftPct == null
-                              ? <span title={t('لا توجد بيانات كافية لهذا المنتج بعد', 'Not enough data for this product yet')}>—</span>
-                              : <span style={{ color: 'var(--ok)' }}>+{(product.upliftPct * 100).toFixed(1)}%</span>}
+                              ? <span title={t('يظهر حين يبلغ كل من الفريقين 100 جلسة على هذا المنتج', 'Shown once both groups reach 100 sessions on this product')}>—</span>
+                              : <span style={{ color: product.upliftPct < 0 ? 'var(--bad)' : 'var(--ok)' }}>{formatPoints(product.upliftPct, lang)}</span>}
                           </td>
                         </tr>
                       ))}
@@ -144,7 +180,7 @@ export default function Analytics() {
                       <span className="num">{formatNumber(row.sessions, lang)}</span>
                     </div>
                     <div className="meter">
-                      <i style={{ width: `${(row.sessions / Math.max(1, data.byDevice[0].sessions)) * 100}%` }} />
+                      <i style={{ width: `${(row.sessions / Math.max(1, ...data.byDevice.map((d) => d.sessions))) * 100}%` }} />
                     </div>
                     <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
                       {t(

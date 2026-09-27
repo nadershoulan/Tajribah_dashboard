@@ -16,6 +16,7 @@ import { currentUsage, entitlementsOf } from '@/server/core/billing/entitlements
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { listConnections } from '@/server/modules/connections/service';
 import { onboardingOf } from '@/server/modules/onboarding/service';
+import { conversionTotals, upliftOf } from '@/server/modules/analytics/metrics';
 
 const DAY = 86_400_000;
 
@@ -75,7 +76,8 @@ export async function dashboardSummary(ctx: TenantContext, now = new Date()): Pr
     last30: {
       views: sum('views'), arSessions: sum('arSessions'), tryonSessions: sum('tryonSessions'),
       addToCart: sum('addToCart'), purchases: sum('purchases'), revenueMinor: sum('revenueMinor'),
-      upliftPct: null, returnDeltaPct: null,
+      // P4.4's rule, shared: null unless both groups reach 100 sessions. Returns wait on P4.7.
+      upliftPct: upliftOf(await conversionTotals(ctx, days[0]!, days[days.length - 1]!)), returnDeltaPct: null,
     },
     series,
     connection,

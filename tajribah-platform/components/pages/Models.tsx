@@ -233,8 +233,8 @@ export default function Models() {
       <Panel title={t('لماذا يهم حجم النموذج', 'Why model size matters')} >
         <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 14 }}>
           {t(
-            'نموذج بحجم 5 ميجابايت يُحمّل في نحو 8 ثوانٍ على شبكة جوال سعودية، وبحجم 1.5 ميجابايت في ثانيتين. العرض البطيء لا يُستخدم. لذلك يُنظَّف كل نموذج GLB مرفوع ويُضغط تلقائيًا (meshopt)، ونعرض حجمه قبل الضغط وبعده. ضغط الصور داخل النموذج يأتي لاحقًا.',
-            'A 5 MB model takes about 8 seconds on a Saudi mobile network; 1.5 MB takes two. Slow AR is unused AR, so every uploaded GLB is cleaned up and compressed automatically (meshopt), and you see its size before and after. Compressing the images inside a model comes later.',
+            'نموذج بحجم 5 ميجابايت يُحمّل في نحو 8 ثوانٍ على شبكة جوال سعودية، وبحجم 1.5 ميجابايت في ثانيتين. العرض البطيء لا يُستخدم. لذلك يُنظَّف كل نموذج GLB مرفوع ويُضغط تلقائيًا (meshopt)، وتُصغَّر الصور داخله وتُحوَّل إلى WebP بأكبر مقاس يبقيه تحت 2 ميجابايت، ونعرض حجمه قبل الضغط وبعده.',
+            'A 5 MB model takes about 8 seconds on a Saudi mobile network; 1.5 MB takes two. Slow AR is unused AR, so every uploaded GLB is cleaned up and compressed automatically (meshopt), the images inside it are converted to WebP at the largest size that keeps it under 2 MB, and you see its size before and after.',
           )}
         </p>
         <p className="hint">

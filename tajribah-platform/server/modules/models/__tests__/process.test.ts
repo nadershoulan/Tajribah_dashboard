@@ -6,7 +6,8 @@ import { Document, WebIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS, EXTTextureWebP, KHRMaterialsClearcoat, KHRTextureBasisu } from '@gltf-transform/extensions';
 import { MeshoptDecoder } from 'meshoptimizer';
 import sharp from 'sharp';
-import { auditLogs, jobs, modelFiles, models3d, modelVersions, type Job } from '@/db/schema';
+import { auditLogs, jobs, modelFiles, models3d, modelVersions, products, type Job } from '@/db/schema';
+import { uuidv7 } from '@/lib/ids';
 import { clearHandlers, registerHandler, tick } from '@/server/core/jobs/runner';
 import { setLogLevel } from '@/server/core/observability/log';
 import { MemoryStorage, setStorage, storage } from '@/server/core/storage/storage';
@@ -139,9 +140,9 @@ test('the native GLB is one Android\'s Scene Viewer can read: no compression, PN
     return [t.getName(), t.getMimeType(), meta.format, meta.width, meta.height];
   }));
   assert.deepEqual(sizes.sort(), [
-    ['base', 'image/png', 'png', NATIVE_MAX_TEXTURE, NATIVE_MAX_TEXTURE / 2],
-    ['glow', 'image/png', 'png', 64, 64],
-  ], 'the big one scaled to fit 2048 keeping its shape, WebP turned into PNG, the occlusion map on UV 2 dropped');
+    ['base', 'image/jpeg', 'jpeg', NATIVE_MAX_TEXTURE, NATIVE_MAX_TEXTURE / 2],
+    ['glow', 'image/jpeg', 'jpeg', 64, 64],
+  ], 'the big one scaled to fit 2048 keeping its shape, WebP turned into JPEG (opaque: P3.5), the occlusion map on UV 2 dropped');
   const [primitive] = doc.getRoot().listMeshes()[0].listPrimitives();
   assert.deepEqual(primitive.listSemantics().filter((s) => s.startsWith('TEXCOORD')), ['TEXCOORD_0']);
   assert.equal(primitive.getMaterial()!.getOcclusionTexture(), null);
@@ -250,5 +251,49 @@ test('a USDZ is marked ready as uploaded; the size report stays empty until ther
     const [version] = await modelVersionsOf(ctx, started.modelId);
     assert.deepEqual([version.optimizedBytes, version.withinTarget], [null, null]);
     assert.ok(TARGET_BYTES === 2 * 1024 * 1024);
+  } finally { await harness.close(); }
+});
+
+test('P3.5: a generated model is fitted to its product and noted for QA when its shape disagrees; an upload is not', async () => {
+  const harness = await createTestDb();
+  setStorage(new MemoryStorage());
+  try {
+    const { ctx, tenantId } = await merchant(harness, 'alpha');
+    // The grid is 3 × 1 units, starting at the origin: no real size of its own.
+    const cases: [string, Record<string, number> | null, 'uploaded' | 'ai_generated'][] = [
+      ['fits', { widthMm: 300, heightMm: 100 }, 'ai_generated'],
+      ['disagrees', { widthMm: 300, heightMm: 250 }, 'ai_generated'],
+      ['unmeasured', null, 'ai_generated'],
+      ['own file', { widthMm: 300, heightMm: 100 }, 'uploaded'],
+    ];
+    const made: Record<string, { versionId: string; modelId: string }> = {};
+    for (const [name, dimensions, source] of cases) {
+      const productId = uuidv7();
+      await admin(harness, () => harness.db.insert(products).values({ id: productId, tenantId, name, dimensions } as any));
+      const bytes = await wastefulGlb();
+      const run = await startUpload(ctx, { filename: 'grid.glb', sizeBytes: bytes.byteLength, productId });
+      await storage().put(run.uploadUrl.replace('memory://upload/', ''), bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
+      if (source === 'ai_generated') await admin(harness, () => harness.db.update(models3d).set({ source } as any).where(eq(models3d.id, run.modelId)));
+      await confirmUpload(ctx, run.versionId);
+      made[name] = { versionId: run.versionId, modelId: run.modelId };
+    }
+    await drain();
+
+    const version = async (name: string) => (await admin(harness, () => harness.db.select().from(modelVersions).where(eq(modelVersions.id, made[name]!.versionId))))[0] as any;
+    const model = async (name: string) => (await admin(harness, () => harness.db.select().from(models3d).where(eq(models3d.id, made[name]!.modelId))))[0] as any;
+    const mm = (box: any) => [...box.min, ...box.max].map((v: number) => Math.round(v * 1000));
+
+    const fits = await version('fits');
+    assert.equal(fits.status, 'ready');
+    assert.deepEqual(mm(fits.boundingBox), [-150, 0, 0, 150, 100, 0], '300 × 100 mm, on the floor, centred');
+    assert.equal((await model('fits')).qaNotes, null);
+
+    assert.deepEqual(mm((await version('disagrees')).boundingBox), [-150, 0, 0, 150, 100, 0], 'sized by its longest side, never stretched');
+    assert.match((await model('disagrees')).qaNotes, /check the shape: sized to 300 × 100 × 0 mm/);
+    assert.equal((await model('disagrees')).qaStatus, 'pending');
+
+    assert.match((await model('unmeasured')).qaNotes, /not sized: the product has no measurements/);
+    assert.deepEqual(mm((await version('own file')).boundingBox), [0, 0, 0, 3000, 1000, 0], 'an upload keeps its own size');
+    assert.equal((await model('own file')).qaNotes, null);
   } finally { await harness.close(); }
 });

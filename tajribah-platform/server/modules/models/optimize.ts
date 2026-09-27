@@ -18,6 +18,10 @@
  * Quick Look cannot read those either). When a model cannot be made plain (a KTX2 texture
  * nothing here can decode), there is no native file and Android uses the in-page viewer.
  *
+ * P3.5 adds post-processing (`postprocess.ts`): a generated model fitted to the product's size
+ * and stood on the floor, too many triangles simplified, and textures to WebP at the largest size
+ * that fits 2 MB — the part that actually brings real models under the target.
+ *
  * Pure: bytes in, bytes and facts out. No storage, no database — `process.ts` does that.
  */
 import { Document, getBounds, WebIO, type Material } from '@gltf-transform/core';
@@ -26,6 +30,10 @@ import { cloneDocument, dedup, dequantize, meshopt, prune, weld } from '@gltf-tr
 import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
 import sharp from 'sharp';
 import { MODEL_TARGET_BYTES } from '@/lib/model-size';
+import {
+  TEXTURE_STEPS, fitToProduct, largestTexture, nativeTextureFormat, simplifyTo, texturesToWebp,
+  type FitResult, type ProductSize,
+} from './postprocess';
 
 /** Shared with the screens (lib/model-size.ts). */
 export const TARGET_BYTES = MODEL_TARGET_BYTES;
@@ -50,7 +58,17 @@ export type Optimized = {
   bytes: Uint8Array;
   stats: ModelStats;
   native: { bytes: Uint8Array; doc: Document } | { skipped: string };
+  /** P3.5: what post-processing did. */
+  post: {
+    fit: FitResult | null;
+    simplified: { from: number; to: number } | null;
+    /** The texture size step used (largest side, px); null when the model has no textures. */
+    textureMaxPx: number | null;
+  };
 };
+
+/** `fit`: the product's measurements, for a generated model; leave it out to keep the geometry's own size. */
+export type OptimizeOptions = { fit?: ProductSize | null };
 
 /** Thrown for a file that cannot be read as glTF: retrying will never help. */
 export class UnreadableModelError extends Error {}
@@ -71,29 +89,45 @@ export async function readModel(bytes: Uint8Array): Promise<Document> {
   }
 }
 
-export async function optimizeGlb(original: Uint8Array): Promise<Optimized> {
+export async function optimizeGlb(original: Uint8Array, options: OptimizeOptions = {}): Promise<Optimized> {
   const doc = await readModel(original);
   let plain: Document;
+  let fit: FitResult | null = null;
+  let simplified: Optimized['post']['simplified'] = null;
+  let web: Document = doc;
+  let bytes: Uint8Array | null = null;
+  let textureMaxPx: number | null = null;
   try {
+    if (options.fit !== undefined) fit = await fitToProduct(doc, options.fit);
     await doc.transform(prune(), dedup(), weld());
-    plain = cloneDocument(doc); // before meshopt: the native file must not carry it
-    await doc.transform(meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
+    simplified = await simplifyTo(doc);
+    plain = cloneDocument(doc); // before meshopt and WebP: the native file must carry neither
+    const hasTextures = doc.getRoot().listTextures().length > 0;
+    // The largest texture step whose file fits the target; the last step is kept whatever it weighs.
+    for (const step of hasTextures ? TEXTURE_STEPS : [null]) {
+      web = step === null ? doc : cloneDocument(doc);
+      if (step !== null) await texturesToWebp(web, step);
+      await web.transform(meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
+      bytes = await (await io()).writeBinary(web);
+      textureMaxPx = step === null ? null : Math.min(step, largestTexture(web));
+      if (bytes.byteLength <= TARGET_BYTES) break;
+    }
   } catch (error) {
     throw new UnreadableModelError(`the GLB could not be optimised: ${error instanceof Error ? error.message : String(error)}`);
   }
-  const bytes = await (await io()).writeBinary(doc);
-  const skipped = await makeNative(plain);
+  const skipped = await makeNative(plain, textureMaxPx ?? NATIVE_MAX_TEXTURE);
   const native = skipped ? { skipped } : { bytes: await (await io()).writeBinary(plain), doc: plain };
-  return { bytes, stats: statsOf(doc), native };
+  return { bytes: bytes!, stats: statsOf(web), native, post: { fit, simplified, textureMaxPx } };
 }
 
 /**
  * Turn `doc` into what Scene Viewer reads, in place. Returns why that is impossible, or null.
  * Geometry compression was undone on read; its extensions are dropped so writing does not
- * compress again. Textures: PNG/JPEG kept (scaled to fit 2048), WebP turned into PNG, anything
- * else (KTX2, AVIF) refused — nothing here decodes it.
+ * compress again. Textures fitted inside `maxPx` (at most 2048): opaque ones become JPEG, ones
+ * with transparency PNG (P3.5 — Android downloads this file too); anything else (KTX2, AVIF)
+ * refused — nothing here decodes it.
  */
-async function makeNative(doc: Document): Promise<string | null> {
+async function makeNative(doc: Document, maxPx: number): Promise<string | null> {
   const root = doc.getRoot();
   const used = (name: string) => root.listExtensionsUsed().find((e) => e.extensionName === name);
   used('EXT_meshopt_compression')?.dispose();
@@ -121,12 +155,14 @@ async function makeNative(doc: Document): Promise<string | null> {
     if (mime !== 'image/png' && mime !== 'image/jpeg' && mime !== 'image/webp') {
       return `a texture is ${mime || 'in an unknown format'}, which Scene Viewer cannot read and we cannot convert`;
     }
+    const limit = Math.min(maxPx, NATIVE_MAX_TEXTURE);
     const meta = await sharp(image).metadata();
-    const tooBig = Math.max(meta.width ?? 0, meta.height ?? 0) > NATIVE_MAX_TEXTURE;
-    if (mime === 'image/webp' || tooBig) {
-      const resized = sharp(image).resize({ width: NATIVE_MAX_TEXTURE, height: NATIVE_MAX_TEXTURE, fit: 'inside', withoutEnlargement: true });
-      const jpeg = mime === 'image/jpeg'; // a JPEG has no alpha to keep; everything else becomes PNG
-      const out = jpeg ? await resized.jpeg({ quality: 90 }).toBuffer() : await resized.png().toBuffer();
+    const tooBig = Math.max(meta.width ?? 0, meta.height ?? 0) > limit;
+    const target = mime === 'image/jpeg' ? 'jpeg' : await nativeTextureFormat(image);
+    if (mime === 'image/webp' || tooBig || `image/${target}` !== mime) {
+      const resized = sharp(image).resize({ width: limit, height: limit, fit: 'inside', withoutEnlargement: true });
+      const jpeg = target === 'jpeg';
+      const out = jpeg ? await resized.jpeg({ quality: 88 }).toBuffer() : await resized.png().toBuffer();
       texture.setImage(new Uint8Array(out)).setMimeType(jpeg ? 'image/jpeg' : 'image/png');
       if (texture.getURI()) texture.setURI(texture.getURI().replace(/\.[a-z0-9]+$/i, jpeg ? '.jpg' : '.png'));
     }

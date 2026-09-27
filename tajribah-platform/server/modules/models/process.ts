@@ -11,10 +11,15 @@
  * (a retry overwrites it with the same bytes), and each file row is written once.
  * A file that cannot be read fails the version for good; a storage error is thrown so the
  * queue retries it with backoff.
+ *
+ * P3.5: a generated model (`source: ai_generated`) is fitted to its product's measurements and
+ * stood on the floor; one whose shape disagrees with them is noted for QA review (`qa_notes`),
+ * never stretched. An uploaded model keeps its own size. Every GLB gets its textures compressed
+ * and, when too dense, its triangles reduced (`postprocess.ts`).
  */
 import { and, eq } from 'drizzle-orm';
 import type { Job } from '@/db/schema';
-import { modelFiles, models3d, modelVersions } from '@/db/schema';
+import { modelFiles, models3d, modelVersions, products } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { record } from '@/server/core/audit/audit';
 import { enqueue } from '@/server/core/jobs/queue';
@@ -25,7 +30,8 @@ import { systemContext, type TenantContext } from '@/server/core/tenancy/context
 import { withTenant } from '@/server/core/tenancy/rls';
 import { CONTENT_TYPES } from './inspect';
 import { fileFor, MADE_FILES } from './files';
-import { optimizeGlb, TARGET_BYTES, UnreadableModelError, type ModelStats } from './optimize';
+import { optimizeGlb, TARGET_BYTES, UnreadableModelError, type ModelStats, type Optimized } from './optimize';
+import type { ProductSize } from './postprocess';
 import { notifyIn } from '@/server/modules/notifications/service';
 
 export const PROCESS_PERMISSIONS = ['models:read', 'models:write'] as const;
@@ -56,9 +62,17 @@ export async function processVersion(tenantId: string, versionId: string, reques
   if (!object) return finish(ctx, versionId, { failure: 'the uploaded file is no longer in storage' });
   const bytes = await readAll(object.body);
 
+  // A generated model has no size of its own: it takes the product's (P3.5).
+  const model = await ctx.db.requireById(models3d, version.modelId);
+  let fit: ProductSize | null | undefined;
+  if (model.source === 'ai_generated') {
+    const product = model.productId ? await ctx.db.findById(products, model.productId) : null;
+    fit = (product?.dimensions as ProductSize | null | undefined) ?? null;
+  }
+
   let optimized;
   try {
-    optimized = await optimizeGlb(bytes);
+    optimized = await optimizeGlb(bytes, fit === undefined ? {} : { fit });
   } catch (error) {
     if (error instanceof UnreadableModelError) return finish(ctx, versionId, { failure: error.message });
     throw error;
@@ -71,16 +85,31 @@ export async function processVersion(tenantId: string, versionId: string, reques
   const made = [await put('web', optimized.bytes)];
   if ('bytes' in optimized.native) made.push(await put('native', optimized.native.bytes));
   return finish(ctx, versionId, {
-    stats: optimized.stats, made, originalSize: bytes.byteLength,
+    stats: optimized.stats, made, originalSize: bytes.byteLength, post: optimized.post,
     notes: 'skipped' in optimized.native ? { native: `none: ${optimized.native.skipped}` } : {},
   });
+}
+
+/** What QA needs to know about a generated model's size; null when there is nothing to say. */
+export function qaNoteFor(post: Optimized['post']): string | null {
+  const fit = post.fit;
+  if (!fit) return null;
+  if (!fit.applied) {
+    return fit.reason === 'no_dimensions'
+      ? 'not sized: the product has no measurements, so this model is not true to size'
+      : 'not sized: the model has no geometry to measure';
+  }
+  const [w, h, d] = fit.sizeMm;
+  return fit.proportions === 'differ'
+    ? `check the shape: sized to ${w} × ${h} × ${d} mm, which does not agree with the product's measurements`
+    : null;
 }
 
 type MadeFile = { role: 'web' | 'native' | 'quickLook'; key: string; size: number };
 
 async function finish(
   ctx: TenantContext, versionId: string,
-  result: { failure?: string; stats?: ModelStats; made?: MadeFile[]; originalSize?: number; notes?: Record<string, string> },
+  result: { failure?: string; stats?: ModelStats; made?: MadeFile[]; originalSize?: number; notes?: Record<string, string>; post?: Optimized['post'] },
 ): Promise<ProcessOutcome> {
   return withTenant(ctx.tenantId, async (db) => {
     const before = await db.lockById(modelVersions, versionId);
@@ -106,12 +135,15 @@ async function finish(
     });
     const model = await db.requireById(models3d, before.modelId);
     if (!model.currentVersionId) await db.updateById(models3d, model.id, { status });
+    const qaNote = result.post ? qaNoteFor(result.post) : null;
+    if (qaNote) await db.updateById(models3d, model.id, { qaNotes: qaNote, qaStatus: 'pending' });
 
     const sizeOf = (role: MadeFile['role']) => result.made?.find((f) => f.role === role)?.size;
     const web = sizeOf('web');
     const report = web === undefined ? {} : {
       originalBytes: result.originalSize, optimizedBytes: web, withinTarget: web <= TARGET_BYTES,
       ...(sizeOf('native') === undefined ? {} : { nativeBytes: sizeOf('native') }),
+      ...(result.post ? { post: result.post } : {}),
       ...result.notes,
     };
     await record(ctx, {

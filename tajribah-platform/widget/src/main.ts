@@ -117,9 +117,38 @@ export function renderButton(host: HTMLElement, config: ViewerConfig, lang: 'ar'
   return button;
 }
 
+/** meshoptimizer's UMD decoder, served next to the viewer (`widget/build.mjs` ships it). */
+export const MESHOPT_DECODER_FILE = 'meshopt_decoder-1.2.0.js';
+
+type ViewerScope = {
+  customElements?: { get(name: string): unknown };
+  ModelViewerElement?: { meshoptDecoderLocation?: string };
+};
+
+/**
+ * P3.5 — `<model-viewer>` 4 decodes `EXT_meshopt_compression` only when told where the decoder
+ * is (`meshoptDecoderLocation` — there is no default), and every web GLB we make is meshopt-
+ * compressed: without this, no model would load in the in-page viewer. Seen in a real browser:
+ * "setMeshoptDecoder must be called before loading compressed files". Set before the viewer's
+ * module runs (it reads `self.ModelViewerElement` once), or on the element class when the shop
+ * already loaded a viewer of its own. A location the shop set itself is never overridden.
+ */
+export function configureMeshopt(viewerSrc: string, scope: ViewerScope = globalThis as unknown as ViewerScope): string {
+  const location = new URL(MESHOPT_DECODER_FILE, viewerSrc).href;
+  const defined = scope.customElements?.get('model-viewer') as { meshoptDecoderLocation?: string } | undefined;
+  if (defined) {
+    if (!defined.meshoptDecoderLocation) defined.meshoptDecoderLocation = location;
+    return defined.meshoptDecoderLocation;
+  }
+  scope.ModelViewerElement ??= {};
+  scope.ModelViewerElement.meshoptDecoderLocation ??= location;
+  return scope.ModelViewerElement.meshoptDecoderLocation;
+}
+
 let viewerLoading: Promise<void> | null = null;
 function loadViewer(src: string): Promise<void> {
   viewerLoading ??= new Promise<void>((resolve, reject) => {
+    configureMeshopt(src);
     if (customElements.get('model-viewer')) { resolve(); return; }
     const script = document.createElement('script');
     script.type = 'module';

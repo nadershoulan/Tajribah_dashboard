@@ -159,10 +159,10 @@ not a pre-computed rate.
 | P4.2 | Event collector | — | `POST /api/analytics/collect`: accepts a batch, refuses the rest, derives country/device/browser from the request it already has (never from the body), salts and hashes the session token with the day's key, resolves the merchant's product reference to this store's uuid, and writes `analytics_events`. No account: it is a route in this app, on the same workerd the rest runs on. Cloudflare only moves it closer to the shopper later |
 | P4.3 | Rollups & retention | — | The four rollup tables filled from `analytics_events` on a schedule, idempotently (a re-run must not double-count), and raw events expiring at 90 days |
 | P4.4 ✅ | Metrics API | — (read side) | The dashboard's read path — rollup tables only, never `analytics_events`; uplift as a fraction, null below 100 sessions a side. Built by the read-side session, on main at a45e85a |
-| P4.5 | Analytics UI | P4.4 (read side) | MD-120 on real numbers instead of demo data |
+| P4.5 ✅ | Analytics UI | — (read side) | MD-120 on real numbers: uplift in **percentage points with its sign** (`formatPoints`; it read "+5.1%" and could not show a worse result), empty uplift / return figures say why, "Tracked revenue" (was "Attributed", an overclaim), device bars scaled to the largest bucket, a no-data note for a new store; the home screen's uplift uses the same rule. Built by the read-side session (52f7fd5) |
 | P4.6 | Conversion uplift ⭐ | P4.3 (read side) | Tried vs not tried from `conversion_daily`, stated honestly enough to put in front of a merchant |
 | P4.7 | Return-rate reporting | 🔒 Salla/Zid | Genuinely blocked: returns come from the store platform, and no connector is live |
-| P4.8 | Exports & scheduled reports | P4.4 (read side) | CSV, and a scheduled email once sending is live |
+| P4.8 ◐ | Exports & scheduled reports | email sending (read side) | **CSV built** (API-121 `GET /api/analytics/export`: one row per Riyadh day, empty days zero, riyals to two decimals, `analytics:export` only — viewers get the button disabled with the reason). The scheduled email waits on live sending |
 | P4.9 | Real-time activity | P4.2 (write side) | What is happening now, read from the raw events rather than the rollups |
 | P4.10 | Session explorer | P4.2 (write side) | One session's path, within the 90 days it exists for |
 | P4.11 | Analytics privacy & PDPL | — (write side) | The collection half is P4.1; what is left is retention (the 90 days, enforced by the A14 sweep), who may read it, and the PDPL register's answer for analytics |

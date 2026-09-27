@@ -15,7 +15,7 @@ P3 3D pipeline    ░░░░░░░░░░░░░░░░░░░░�
 P4 Analytics      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 P5 Try-on         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 14   (engine already exists in tajribah-try-on)
 P6 AI+connectors  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 16
-P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13
+P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ P7.7 security partly done)
 P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 M  Marketing      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12   (separate site in tajribah-try-on)
 A  Admin console  ███████████████████████░░░░░░░░░  11 / 15   ← started 2026-09-26
@@ -231,3 +231,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-27 | Website pricing: monthly / yearly switch (a year costs ten months) and a calculator that shows when the plan pays for itself, on your visitor's own numbers | site preview, phone and desktop, Arabic and English |
 | 2026-09-27 | Website: a page for each way to try — on the model, on your own photo, true-size comparison, phone hand-off — each saying plainly what it does not do | site preview, phone and desktop, Arabic and English |
 | 2026-09-27 | P4.1 the measuring part: the storefront script now counts product views, try-on taps and (when your store tells it) baskets and purchases — without cookies, without anything that identifies a shopper, and silent for anyone who has asked not to be tracked | 440 pass / 0 fail, and seen working in a real shop page |
+| 2026-09-27 | Security: the dashboard can no longer be shown inside another website (a trick used to make people click things they cannot see), browsers are told to always use a secure connection, and signing-in sessions can no longer be refreshed in a tight loop | 449 pass / 0 fail, and the new headers seen on the running app |

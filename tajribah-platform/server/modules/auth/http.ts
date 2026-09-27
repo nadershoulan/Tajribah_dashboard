@@ -19,6 +19,8 @@ import { buildTenantContext, membershipsOf, staffViewedStore } from '@/server/co
 import { endStaffView } from '@/server/modules/admin/staff-view';
 import { planCodesFor, readOnlyFor } from '@/server/core/billing/entitlements';
 import { errors, problemResponse } from '@/server/core/errors/problem';
+import { keyedHash } from '@/server/core/auth/crypto';
+import { LIMITS, rateLimiter } from '@/server/core/ratelimit/limiter';
 import { EMAIL, sendEmail } from '@/server/core/notify/messages';
 import { recordSessionEvent } from '@/server/core/audit/audit';
 import { log } from '@/server/core/observability/log';
@@ -97,6 +99,12 @@ export const refreshHandler = route(async (request) => {
   const config = apiConfig();
   assertSameOrigin(request, config);
   const token = readRefreshCookie(request.headers.get('cookie'));
+  if (token) {
+    // §13.6: limited per session — a keyed hash of the cookie — never per IP (offices share one).
+    const key = `refresh:${await keyedHash(config.authSecret, 'refresh-limit', token)}`;
+    const limit = await rateLimiter().hit(key, LIMITS.refresh.limit, LIMITS.refresh.windowSeconds);
+    if (!limit.allowed) throw errors.rateLimited(limit.retryAfter);
+  }
   const result = token
     ? await rotateSession({ refreshToken: token, config, userAgent: userAgent(request), ip: clientIp(request) })
     : { ok: false as const, reason: 'unknown' as const };

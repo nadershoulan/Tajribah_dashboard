@@ -247,6 +247,20 @@ test('verify-email accepts the emailed token once', async () => {
   } finally { await harness.close(); }
 });
 
+test('refresh is rate limited per session (§13.6), not for everyone behind the same address', async () => {
+  setup();
+  const harness = await createTestDb();
+  try {
+    const hammered = `${REFRESH_COOKIE}=one-cookie-sent-in-a-loop`;
+    const statuses: number[] = [];
+    for (let i = 0; i < 61; i++) statuses.push((await refreshHandler(req('/api/auth/refresh', { cookie: hammered }))).status);
+    assert.deepEqual([...new Set(statuses.slice(0, 60))], [401], 'sixty a minute are answered');
+    assert.equal(statuses[60], 429, 'the sixty-first waits');
+    const other = await refreshHandler(req('/api/auth/refresh', { cookie: `${REFRESH_COOKIE}=another-session` }));
+    assert.equal(other.status, 401, 'another session on the same address is not held up');
+  } finally { await harness.close(); }
+});
+
 test('verify-email resend (API-010): own address only, refused cross-site, and rate limited per user', async () => {
   setup();
   const harness = await createTestDb();

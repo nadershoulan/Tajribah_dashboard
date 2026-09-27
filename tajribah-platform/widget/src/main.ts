@@ -20,18 +20,26 @@
  */
 import { parseConfig, type ViewerConfig } from './config';
 import { arPath, detectDevice, VIEWER_AR_MODES } from './ar';
+import type { TrackInput } from './events';
+import { createTracker, privacySignal, randomToken, sessionToken, type Consent, type Tracker } from './track';
 
 export const WIDGET_VERSION = '1.0.0';
 export const CONFIG_TIMEOUT_MS = 3000;
 const DEFAULT_CONFIG_BASE = 'https://cfg.tajribah.com/v1';
 const DEFAULT_VIEWER = 'https://cdn.tajribah.com/vendor/model-viewer-4.0.0.min.js';
+/** P4.1 — the collector (P4.2). Same versioning as the config host. */
+const DEFAULT_EVENTS = 'https://ev.tajribah.com/v1/e';
 const READY = 'data-tajribah-ready';
 /** The attributes merchants paste (P1.17's snippet is built from these, and tested against them). */
-export const ATTR = { store: 'data-tajribah-store', product: 'data-tajribah-product', config: 'data-tajribah-config', viewer: 'data-tajribah-viewer' } as const;
+export const ATTR = {
+  store: 'data-tajribah-store', product: 'data-tajribah-product', config: 'data-tajribah-config', viewer: 'data-tajribah-viewer',
+  /** P4.1: where events go, and whether the shop gathers consent before they may be sent. */
+  events: 'data-tajribah-events', consent: 'data-tajribah-consent',
+} as const;
 /** Where the widget is served, versioned; the snippet and the install checker both use it. */
 export const WIDGET_SRC = 'https://cdn.tajribah.com/w/v1/widget.js';
 
-type Settings = { store: string; configBase: string; viewer: string };
+type Settings = { store: string; configBase: string; viewer: string; events: string; consent: Consent };
 
 /** Run `fn`; swallow and report anything it throws or rejects with. Never rethrows. */
 export function guard<T>(fn: () => T | Promise<T>): Promise<T | undefined> {
@@ -123,6 +131,17 @@ function loadViewer(src: string): Promise<void> {
   return viewerLoading;
 }
 
+/** Does this browser have a native AR path at all? Cheap, and the same probe `openAr` uses. */
+function hasNativeAr(): boolean {
+  try {
+    const probe = document.createElement('a');
+    const device = detectDevice(navigator.userAgent, navigator.maxTouchPoints ?? 0, !!probe.relList?.supports?.('ar'));
+    return device.quickLook || device.android;
+  } catch {
+    return false;
+  }
+}
+
 /** P1.18: the native AR app where the phone has one, the in-page viewer otherwise. */
 async function openAr(host: HTMLElement, config: ViewerConfig, lang: 'ar' | 'en', settings: Settings): Promise<void> {
   const probe = document.createElement('a');
@@ -211,11 +230,46 @@ function settingsOf(doc: Document): Settings | null {
     store,
     configBase: script!.getAttribute(ATTR.config) ?? DEFAULT_CONFIG_BASE,
     viewer: script!.getAttribute(ATTR.viewer) ?? DEFAULT_VIEWER,
+    events: script!.getAttribute(ATTR.events) ?? DEFAULT_EVENTS,
+    // A shop that runs a consent banner says so here; until it grants consent, nothing is sent.
+    consent: script!.getAttribute(ATTR.consent) === 'required' ? 'required' : 'granted',
   };
 }
 
+/**
+ * P4.1 — the SDK, wired to this page. Events are the shop's own measurements: a product page
+ * that drew a button, a tap that opened AR, and whatever the merchant reports themselves
+ * (`Tajribah.track`) — add to cart, purchase. Nothing is sent before the page has loaded,
+ * nothing identifies a shopper, and the queue leaves with the page.
+ */
+export function startTracking(win: Window & typeof globalThis, settings: Settings): Tracker {
+  const nav = win.navigator;
+  const tracker = createTracker({
+    endpoint: settings.events,
+    store: settings.store,
+    sdk: WIDGET_VERSION,
+    now: () => Date.now(),
+    session: sessionToken(safeSessionStorage(win), () => randomToken(win.crypto)),
+    beacon: typeof nav.sendBeacon === 'function' ? (url, body) => nav.sendBeacon(url, body) : undefined,
+    fetchImpl: typeof win.fetch === 'function' ? win.fetch.bind(win) : undefined,
+    doNotTrack: privacySignal(nav, win as { doNotTrack?: string | null }),
+    consent: settings.consent,
+  });
+  // A shopper who buys closes the tab; `pagehide` is the last moment anything can leave.
+  const leave = () => { void guard(() => tracker.flush()); };
+  win.addEventListener('pagehide', leave);
+  win.document.addEventListener('visibilitychange', () => { if (win.document.visibilityState === 'hidden') leave(); });
+  win.setInterval(leave, 15_000);
+  return tracker;
+}
+
+/** `sessionStorage` throws outright in some privacy modes — reading it is the risky part. */
+function safeSessionStorage(win: Window): Storage | undefined {
+  try { return win.sessionStorage; } catch { return undefined; }
+}
+
 /** Find placeholders not handled yet, load their configs, draw the buttons. */
-export async function mount(doc: Document, settings: Settings, fetchImpl: typeof fetch = fetch): Promise<number> {
+export async function mount(doc: Document, settings: Settings, fetchImpl: typeof fetch = fetch, tracker?: Tracker): Promise<number> {
   const lang = pageLang(doc);
   let drawn = 0;
   const hosts = Array.from(doc.querySelectorAll<HTMLElement>(`[${ATTR.product}]`)).filter((el) => !el.hasAttribute(READY));
@@ -224,15 +278,29 @@ export async function mount(doc: Document, settings: Settings, fetchImpl: typeof
     const product = host.getAttribute(ATTR.product) ?? '';
     const config = product ? await loadConfig(configUrl(settings.configBase, settings.store, product), fetchImpl) : null;
     if (!config) { host.setAttribute(READY, 'none'); return; } // fail closed: nothing drawn
-    renderButton(host, config, lang, () => openAr(host, config, lang, settings));
+    renderButton(host, config, lang, () => {
+      // The tap is the event; what it opens depends on the device (P1.18).
+      tracker?.track({ type: 'ar_open', productId: product, arSupported: hasNativeAr() });
+      return openAr(host, config, lang, settings);
+    });
     host.setAttribute(READY, 'yes');
+    tracker?.track({ type: 'product_view', productId: product });
     drawn += 1;
   })));
   return drawn;
 }
 
 declare global {
-  interface Window { Tajribah?: { version: string; refresh(): Promise<number | undefined> } }
+  interface Window {
+    Tajribah?: {
+      version: string;
+      refresh(): Promise<number | undefined>;
+      /** P4.1 — the merchant's own events: add to cart, purchase. Never throws. */
+      track(input: TrackInput): void;
+      /** Call with 'granted' when a consent banner is accepted. */
+      consent(state: Consent): void;
+    };
+  }
 }
 
 /** Entry point: once per page, after load, when idle. */
@@ -241,8 +309,14 @@ export function boot(win: Window & typeof globalThis = window): void {
     if (win.Tajribah) return; // included twice: the first one serves
     const settings = settingsOf(win.document);
     if (!settings) return;
-    const run = () => guard(() => mount(win.document, settings));
-    win.Tajribah = { version: WIDGET_VERSION, refresh: run };
+    const tracker = startTracking(win, settings);
+    const run = () => guard(() => mount(win.document, settings, fetch, tracker));
+    win.Tajribah = {
+      version: WIDGET_VERSION,
+      refresh: run,
+      track: (input) => { void guard(() => tracker.track(input)); },
+      consent: (state) => { void guard(() => tracker.setConsent(state)); },
+    };
     // Safari has no requestIdleCallback, whatever the DOM types say: check at run time.
     const idle = (fn: () => void) => (typeof win.requestIdleCallback === 'function' ? win.requestIdleCallback(fn, { timeout: 2000 }) : setTimeout(fn, 1));
     if (win.document.readyState === 'complete') idle(() => { void run(); });

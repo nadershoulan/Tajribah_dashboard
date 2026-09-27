@@ -128,6 +128,27 @@ only. Screen IDs from the inventory (`ADM-*`).
 | A13 ✅ | Content management | — | Coupons (ADM-15) and platform copy — **announcements** (T23) |
 | A14 ✅ | Compliance & system | — (rules: T22, working rules until counsel reviews) | Data requests, retention, the staff trail (A1, ADM-43) |
 
+## P4 — Analytics (12)
+
+**Open under T18, account-free packages only.** D5 holds: analytics never enters Postgres.
+Events go browser → edge collector → ClickHouse → rollups, and the dashboard reads rollups.
+🔒 ClickHouse Cloud (or a host) is the wall: everything from P4.3 on waits on it.
+
+| ID | Package | Needs | Done when |
+|---|---|---|---|
+| P4.1 ✅ | Event schema & browser SDK | — | `widget/src/events.ts` (the wire contract, no dependencies, ships in the widget) and `lib/contracts/analytics.ts` (the same constants under zod, for the collector). The SDK batches, sends with `sendBeacon` and leaves with the page; it sends **nothing** under DNT/GPC or before a shop's consent, and nothing that identifies a shopper — unknown fields, over-long values and property values that look like a person are dropped before the queue |
+| P4.2 | Edge collector | 🔒 Cloudflare | The Worker that accepts a batch, rejects the rest, derives country/device from the request it already has, salts and hashes the session token with the day's key, and buffers |
+| P4.3 | ClickHouse schema & rollups | 🔒 ClickHouse | §7.10's table, the materialized views, the 90-day TTL on raw events |
+| P4.4 | Metrics API | 🔒 P4.3 | The dashboard's read path — rollups only, cached |
+| P4.5 | Analytics UI | 🔒 P4.4 | MD-120 on real numbers instead of demo data |
+| P4.6 | Conversion uplift ⭐ | 🔒 P4.3 | Tried vs not tried, stated honestly enough to put in front of a merchant |
+| P4.7 | Return-rate reporting | 🔒 P4.3 + orders | Needs returns from the store platform |
+| P4.8 | Exports & scheduled reports | 🔒 P4.4 | CSV and a scheduled email |
+| P4.9 | Real-time activity | 🔒 P4.3 | What is happening now |
+| P4.10 | Session explorer | 🔒 P4.3 | One session's path, within the 90 days |
+| P4.11 | Analytics privacy & PDPL | partly — | The policy half is written into P4.1 and the try-on privacy page; the retention and access half lands with P4.3 |
+| P4.12 | Analytics load test | 🔒 P4.2/3 | The plan's 2.5M events/day, end to end |
+
 ## Track M — Marketing site (12)
 
 **Not in this app.** The marketing site is Nader's `../tajribah-try-on` (Arabic-first, and it
@@ -159,7 +180,7 @@ endpoint the site reads at build time — which needs the API deployed (P0.22).
 ## P3–P8 and the parallel tracks
 
 As in the plan's Appendix A, unchanged: P3 3D pipeline (12) ·
-P4 Analytics (12) · P5 Try-on (14) · P6 AI + connectors (16) · P7 Scale (13) ·
+P5 Try-on (14) · P6 AI + connectors (16) · P7 Scale (13) ·
 P8 Enterprise (12) · Track A Admin (15). Track M has its own table above.
 
 **Track P5 note:** the try-on engine already exists and is proven in

@@ -229,3 +229,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-27 | Your company's legal details in the website footer and legal pages | site preview |
 | 2026-09-27 | Website: Salla and Zid pages, help centre, blog, customer stories (marked illustrative), careers | site preview |
 | 2026-09-27 | Website pricing: monthly / yearly switch (a year costs ten months) and a calculator that shows when the plan pays for itself, on your visitor's own numbers | site preview, phone and desktop, Arabic and English |
+| 2026-09-27 | Website: a page for each way to try — on the model, on your own photo, true-size comparison, phone hand-off — each saying plainly what it does not do | site preview, phone and desktop, Arabic and English |

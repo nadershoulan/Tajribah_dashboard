@@ -142,7 +142,7 @@ Track M pages existed there before the track opened, so a package here usually m
 | M2 ✅ | Home & core pages | — | Home, features, how it works, integrations, demo, about, contact, FAQ — on the real studio and real photography |
 | M3 ✅ | Pricing | — | Plan cards, feature matrix, add-ons; **monthly / annual switch** on the dashboard's own catalogue figures (a year = ten months, stated as such); **a pays-for-itself calculator** on the merchant's numbers and the merchant's own assumptions — no uplift figure of ours anywhere in it |
 | M4 ✅ | Salla & Zid landing pages | — | `/salla`, `/zid`: the platform named, no logo, its figures not repeated, a trademark note, availability stated as on the integrations page |
-| M5 | Product feature pages | — | A page per capability (true-size comparison, on-model view, AR viewing, AI try-on) beyond the single features page |
+| M5 ✅ | Product feature pages | — | `/features/{on-model,on-me,true-size,phone-handoff}`: a page per **way to try**, each with what the shopper does, how it works underneath, what the merchant sets up, **what it does not do**, and questions. AR viewing and AI try-on get pages when they exist — P1.15–P1.20 and P5 |
 | M6 | Industry solution pages | — | Watches, jewellery, eyewear, bags — what the try-on does for each |
 | M7 ✅ | Blog | — | `/blog` + 6 posts, no invented statistics |
 | M8 ✅ | Help centre | — | `/help` + 15 articles written against the dashboard as it is built |

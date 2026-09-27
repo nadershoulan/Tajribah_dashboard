@@ -332,6 +332,17 @@ h3 .tag { margin-inline-start: 8px; font-size: 11.5px; }
 .matrix td { color: var(--text-2); }
 .matrix .yes { color: var(--teal); display: inline-block; }
 .matrix .no { color: var(--line-2); display: inline-block; }
+/* A limit, stated plainly — the counterpart of `.checks`. */
+.limits { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.limits li { display: flex; gap: 10px; font-size: 15px; line-height: 1.6; color: var(--text-2); }
+.limits li svg { color: var(--line-2); flex: 0 0 auto; margin-top: 4px; }
+
+/* A whole card that is a link (the cross-links between feature pages). */
+.link-card { display: block; text-decoration: none; color: inherit; transition: border-color .18s ease; }
+.link-card:hover { border-color: var(--aqua); }
+.link-card:hover h3 { color: var(--aqua); }
+.link-card .link-more { margin-top: 14px; }
+
 .addons { display: grid; gap: 18px; }
 .addons article { padding: 20px 0; border-bottom: 1px solid var(--line); }
 .addons h3 { font-size: 1.1rem; font-weight: 600; }

@@ -2,7 +2,9 @@
 
 import { BarChart3, Box, Camera, Code2, Gauge, Hand, KeyboardIcon, Languages, LockKeyhole, QrCode, RefreshCw, Ruler } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
-import { useSiteEnv } from '@/lib/site-env';
+import { SiteLink, useSiteEnv } from '@/lib/site-env';
+import { FEATURE_PAGES } from '@/content/features';
+import { Forward } from '@/components/site/chrome';
 import { REFERENCES } from '@/lib/demo-product';
 import { Shell } from '@/components/site/chrome';
 import { Checks, CtaBand, Frame, PageHero, SectionHead, Tag } from '@/components/site/ui';
@@ -13,28 +15,28 @@ export default function Features() {
 
   const modes = [
     {
-      icon: Hand, tag: true,
+      icon: Hand, tag: true, slug: 'on-model' as const,
       h: t('على النموذج', 'On model'),
       p: t('صور حقيقية لمعصم عارضة، والقطعة عليها بالحجم الصحيح. يختار العميل الصورة الأقرب له، ويحرّك الساعة على المعصم حتى تستقر في مكانها.',
         'Real model photography with the piece on it at the right size. Shoppers pick the shot closest to them and slide the watch along the wrist until it sits right.'),
       points: [t('صورتان: المعصم عن قرب وإطلالة يومية', 'Two shots: wrist close-up and lifestyle'), t('تحريك الساعة على المعصم', 'Slide the watch along the wrist'), t('تدوير وتكبير', 'Rotate and zoom')],
     },
     {
-      icon: Camera, tag: true,
+      icon: Camera, tag: true, slug: 'on-me' as const,
       h: t('عليّ', 'On me'),
       p: t('يرفع العميل صورة لظهر يده أو يلتقطها بجواله. نموذج رؤية داخل المتصفح يحدّد المعصم ويضع القطعة بزاويتها، ويمكن ضبطها يدويًا بنقرتين.',
         'The shopper uploads or takes a photo of the back of their hand. An in-browser vision model finds the wrist and places the piece at its angle; two taps fine-tune it by hand.'),
       points: [t('تحديد المعصم تلقائيًا', 'Automatic wrist detection'), t('ضبط يدوي بتحديد حافتي المعصم', 'Manual fit by marking both wrist edges'), t('حفظ الصورة النهائية', 'Save the final image')],
     },
     {
-      icon: Ruler, tag: true,
+      icon: Ruler, tag: true, slug: 'true-size' as const,
       h: t('قارن الحجم', 'Compare size'),
       p: t('القطعة بجانب أشياء يعرفها الجميع، كلها بالمقياس نفسه. يستطيع العميل سحب أي منها وتدويره، والتكبير يغيّر حجم العنصرين معًا.',
         'The piece next to things everyone knows, all at one scale. Shoppers can drag and rotate either item, and zoom scales both together.'),
       points: [t('ريال سعودي، إيربودز، آيفون 15', 'A Saudi riyal, AirPods, an iPhone 15'), t('المليمتر أو البوصة', 'Millimetres or inches'), t('خطوط قياس على القطعة', 'Measurement lines on the piece')],
     },
     {
-      icon: QrCode, tag: true,
+      icon: QrCode, tag: true, slug: 'phone-handoff' as const,
       h: t('من الحاسوب إلى الجوال', 'Desktop to phone'),
       p: t('من يتصفح على الحاسوب يمسح رمز QR، فيلتقط صورة معصمه بكاميرا جواله، وتظهر النتيجة على الشاشة الكبيرة خلال ثوانٍ.',
         'Shoppers browsing on a computer scan a QR code, take the wrist photo with their phone camera, and see the result on the big screen within seconds.'),
@@ -67,13 +69,16 @@ export default function Features() {
         <div className="wrap">
           <SectionHead eyebrow={t('للمتسوّق', 'For shoppers')} title={t('طرق التجربة', 'Ways to try')} />
           <div className="mode-rows">
-            {modes.map(({ icon: Icon, h, p, points, tag }) => (
+            {modes.map(({ icon: Icon, h, p, points, tag, slug }) => (
               <article key={h} className="mode-row">
                 <span className="f-icon lg"><Icon size={24} aria-hidden /></span>
                 <div>
                   <h3>{h} {tag && <Tag kind="live">{t('في العرض التجريبي', 'In the live demo')}</Tag>}</h3>
                   <p>{p}</p>
                   <Checks items={points} />
+                  <SiteLink href={`/features/${slug}`} className="link-more">
+                    {t(`كيف تعمل «${FEATURE_PAGES[slug].nav.ar}»`, `How “${FEATURE_PAGES[slug].nav.en}” works`)}<Forward size={16} />
+                  </SiteLink>
                 </div>
               </article>
             ))}

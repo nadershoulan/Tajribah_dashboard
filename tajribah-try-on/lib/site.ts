@@ -100,4 +100,9 @@ export const TITLES: Record<string, Bi> = {
   '/blog': { ar: 'المدونة', en: 'Blog' },
   '/customers': { ar: 'قصص الاستخدام', en: 'Customer stories' },
   '/careers': { ar: 'الوظائف', en: 'Careers' },
+  // M5 — a page per way to try; the titles come from content/features.ts.
+  '/features/on-model': { ar: 'العرض على العارضة', en: 'On model' },
+  '/features/on-me': { ar: 'التجربة على صورتك', en: 'On your own photo' },
+  '/features/true-size': { ar: 'المقارنة بالحجم الحقيقي', en: 'True-size comparison' },
+  '/features/phone-handoff': { ar: 'من الحاسوب إلى الجوال', en: 'Desktop to phone' },
 };

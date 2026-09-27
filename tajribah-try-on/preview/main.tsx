@@ -27,6 +27,8 @@ import NotFound from '@/components/pages/NotFound';
 import { CookiesPage, PrivacyPage, RefundPage, TermsPage, TryOnPrivacyPage } from '@/components/pages/Legal';
 import { SallaPage, ZidPage } from '@/components/pages/PlatformLanding';
 import { BlogIndex, BlogPostPage, CareersPage, HelpArticlePage, HelpIndex, StoriesPage } from '@/components/pages/Resources';
+import { FeaturePageBySlug } from '@/components/pages/FeatureDetail';
+import { featurePage } from '@/content/features';
 import { blogPost } from '@/content/blog';
 import { helpArticle } from '@/content/help';
 
@@ -59,6 +61,8 @@ function dynamicRoute(path: string): { element: ReactElement; title: { ar: strin
   if (help) return { element: <HelpArticlePage slug={help[1]!} />, title: helpArticle(help[1]!)?.title ?? null };
   const blog = /^\/blog\/([a-z0-9-]+)$/.exec(path);
   if (blog) return { element: <BlogPostPage slug={blog[1]!} />, title: blogPost(blog[1]!)?.title ?? null };
+  const feature = /^\/features\/([a-z0-9-]+)$/.exec(path);
+  if (feature) return { element: <FeaturePageBySlug slug={feature[1]!} />, title: featurePage(feature[1]!)?.nav ?? null };
   return null;
 }
 

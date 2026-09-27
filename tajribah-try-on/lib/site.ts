@@ -44,7 +44,17 @@ export const FOOTER: { title: Bi; links: NavItem[] }[] = [
       { href: '/features', label: { ar: 'المزايا', en: 'Features' } },
       { href: '/how-it-works', label: { ar: 'كيف تعمل', en: 'How it works' } },
       { href: '/integrations', label: { ar: 'التكاملات', en: 'Integrations' } },
+      { href: '/salla', label: { ar: 'لمتاجر سلة', en: 'For Salla stores' } },
+      { href: '/zid', label: { ar: 'لمتاجر زد', en: 'For Zid stores' } },
       { href: '/pricing', label: { ar: 'الأسعار', en: 'Pricing' } },
+    ],
+  },
+  {
+    title: { ar: 'المصادر', en: 'Resources' },
+    links: [
+      { href: '/help', label: { ar: 'مركز المساعدة', en: 'Help centre' } },
+      { href: '/blog', label: { ar: 'المدونة', en: 'Blog' } },
+      { href: '/customers', label: { ar: 'قصص الاستخدام', en: 'Customer stories' } },
     ],
   },
   {
@@ -52,6 +62,7 @@ export const FOOTER: { title: Bi; links: NavItem[] }[] = [
     links: [
       { href: '/about', label: { ar: 'من نحن', en: 'About' } },
       { href: '/faq', label: { ar: 'الأسئلة الشائعة', en: 'FAQ' } },
+      { href: '/careers', label: { ar: 'الوظائف', en: 'Careers' } },
       { href: '/contact', label: { ar: 'تواصل معنا', en: 'Contact' } },
     ],
   },
@@ -83,4 +94,10 @@ export const TITLES: Record<string, Bi> = {
   '/terms': { ar: 'الشروط والأحكام', en: 'Terms of service' },
   '/refund': { ar: 'سياسة الإلغاء والاسترداد', en: 'Cancellation & refund policy' },
   '/cookies': { ar: 'سياسة ملفات تعريف الارتباط', en: 'Cookie policy' },
+  '/salla': { ar: 'التجربة الافتراضية لمتاجر سلة', en: 'Virtual try-on for Salla stores' },
+  '/zid': { ar: 'التجربة الافتراضية لمتاجر زد', en: 'Virtual try-on for Zid stores' },
+  '/help': { ar: 'مركز المساعدة', en: 'Help centre' },
+  '/blog': { ar: 'المدونة', en: 'Blog' },
+  '/customers': { ar: 'قصص الاستخدام', en: 'Customer stories' },
+  '/careers': { ar: 'الوظائف', en: 'Careers' },
 };

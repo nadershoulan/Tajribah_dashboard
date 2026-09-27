@@ -8,7 +8,7 @@
  *
  * Build: node preview/build.mjs --modules <path to a node_modules with the deps>
  */
-import { StrictMode, useEffect, useState, type ComponentType } from 'react';
+import { StrictMode, useEffect, useState, type ComponentType, type ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { LangProvider, readStoredLang, useLang } from '@/lib/i18n';
 import { SiteEnvContext, type SiteEnv } from '@/lib/site-env';
@@ -25,6 +25,10 @@ import Contact from '@/components/pages/Contact';
 import FaqPage from '@/components/pages/Faq';
 import NotFound from '@/components/pages/NotFound';
 import { CookiesPage, PrivacyPage, RefundPage, TermsPage, TryOnPrivacyPage } from '@/components/pages/Legal';
+import { SallaPage, ZidPage } from '@/components/pages/PlatformLanding';
+import { BlogIndex, BlogPostPage, CareersPage, HelpArticlePage, HelpIndex, StoriesPage } from '@/components/pages/Resources';
+import { blogPost } from '@/content/blog';
+import { helpArticle } from '@/content/help';
 
 const ROUTES: Record<string, ComponentType> = {
   '/': Home,
@@ -41,7 +45,22 @@ const ROUTES: Record<string, ComponentType> = {
   '/terms': TermsPage,
   '/refund': RefundPage,
   '/cookies': CookiesPage,
+  '/salla': SallaPage,
+  '/zid': ZidPage,
+  '/help': HelpIndex,
+  '/blog': BlogIndex,
+  '/customers': StoriesPage,
+  '/careers': CareersPage,
 };
+
+/** Pages with a slug (help articles, blog posts): the component and the title for a path, or null. */
+function dynamicRoute(path: string): { element: ReactElement; title: { ar: string; en: string } | null } | null {
+  const help = /^\/help\/([a-z0-9-]+)$/.exec(path);
+  if (help) return { element: <HelpArticlePage slug={help[1]!} />, title: helpArticle(help[1]!)?.title ?? null };
+  const blog = /^\/blog\/([a-z0-9-]+)$/.exec(path);
+  if (blog) return { element: <BlogPostPage slug={blog[1]!} />, title: blogPost(blog[1]!)?.title ?? null };
+  return null;
+}
 
 // Static hosts often refuse unknown extensions such as .task. The model is
 // fetched as raw bytes, so it ships under a served binary extension instead.
@@ -76,12 +95,13 @@ function Router() {
 
   useEffect(() => {
     const brand = lang === 'ar' ? 'تجربة Tajribah' : 'Tajribah';
-    const title = TITLES[path];
+    const title = TITLES[path] ?? dynamicRoute(path)?.title;
     document.title = !title ? brand : path === '/' ? pick(title, lang) : `${pick(title, lang)} | ${brand}`;
   }, [path, lang]);
 
-  const Page = ROUTES[path] ?? NotFound;
-  return <Page />;
+  const Page = ROUTES[path];
+  if (Page) return <Page />;
+  return dynamicRoute(path)?.element ?? <NotFound />;
 }
 
 createRoot(document.getElementById('root')!).render(

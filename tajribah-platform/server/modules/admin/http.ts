@@ -20,6 +20,7 @@ import { RESPONSE_DAYS, exportDocument, fulfilErasure, fulfilExport, listPrivacy
 import { retentionState } from './retention';
 import { createAnnouncement, listAnnouncements, updateAnnouncement } from './announcements';
 import { decideQa, qaModelFile, qaQueue } from './qa';
+import { aiOperations, cancelJobForStore } from './ai-ops';
 import { currentScope } from '@/server/core/observability/scope';
 import { errors } from '@/server/core/errors/problem';
 
@@ -404,4 +405,20 @@ export const qaModelFileHandler = route(async (request) => {
   return new Response(file.body, {
     headers: { 'content-type': 'model/gltf-binary', 'content-length': String(file.size), 'cache-control': 'private, no-store' },
   });
+});
+
+/** API-A37 — GET /api/admin/ai?days=7|30|90 (A9): AI jobs, cost against credits, failures. */
+export const aiOperationsHandler = route(async (request) => {
+  await staffContextFor(request);
+  const days = Number(new URL(request.url).searchParams.get('days'));
+  return json(await aiOperations(days === 7 || days === 90 ? days : 30));
+});
+
+/** API-A38 — POST /api/admin/ai/jobs/[id]/cancel { reason } (A9). */
+export const cancelAiJobForStoreHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  await cancelJobForStore(staff, uuidAt(request, 1, 'ai_job'), (await readJson(request, REASON)).reason);
+  return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
 });

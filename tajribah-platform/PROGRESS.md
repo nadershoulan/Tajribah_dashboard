@@ -3,8 +3,8 @@
 _Last updated: 2026-09-28 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-09-28):** the **model review queue** — every model made by generation is looked at by a person on the Tajribah team (in 3D, with the product's measurements beside it) before a shopper can see it; approved, or sent back with a note the merchant reads. The merchant's own uploads are never held · before that: 3D models under 2 MB for real (8.97 MB → 509 KB), and the storefront viewer fixed.
-> **Next:** A9 — AI operations for staff: every AI job across stores, what it cost us against what it earned, and which ones failed. No account needed.
+> **Just finished (2026-09-28):** **AI operations** for the Tajribah team — every AI job across stores, what the providers charged us beside the credits merchants were charged, the latest failures in the provider's own words, and jobs that went quiet (with a cancel) · before that: the **model review queue** — every model made by generation is looked at by a person on the Tajribah team (in 3D, with the product's measurements beside it) before a shopper can see it; approved, or sent back with a note the merchant reads. The merchant's own uploads are never held · before that: 3D models under 2 MB for real (8.97 MB → 509 KB), and the storefront viewer fixed.
+> **Next:** P3.8 — the 3D editor: open a model, set how it stands and faces in AR, check its real size, and make the product picture shown in the model list. No account needed.
 > **Waiting on you:** **how many AI credits one 3D generation costs** (no number exists anywhere yet), the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
 
 ```
@@ -18,8 +18,8 @@ P6 AI+connectors  ░░░░░░░░░░░░░░░░░░░░�
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ P7.7 security: all code-level work done)
 P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
-A  Admin console  ██████████████████████████░░░░░░  12 / 15   (+ A7 partly) · A9 next; A8 needs Moyasar
-                                            overall  74 / 169
+A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
+                                            overall  75 / 169
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -98,6 +98,7 @@ The internal console for running Tajribah: stores, people, plans, coupons, what 
 
 | | Package | In plain words |
 |---|---|---|
+| ✅ | A9 AI operations | For the Tajribah team: every AI job across stores in the last 7, 30 or 90 days — by type and outcome, how long they take, what the providers charged us (in dollars) beside the credits merchants were charged (a refunded job counts zero), the latest failures in the provider's own words, jobs that went quiet (cancel one with a reason), and which stores cost the most. **No profit margin yet:** a credit has no price until buying credits exists |
 | ✅ | A10 Model review queue | The staff side of P3.6: a queue of generated models waiting, sent back and approved, with a 3D viewer, the product's measurements against the model's, triangles and file size; approve or send back with a note. Recorded in the staff trail and in the store's own activity |
 | ✅ | A14 Privacy and retention | When someone asks for a copy of their data or for their account to be removed, staff record it (with how they checked who is asking), see it is due in 30 days, and do it in one click — the copy never includes passwords or security codes, and a store owner can't be removed until the store is handed over or closed. Old data (raw visitor events after 90 days, old sign-ins, old notifications, old logs) is removed automatically on a published schedule; invoices are always kept |
 | ✅ | A4b See what the merchant sees | Staff can open a store's dashboard exactly as the store sees it, for 15 minutes to an hour, with a written reason — and change nothing. A banner on every screen says so, the store's own activity shows that Tajribah staff looked, and it ends by itself |
@@ -290,3 +291,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-28 | The photo screen for 3D generation on every product page: add, see checked, remove, retry — Arabic and English, phone and desktop | 477 pass / 0 fail; driven in a real browser with real product photos |
 | 2026-09-28 | 3D models under 2 MB for real (8.97 MB → 509 KB on a real product model, same look), generated models made true to size, and the storefront viewer fixed so it can open compressed models at all | 484 pass / 0 fail; rendered side by side in the real 3D viewer |
 | 2026-09-28 | Model review: generated models are checked by a person before going live — staff see them in 3D, approve or send back with a note; merchants see the status and the note | 486 pass / 0 fail; the review screen driven in a real browser with a real model, under the live security policy |
+| 2026-09-28 | AI operations for the team: every AI job, its cost to us against the credits charged, failures, quiet jobs — with a cancel | 487 pass / 0 fail; the screen driven in a real browser, English and Arabic |

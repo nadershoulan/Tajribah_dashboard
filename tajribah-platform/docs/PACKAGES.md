@@ -121,7 +121,7 @@ only. Screen IDs from the inventory (`ADM-*`).
 | A6 ✅ | Plans & pricing management | — | ADM-13/14: edit a plan's prices, limits and features (T19: applies to everyone), audited |
 | A7 ◐ | Subscriptions & invoices | — (view); refunds 🔒 | ADM-17…19: subscriptions and invoices across stores |
 | A8 | Payments & revenue | 🔒 Moyasar | Payments, refunds, revenue |
-| A9 | AI operations | — (P3.2 exists) | AI jobs, cost, failures |
+| A9 ✅ | AI operations | — | `/admin/ai`: jobs by type and outcome, provider cost beside credits (net of refunds), failures with the provider's text, quiet jobs with a staff cancel, top stores by cost. No margin until a credit has a price |
 | A10 ✅ | Content & QA queues | P3.6 | Model QA review — `/admin/qa`: a 3D viewer, measurements against the product, approve / send back with a note; T25 gate on publishing |
 | A11 ✅ | Platform operations | — | Queue health, stuck jobs, webhook failures, key rotation state |
 | A12 ✅ | Support tooling | — | Look up a store/person/request id and see what happened |

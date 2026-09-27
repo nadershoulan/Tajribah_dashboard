@@ -221,6 +221,8 @@ P8 Enterprise (12) · Track A Admin (15). Track M has its own table above.
 
 **P3.3 photo intake & quality checks** (2026-09-27) — `generation_photos` (0016), presigned upload then a check of the bytes themselves: format, header dimensions, size, aspect, duplicates; refused bytes deleted at once; one photo per angle; counted in storage; a 24 h sweep for uploads never confirmed; API-143–146. Pixel checks (blur, exposure, background) are the AI service's (P3.1). Done when: every format's header read from real photos, and each rule seen to fail.
 
+**P3.7 ◐ generation UI** (2026-09-28) — the photo part is built: `components/pages/ProductPhotos.tsx` on the product page, the three `DataSource` calls, the preview running the real check in the browser. Left for when P3.4 exists: the Generate action (needs the credits per generation from Nader), and job progress with cancel (API-140–142 are ready for it).
+
 **P7.7 security hardening ◐** (2026-09-27) — code-level, so not held by P7's "do not start early". Done: security headers on every response (`server/core/http/security-headers.ts`, `next.config.ts`); `/api/auth/refresh` limited per session (§13.6). Audited sound: auth limits and lockout, webhook signatures, install-check SSRF rules, upload sizes, CSRF surface, no-store, error bodies. Then the full page CSP: `proxy.ts`, a nonce per page, no inline or eval for scripts, checked in a real browser on a production build. Open: `form-action` re-check with the P3 checkout; DNS rebinding on the install checker; an independent review for the P7 gate.
 
 **Track P5 note:** the try-on engine already exists and is proven in

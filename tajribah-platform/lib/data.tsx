@@ -13,8 +13,10 @@ import {
   DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS,
 } from './demo-data';
 import type {
-  AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
+import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
+import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
 import { ApiError, currentStore, type ApiClient } from './api-client';
 import type { Bi, Lang } from './lang';
 import type { ProductListPage, ProductListQuery } from './contracts/products';
@@ -57,6 +59,11 @@ export interface DataSource {
   publishVersion(versionId: string): Promise<void>;
   /** P1.12 uploader: presigned PUT straight to storage, then the server checks the bytes. */
   uploadModel(file: File, target?: { productId?: string; modelId?: string }): Promise<{ modelId: string; status: 'processing' | 'failed'; error: string | null }>;
+  /** P3.3/P3.7: a product's photos for 3D generation, and whether a generation could start. */
+  productPhotos(productId: string): Promise<GenerationPhotoSet>;
+  /** Start → PUT straight to storage → the server's verdict on the bytes. Refusals before upload: 422 / 409. */
+  uploadProductPhoto(productId: string, angle: GenerationAngle, file: File): Promise<GenerationPhotoView>;
+  removeProductPhoto(productId: string, photoId: string): Promise<void>;
   team(): Promise<TeamMemberRow[]>;
   /** P1.24. The link goes by email only; nothing here ever sees the token. */
   invite(email: string, role: TeamMemberRow['role'], lang: Lang): Promise<void>;
@@ -156,6 +163,22 @@ export function apiSource(client: ApiClient): DataSource {
         `/api/models/versions/${encodeURIComponent(started.versionId)}/confirm`, { method: 'POST' });
       return { modelId: started.modelId, ...confirmed };
     },
+    async productPhotos(productId) {
+      return client.call<GenerationPhotoSet>(`/api/products/${encodeURIComponent(productId)}/photos`);
+    },
+    async uploadProductPhoto(productId, angle, file) {
+      const base = `/api/products/${encodeURIComponent(productId)}/photos`;
+      const started = await client.call<{ photoId: string; uploadUrl: string; contentType: string }>(base, {
+        method: 'POST', body: { angle, filename: file.name, contentType: photoContentType(file), sizeBytes: file.size },
+      });
+      // Straight to storage, as for models: the signature in the URL is the permission.
+      const put = await fetch(started.uploadUrl, { method: 'PUT', headers: { 'content-type': started.contentType }, body: file });
+      if (!put.ok) throw new ApiError(put.status, 'upload_failed', 'the photo did not reach storage — try again');
+      return client.call<GenerationPhotoView>(`${base}/${encodeURIComponent(started.photoId)}/confirm`, { method: 'POST' });
+    },
+    async removeProductPhoto(productId, photoId) {
+      await client.call<void>(`/api/products/${encodeURIComponent(productId)}/photos/${encodeURIComponent(photoId)}`, { method: 'DELETE' });
+    },
     async team() {
       return (await client.call<{ members: TeamMemberRow[] }>('/api/team')).members;
     },
@@ -226,6 +249,16 @@ function sampleInvoice(): InvoiceDocument {
   };
 }
 
+/**
+ * What the browser says a picked file is. Some pickers leave `type` empty; the extension is the
+ * fallback. The server judges the bytes either way — this only gets the upload started.
+ */
+export function photoContentType(file: File): string {
+  if (file.type) return file.type;
+  const ext = file.name.toLowerCase().split('.').pop() ?? '';
+  return ({ jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', heic: 'image/heic', heif: 'image/heif' } as Record<string, string>)[ext] ?? 'application/octet-stream';
+}
+
 /** Seeded data, resolved on a microtask so screens exercise their loading states. */
 /** The preview's edits, for this page load only: the preview has nowhere to save them. */
 const demoEdits = new Map<string, ProductRow>();
@@ -246,6 +279,11 @@ const demoSettings: StoreSettings = {
   nationalAddress: null, city: null, brandColor: null, buttonRadius: DEFAULT_BUTTON_RADIUS, consentTextAr: null, consentTextEn: null,
 };
 const demoModels: ModelRow[] = DEMO_MODELS.map((m) => ({ ...m }));
+/**
+ * P3.7 — the preview's product photos, for this page load. The preview has no storage, so the
+ * check runs here, in the browser: the same `checkPhoto` the server runs, on the file you picked.
+ */
+const demoPhotos = new Map<string, { view: GenerationPhotoView; sha: string }[]>();
 /** Which version is live per demo model, when it is not the newest. */
 const demoLive = new Map<string, number>();
 /** Versions 1…n of a demo model; older ready versions stand in for rollbacks. */
@@ -369,6 +407,43 @@ export const demoSource: DataSource = {
     };
     demoModels.unshift(model);
     return { modelId: model.id, status: 'processing', error: null };
+  },
+  async productPhotos(productId) {
+    if (!DEMO_PRODUCTS.some((p) => p.id === productId)) throw new ApiError(404, 'not_found', 'product not found');
+    const photos = (demoPhotos.get(productId) ?? []).map((p) => ({ ...p.view }));
+    const accepted = new Set(photos.filter((p) => p.status === 'accepted').map((p) => p.angle));
+    return { photos, ready: accepted.has('front'), missing: (['front', 'side', 'back'] as const).filter((a) => !accepted.has(a)) };
+  },
+  async uploadProductPhoto(productId, angle, file) {
+    if (!DEMO_PRODUCTS.some((p) => p.id === productId)) throw new ApiError(404, 'not_found', 'product not found');
+    // The server's refusals before a byte is sent, in the same words.
+    if (!Object.values(PHOTO_CONTENT_TYPES).includes(photoContentType(file))) {
+      throw new ApiError(422, 'validation_failed', 'Validation failed', { contentType: [PHOTO_ISSUES.unsupported_format.en] });
+    }
+    if (file.size > MAX_PHOTO_BYTES) throw new ApiError(422, 'validation_failed', 'Validation failed', { sizeBytes: [PHOTO_ISSUES.too_large_file.en] });
+    const list = demoPhotos.get(productId) ?? [];
+    const taken = list.filter((p) => p.view.angle === angle && p.view.status !== 'rejected').length;
+    if (taken >= ANGLE_SLOTS[angle]) {
+      throw new ApiError(409, 'conflict', ANGLE_SLOTS[angle] === 1
+        ? `this product already has a ${angle} photo — remove it first`
+        : `this product already has ${taken} ${angle} photos — remove one first`);
+    }
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const sha = await sha256Hex(bytes);
+    const known = list.filter((p) => p.view.status === 'accepted').map((p) => p.sha);
+    const verdict = checkPhoto(bytes, file.size, sha, known);
+    const view: GenerationPhotoView = {
+      id: `photo-${Date.now()}-${list.length}`, angle, status: verdict.accepted ? 'accepted' : 'rejected',
+      format: verdict.facts?.format ?? null, width: verdict.facts?.width ?? null, height: verdict.facts?.height ?? null,
+      sizeBytes: file.size, score: verdict.score, issues: photoIssueViews(verdict.issues), createdAt: new Date().toISOString(),
+    };
+    demoPhotos.set(productId, [...list, { view, sha }]);
+    return { ...view };
+  },
+  async removeProductPhoto(productId, photoId) {
+    const list = demoPhotos.get(productId) ?? [];
+    if (!list.some((p) => p.view.id === photoId)) throw new ApiError(404, 'not_found', 'photo not found');
+    demoPhotos.set(productId, list.filter((p) => p.view.id !== photoId));
   },
   async team() { return demoTeam.map((m) => ({ ...m })); },
   async invite(email, role) {

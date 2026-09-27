@@ -1,17 +1,17 @@
 # Tajribah — where the build is
 
-_Last updated: 2026-09-27 · updated after every package_
+_Last updated: 2026-09-28 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-09-27):** product photos for 3D generation — uploaded and checked before any credits are spent (format, resolution, file size, duplicates), with a clear reason in Arabic and English when one is refused · before that: 3D-generation job tracking, and security hardening.
-> **Next:** P3.7 — the dashboard screen where a merchant adds a product's photos and sees each one checked. The **Generate** button needs the provider and one number from you (below).
+> **Just finished (2026-09-28):** the photo screen on every product page — add a photo per angle (front, side, back, up to three close-ups), see each one checked straight away with the reason in Arabic or English, remove and retry. Checked in a real browser with real product photos, on a phone in Arabic and a desktop in English · before that: the photo checks, 3D-generation job tracking, security hardening.
+> **Next:** P3.5 ⭐ — post-processing: making every 3D model (uploaded now, generated later) the product's real size in millimetres, upright and centred, before AR shows it. No account needed.
 > **Waiting on you:** **how many AI credits one 3D generation costs** (no number exists anywhere yet), the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
 
 ```
 P0 Foundation     ████████████████████████████░░░░  19 / 22   (+ P0.20 mostly done, 2 blocked)
 P1 Core loop      █████████████████████████░░░░░░░  20 / 26   ← first sellable product · the rest needs Salla / Cloudflare / domain
 P2 Billing        █████████████░░░░░░░░░░░░░░░░░░░   6 / 15   (+ 3 partly) · the rest needs Moyasar / ZATCA
-P3 3D pipeline    █████░░░░░░░░░░░░░░░░░░░░░░░░░░░   2 / 12   ← NOW · job tracking and photo checks done; photo screen next
+P3 3D pipeline    █████░░░░░░░░░░░░░░░░░░░░░░░░░░░   2 / 12   (+ P3.7 photo screen) ← NOW · Generate waits on a provider and a price
 P4 Analytics      ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ CSV export partly) · shared with the other session
 P5 Try-on         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 14   (engine already exists in tajribah-try-on)
 P6 AI+connectors  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 16
@@ -164,7 +164,7 @@ The public site that sells Tajribah, Arabic first.
 |---|---|---|
 | ✅ | P3.2 Job tracking | When a merchant asks for a 3D model, the job is charged once, shows its progress (never going backwards), and can be cancelled at any time — credits come back if it hadn't started, and are kept once the provider is working (your decision). It is stopped and refunded automatically if it ever gets stuck, and refunded if it fails. The merchant sees a clear message if it fails, never the provider's technical error. **Nothing generates a model yet** — that needs a 3D provider account |
 | ✅ | P3.3 Photo intake & checks | A merchant uploads a product's photos — front, side, back and up to three close-ups — and each is checked from the file itself before any credits are spent: JPG, PNG or WebP (iPhone HEIC photos are refused with how to fix it), at least 768 pixels on the short side, under 20 MB, not a panorama, not the same photo twice. A refused photo is deleted straight away with the reason in Arabic and English; photos count toward the plan's storage. Blur and lighting checks need the AI service and come later |
-| ⏳ | P3.7 Photo screen | Next: the screen in the dashboard for adding photos and seeing each one checked |
+| ◐ | P3.7 Photo screen | On each product's page: a box per angle — front (required), side, back and up to three close-ups. Pick or drop a photo and it is uploaded and checked at once: accepted with its size and a file-quality score, or refused with the reason and a "choose another" button. Remove any photo. The page says when the product is ready to generate. **The Generate button is there but off** — it needs the 3D provider and the price per generation (below) |
 
 ## P7 — hardening
 
@@ -284,3 +284,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-27 | 3D generation, the part that needs no provider: a generation job is charged once, shows its progress, can be cancelled at any time with your credits returned, and is stopped and refunded if it ever gets stuck. One choice for you: when you cancel a job that is already running, this build returns all your credits and Tajribah pays the provider (decision T24) | 461 pass / 0 fail |
 | 2026-09-27 | Your decision applied: cancelling a 3D generation that is already running keeps its charge. This page brought up to date — the top had not changed since the 26th | 3D job tests 9 / 9 |
 | 2026-09-27 | Product photos for 3D generation: upload, automatic checks on each photo (format, size, duplicates), refused photos deleted at once with the reason, counted in storage | 474 pass / 0 fail; checked on real product photos in 7 file types |
+| 2026-09-28 | The photo screen for 3D generation on every product page: add, see checked, remove, retry — Arabic and English, phone and desktop | 477 pass / 0 fail; driven in a real browser with real product photos |

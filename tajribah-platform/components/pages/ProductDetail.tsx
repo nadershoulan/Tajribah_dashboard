@@ -1,6 +1,6 @@
 'use client';
 
-// MD-011 — Product detail: sizes in millimetres, AR switch, 3D model
+// MD-011 — Product detail: sizes in millimetres, AR switch, 3D model; P3.7 — photos for 3D generation
 
 import { useState } from 'react';
 import { Box, Package, Ruler } from 'lucide-react';
@@ -15,6 +15,7 @@ import { isSized } from '@/lib/product-list';
 import type { ProductRow } from '@/lib/view-models';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, Empty, ErrorNote, Forward, Loading, PageHead, Panel } from '@/components/dashboard/ui';
+import ProductPhotos from '@/components/pages/ProductPhotos';
 
 const TYPES: { value: ProductRow['productType']; ar: string; en: string }[] = [
   { value: 'watch', ar: 'ساعة', en: 'Watch' },
@@ -73,6 +74,9 @@ export default function ProductDetail() {
               <StorePanel product={product} />
               <ModelPanel product={product} />
             </div>
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <ProductPhotos product={product} />
           </div>
         </>
       )}

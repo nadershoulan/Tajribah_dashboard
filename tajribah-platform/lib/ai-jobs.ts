@@ -38,8 +38,23 @@ export const PHOTO_ISSUES: Record<PhotoIssueCode, Bi> = {
   low_resolution: { ar: 'مقبولة، لكن صورة بدقة أعلى (1500 بكسل أو أكثر للضلع الأقصر) تعطي نموذجًا أدق.', en: 'Accepted, but a sharper photo (1500 pixels or more on the short side) gives a more detailed model.' },
 };
 
+/** Issues that refuse a photo; `low_resolution` alone accepts it with a lower score. */
+export const BLOCKING_PHOTO_ISSUES: readonly PhotoIssueCode[] = ['unsupported_format', 'unreadable', 'too_small', 'too_large_file', 'extreme_aspect', 'duplicate'];
+
+/** A stored list of issue codes, as the merchant sees them. Server and preview share it. */
+export function photoIssueViews(codes: readonly string[]): { code: string; blocking: boolean; message: Bi }[] {
+  return codes.map((code) => ({
+    code,
+    blocking: (BLOCKING_PHOTO_ISSUES as readonly string[]).includes(code),
+    message: PHOTO_ISSUES[code as PhotoIssueCode] ?? PHOTO_ISSUES.unreadable,
+  }));
+}
+
 export const GENERATION_ANGLES = ['front', 'side', 'back', 'detail'] as const;
 export type GenerationAngle = (typeof GENERATION_ANGLES)[number];
+
+/** How many photos each angle holds. Details can show a clasp, an engraving, a texture. */
+export const ANGLE_SLOTS: Record<GenerationAngle, number> = { front: 1, side: 1, back: 1, detail: 3 };
 
 export const ANGLE_LABELS: Record<GenerationAngle, Bi> = {
   front: { ar: 'الأمام', en: 'Front' },

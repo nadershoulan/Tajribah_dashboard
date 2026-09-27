@@ -9,6 +9,8 @@
  * Those checks belong to the AI service (P3.1). The score this module gives is therefore about
  * the file, and says so.
  */
+import { BLOCKING_PHOTO_ISSUES, type PhotoIssueCode } from '@/lib/ai-jobs';
+
 export type PhotoFormat = 'jpeg' | 'png' | 'webp';
 
 /** Formats every generation provider we might use accepts. HEIC is refused with a clear reason. */
@@ -23,11 +25,9 @@ export const MAX_PHOTO_BYTES = 20 * 1024 * 1024;
 /** Long side over short side. A panorama or a strip is not a product photo. */
 export const MAX_ASPECT = 3;
 
-export type PhotoIssue =
-  | 'unsupported_format' | 'unreadable' | 'too_small' | 'too_large_file' | 'extreme_aspect' | 'duplicate' // refuse
-  | 'low_resolution'; // accept, with a lower score
-
-export const BLOCKING: readonly PhotoIssue[] = ['unsupported_format', 'unreadable', 'too_small', 'too_large_file', 'extreme_aspect', 'duplicate'];
+/** Refusals, plus `low_resolution` (accepted with a lower score). Wording: `lib/ai-jobs.ts`. */
+export type PhotoIssue = PhotoIssueCode;
+export const BLOCKING = BLOCKING_PHOTO_ISSUES;
 
 export type PhotoFacts = { format: PhotoFormat; width: number; height: number };
 

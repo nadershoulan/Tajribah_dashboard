@@ -20,7 +20,7 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { generationPhotos, products } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
-import { GENERATION_ANGLES, PHOTO_ISSUES, type GenerationAngle, type PhotoIssueCode } from '@/lib/ai-jobs';
+import { ANGLE_SLOTS, GENERATION_ANGLES, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from '@/lib/ai-jobs';
 import type { GenerationPhotoSet, GenerationPhotoView } from '@/lib/view-models';
 import { record } from '@/server/core/audit/audit';
 import { assertStorageRoom } from '@/server/core/billing/entitlements';
@@ -29,12 +29,10 @@ import { forTenant } from '@/server/core/storage/storage';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
-import { BLOCKING, MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex, type PhotoFormat } from './photo-check';
+import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex, type PhotoFormat } from './photo-check';
 
 type Photo = typeof generationPhotos.$inferSelect;
 
-/** How many photos each angle holds. Details can show a clasp, an engraving, a texture. */
-export const ANGLE_SLOTS: Record<GenerationAngle, number> = { front: 1, side: 1, back: 1, detail: 3 };
 /** The presigned URL's life: long enough for a phone on a slow connection. */
 export const PHOTO_UPLOAD_SECONDS = 15 * 60;
 
@@ -153,7 +151,6 @@ export async function acceptedPhotos(db: TenantDb, productId: string): Promise<P
 }
 
 function view(photo: Photo): GenerationPhotoView {
-  const codes = (photo.issues ?? []) as PhotoIssueCode[];
   return {
     id: photo.id,
     angle: photo.angle,
@@ -161,7 +158,7 @@ function view(photo: Photo): GenerationPhotoView {
     format: (photo.format as GenerationPhotoView['format']) ?? null,
     width: photo.width, height: photo.height, sizeBytes: photo.sizeBytes,
     score: photo.qualityScore,
-    issues: codes.map((code) => ({ code, blocking: (BLOCKING as readonly string[]).includes(code), message: PHOTO_ISSUES[code] ?? PHOTO_ISSUES.unreadable })),
+    issues: photoIssueViews(photo.issues ?? []),
     createdAt: photo.createdAt.toISOString(),
   };
 }

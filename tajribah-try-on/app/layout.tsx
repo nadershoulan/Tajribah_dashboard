@@ -3,8 +3,10 @@ import { headers } from 'next/headers';
 import './globals.css';
 import { LangProvider } from '@/lib/i18n';
 import { langFromCookie } from '@/lib/lang';
+import { COMPANY } from '@/lib/site';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(COMPANY.siteUrl),
   title: { default: 'تجربة Tajribah — جرّبها قبل أن تشتريها', template: '%s | تجربة Tajribah' },
   description:
     'تجربة افتراضية ومقارنة بالحجم الحقيقي لمتاجر الساعات والمجوهرات والإكسسوارات في السعودية. عربية أولًا، ومن دون تطبيق.',
@@ -27,6 +29,19 @@ export const metadata: Metadata = {
   twitter: { card: 'summary_large_image', images: ['/brand/og-image.png'] },
 };
 
+/** M12 — who runs the site, for search engines (the same facts as the footer). */
+const ORGANIZATION = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Tajribah',
+  alternateName: 'تجربة',
+  legalName: COMPANY.legalName.en,
+  url: COMPANY.siteUrl,
+  logo: `${COMPANY.siteUrl}/brand/tajribah-logo.png`,
+  taxID: COMPANY.vatNumber || undefined,
+  address: { '@type': 'PostalAddress', addressLocality: 'Riyadh', postalCode: '13524', addressCountry: 'SA' },
+};
+
 export const viewport: Viewport = { themeColor: '#0A2237', width: 'device-width', initialScale: 1 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -41,6 +56,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@400;500;600;700&display=swap"
         />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION) }} />
       </head>
       <body className="antialiased">
         <LangProvider initial={lang}>{children}</LangProvider>

@@ -21,6 +21,12 @@ export const COMPANY = {
   address: { ar: 'حي الملقا، الرياض 13524، المملكة العربية السعودية', en: 'Al Malqa, Riyadh 13524, Saudi Arabia' } as Bi,
   email: 'hello@tajribah.sa',
   privacyEmail: 'privacy@tajribah.sa',
+  /**
+   * The site's public address, for the sitemap, robots and absolute links. The domain is not
+   * confirmed yet: set NEXT_PUBLIC_SITE_URL at deploy; the default matches the placeholder emails.
+   */
+  // `typeof` guard: the static preview's browser bundle has no `process`.
+  siteUrl: ((typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SITE_URL) || 'https://tajribah.sa').replace(/\/$/, ''),
   /** Where the storefront script is served from once the CDN is live. */
   cdnHost: 'cdn.tajribah.sa',
   legalUpdated: { ar: '22 سبتمبر 2026', en: '22 September 2026' } as Bi,

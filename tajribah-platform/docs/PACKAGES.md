@@ -149,7 +149,7 @@ Track M pages existed there before the track opened, so a package here usually m
 | M9 ◐ | Trust & social proof | 🔒 real customers | `/customers` exists with 3 stories **labelled illustrative**; real logos, quotes or figures need real customers who agree in writing (§11 and Saudi e-commerce rules — inventing them is not an option) |
 | M10 ✅ | Company & careers | — | `/about`, `/careers` (roles we expect to open; no advertised vacancy), SRO Company's legal details in the footer |
 | M11 ✅ | Legal pages | counsel review | Privacy, terms, refund, cookies, try-on privacy — drafts, and the in-file note saying they await Saudi-licensed counsel stays |
-| M12 | SEO & conversion optimization | domain 🔒 | Sitemap, robots, canonical and hreflang, OG per page, structured data, and the conversion pass over the funnel — several of these need the final domain |
+| M12 ◐ | SEO & conversion optimization | domain 🔒 | **Built:** `app/sitemap.ts` (every titled page, help article and blog post, with dates), `app/robots.ts` (crawl the site, not `/api/` or `/capture/`), `metadataBase` from `NEXT_PUBLIC_SITE_URL` (default the placeholder domain; `typeof process` guard for the static preview), Organization JSON-LD (SRO Company, VAT, Riyadh 13524) and BlogPosting JSON-LD per post. **Open:** per-page canonical and OG, and the conversion pass — they need the final domain. One URL serves both languages (cookie), so there are no hreflang alternates to add |
 
 **Filed against Track M (from A6):** the site's plan prices live in
 `tajribah-try-on/lib/plans.ts` and are kept equal to this app's catalogue by hand. Staff can

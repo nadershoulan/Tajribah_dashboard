@@ -1,14 +1,18 @@
 'use client';
 
+import { useState } from 'react';
 import { Check, Minus } from 'lucide-react';
 import { useLang, pick } from '@/lib/i18n';
 import { SiteLink } from '@/lib/site-env';
-import { MATRIX, PLANS } from '@/lib/plans';
+import { ANNUAL_MONTHS, MATRIX, PLANS, num, type Cycle } from '@/lib/plans';
 import { Forward, Shell } from '@/components/site/chrome';
+import { CycleSwitch, RoiPanel } from '@/components/site/roi';
 import { CtaBand, PageHero, SectionHead } from '@/components/site/ui';
 
 export default function Pricing() {
   const { lang, t } = useLang();
+  const [cycle, setCycle] = useState<Cycle>('monthly');
+  const annual = cycle === 'annual';
 
   const addons = [
     { h: t('أرصدة الذكاء الاصطناعي', 'AI credits'), p: t('لتوليد نماذج ثلاثية الأبعاد من الصور ولتجارب إضافية فوق حد باقتك. تُحتسب لكل عملية توليد.', 'For generating 3D models from photos and for try-ons beyond your plan. Charged per generation.') },
@@ -19,8 +23,10 @@ export default function Pricing() {
     <Shell current="/pricing">
       <PageHero eyebrow={t('الأسعار', 'Pricing')}
         title={t('باقات واضحة، تبدأ بـ99 ريالًا', 'Clear plans, from 99 riyals')}
-        lead={t('اشتراك شهري بالريال السعودي. ابدأ بعدد قليل من المنتجات ووسّع حين ترى الأثر.',
-          'A monthly subscription in Saudi riyals. Start with a few products and expand when you see the effect.')} />
+        lead={t('اشتراك بالريال السعودي، شهريًا أو سنويًا. ابدأ بعدد قليل من المنتجات ووسّع حين ترى الأثر.',
+          'A subscription in Saudi riyals, monthly or annual. Start with a few products and expand when you see the effect.')}>
+        <CycleSwitch cycle={cycle} onChange={setCycle} />
+      </PageHero>
 
       <section className="sec">
         <div className="wrap">
@@ -31,8 +37,16 @@ export default function Pricing() {
                 <h2>{pick(p.name, lang)}</h2>
                 <p className="plan-blurb">{pick(p.blurb, lang)}</p>
                 <p className="plan-price">
-                  {p.price ? <><bdi>{p.price}</bdi><span>{t('ر.س / شهريًا', 'SAR / month')}</span></> : <span className="custom">{t('حسب الطلب', 'Custom pricing')}</span>}
+                  {p.price === null || p.priceAnnual === null
+                    ? <span className="custom">{t('حسب الطلب', 'Custom pricing')}</span>
+                    : <><bdi>{num(annual ? p.priceAnnual : p.price)}</bdi>
+                      <span>{annual ? t('ر.س / سنويًا', 'SAR / year') : t('ر.س / شهريًا', 'SAR / month')}</span></>}
                 </p>
+                {annual && p.priceAnnual !== null && (
+                  <p className="plan-cycle">{t(
+                    `بسعر ${ANNUAL_MONTHS} أشهر · نحو ${num(p.priceAnnual / 12)} ر.س شهريًا`,
+                    `${ANNUAL_MONTHS} months’ price · about ${num(p.priceAnnual / 12)} SAR a month`)}</p>
+                )}
                 <p className="plan-products">{pick(p.products, lang)}</p>
                 <ul>{p.features.map((f) => <li key={f.en}><Check size={16} aria-hidden />{pick(f, lang)}</li>)}</ul>
                 <SiteLink href="/contact" className={'btn ' + (p.featured ? 'btn-primary' : 'btn-ghost')}>
@@ -41,8 +55,11 @@ export default function Pricing() {
               </article>
             ))}
           </div>
-          <p className="fine center">{t('الأسعار شهرية ولا تشمل ضريبة القيمة المضافة (15%). تصلك فاتورة ضريبية إلكترونية مع كل عملية دفع.',
-            'Prices are monthly and exclude 15% VAT. You receive an electronic tax invoice with every payment.')}</p>
+          <p className="fine center">{annual
+            ? t('الأسعار سنوية ولا تشمل ضريبة القيمة المضافة (15%). تصلك فاتورة ضريبية إلكترونية مع كل عملية دفع.',
+              'Prices are annual and exclude 15% VAT. You receive an electronic tax invoice with every payment.')
+            : t('الأسعار شهرية ولا تشمل ضريبة القيمة المضافة (15%). تصلك فاتورة ضريبية إلكترونية مع كل عملية دفع.',
+              'Prices are monthly and exclude 15% VAT. You receive an electronic tax invoice with every payment.')}</p>
         </div>
       </section>
 
@@ -74,6 +91,16 @@ export default function Pricing() {
       </section>
 
       <section className="sec">
+        <div className="wrap">
+          <SectionHead eyebrow={t('الحساب', 'The arithmetic')}
+            title={t('متى تسدّد الباقة نفسها؟', 'When does the plan pay for itself?')}
+            lead={t('اكتب أرقام متجرك وافتراضاتك، وسترى الحساب كاملًا خطوة بخطوة — لا وعودًا.',
+              'Put in your store’s numbers and your own assumptions, and see the whole calculation, step by step — not a promise.')} />
+          <RoiPanel cycle={cycle} />
+        </div>
+      </section>
+
+      <section className="sec sec-tint">
         <div className="wrap split">
           <div>
             <SectionHead eyebrow={t('إضافات', 'Add-ons')} title={t('حين تحتاج أكثر', 'When you need more')} />
@@ -82,7 +109,10 @@ export default function Pricing() {
           <div className="panel-card">
             <h3>{t('الفوترة باختصار', 'Billing in brief')}</h3>
             <ul className="plain">
-              <li>{t('تُجدَّد الباقة شهريًا تلقائيًا.', 'Plans renew monthly.')}</li>
+              <li>{t('تُجدَّد الباقة تلقائيًا في نهاية كل فترة — شهر أو سنة بحسب اختيارك.',
+                'Plans renew automatically at the end of each period — a month or a year, as you choose.')}</li>
+              <li>{t(`الاشتراك السنوي يُدفع مرة واحدة بسعر ${ANNUAL_MONTHS} أشهر.`,
+                `An annual subscription is paid once, at ${ANNUAL_MONTHS} months’ price.`)}</li>
               <li>{t('الترقية فورية، والتخفيض يسري من الفترة التالية.', 'Upgrades apply immediately; downgrades from the next period.')}</li>
               <li>{t('الإلغاء متاح في أي وقت ويسري في نهاية الفترة الحالية.', 'Cancel any time; it takes effect at the end of the current period.')}</li>
             </ul>

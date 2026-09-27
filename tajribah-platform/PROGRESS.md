@@ -226,3 +226,6 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-27 | SRO Company VAT + National Address on invoices | 423 pass / 0 fail |
 | 2026-09-27 | A14 privacy requests and retention | 427 pass / 0 fail |
 | 2026-09-27 | A13 announcements | 429 pass / 0 fail |
+| 2026-09-27 | Your company's legal details in the website footer and legal pages | site preview |
+| 2026-09-27 | Website: Salla and Zid pages, help centre, blog, customer stories (marked illustrative), careers | site preview |
+| 2026-09-27 | Website pricing: monthly / yearly switch (a year costs ten months) and a calculator that shows when the plan pays for itself, on your visitor's own numbers | site preview, phone and desktop, Arabic and English |

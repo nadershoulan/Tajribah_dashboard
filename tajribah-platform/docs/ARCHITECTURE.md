@@ -40,7 +40,7 @@ repositories.**
 | Redis cache | Workers KV | Already a binding. Same 5-minute-plus-purge model as the plan's viewer config. | KV is eventually consistent — never read-after-write for anything a merchant just saved. |
 | Monorepo (pnpm + Turborepo) | One app, folders instead of packages | pnpm is not installed on this machine and the plan's four frontends do not exist yet. | `lib/contracts`, `lib/i18n`, `server/connectors` are already written as self-contained folders with no upward imports, so extracting them into packages is a move, not a refactor. |
 | argon2id | PBKDF2-HMAC-SHA-256, 600k iterations, via WebCrypto | Workers have no native argon2; the WASM build is a dependency and a cold-start cost. | Weaker per-guess cost. Recorded in DECISIONS.md as **must revisit before the first real merchant password**. The hash column stores its own algorithm prefix so a rehash-on-login upgrade needs no migration. |
-| Marketing site in Astro | `tajribah-try-on` (already built, separate folder) | It exists, it is Arabic-first and it carries the live try-on demo. | Unchanged. This repo does not touch it. |
+| Marketing site in Astro | `tajribah-try-on` (already built, separate folder) | It exists, it is Arabic-first and it carries the live try-on demo. | Unchanged as a decision; since 2026-09-27 **Track M is built in that repo**, under its own `CLAUDE.md`. This app's code still does not touch it — which is why its plan prices are a hand-kept copy of the catalogue (filed under Track M in `docs/PACKAGES.md`). |
 
 ## How tenant isolation works
 

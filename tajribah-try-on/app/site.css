@@ -337,6 +337,50 @@ h3 .tag { margin-inline-start: 8px; font-size: 11.5px; }
 .addons h3 { font-size: 1.1rem; font-weight: 600; }
 .addons p { color: var(--text-2); margin-top: 6px; }
 
+/* Billing cycle switch and the plan card's annual line. */
+.cycle { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 26px; }
+.cycle-toggle { display: inline-flex; padding: 4px; gap: 4px; background: var(--tint); border: 1px solid var(--line); border-radius: 999px; }
+.cycle-btn {
+  font-family: var(--f-display); font-size: 14.5px; font-weight: 500; color: var(--text-2);
+  padding: 9px 20px; border: 0; border-radius: 999px; background: transparent; cursor: pointer;
+  transition: background .18s ease, color .18s ease;
+}
+.cycle-btn:hover { color: var(--text); }
+.cycle-btn.on { background: var(--navy-800); color: #fff; }
+.cycle-save { font-size: 14px; color: var(--teal); font-weight: 500; }
+.plan-cycle { font-size: 13.5px; color: var(--text-3); margin-top: 2px; }
+.plan.featured .plan-cycle { color: #93b5c7; }
+
+/* ---------- Pays-for-itself calculator ------------------------------------ */
+.roi { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.roi-form { gap: 26px; }
+.roi-form fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 14px; }
+.roi-form legend { font-family: var(--f-display); font-size: 15.5px; font-weight: 600; padding: 0; }
+.roi-note { font-size: 14px; color: var(--text-2); line-height: 1.7; }
+.roi-input { position: relative; display: block; }
+.roi-input input { width: 100%; padding-inline-end: 62px; }
+.roi-input i {
+  position: absolute; inset-inline-end: 14px; top: 50%; transform: translateY(-50%);
+  font-style: normal; font-size: 13px; color: var(--text-3); pointer-events: none;
+}
+.roi-form .field small { font-size: 13px; color: var(--text-3); line-height: 1.6; }
+.roi-out { display: grid; gap: 16px; align-content: start; }
+.roi-cost { font-family: var(--f-display); font-size: 2.1rem; font-weight: 700; display: flex; align-items: baseline; gap: 8px; line-height: 1.2; }
+.roi-cost bdi { font-family: var(--f-mono); font-weight: 600; letter-spacing: -0.02em; }
+.roi-cost span { font-size: 13.5px; font-weight: 500; color: var(--text-3); }
+.roi-pays { font-family: var(--f-display); font-weight: 600; font-size: 15.5px; color: var(--aqua); line-height: 1.6; }
+.roi-lines { display: grid; gap: 0; border-top: 1px solid var(--line); }
+.roi-lines > div { display: flex; justify-content: space-between; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+.roi-lines dt { color: var(--text-2); }
+.roi-lines dd { color: var(--text); font-weight: 500; white-space: nowrap; }
+.roi-lines bdi { font-family: var(--f-mono); }
+/* A count that carries its own noun stays in the body face; only figures are mono. */
+.roi-lines .roi-words { font-family: inherit; }
+.roi-lines .roi-total dt { color: var(--text); font-weight: 600; }
+.roi-lines .roi-total dd { color: var(--teal); font-weight: 600; }
+.roi-lines .roi-down { color: var(--soon); }
+.roi-out .fine { margin-top: 0; }
+
 /* ---------- FAQ ----------------------------------------------------------- */
 .faq { display: grid; }
 .qa { border-bottom: 1px solid var(--line-2); }
@@ -641,7 +685,7 @@ html[lang="en"] .legal-body p { line-height: 1.75; }
 @media (max-width: 960px) {
   .nav { display: none; }
   .menu-btn { display: inline-flex; }
-  .hero-grid, .split, .contact-grid { grid-template-columns: minmax(0, 1fr); }
+  .hero-grid, .split, .contact-grid, .roi { grid-template-columns: minmax(0, 1fr); }
   .grid-4, .plan-strip, .journey { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .timeline { grid-template-columns: minmax(0, 1fr); }
   .legal-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; }

@@ -59,13 +59,28 @@ fs.writeFileSync(entry, [
   `@import "${rel(path.join(root, 'app', 'theme.css'))}";`,
   `@import "${rel(path.join(root, 'app', 'site.css'))}";`,
 ].join('\n'));
-// @tailwindcss/cli exposes only a binary, so locate it through its package.json.
+// @tailwindcss/cli (the scratch toolkit) exposes only a binary, so locate it through its
+// package.json. A real project install has @tailwindcss/postcss instead — the same compiler
+// behind the Next build — so fall back to that rather than install a second copy.
 const cliPkg = path.join(modules, '@tailwindcss', 'cli', 'package.json');
-const cliBin = JSON.parse(fs.readFileSync(cliPkg, 'utf8')).bin;
-const cli = path.join(path.dirname(cliPkg), typeof cliBin === 'string' ? cliBin : Object.values(cliBin)[0]);
-const tw = spawnSync(process.execPath, [cli, '-i', entry, '-o', path.join(out, 'site.css'), '--minify'], { cwd: entryDir, stdio: 'inherit' });
-fs.rmSync(entry, { force: true });
-if (tw.status !== 0) process.exit(tw.status ?? 1);
+if (fs.existsSync(cliPkg)) {
+  const cliBin = JSON.parse(fs.readFileSync(cliPkg, 'utf8')).bin;
+  const cli = path.join(path.dirname(cliPkg), typeof cliBin === 'string' ? cliBin : Object.values(cliBin)[0]);
+  const tw = spawnSync(process.execPath, [cli, '-i', entry, '-o', path.join(out, 'site.css'), '--minify'], { cwd: entryDir, stdio: 'inherit' });
+  fs.rmSync(entry, { force: true });
+  if (tw.status !== 0) process.exit(tw.status ?? 1);
+} else {
+  const tailwind = req('@tailwindcss/postcss');
+  // pnpm keeps postcss out of the top level; ask for it where @tailwindcss/postcss finds it.
+  const postcss = createRequire(req.resolve('@tailwindcss/postcss'))('postcss');
+  try {
+    const result = await postcss([tailwind({ base: entryDir, optimize: { minify: true } })])
+      .process(fs.readFileSync(entry, 'utf8'), { from: entry, to: path.join(out, 'site.css') });
+    fs.writeFileSync(path.join(out, 'site.css'), result.css);
+  } finally {
+    fs.rmSync(entry, { force: true });
+  }
+}
 
 // 3. Public files the pages use. Only the SIMD wasm build is shipped; every
 //    browser that can run the studio supports it.

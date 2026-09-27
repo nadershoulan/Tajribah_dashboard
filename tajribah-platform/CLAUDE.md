@@ -4,9 +4,12 @@ The product spec is `../../TAJRIBAH-BUILD-PLAN.md`. Read `STATE.md` first, then 
 package in `docs/PACKAGES.md`, then only the files that package touches. Do not read the
 whole repo.
 
-**Sibling repo `../tajribah-try-on` is finished work. Do not modify it.** Lift code from it
-by copying, and read its `CLAUDE.md` before touching anything derived from its try-on
-studio.
+**Sibling repo `../tajribah-try-on` is the marketing site (Track M) and the live try-on
+demo.** This app's code never reaches into it: lift code by copying, and read its `CLAUDE.md`
+before touching anything derived from its try-on studio. Track M packages are built *there*,
+under *its* rules — improve in place, never rewrite the studio, real photography only,
+invent nothing — and recorded here in `STATE.md` and `docs/PACKAGES.md` like any other
+package.
 
 ## Hard rules (from §14, non-negotiable)
 

@@ -109,7 +109,22 @@ matching `@types/*`, `@cloudflare/workers-types`):
   IIFE bundle + Tailwind CLI + asset copy into `dist-preview/`.
 
 The scratchpad is session-scoped, so the toolkit disappears between sessions and
-has to be reinstalled.
+has to be reinstalled — **but usually it need not be.** The sibling
+`../tajribah-platform/node_modules` (a real pnpm install) has every package this
+site's preview and typecheck need, so both run against it directly:
+
+```
+node preview/build.mjs --modules ../tajribah-platform/node_modules
+```
+
+It has `@tailwindcss/postcss` rather than `@tailwindcss/cli`; the builder falls
+back to it — the same compiler the Next build uses (2026-09-27).
+
+To look at the result, serve `dist-preview/` over HTTP rather than opening it as
+a file: the preview is a script bundle, and `file://` renders a blank page. Serve
+it with no-store headers **and** a version stamp on `app.js` / `site.css` — a
+browser that has seen the page once will otherwise keep showing you the previous
+build, which reads exactly like a change that did not work.
 
 ## 8. Tooling gotchas that cost time before
 

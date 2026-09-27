@@ -1,10 +1,19 @@
 import type { Bi } from './lang';
 
-/** Plans and prices from the Tajribah build plan (§2). Monthly, SAR, VAT added at checkout. */
+/**
+ * Plans and prices from the Tajribah build plan (§2). SAR, VAT added at checkout.
+ *
+ * `priceAnnual` is ten months' price for twelve — the same figures the dashboard's plan
+ * catalogue charges (`tajribah-platform/lib/plans.ts`). Keep the two in step: the annual
+ * price shown here is what checkout takes.
+ */
 export type Plan = {
   id: 'starter' | 'growth' | 'pro' | 'enterprise';
   name: Bi;
+  /** Per month, SAR. `null` = pricing on request. */
   price: number | null;
+  /** Per year, SAR: ten months for twelve. `null` = pricing on request. */
+  priceAnnual: number | null;
   blurb: Bi;
   products: Bi;
   features: Bi[];
@@ -16,6 +25,7 @@ export const PLANS: Plan[] = [
     id: 'starter',
     name: { ar: 'البداية', en: 'Starter' },
     price: 99,
+    priceAnnual: 990,
     blurb: { ar: 'لمتجر يريد أن يبدأ بأكثر منتجاته مبيعًا.', en: 'For a store starting with its best sellers.' },
     products: { ar: 'حتى 20 منتجًا', en: 'Up to 20 products' },
     features: [
@@ -30,6 +40,7 @@ export const PLANS: Plan[] = [
     id: 'growth',
     name: { ar: 'النمو', en: 'Growth' },
     price: 299,
+    priceAnnual: 2990,
     featured: true,
     blurb: { ar: 'لمتجر يريد التجربة على معظم كتالوجه.', en: 'For a store bringing most of its catalogue on board.' },
     products: { ar: 'حتى 200 منتج', en: 'Up to 200 products' },
@@ -44,6 +55,7 @@ export const PLANS: Plan[] = [
     id: 'pro',
     name: { ar: 'الاحترافية', en: 'Pro' },
     price: 999,
+    priceAnnual: 9990,
     blurb: { ar: 'لمتجر يبني تجربة الشراء حول التجربة الافتراضية.', en: 'For a store building its buying experience around try-on.' },
     products: { ar: 'منتجات غير محدودة', en: 'Unlimited products' },
     features: [
@@ -57,6 +69,7 @@ export const PLANS: Plan[] = [
     id: 'enterprise',
     name: { ar: 'المؤسسات', en: 'Enterprise' },
     price: null,
+    priceAnnual: null,
     blurb: { ar: 'للعلامات الكبيرة والمجموعات متعددة المتاجر.', en: 'For large brands and multi-store groups.' },
     products: { ar: 'حسب الاتفاق', en: 'By agreement' },
     features: [
@@ -82,3 +95,12 @@ export const MATRIX: { label: Bi; cells: (boolean | Bi)[] }[] = [
   { label: { ar: 'واجهة برمجة التطبيقات', en: 'API access' }, cells: [false, false, false, true] },
   { label: { ar: 'الدعم', en: 'Support' }, cells: [{ ar: 'بريد', en: 'Email' }, { ar: 'بريد', en: 'Email' }, { ar: 'أولوية', en: 'Priority' }, { ar: 'مخصص', en: 'Dedicated' }] },
 ];
+
+/** How many months an annual subscription costs — the honest way to state the saving. */
+export const ANNUAL_MONTHS = 10;
+
+/** Billing cycle, as the dashboard names it. */
+export type Cycle = 'monthly' | 'annual';
+
+/** Grouped ASCII digits in both languages (§11: Arabic copy uses ASCII digits). */
+export const num = (n: number) => Math.round(n).toLocaleString('en-US');

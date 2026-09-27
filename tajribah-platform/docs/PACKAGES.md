@@ -128,11 +128,39 @@ only. Screen IDs from the inventory (`ADM-*`).
 | A13 ✅ | Content management | — | Coupons (ADM-15) and platform copy — **announcements** (T23) |
 | A14 ✅ | Compliance & system | — (rules: T22, working rules until counsel reviews) | Data requests, retention, the staff trail (A1, ADM-43) |
 
+## Track M — Marketing site (12)
+
+**Not in this app.** The marketing site is Nader's `../tajribah-try-on` (Arabic-first, and it
+carries the live try-on demo). Its own rules apply — that repo's `CLAUDE.md`: improve in
+place, never rewrite the studio, real photography only, invent nothing. Most of the plan's
+Track M pages existed there before the track opened, so a package here usually means
+*finish what the page still lacks*, not *build a page*.
+
+| ID | Package | Needs | Done when |
+|---|---|---|---|
+| M1 ◐ | Site scaffold | analytics choice 🔒 domain | Next app, Arabic-first i18n with an RTL layout, tokens, per-page SEO titles — **built**; the consent banner and the analytics gate behind it are **not** (no analytics vendor chosen), and deployment waits on Cloudflare and the domain |
+| M2 ✅ | Home & core pages | — | Home, features, how it works, integrations, demo, about, contact, FAQ — on the real studio and real photography |
+| M3 ✅ | Pricing | — | Plan cards, feature matrix, add-ons; **monthly / annual switch** on the dashboard's own catalogue figures (a year = ten months, stated as such); **a pays-for-itself calculator** on the merchant's numbers and the merchant's own assumptions — no uplift figure of ours anywhere in it |
+| M4 ✅ | Salla & Zid landing pages | — | `/salla`, `/zid`: the platform named, no logo, its figures not repeated, a trademark note, availability stated as on the integrations page |
+| M5 | Product feature pages | — | A page per capability (true-size comparison, on-model view, AR viewing, AI try-on) beyond the single features page |
+| M6 | Industry solution pages | — | Watches, jewellery, eyewear, bags — what the try-on does for each |
+| M7 ✅ | Blog | — | `/blog` + 6 posts, no invented statistics |
+| M8 ✅ | Help centre | — | `/help` + 15 articles written against the dashboard as it is built |
+| M9 ◐ | Trust & social proof | 🔒 real customers | `/customers` exists with 3 stories **labelled illustrative**; real logos, quotes or figures need real customers who agree in writing (§11 and Saudi e-commerce rules — inventing them is not an option) |
+| M10 ✅ | Company & careers | — | `/about`, `/careers` (roles we expect to open; no advertised vacancy), SRO Company's legal details in the footer |
+| M11 ✅ | Legal pages | counsel review | Privacy, terms, refund, cookies, try-on privacy — drafts, and the in-file note saying they await Saudi-licensed counsel stays |
+| M12 | SEO & conversion optimization | domain 🔒 | Sitemap, robots, canonical and hreflang, OG per page, structured data, and the conversion pass over the funnel — several of these need the final domain |
+
+**Filed against Track M (from A6):** the site's plan prices live in
+`tajribah-try-on/lib/plans.ts` and are kept equal to this app's catalogue by hand. Staff can
+change a price in ADM-13 and the site would not follow. Closing it needs a public prices
+endpoint the site reads at build time — which needs the API deployed (P0.22).
+
 ## P3–P8 and the parallel tracks
 
 As in the plan's Appendix A, unchanged: P3 3D pipeline (12) ·
 P4 Analytics (12) · P5 Try-on (14) · P6 AI + connectors (16) · P7 Scale (13) ·
-P8 Enterprise (12) · Track M Marketing (12) · Track A Admin (15).
+P8 Enterprise (12) · Track A Admin (15). Track M has its own table above.
 
 **Track P5 note:** the try-on engine already exists and is proven in
 `../tajribah-try-on`. It is lifted, not rewritten — see that repo's `CLAUDE.md`.

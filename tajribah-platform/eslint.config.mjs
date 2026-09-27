@@ -60,6 +60,7 @@ const eslintConfig = defineConfig([
       "server/modules/webhooks/dispatch.ts",
       "server/modules/connections/rotation.ts",
       "server/modules/models/cleanup.ts",
+      "server/modules/ai-jobs/sweep.ts",
       "server/modules/sync/schedule.ts",
       "server/modules/team/service.ts",
       "server/testing/**",

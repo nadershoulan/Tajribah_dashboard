@@ -460,3 +460,16 @@ catalogue: the app role reads, only the admin console writes; each change is in 
 with a reason. A store can dismiss one (remembered in that browser only).
 
 **Rollback path.** Switch an announcement off; drop the table with 0015's ROLLBACK.
+
+## T24 · 2026-09-27 · A cancelled AI job gives its credits back, even mid-run
+
+**Proposed default — Nader to confirm.** The plan asks for cancellation (P3.2) but not who pays
+for a job cancelled while the provider is already working. This build gives the merchant **all
+their credits back on any cancel**, before or during the run, and the platform carries what the
+provider charged. Reasons: a merchant who cancels usually uploaded the wrong photos, and charging
+them for our provider's partial work feels like a penalty; credits are small units; and the cost
+is never hidden. `actual_cost_cents` is still recorded on the cancelled job, so staff can see
+exactly what cancellations cost. A result that arrives after the cancel is thrown away.
+
+**Rollback path.** One call in `cancelAiJob` (`giveBack`). Charging mid-run cancels becomes
+"refund only when `status` was `queued`" — no data changes, and past refunds stay in the ledger.

@@ -5,6 +5,7 @@
  * them here means the dashboard can be built, reviewed and looked at before the API
  * exists — and when the API arrives, the screens do not change.
  */
+import type { AiJobStage } from './ai-jobs';
 import type { Bi } from './lang';
 import type { PlanCode } from './plans';
 
@@ -235,4 +236,24 @@ export type AnalyticsView = {
     upliftPct: number | null;
     verdict: 'likely-real' | 'could-be-chance' | null;
   };
+};
+
+/**
+ * P3.2 — one AI job as the merchant sees it. `percent` never goes backwards and is 100 only
+ * when done; `error` is the merchant's wording for the code, never the provider's message.
+ */
+export type AiJobView = {
+  id: string;
+  type: 'generate_3d' | 'enhance_texture' | 'embed_product' | 'enrich_content' | 'quality_check' | 'convert_format';
+  status: 'queued' | 'processing' | 'done' | 'failed' | 'cancelled';
+  percent: number;
+  stage: AiJobStage | null;
+  creditsCost: number;
+  /** True once the credits a failed or cancelled job took have been given back. */
+  refunded: boolean;
+  error: { code: string; message: Bi } | null;
+  queuedAt: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  canCancel: boolean;
 };

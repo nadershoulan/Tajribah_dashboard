@@ -11,7 +11,7 @@ _Last updated: 2026-09-26 · updated at the end of every work session_
 P0 Foundation     ████████████████████████████░░░░  19 / 22   (+ P0.20 mostly done, 2 blocked)
 P1 Core loop      ████████████████████████░░░░░░░░  20 / 26   ← first sellable product (started)
 P2 Billing        █████████████░░░░░░░░░░░░░░░░░░░   6 / 15   ← started 2026-09-26 (parts needing no account)
-P3 3D pipeline    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
+P3 3D pipeline    ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   1 / 12   ← started 2026-09-27 (job tracking only)
 P4 Analytics      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 P5 Try-on         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 14   (engine already exists in tajribah-try-on)
 P6 AI+connectors  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 16
@@ -233,3 +233,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-27 | P4.1 the measuring part: the storefront script now counts product views, try-on taps and (when your store tells it) baskets and purchases — without cookies, without anything that identifies a shopper, and silent for anyone who has asked not to be tracked | 440 pass / 0 fail, and seen working in a real shop page |
 | 2026-09-27 | Security: the dashboard can no longer be shown inside another website (a trick used to make people click things they cannot see), browsers are told to always use a secure connection, and signing-in sessions can no longer be refreshed in a tight loop | 449 pass / 0 fail, and the new headers seen on the running app |
 | 2026-09-27 | Security: every dashboard page now only runs the code we sent with it. If someone slips a script into a page (for example through a product name), the browser refuses to run it | 452 pass / 0 fail; checked in a real browser, including a script planted on purpose and blocked |
+| 2026-09-27 | 3D generation, the part that needs no provider: a generation job is charged once, shows its progress, can be cancelled at any time with your credits returned, and is stopped and refunded if it ever gets stuck. One choice for you: when you cancel a job that is already running, this build returns all your credits and Tajribah pays the provider (decision T24) | 461 pass / 0 fail |

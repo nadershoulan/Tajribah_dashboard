@@ -40,6 +40,7 @@ const ADMIN_ALLOWED: Record<string, string> = {
   'server/modules/webhooks/ingest.ts': 'a delivery precedes any tenant scope: find the connection by provider + a store id the signature vouched for',
   'server/modules/team/service.ts': 'member names come from platform user accounts, filtered to this store\'s members; an invitee accepts before they are a member of any tenant scope',
   'server/modules/connections/rotation.ts': 'the key-rotation sweep finds connections sealed under an old key (ids only), then re-seals each inside withTenant',
+  'server/modules/ai-jobs/sweep.ts': 'the AI job sweep finds undispatched and abandoned jobs across tenants (ids only), then acts on each inside withTenant',
   'server/modules/models/cleanup.ts': 'the draft sweep finds abandoned uploads across tenants (ids only), then fails each inside withTenant',
   'server/modules/sync/schedule.ts': 'the sync schedule reads due connections and stalled syncs across tenants (ids only), then acts inside withTenant',
   'server/modules/webhooks/dispatch.ts': 'the worker lists pending events across tenants (ids and tenants only), then handles each inside withTenant',

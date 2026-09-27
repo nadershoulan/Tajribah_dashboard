@@ -20,9 +20,10 @@ import * as embedHttp from '@/server/modules/embed/http';
 import * as billingHttp from '@/server/modules/billing/http';
 import * as adminHttp from '@/server/modules/admin/http';
 import * as analyticsHttp from '@/server/modules/analytics/http';
+import * as aiJobsHttp from '@/server/modules/ai-jobs/http';
 
 // Every module's handlers. A new module's http.ts is added here once.
-const MODULE_HANDLERS: Record<string, Record<string, unknown>> = { auth: authHttp, onboarding: onboardingHttp, products: productsHttp, webhooks: webhooksHttp, models: modelsHttp, connections: connectionsHttp, team: teamHttp, settings: settingsHttp, dashboard: dashboardHttp, ar: arHttp, notifications: notificationsHttp, embed: embedHttp, billing: billingHttp, admin: adminHttp, analytics: analyticsHttp };
+const MODULE_HANDLERS: Record<string, Record<string, unknown>> = { auth: authHttp, onboarding: onboardingHttp, products: productsHttp, webhooks: webhooksHttp, models: modelsHttp, connections: connectionsHttp, team: teamHttp, settings: settingsHttp, dashboard: dashboardHttp, ar: arHttp, notifications: notificationsHttp, embed: embedHttp, billing: billingHttp, admin: adminHttp, analytics: analyticsHttp, 'ai-jobs': aiJobsHttp };
 
 const BASE = { APP_URL: 'http://localhost:5173', AUTH_SECRET: 'a'.repeat(40), ENCRYPTION_KEY: 'b'.repeat(40) };
 

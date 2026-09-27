@@ -157,6 +157,21 @@ not a pre-computed rate.
 |---|---|---|---|
 | P4.1 ✅ | Event schema & browser SDK | — (write side) | `widget/src/events.ts` (the wire contract, no dependencies, ships in the widget) and `lib/contracts/analytics.ts` (the same constants under zod, for the collector). The SDK batches, sends with `sendBeacon` and leaves with the page; it sends **nothing** under DNT/GPC or before a shop's consent, and nothing that identifies a shopper — unknown fields, over-long values and property values that look like a person are dropped before the queue |
 | P4.2 | Event collector | — | `POST /api/analytics/collect`. **The body arrives as `text/plain`** (P4.1's `BODY_TYPE`: a JSON content type would need a preflight `sendBeacon` cannot perform), so it is parsed as JSON and `Content-Type` is never read as a claim. It is a public, unauthenticated endpoint by nature — nothing in a widget can keep a secret — and is defended accordingly, in this order (agreed with the P7 session): **cap the body before reading it** (Content-Length, then stop at the cap while streaming, as `webhooks` does with `MAX_WEBHOOK_BYTES`); **resolve the store key first** and drop an unknown one with no work done, never echoing the body into an error; **rate-limit per store key and per hashed IP** (salted daily like the session token) through `rateLimiter()`, dropping silently with 204 over the limit, since the client never retries; treat **Origin/Referer as a soft signal** — tag events whose origin does not match the store's connected domain so rollups can discount them, but never reject on it (a missing Origin is normal); and **distrust every field** — server clock, server-resolved product uuid, enum and length caps from the zod contract |
+
+**P4.2's rate limits** (with the P7 session; starting numbers for P7.1's load tests to tune,
+not gospel). One tab sends at most ~5 batches a minute — `LIMITS.flushMs` plus one on
+pagehide — each capped at 20 events:
+
+| Scope | Limit | Why |
+|---|---|---|
+| store key + daily-salted IP hash | 60 batches/min | ~12 active tabs behind one address. Keyed **per store, not per IP globally**: Saudi carriers put many shoppers behind one address (CGNAT), so a global IP limit would lock out a whole carrier, while this still caps one script hammering one shop |
+| store key | 1,200 batches/min (~24k events/min) | Far above any plan's real traffic, so it trips on a flood and never on a sale day. Log when it trips — staff should see it |
+| batch | 20 events, **16 KB** | Matches the SDK's own `LIMITS.batch` and `LIMITS.bodyBytes`. Refuse anything larger whole, before parsing. (16 KB, not the browser's 64 KB beacon ceiling: the SDK refuses to send more than 16 KB, so accepting four times that would only widen what we accept from anyone else) |
+| over a limit | 204, dropped silently, counted | Never 429: the SDK never retries, so a 429 would only tell whoever is probing where the line is |
+
+Window: fixed 60 seconds through `rateLimiter()`, so it moves to KV with the rest (the
+in-memory limiter is per isolate until P1.15).
+
 | P4.3 | Rollups & retention | — | The four rollup tables filled from `analytics_events` on a schedule, idempotently (a re-run must not double-count), and raw events expiring at 90 days |
 | P4.4 ✅ | Metrics API | — (read side) | The dashboard's read path — rollup tables only, never `analytics_events`; uplift as a fraction, null below 100 sessions a side. Built by the read-side session, on main at a45e85a |
 | P4.5 ✅ | Analytics UI | — (read side) | MD-120 on real numbers: uplift in **percentage points with its sign** (`formatPoints`; it read "+5.1%" and could not show a worse result), empty uplift / return figures say why, "Tracked revenue" (was "Attributed", an overclaim), device bars scaled to the largest bucket, a no-data note for a new store; the home screen's uplift uses the same rule. Built by the read-side session (52f7fd5) |

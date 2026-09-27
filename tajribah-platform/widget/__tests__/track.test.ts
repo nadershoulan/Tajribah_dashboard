@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { EVENT_TYPES, LIMITS, looksPersonal, sanitize } from '../src/events';
 import type { EventBatch } from '../src/events';
 import { createTracker, privacySignal, randomToken, sessionToken, type TrackerEnv } from '../src/track';
+import { startTracking } from '../src/main';
 import { parseBatch, toRow } from '../../lib/contracts/analytics';
 import { EVENT_TYPE } from '../../db/schema/analytics';
 
@@ -257,6 +258,32 @@ test('nothing the SDK is handed can make it throw', () => {
   assert.doesNotThrow(() => h.tracker.track({ type: 'product_view', properties: { get bad() { throw new Error('nope'); } } as never }));
   assert.equal(h.tracker.pending(), 0);
   assert.equal(h.tracker.dropped(), 2);
+});
+
+test('the page is wired to leave with the shopper, on the cadence LIMITS declares', () => {
+  // A window thin enough to build a tracker against, and watchful enough to say what was wired.
+  const listeners: string[] = [];
+  const docListeners: string[] = [];
+  let interval = -1;
+  const win = {
+    navigator: { sendBeacon: () => true, doNotTrack: null },
+    document: { addEventListener: (k: string) => { docListeners.push(k); }, visibilityState: 'visible' },
+    addEventListener: (k: string) => { listeners.push(k); },
+    setInterval: (_fn: () => void, ms: number) => { interval = ms; return 1; },
+    fetch: (async () => new Response('', { status: 204 })) as unknown as typeof fetch,
+    sessionStorage: undefined,
+    crypto: undefined,
+  } as unknown as Window & typeof globalThis;
+
+  const tracker = startTracking(win, {
+    store: 'store_abc', configBase: '/cfg', viewer: '/v.js', events: 'https://ev.example.test/e', consent: 'granted',
+  } as never);
+
+  assert.ok(listeners.includes('pagehide'), 'a shopper who converts closes the tab');
+  assert.ok(docListeners.includes('visibilitychange'), 'and on mobile they switch away rather than close');
+  assert.equal(interval, LIMITS.flushMs,
+    'the interval must come from LIMITS — the collector\u2019s rate limits are sized from it');
+  assert.equal(typeof tracker.track, 'function');
 });
 
 test('the session token lives for one tab and is random; blocked storage is not an error', () => {

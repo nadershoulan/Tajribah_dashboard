@@ -20,7 +20,7 @@
  */
 import { parseConfig, type ViewerConfig } from './config';
 import { arPath, detectDevice, VIEWER_AR_MODES } from './ar';
-import type { TrackInput } from './events';
+import { LIMITS, type TrackInput } from './events';
 import { createTracker, privacySignal, randomToken, sessionToken, type Consent, type Tracker } from './track';
 
 export const WIDGET_VERSION = '1.0.0';
@@ -259,7 +259,7 @@ export function startTracking(win: Window & typeof globalThis, settings: Setting
   const leave = () => { void guard(() => tracker.flush()); };
   win.addEventListener('pagehide', leave);
   win.document.addEventListener('visibilitychange', () => { if (win.document.visibilityState === 'hidden') leave(); });
-  win.setInterval(leave, 15_000);
+  win.setInterval(leave, LIMITS.flushMs);
   return tracker;
 }
 

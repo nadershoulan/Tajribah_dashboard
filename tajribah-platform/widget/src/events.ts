@@ -43,8 +43,12 @@ export const LIMITS = {
    * because a flush always empties the queue, delivered or not (see `track.ts`).
    */
   batch: 20,
-  /** Flush a partial batch after this long. */
-  flushMs: 5_000,
+  /**
+   * Flush a partial batch after this long. One tab therefore sends at most about five batches
+   * a minute (this interval, plus one on pagehide) — the cadence the collector's rate limits
+   * are sized from, so it is load-bearing rather than decoration: `startTracking` reads it.
+   */
+  flushMs: 15_000,
   /** A product id as the merchant's platform spells it. */
   productId: 64,
   /** `properties` — a few short strings, nothing more. */

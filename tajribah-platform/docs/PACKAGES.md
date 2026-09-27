@@ -225,6 +225,8 @@ P8 Enterprise (12) · Track A Admin (15). Track M has its own table above.
 
 **P3.6 ✅ model review** (2026-09-28, with A10; T25) — generated models reviewed by staff before they can go live; uploads never held; decisions recorded twice and told to the merchant.
 
+**P3.8 ◐ 3D editor** (2026-09-28) — turn in 90° steps with a preview that matches the saved file, real size before and after, fit to the product; saved as a new version through the upload path. Left: the model-list picture (needs the CDN); hotspots and the first camera view belong with the AR settings.
+
 **P3.7 ◐ generation UI** (2026-09-28) — the photo part is built: `components/pages/ProductPhotos.tsx` on the product page, the three `DataSource` calls, the preview running the real check in the browser. Left for when P3.4 exists: the Generate action (needs the credits per generation from Nader), and job progress with cancel (API-140–142 are ready for it).
 
 **P7.7 security hardening ◐** (2026-09-27) — code-level, so not held by P7's "do not start early". Done: security headers on every response (`server/core/http/security-headers.ts`, `next.config.ts`); `/api/auth/refresh` limited per session (§13.6). Audited sound: auth limits and lockout, webhook signatures, install-check SSRF rules, upload sizes, CSRF surface, no-store, error bodies. Then the full page CSP: `proxy.ts`, a nonce per page, no inline or eval for scripts, checked in a real browser on a production build. Open: `form-action` re-check with the P3 checkout; DNS rebinding on the install checker; an independent review for the P7 gate.

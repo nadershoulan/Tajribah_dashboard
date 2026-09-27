@@ -64,6 +64,10 @@ export interface DataSource {
   /** Start → PUT straight to storage → the server's verdict on the bytes. Refusals before upload: 422 / 409. */
   uploadProductPhoto(productId: string, angle: GenerationAngle, file: File): Promise<GenerationPhotoView>;
   removeProductPhoto(productId: string, photoId: string): Promise<void>;
+  /** P3.8: a version's web GLB, for the editor's viewer (a Blob: the viewer's own fetch has no session). */
+  modelFile(versionId: string): Promise<Blob>;
+  /** P3.8: turn (90° steps) and/or fit a ready version; the result is the next version, processing. */
+  editModel(modelId: string, edit: { fromVersionId: string; rotate?: { x?: 0 | 90 | 180 | 270; y?: 0 | 90 | 180 | 270; z?: 0 | 90 | 180 | 270 }; fit?: boolean }): Promise<{ versionId: string; version: number }>;
   team(): Promise<TeamMemberRow[]>;
   /** P1.24. The link goes by email only; nothing here ever sees the token. */
   invite(email: string, role: TeamMemberRow['role'], lang: Lang): Promise<void>;
@@ -178,6 +182,12 @@ export function apiSource(client: ApiClient): DataSource {
     },
     async removeProductPhoto(productId, photoId) {
       await client.call<void>(`/api/products/${encodeURIComponent(productId)}/photos/${encodeURIComponent(photoId)}`, { method: 'DELETE' });
+    },
+    async modelFile(versionId) {
+      return client.callBlob(`/api/models/versions/${encodeURIComponent(versionId)}/file`);
+    },
+    async editModel(modelId, edit) {
+      return client.call<{ versionId: string; version: number }>(`/api/models/${encodeURIComponent(modelId)}/edit`, { method: 'POST', body: edit });
     },
     async team() {
       return (await client.call<{ members: TeamMemberRow[] }>('/api/team')).members;
@@ -301,6 +311,7 @@ function demoVersionsOf(model: ModelRow): ModelVersionRow[] {
       optimizedBytes: status === 'ready' && bytes ? bytes : null,
       withinTarget: status === 'ready' && bytes ? bytes <= MODEL_TARGET_BYTES : null,
       error: status === 'failed' ? 'the GLB could not be read: no scene in the file' : null,
+      sizeMm: null, // the preview's models are rows, not files
       createdAt: model.updatedAt,
     };
   });
@@ -447,6 +458,12 @@ export const demoSource: DataSource = {
     const list = demoPhotos.get(productId) ?? [];
     if (!list.some((p) => p.view.id === photoId)) throw new ApiError(404, 'not_found', 'photo not found');
     demoPhotos.set(productId, list.filter((p) => p.view.id !== photoId));
+  },
+  async modelFile() {
+    throw new ApiError(404, 'not_found', 'the preview has no 3D files — open a model in the live dashboard to see it');
+  },
+  async editModel() {
+    throw new ApiError(409, 'conflict', 'the preview cannot make new versions — this works in the live dashboard');
   },
   async team() { return demoTeam.map((m) => ({ ...m })); },
   async invite(email, role) {

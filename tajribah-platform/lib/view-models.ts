@@ -179,6 +179,8 @@ export type ModelVersionRow = {
   withinTarget: boolean | null;
   /** Why a `failed` version failed, in the checker's (English) words. */
   error: string | null;
+  /** P3.8: the model's size as processed (width, height, depth in mm); null until measured. */
+  sizeMm: [number, number, number] | null;
   createdAt: string;
 };
 

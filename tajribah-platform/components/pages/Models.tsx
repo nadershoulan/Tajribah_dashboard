@@ -209,7 +209,10 @@ export default function Models() {
                         : '—'}
                     </td>
                     <td style={{ color: 'var(--text-3)', fontSize: 13 }}>{formatRelative(model.updatedAt, lang)}</td>
-                    <td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      {model.status === 'ready' && (
+                        <AppLink href={`/dashboard/models/${encodeURIComponent(model.id)}`} className="btn btn-quiet btn-sm">{t('حرّر', 'Edit')}</AppLink>
+                      )}
                       <button type="button" className="btn btn-quiet btn-sm" aria-expanded={open === model.id}
                         onClick={() => setOpen(open === model.id ? null : model.id)}>
                         {t('الإصدارات', 'Versions')}<ChevronDown size={14} aria-hidden style={{ transform: open === model.id ? 'rotate(180deg)' : undefined }} />

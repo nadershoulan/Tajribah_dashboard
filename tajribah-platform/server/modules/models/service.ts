@@ -156,6 +156,7 @@ export async function modelVersionsOf(ctx: TenantContext, modelId: string): Prom
       /** The < 2 MB report (§5). Null until there is an optimised file to measure. */
       withinTarget: optimizedBytes === null ? null : optimizedBytes <= TARGET_BYTES,
       error: v.error,
+      sizeMm: v.boundingBox ? [0, 1, 2].map((i) => Math.round((v.boundingBox!.max[i]! - v.boundingBox!.min[i]!) * 10000) / 10) as [number, number, number] : null,
       createdAt: v.createdAt.toISOString(),
     };
   });

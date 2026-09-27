@@ -835,3 +835,10 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .qa-flag { display: flex; gap: 6px; align-items: flex-start; margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--warn-bg); color: var(--warn); font-size: 13px; line-height: 1.5; }
 .qa-decide { display: flex; gap: 8px; flex-wrap: wrap; }
 .qa-decide textarea { width: 100%; border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 10px; font: inherit; }
+
+/* P3.8 — 3D editor */
+.editor-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .editor-grid { grid-template-columns: minmax(0, 1fr); } }
+.editor-view { display: grid; place-items: center; height: 520px; border-radius: var(--radius); background: var(--tint); overflow: hidden; border: 1px solid var(--line); }
+@media (max-width: 520px) { .editor-view { height: 360px; } }
+.editor-turns { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 8px; align-items: center; font-size: 13.5px; margin-bottom: 8px; }

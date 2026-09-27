@@ -7,33 +7,13 @@ import { Box, Check, Eye, TriangleAlert, X } from 'lucide-react';
 import { useAuth, type AdminQaQueue, type AdminQaRow, type AdminQaStatus } from '@/lib/auth';
 import { formatBytes, formatDateTime, formatNumber } from '@/lib/format';
 import { useLang } from '@/lib/i18n';
+import { loadModelViewer } from '@/lib/model-viewer';
 import { AdminShell } from '@/components/admin/shell';
 import { Badge, Empty, ErrorNote, Loading, Panel } from '@/components/dashboard/ui';
 
 export default function AdminQaPage() {
   const { t } = useLang();
   return <AdminShell title={t('مراجعة النماذج', 'Model review')}><Queue /></AdminShell>;
-}
-
-const VIEWER = '/vendor/model-viewer-4.0.0.min.js';
-const DECODER = '/vendor/meshopt_decoder-1.2.0.js';
-
-/** `<model-viewer>`, loaded once, on first use; told where the meshopt decoder is before it runs. */
-let viewerReady: Promise<void> | null = null;
-function loadViewer(): Promise<void> {
-  viewerReady ??= new Promise<void>((resolve, reject) => {
-    if (customElements.get('model-viewer')) { resolve(); return; }
-    const scope = window as unknown as { ModelViewerElement?: { meshoptDecoderLocation?: string } };
-    scope.ModelViewerElement ??= {};
-    scope.ModelViewerElement.meshoptDecoderLocation ??= new URL(DECODER, location.href).href;
-    const script = document.createElement('script');
-    script.type = 'module';
-    script.src = VIEWER;
-    script.onload = () => customElements.whenDefined('model-viewer').then(() => resolve());
-    script.onerror = () => { viewerReady = null; reject(new Error('the 3D viewer did not load')); };
-    document.head.appendChild(script);
-  });
-  return viewerReady;
 }
 
 function Queue() {
@@ -113,7 +93,7 @@ function Review({ row, onDecided }: { row: AdminQaRow; onDecided: () => void }) 
     setShowing(true);
     setViewError(null);
     try {
-      const [blob] = await Promise.all([auth.admin.qaModel(row.version.id), loadViewer()]);
+      const [blob] = await Promise.all([auth.admin.qaModel(row.version.id), loadModelViewer()]);
       setSrc(URL.createObjectURL(blob));
     } catch (e) {
       setViewError((e as Error).message);

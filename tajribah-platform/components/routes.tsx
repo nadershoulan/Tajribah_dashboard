@@ -36,6 +36,7 @@ import AdminInvoice from '@/components/pages/admin/AdminInvoice';
 import AdminOperations from '@/components/pages/admin/AdminOperations';
 import AdminQa from '@/components/pages/admin/AdminQa';
 import AdminAi from '@/components/pages/admin/AdminAi';
+import ModelEditor from '@/components/pages/ModelEditor';
 import AdminSupport from '@/components/pages/admin/AdminSupport';
 import AdminCoupons from '@/components/pages/admin/AdminCoupons';
 import AdminCompliance from '@/components/pages/admin/AdminCompliance';
@@ -78,6 +79,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
 /** Routes with an id in them: the screen reads the id from the path itself. */
 const PATTERNS: [RegExp, () => ReactElement][] = [
   [/^\/dashboard\/products\/(?!new$)[^/]+$/, ProductDetail],
+  [/^\/dashboard\/models\/[^/]+$/, ModelEditor], // P3.8
   [/^\/invite\/[^/]+$/, InviteAccept],
   [/^\/dashboard\/billing\/invoices\/[^/]+$/, InvoiceView],
   [/^\/admin\/stores\/[^/]+$/, AdminStore],

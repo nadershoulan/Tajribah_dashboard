@@ -18,6 +18,20 @@
  */
 import { EVENT_SCHEMA_VERSION, LIMITS, sanitize, type EventBatch, type TrackInput, type WireEvent } from './events';
 
+/**
+ * The batch is JSON, but it is **sent as text**, and that is deliberate.
+ *
+ * The widget runs on the merchant's domain and the collector is on ours, so every batch is a
+ * cross-origin POST. `application/json` is not a CORS-safelisted content type, so it turns the
+ * request into a preflighted one — and `sendBeacon` cannot perform a preflight, while a
+ * keepalive `fetch` from a page that is already unloading is unlikely to finish one. The batch
+ * would simply never arrive, silently, in the one case that matters.
+ *
+ * `text/plain` keeps both paths simple requests, which need no preflight. The collector parses
+ * JSON out of the body and never reads `Content-Type` as a claim about anything (P4.2).
+ */
+const BODY_TYPE = 'text/plain;charset=UTF-8';
+
 export type Consent = 'granted' | 'required';
 
 export type TrackerEnv = {
@@ -102,15 +116,17 @@ export function createTracker(env: TrackerEnv): Tracker {
     let delivered = false;
     try {
       if (env.beacon) {
-        // A typed Blob, so the collector reads JSON and the request stays a simple CORS POST.
-        const blob = typeof Blob === 'function' ? new Blob([body], { type: 'application/json' }) : body;
+        const blob = typeof Blob === 'function' ? new Blob([body], { type: BODY_TYPE }) : body;
         delivered = env.beacon(env.endpoint, blob) === true;
       }
       if (!delivered && env.fetchImpl) {
         // `keepalive` is the only thing that survives an unloading page without a beacon.
         void env.fetchImpl(env.endpoint, {
-          method: 'POST', body, keepalive: true, mode: 'cors', credentials: 'omit',
-          headers: { 'content-type': 'application/json' },
+          // 'no-cors': the response is opaque, which costs nothing here (a batch is never
+          // retried and nothing reads the result) and means the collector needs no CORS headers
+          // at all — and no shop console fills with errors about a missing one.
+          method: 'POST', body, keepalive: true, mode: 'no-cors', credentials: 'omit',
+          headers: { 'content-type': BODY_TYPE },
         }).catch(() => undefined);
         delivered = true;
       }

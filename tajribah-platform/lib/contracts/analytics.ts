@@ -13,6 +13,12 @@
  *  - **Nothing identifying is accepted**, because nothing identifying is in the schema. The IP
  *    address and user agent the request carries are used to derive country and device family
  *    and are then dropped — they are never columns (D5, §7.10).
+ *  - **The body arrives as `text/plain`** and the collector parses JSON out of it. That is how
+ *    the SDK avoids a CORS preflight it cannot perform (see `BODY_TYPE` in `widget/src/track.ts`),
+ *    and it means `Content-Type` says nothing trustworthy about the body. It also means the
+ *    endpoint is a public one any page can post to — inherent to beacon analytics, since the
+ *    store key is public in the widget — so it is defended with size caps, rate limits and this
+ *    schema, not with an auth check that would only look like one.
  *  - **A bad batch is refused whole**, not repaired. A shop that sends nonsense gets a 400 and
  *    the next batch is unaffected; there is nothing here worth salvaging an event for.
  *

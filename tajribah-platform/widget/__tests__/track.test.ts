@@ -183,6 +183,40 @@ test('a page that never unloads does not grow: an undeliverable batch is dropped
   assert.equal(h.sent.every((b) => b.events.length === LIMITS.batch), true);
 });
 
+test('the batch goes as text, so a cross-origin beacon needs no preflight it cannot do', async () => {
+  // CORS-safelisted content types, the only ones a simple request may carry.
+  const SAFELISTED = ['text/plain', 'application/x-www-form-urlencoded', 'multipart/form-data'];
+  let beaconType = '';
+  let fetchType = '';
+  const h = harness({
+    beacon: (_url, blobOrString) => { beaconType = (blobOrString as Blob).type ?? ''; return true; },
+    fetchImpl: (async (_u: string, init: RequestInit) => {
+      fetchType = String((init.headers as Record<string, string>)['content-type']);
+      return new Response('', { status: 204 });
+    }) as unknown as typeof fetch,
+  });
+  h.tracker.track({ type: 'product_view', productId: 'sku-1' });
+  h.tracker.flush();
+  assert.ok(SAFELISTED.some((t) => beaconType.startsWith(t)),
+    `the beacon sent ${beaconType || '(no type)'} — anything outside ${SAFELISTED.join(', ')} preflights, and a beacon cannot preflight`);
+
+  // The fallback has to be a simple request too: on pagehide it will not finish a preflight.
+  const refusing = harness({
+    beacon: () => false,
+    fetchImpl: (async (_u: string, init: RequestInit) => {
+      fetchType = String((init.headers as Record<string, string>)['content-type']);
+      return new Response('', { status: 204 });
+    }) as unknown as typeof fetch,
+  });
+  refusing.tracker.track({ type: 'product_view' });
+  refusing.tracker.flush();
+  assert.ok(SAFELISTED.some((t) => fetchType.startsWith(t)), `the fetch fallback sent ${fetchType}`);
+
+  // And what the collector parses out of that text is still the batch it expects.
+  const parsed = parseBatch(JSON.parse(JSON.stringify(h.sent[0])));
+  assert.equal(parsed.ok, true, parsed.ok ? '' : parsed.reason);
+});
+
 test('delivery: the beacon first, fetch when it refuses, and silence when neither works', () => {
   let fetched = 0;
   const refused = harness({

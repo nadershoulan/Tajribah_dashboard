@@ -43,6 +43,7 @@ export async function listModels(ctx: TenantContext): Promise<ModelRow[]> {
       source: model.source,
       status: model.status,
       qaStatus: model.qaStatus,
+      qaNotes: model.qaStatus === 'rejected' ? model.qaNotes : null, // a reviewer's note; post-processing's is for staff
       version: version?.version ?? 0,
       sizeBytes: served?.fileSizeBytes ?? 0,
       polyCount: version?.polyCount ?? null,
@@ -67,6 +68,12 @@ export async function publishVersion(ctx: TenantContext, versionId: string): Pro
     if (model.currentVersionId === versionId) return;
     if (version.status !== 'ready') {
       throw errors.conflict(`version ${version.version} is ${version.status} — only a ready version can go live`);
+    }
+    // P3.6 (T25): a generated model goes live only after a person at Tajribah has approved it.
+    if (model.source === 'ai_generated' && model.qaStatus !== 'approved') {
+      throw errors.conflict(model.qaStatus === 'rejected'
+        ? 'this generated model was not approved in review — see the reviewer’s note'
+        : 'this generated model is waiting for review by Tajribah before it can go live');
     }
     const after = await db.updateById(models3d, model.id, { currentVersionId: versionId, status: 'ready' });
     await db.updateById(modelVersions, versionId, { publishedAt: new Date() });

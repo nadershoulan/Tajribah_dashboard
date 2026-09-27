@@ -160,22 +160,22 @@ export const DEMO_PRODUCTS: ProductRow[] = [
 
 export const DEMO_MODELS: ModelRow[] = [
   { id: 'm-1', productId: 'p-820241410', productName: 'ساعة فايلت النسائية الألماس', name: 'diamond-watch-v3',
-    source: 'uploaded', status: 'ready', qaStatus: 'approved', version: 3, sizeBytes: 1_480_000,
+    source: 'uploaded', status: 'ready', qaStatus: 'approved', qaNotes: null, version: 3, sizeBytes: 1_480_000,
     polyCount: 48_200, formats: ['glb', 'usdz'], thumbnailUrl: null, updatedAt: iso(0, 9) },
   { id: 'm-2', productId: 'p-820241411', productName: 'ساعة بسوار ذهبي شبكي', name: 'mesh-watch-v2',
-    source: 'ai_generated', status: 'ready', qaStatus: 'approved', version: 2, sizeBytes: 1_910_000,
+    source: 'ai_generated', status: 'ready', qaStatus: 'approved', qaNotes: null, version: 2, sizeBytes: 1_910_000,
     polyCount: 61_000, formats: ['glb', 'usdz'], thumbnailUrl: null, updatedAt: iso(1) },
   { id: 'm-3', productId: 'p-730118', productName: 'أقراط لؤلؤ متدلية', name: 'pearl-earrings-v1',
-    source: 'ai_generated', status: 'ready', qaStatus: 'pending', version: 1, sizeBytes: 640_000,
+    source: 'ai_generated', status: 'ready', qaStatus: 'pending', qaNotes: null, version: 1, sizeBytes: 640_000,
     polyCount: 22_400, formats: ['glb', 'usdz'], thumbnailUrl: null, updatedAt: iso(2) },
   { id: 'm-4', productId: 'p-730119', productName: 'خاتم زمرد منفرد', name: 'emerald-ring-v1',
-    source: 'ai_generated', status: 'processing', qaStatus: 'pending', version: 1, sizeBytes: 0,
+    source: 'ai_generated', status: 'processing', qaStatus: 'pending', qaNotes: null, version: 1, sizeBytes: 0,
     polyCount: null, formats: [], thumbnailUrl: null, updatedAt: iso(0, 14) },
   { id: 'm-5', productId: 'p-990046', productName: 'إطار نظارات تيتانيوم', name: 'titanium-frame-v1',
-    source: 'ai_generated', status: 'failed', qaStatus: 'rejected', version: 1, sizeBytes: 0,
+    source: 'ai_generated', status: 'failed', qaStatus: 'rejected', qaNotes: null, version: 1, sizeBytes: 0,
     polyCount: null, formats: [], thumbnailUrl: null, updatedAt: iso(6) },
   { id: 'm-6', productId: 'p-990047', productName: 'إسورة تنس ذهب وردي', name: 'tennis-bracelet-v1',
-    source: 'professional_service', status: 'ready', qaStatus: 'approved', version: 1, sizeBytes: 1_120_000,
+    source: 'professional_service', status: 'ready', qaStatus: 'approved', qaNotes: null, version: 1, sizeBytes: 1_120_000,
     polyCount: 39_800, formats: ['glb', 'usdz'], thumbnailUrl: null, updatedAt: iso(3) },
 ];
 

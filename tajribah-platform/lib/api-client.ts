@@ -126,6 +126,15 @@ export class ApiClient {
     return response.text();
   }
 
+  /** P3.6: a signed-in GET whose answer is a file (the reviewer's model), as a Blob. */
+  async callBlob(path: string): Promise<Blob> {
+    let response = await this.send(path, { auth: true });
+    if (response.status === 401 && (await this.refresh())) response = await this.send(path, { auth: true });
+    if (response.status === 401) this.setToken(null);
+    if (!response.ok) return ApiClient.fail(response);
+    return response.blob();
+  }
+
   /** Exchange the refresh cookie for a new access token. Concurrent callers share one attempt. */
   refresh(): Promise<boolean> {
     this.refreshing ??= (async () => {

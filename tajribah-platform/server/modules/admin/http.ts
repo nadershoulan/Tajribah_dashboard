@@ -19,6 +19,7 @@ import { endStaffView, startStaffView } from './staff-view';
 import { RESPONSE_DAYS, exportDocument, fulfilErasure, fulfilExport, listPrivacyRequests, recordPrivacyRequest, rejectPrivacyRequest } from './privacy';
 import { retentionState } from './retention';
 import { createAnnouncement, listAnnouncements, updateAnnouncement } from './announcements';
+import { decideQa, qaModelFile, qaQueue } from './qa';
 import { currentScope } from '@/server/core/observability/scope';
 import { errors } from '@/server/core/errors/problem';
 
@@ -367,4 +368,40 @@ export const updateAnnouncementHandler = route(async (request) => {
   const id = new URL(request.url).pathname.split('/').filter(Boolean).pop() ?? '';
   if (!z.string().uuid().safeParse(id).success) throw errors.notFound('announcement');
   return json(await updateAnnouncement(staff, id, await readJson(request, ANNOUNCEMENT.partial().required({ reason: true }))));
+});
+
+/** A path segment `fromEnd` places from the end, as a uuid, or a 404 naming `what`. */
+function uuidAt(request: Request, fromEnd: number, what: string): string {
+  const segments = new URL(request.url).pathname.split('/').filter(Boolean);
+  const id = segments[segments.length - 1 - fromEnd] ?? '';
+  if (!z.string().uuid().safeParse(id).success) throw errors.notFound(what);
+  return id;
+}
+
+const QA_STATUS = z.enum(['pending', 'approved', 'rejected']);
+
+/** API-A34 — GET /api/admin/qa?status=pending|approved|rejected (P3.6, A10). */
+export const qaQueueHandler = route(async (request) => {
+  await staffContextFor(request);
+  const status = QA_STATUS.safeParse(new URL(request.url).searchParams.get('status'));
+  return json(await qaQueue(status.success ? status.data : 'pending'));
+});
+
+const QA_DECISION = z.object({ decision: z.enum(['approved', 'rejected']), versionId: z.string().uuid(), notes: z.string().max(1000).optional() });
+
+/** API-A35 — POST /api/admin/qa/[modelId]: approve, or reject with a note the merchant reads. */
+export const decideQaHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  return json({ qaStatus: await decideQa(staff, uuidAt(request, 0, 'model'), await readJson(request, QA_DECISION)) });
+});
+
+/** API-A36 — GET /api/admin/qa/versions/[versionId]/model: the web GLB, for the reviewer's viewer. */
+export const qaModelFileHandler = route(async (request) => {
+  await staffContextFor(request);
+  const file = await qaModelFile(uuidAt(request, 1, 'model version'));
+  return new Response(file.body, {
+    headers: { 'content-type': 'model/gltf-binary', 'content-length': String(file.size), 'cache-control': 'private, no-store' },
+  });
 });

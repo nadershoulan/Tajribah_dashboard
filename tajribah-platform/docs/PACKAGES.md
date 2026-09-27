@@ -121,8 +121,8 @@ only. Screen IDs from the inventory (`ADM-*`).
 | A6 ✅ | Plans & pricing management | — | ADM-13/14: edit a plan's prices, limits and features (T19: applies to everyone), audited |
 | A7 ◐ | Subscriptions & invoices | — (view); refunds 🔒 | ADM-17…19: subscriptions and invoices across stores |
 | A8 | Payments & revenue | 🔒 Moyasar | Payments, refunds, revenue |
-| A9 | AI operations | 🔒 P3 | AI jobs, cost, failures |
-| A10 | Content & QA queues | 🔒 P3 | Model QA review |
+| A9 | AI operations | — (P3.2 exists) | AI jobs, cost, failures |
+| A10 ✅ | Content & QA queues | P3.6 | Model QA review — `/admin/qa`: a 3D viewer, measurements against the product, approve / send back with a note; T25 gate on publishing |
 | A11 ✅ | Platform operations | — | Queue health, stuck jobs, webhook failures, key rotation state |
 | A12 ✅ | Support tooling | — | Look up a store/person/request id and see what happened |
 | A13 ✅ | Content management | — | Coupons (ADM-15) and platform copy — **announcements** (T23) |
@@ -222,6 +222,8 @@ P8 Enterprise (12) · Track A Admin (15). Track M has its own table above.
 **P3.3 photo intake & quality checks** (2026-09-27) — `generation_photos` (0016), presigned upload then a check of the bytes themselves: format, header dimensions, size, aspect, duplicates; refused bytes deleted at once; one photo per angle; counted in storage; a 24 h sweep for uploads never confirmed; API-143–146. Pixel checks (blur, exposure, background) are the AI service's (P3.1). Done when: every format's header read from real photos, and each rule seen to fail.
 
 **P3.5 ✅ post-processing ⭐** (2026-09-28) — `postprocess.ts`: WebP textures at the largest step under 2 MB, simplification over 100k triangles, JPEG/PNG for the native file, generated models fitted to the product and floored, disagreements to `qa_notes`. Done when: a real textured model goes under 2 MB and renders the same — 8.97 MB → 509 KB, rendered side by side. Also fixed the widget's missing meshopt decoder. USDZ conversion remains P1.13b.
+
+**P3.6 ✅ model review** (2026-09-28, with A10; T25) — generated models reviewed by staff before they can go live; uploads never held; decisions recorded twice and told to the merchant.
 
 **P3.7 ◐ generation UI** (2026-09-28) — the photo part is built: `components/pages/ProductPhotos.tsx` on the product page, the three `DataSource` calls, the preview running the real check in the browser. Left for when P3.4 exists: the Generate action (needs the credits per generation from Nader), and job progress with cancel (API-140–142 are ready for it).
 

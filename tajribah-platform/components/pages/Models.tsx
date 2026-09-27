@@ -190,7 +190,7 @@ export default function Models() {
                     </td>
                     <td style={{ fontSize: 13.5 }}>{pick(SOURCE_LABEL[model.source])}</td>
                     <td><StatusBadge status={model.status} /></td>
-                    <td><QaBadge status={model.qaStatus} /></td>
+                    <td><QaBadge model={model} /></td>
                     <td className="num">
                       {model.sizeBytes
                         ? (
@@ -218,7 +218,7 @@ export default function Models() {
                   </tr>
                   {open === model.id && (
                     <tr className="versions-row">
-                      <td colSpan={9}><Versions modelId={model.id} onPublished={reload} /></td>
+                      <td colSpan={9}><Versions model={model} onPublished={reload} /></td>
                     </tr>
                   )}
                   </Fragment>
@@ -256,19 +256,25 @@ function StatusBadge({ status }: { status: ModelRow['status'] }) {
   return <Badge>{t('مسودة', 'Draft')}</Badge>;
 }
 
-function QaBadge({ status }: { status: ModelRow['qaStatus'] }) {
+/** P3.6 (T25): only generated models are reviewed by Tajribah; an upload is the merchant's own file. */
+function QaBadge({ model }: { model: ModelRow }) {
   const { t } = useLang();
-  if (status === 'approved') return <Badge tone="ok">{t('معتمد', 'Approved')}</Badge>;
-  if (status === 'rejected') return <Badge tone="bad">{t('مرفوض', 'Rejected')}</Badge>;
-  return <Badge tone="warn">{t('بانتظار المراجعة', 'Pending')}</Badge>;
+  if (model.source === 'uploaded') return <span style={{ fontSize: 13, color: 'var(--text-3)' }}>{t('ملفك — لا يحتاج مراجعة', 'Your file — not reviewed')}</span>;
+  if (model.source === 'professional_service') return <span style={{ fontSize: 13, color: 'var(--text-3)' }}>{t('صنعه فريق تجربة', 'Made by Tajribah')}</span>;
+  if (model.qaStatus === 'approved') return <Badge tone="ok">{t('معتمد', 'Approved')}</Badge>;
+  if (model.qaStatus === 'rejected') return <Badge tone="bad">{t('يحتاج تعديلًا', 'Needs changes')}</Badge>;
+  return <Badge tone="warn">{t('بانتظار المراجعة', 'Waiting for review')}</Badge>;
 }
 
 /** A model's versions, newest first, with Publish on each ready one that is not live. */
-function Versions({ modelId, onPublished }: { modelId: string; onPublished: () => void }) {
+function Versions({ model, onPublished }: { model: ModelRow; onPublished: () => void }) {
   const { t, lang } = useLang();
   const source = useData();
+  const modelId = model.id;
   const [version, setVersion] = useState(0);
   const { data, loading, error } = useResource((s) => s.modelVersions(modelId), [modelId, version]);
+  // P3.6 (T25): a generated model goes live only after Tajribah has reviewed it.
+  const held = model.source === 'ai_generated' && model.qaStatus !== 'approved';
   const [busy, setBusy] = useState<string | null>(null);
   const [failure, setFailure] = useState<Error | null>(null);
 
@@ -307,7 +313,8 @@ function Versions({ modelId, onPublished }: { modelId: string; onPublished: () =
             </span>
             {row.status === 'failed' && row.error && <span className="versions-error" dir="auto">{sayProblem(row.error, lang)}</span>}
             {row.status === 'ready' && !row.isCurrent && (
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => publish(row)} disabled={busy !== null}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => publish(row)} disabled={busy !== null || held}
+                title={held ? t('بانتظار مراجعة تجربة', 'Waiting for Tajribah’s review') : undefined}>
                 {busy === row.id ? t('جارٍ النشر…', 'Publishing…')
                   : live && live.version > row.version ? t('ارجع إلى هذا الإصدار', 'Roll back to this') : t('انشر', 'Publish')}
               </button>
@@ -316,6 +323,15 @@ function Versions({ modelId, onPublished }: { modelId: string; onPublished: () =
         ))}
       </ul>
       {failure && <ErrorNote error={failure} />}
+      {held && (
+        <p className="hint" style={{ margin: '8px 0 0', color: model.qaStatus === 'rejected' ? 'var(--bad)' : undefined }}>
+          {model.qaStatus === 'rejected'
+            ? t('لم يُعتمد هذا النموذج في المراجعة.', 'This model was not approved in review.')
+            : t('نموذج مولَّد: يراجعه فريق تجربة قبل أن يمكن نشره، ونرسل لك إشعارًا عند الانتهاء.', 'A generated model: Tajribah’s team reviews it before it can be published, and you are notified when that is done.')}
+          {/* Only a reviewer's note reaches the merchant; while pending, the note is post-processing's, for staff. */}
+          {model.qaStatus === 'rejected' && model.qaNotes && <> {t('ملاحظة المراجع:', 'Reviewer’s note:')} <span dir="auto">{model.qaNotes}</span></>}
+        </p>
+      )}
       <p className="hint" style={{ margin: '8px 0 0' }}>
         {t('النشر يجعل هذا الإصدار هو ما يراه المتسوقون. الرفع وحده لا ينشر شيئًا.', 'Publishing makes this version what shoppers see. Uploading alone never publishes anything.')}
       </p>

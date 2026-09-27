@@ -135,8 +135,11 @@ async function finish(
     });
     const model = await db.requireById(models3d, before.modelId);
     if (!model.currentVersionId) await db.updateById(models3d, model.id, { status });
-    const qaNote = result.post ? qaNoteFor(result.post) : null;
-    if (qaNote) await db.updateById(models3d, model.id, { qaNotes: qaNote, qaStatus: 'pending' });
+    // P3.6 (T25): every new version of a generated model waits for a person again, with
+    // post-processing's note for them (or none, clearing the last review's).
+    if (!result.failure && model.source === 'ai_generated') {
+      await db.updateById(models3d, model.id, { qaStatus: 'pending', qaReviewedBy: null, qaNotes: result.post ? qaNoteFor(result.post) : null });
+    }
 
     const sizeOf = (role: MadeFile['role']) => result.made?.find((f) => f.role === role)?.size;
     const web = sizeOf('web');

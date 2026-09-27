@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Build output: the minified storefront widget (P1.16).
     "widget/dist/**",
+    // Vendored third-party viewer files, served as they were published (public/vendor/README.md).
+    "public/vendor/**",
   ]),
   {
     files: ["components/ui/**/*.{ts,tsx}", "hooks/use-mobile.ts"],
@@ -54,6 +56,7 @@ const eslintConfig = defineConfig([
       "server/modules/admin/privacy.ts",
       "server/modules/admin/retention.ts",
       "server/modules/admin/announcements.ts",
+      "server/modules/admin/qa.ts",
       "server/core/jobs/queue.ts",
       "server/core/billing/entitlements.ts",
       "server/modules/webhooks/ingest.ts",

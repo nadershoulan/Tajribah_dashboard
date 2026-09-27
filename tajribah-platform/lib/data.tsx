@@ -288,7 +288,9 @@ const demoPhotos = new Map<string, { view: GenerationPhotoView; sha: string }[]>
 const demoLive = new Map<string, number>();
 /** Versions 1…n of a demo model; older ready versions stand in for rollbacks. */
 function demoVersionsOf(model: ModelRow): ModelVersionRow[] {
-  const live = demoLive.get(model.id) ?? (model.status === 'ready' ? model.version : 0);
+  // T25: a generated model is never live before review, in the preview as on the server.
+  const held = model.source === 'ai_generated' && model.qaStatus !== 'approved';
+  const live = demoLive.get(model.id) ?? (model.status === 'ready' && !held ? model.version : 0);
   return Array.from({ length: Math.max(model.version, 1) }, (_, i) => model.version - i).map((n) => {
     const newest = n === model.version;
     const status = newest ? model.status : 'ready';
@@ -394,6 +396,7 @@ export const demoSource: DataSource = {
     const version = model && demoVersionsOf(model).find((v) => v.id === versionId);
     if (!model || !version) throw new ApiError(404, 'not_found', 'model version not found');
     if (version.status !== 'ready') throw new ApiError(409, 'conflict', `version ${n} is ${version.status} — only a ready version can go live`);
+    if (model.source === 'ai_generated' && model.qaStatus !== 'approved') throw new ApiError(409, 'conflict', 'this generated model is waiting for review by Tajribah before it can go live');
     demoLive.set(model.id, Number(n));
   },
   async uploadModel(file) {
@@ -402,7 +405,7 @@ export const demoSource: DataSource = {
     if (ext !== 'glb' && ext !== 'usdz') throw new ApiError(422, 'validation_failed', 'Validation failed', { filename: ['only .glb and .usdz files can be uploaded'] });
     const model: ModelRow = {
       id: `m-upload-${demoModels.length + 1}`, productId: null, productName: null, name: file.name.replace(/\.[^.]+$/, ''),
-      source: 'uploaded', status: 'processing', qaStatus: 'pending', version: 1, sizeBytes: 0, polyCount: null,
+      source: 'uploaded', status: 'processing', qaStatus: 'pending', qaNotes: null, version: 1, sizeBytes: 0, polyCount: null,
       formats: [], thumbnailUrl: null, updatedAt: new Date().toISOString(),
     };
     demoModels.unshift(model);

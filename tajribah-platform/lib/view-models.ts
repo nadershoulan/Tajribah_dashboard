@@ -154,6 +154,8 @@ export type ModelRow = {
   source: 'uploaded' | 'ai_generated' | 'professional_service';
   status: 'draft' | 'processing' | 'ready' | 'failed' | 'archived';
   qaStatus: 'pending' | 'approved' | 'rejected';
+  /** P3.6: the reviewer's note (or post-processing's) — shown to the merchant on a generated model. */
+  qaNotes: string | null;
   version: number;
   /** Optimised GLB size. The bandwidth bill and the AR load time are both this number. */
   sizeBytes: number;

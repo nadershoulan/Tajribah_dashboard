@@ -475,3 +475,15 @@ first and only then `processing → cancelled`, each a conditional update, so a 
 the job at the same instant cannot turn a refunded cancel into a charged one or the reverse.
 
 **Rollback path.** One line in `cancelAiJob` (`if (was === 'queued') await giveBack(...)`).
+
+## T25 · 2026-09-28 · Generated models are reviewed by a person before they can go live
+
+**Decision (from the plan's own P3 gate: "20 real products generated, QA-approved").** A model
+made by generation (`source: ai_generated`) cannot be published until Tajribah staff approve it
+in the model review queue (P3.6 / A10). Every new version starts the review over. A rejection
+must say what is wrong; the merchant reads that note and is notified either way. **A merchant's
+own upload is not held**: it is their file, and a review they did not ask for would only slow them.
+Models made by the professional service are Tajribah's own work and are shown as such.
+
+**Rollback path.** The gate is one check in `publishVersion`; removing it lets generated models
+publish on the merchant's word. Review state and history stay as recorded.

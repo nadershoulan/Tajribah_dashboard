@@ -29,7 +29,8 @@ test('the page policy holds scripts to the nonce; dev allowances never reach a b
   const scripts = directive(csp, 'script-src');
   assert.match(scripts, /'nonce-abc123'/);
   assert.match(scripts, /'strict-dynamic'/);
-  assert.doesNotMatch(scripts, /unsafe-inline|unsafe-eval|https?:|\*/, 'no inline, no eval, no hosts');
+  assert.doesNotMatch(scripts, /unsafe-inline|'unsafe-eval'|https?:|\*/, 'no inline, no eval, no hosts');
+  assert.match(scripts, /'wasm-unsafe-eval'/, 'WebAssembly may compile (the meshopt decoder), JavaScript eval may not');
   assert.match(csp, /frame-ancestors 'none'/);
   assert.match(csp, /object-src 'none'/);
   assert.match(csp, /base-uri 'self'/);

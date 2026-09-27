@@ -36,15 +36,18 @@ export const API_CSP = "default-src 'none'; frame-ancestors 'none'";
 export function pageCsp(nonce: string, { dev = false }: { dev?: boolean } = {}): string {
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ''}`,
+    // 'wasm-unsafe-eval' lets WebAssembly compile (the meshopt decoder in the staff model review,
+    // P3.6); it does not allow eval of JavaScript.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${dev ? " 'unsafe-eval'" : ''}`,
     // React's `style` props become style attributes, which only 'unsafe-inline' allows. Styles
     // cannot run code; scripts are the ones held to the nonce.
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     // data: for the two-step QR code (drawn in the browser); blob: for CSV and JSON downloads.
     "img-src 'self' data: blob:",
-    // 3D models upload straight to R2 with a presigned PUT (P1.12).
-    `connect-src 'self' https://*.r2.cloudflarestorage.com${dev ? ' ws: wss:' : ''}`,
+    // 3D models upload straight to R2 with a presigned PUT (P1.12); blob: is the reviewer's model,
+    // fetched with the session and handed to the viewer (P3.6).
+    `connect-src 'self' blob: https://*.r2.cloudflarestorage.com${dev ? ' ws: wss:' : ''}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

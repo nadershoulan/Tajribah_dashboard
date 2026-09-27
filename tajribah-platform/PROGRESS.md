@@ -3,23 +3,23 @@
 _Last updated: 2026-09-28 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-09-28):** 3D models now actually get under 2 MB. A real product model went from **8.97 MB to 509 KB** and looks the same in the 3D viewer. Found and fixed on the way: **the storefront's 3D viewer could not open any of our compressed models at all** (it was never told where the decoder is) — nothing was live yet, so no shopper saw it · before that: the photo screen on every product page.
-> **Next:** P3.6 — the staff review queue for 3D models: every new model is checked by a person before shoppers see it, starting with the ones post-processing flagged. No account needed.
+> **Just finished (2026-09-28):** the **model review queue** — every model made by generation is looked at by a person on the Tajribah team (in 3D, with the product's measurements beside it) before a shopper can see it; approved, or sent back with a note the merchant reads. The merchant's own uploads are never held · before that: 3D models under 2 MB for real (8.97 MB → 509 KB), and the storefront viewer fixed.
+> **Next:** A9 — AI operations for staff: every AI job across stores, what it cost us against what it earned, and which ones failed. No account needed.
 > **Waiting on you:** **how many AI credits one 3D generation costs** (no number exists anywhere yet), the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
 
 ```
 P0 Foundation     ████████████████████████████░░░░  19 / 22   (+ P0.20 mostly done, 2 blocked)
 P1 Core loop      █████████████████████████░░░░░░░  20 / 26   ← first sellable product · the rest needs Salla / Cloudflare / domain
 P2 Billing        █████████████░░░░░░░░░░░░░░░░░░░   6 / 15   (+ 3 partly) · the rest needs Moyasar / ZATCA
-P3 3D pipeline    ████████░░░░░░░░░░░░░░░░░░░░░░░░   3 / 12   (+ P3.7 photo screen) ← NOW · Generate waits on a provider and a price
+P3 3D pipeline    ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ P3.7 photo screen) ← NOW · Generate waits on a provider and a price
 P4 Analytics      ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ CSV export partly) · shared with the other session
 P5 Try-on         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 14   (engine already exists in tajribah-try-on)
 P6 AI+connectors  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 16
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ P7.7 security: all code-level work done)
 P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
-A  Admin console  ███████████████████████░░░░░░░░░  11 / 15   (+ A7 partly) · the rest needs Moyasar / P3
-                                            overall  72 / 169
+A  Admin console  ██████████████████████████░░░░░░  12 / 15   (+ A7 partly) · A9 next; A8 needs Moyasar
+                                            overall  74 / 169
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -98,6 +98,7 @@ The internal console for running Tajribah: stores, people, plans, coupons, what 
 
 | | Package | In plain words |
 |---|---|---|
+| ✅ | A10 Model review queue | The staff side of P3.6: a queue of generated models waiting, sent back and approved, with a 3D viewer, the product's measurements against the model's, triangles and file size; approve or send back with a note. Recorded in the staff trail and in the store's own activity |
 | ✅ | A14 Privacy and retention | When someone asks for a copy of their data or for their account to be removed, staff record it (with how they checked who is asking), see it is due in 30 days, and do it in one click — the copy never includes passwords or security codes, and a store owner can't be removed until the store is handed over or closed. Old data (raw visitor events after 90 days, old sign-ins, old notifications, old logs) is removed automatically on a published schedule; invoices are always kept |
 | ✅ | A4b See what the merchant sees | Staff can open a store's dashboard exactly as the store sees it, for 15 minutes to an hour, with a written reason — and change nothing. A banner on every screen says so, the store's own activity shows that Tajribah staff looked, and it ends by itself |
 | ✅ | A13 Coupons and announcements | Staff can create discount codes the checkout accepts straight away, and publish a notice to every store's dashboard — a maintenance window, a new feature, holiday support hours — in Arabic and English, between two dates. Stores can dismiss a notice |
@@ -165,6 +166,7 @@ The public site that sells Tajribah, Arabic first.
 | ✅ | P3.2 Job tracking | When a merchant asks for a 3D model, the job is charged once, shows its progress (never going backwards), and can be cancelled at any time — credits come back if it hadn't started, and are kept once the provider is working (your decision). It is stopped and refunded automatically if it ever gets stuck, and refunded if it fails. The merchant sees a clear message if it fails, never the provider's technical error. **Nothing generates a model yet** — that needs a 3D provider account |
 | ✅ | P3.3 Photo intake & checks | A merchant uploads a product's photos — front, side, back and up to three close-ups — and each is checked from the file itself before any credits are spent: JPG, PNG or WebP (iPhone HEIC photos are refused with how to fix it), at least 768 pixels on the short side, under 20 MB, not a panorama, not the same photo twice. A refused photo is deleted straight away with the reason in Arabic and English; photos count toward the plan's storage. Blur and lighting checks need the AI service and come later |
 | ✅ | P3.5 Post-processing ⭐ | Every 3D model is made small enough for a phone: the pictures inside it are converted to WebP at the largest size that keeps the file under 2 MB (a real product model went from 8.97 MB to 509 KB and looks the same in the viewer), models with too many triangles are simplified, and Android's AR gets its own lighter copy. A generated model is also made the product's real size from your measurements and stood on the floor; if its shape doesn't agree with the measurements, it is flagged for review instead of being stretched. **Also fixed:** the storefront 3D viewer could not open any compressed model — it now can |
+| ✅ | P3.6 Model review | Every generated model waits for a person at Tajribah before it can go live: staff see it in 3D next to the product's measurements (any mismatch highlighted), then approve it or send it back with a note. The merchant sees "waiting for review", "approved" or "needs changes" with the reviewer's note, and is notified. A new version is reviewed again. Your own uploads are never held (decision T25) |
 | ◐ | P3.7 Photo screen | On each product's page: a box per angle — front (required), side, back and up to three close-ups. Pick or drop a photo and it is uploaded and checked at once: accepted with its size and a file-quality score, or refused with the reason and a "choose another" button. Remove any photo. The page says when the product is ready to generate. **The Generate button is there but off** — it needs the 3D provider and the price per generation (below) |
 
 ## P7 — hardening
@@ -287,3 +289,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-27 | Product photos for 3D generation: upload, automatic checks on each photo (format, size, duplicates), refused photos deleted at once with the reason, counted in storage | 474 pass / 0 fail; checked on real product photos in 7 file types |
 | 2026-09-28 | The photo screen for 3D generation on every product page: add, see checked, remove, retry — Arabic and English, phone and desktop | 477 pass / 0 fail; driven in a real browser with real product photos |
 | 2026-09-28 | 3D models under 2 MB for real (8.97 MB → 509 KB on a real product model, same look), generated models made true to size, and the storefront viewer fixed so it can open compressed models at all | 484 pass / 0 fail; rendered side by side in the real 3D viewer |
+| 2026-09-28 | Model review: generated models are checked by a person before going live — staff see them in 3D, approve or send back with a note; merchants see the status and the note | 486 pass / 0 fail; the review screen driven in a real browser with a real model, under the live security policy |

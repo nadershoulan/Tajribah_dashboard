@@ -189,6 +189,16 @@ export type AdminAnnouncementFields = {
   level: 'info' | 'warning'; link: string | null; startsAt: string; endsAt: string; active: boolean;
 };
 export type AdminAnnouncement = AdminAnnouncementFields & { id: string; createdAt: string; live: boolean };
+/** P3.6 / A10 — server/modules/admin/qa.ts */
+export type AdminQaStatus = 'pending' | 'approved' | 'rejected';
+export type AdminQaRow = {
+  modelId: string; name: string;
+  store: { id: string; name: string; nameAr: string | null };
+  product: { id: string; name: string; nameAr: string | null; sizeMm: { widthMm?: number; heightMm?: number; depthMm?: number } | null } | null;
+  qaStatus: AdminQaStatus; qaNotes: string | null;
+  version: { id: string; number: number; polyCount: number | null; sizeMm: [number, number, number] | null; webBytes: number | null; readyAt: string };
+};
+export type AdminQaQueue = { rows: AdminQaRow[]; counts: Record<AdminQaStatus, number> };
 
 export type AdminApi = {
   whoami(): Promise<{ email: string; fullName: string }>;
@@ -226,6 +236,10 @@ export type AdminApi = {
   announcements(): Promise<AdminAnnouncement[]>;
   createAnnouncement(fields: AdminAnnouncementFields & { reason: string }): Promise<AdminAnnouncement>;
   updateAnnouncement(id: string, patch: Partial<AdminAnnouncementFields> & { reason: string }): Promise<AdminAnnouncement>;
+  qaQueue(status: AdminQaStatus): Promise<AdminQaQueue>;
+  decideQa(modelId: string, input: { decision: 'approved' | 'rejected'; versionId: string; notes?: string }): Promise<void>;
+  /** The version's web GLB, for the reviewer's viewer (a Blob: the viewer's own fetch has no session). */
+  qaModel(versionId: string): Promise<Blob>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -309,6 +323,9 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       announcements: async () => (await client.call<{ announcements: AdminAnnouncement[] }>('/api/admin/announcements')).announcements,
       createAnnouncement: (fields) => client.call('/api/admin/announcements', { body: fields }),
       updateAnnouncement: (id, patch) => client.call(`/api/admin/announcements/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch }),
+      qaQueue: (status) => client.call(`/api/admin/qa?status=${status}`),
+      decideQa: async (modelId, input) => { await client.call(`/api/admin/qa/${encodeURIComponent(modelId)}`, { body: input }); },
+      qaModel: (versionId) => client.callBlob(`/api/admin/qa/versions/${encodeURIComponent(versionId)}/model`),
     },
     twoFactor: {
       status: () => client.twoFactorStatus(),
@@ -374,7 +391,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound, announcements: notFound, createAnnouncement: notFound, updateAnnouncement: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound, announcements: notFound, createAnnouncement: notFound, updateAnnouncement: notFound, qaQueue: notFound, decideQa: notFound, qaModel: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

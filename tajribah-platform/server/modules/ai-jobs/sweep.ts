@@ -8,17 +8,22 @@
  *    no result. The worker died on its last attempt, or the provider never answered. Failed as
  *    `timed_out`, credits back. An executor that is still working keeps the job alive by
  *    reporting progress.
+ *  - **A photo never confirmed** (P3.3): `uploading` for over `PHOTO_UPLOAD_TTL_MS`. Its bytes
+ *    (if any arrived) and its row are removed, which frees its angle and its storage.
  *
  * Platform sweep across tenants: ids and tenants only; each change runs in its own tenant.
  */
 import { and, eq, gt, lt, sql } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
-import { aiJobEvents, aiJobs } from '@/db/schema';
+import { aiJobEvents, aiJobs, generationPhotos } from '@/db/schema';
 import { log } from '@/server/core/observability/log';
+import { forTenant } from '@/server/core/storage/storage';
+import { withTenant } from '@/server/core/tenancy/rls';
 import { failAbandoned, redispatch } from './lifecycle';
 
 export const UNDISPATCHED_MS = 10 * 60 * 1000;
 export const ABANDONED_MS = 60 * 60 * 1000;
+export const PHOTO_UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
 
 export async function sweepAiJobs(now = new Date(), limit = 100): Promise<{ redispatched: number; abandoned: number }> {
   const db = unsafeAdminDb();
@@ -55,4 +60,31 @@ export async function sweepAiJobs(now = new Date(), limit = 100): Promise<{ redi
   }
   if (result.redispatched || result.abandoned) log.info('ai jobs swept', result);
   return result;
+}
+
+/** P3.3 — photo uploads started and never confirmed: bytes and row removed. */
+export async function sweepUnconfirmedPhotos(now = new Date(), limit = 100): Promise<number> {
+  const stale = await unsafeAdminDb().select({ id: generationPhotos.id, tenantId: generationPhotos.tenantId, storageKey: generationPhotos.storageKey })
+    .from(generationPhotos)
+    .where(and(eq(generationPhotos.status, 'uploading'), lt(generationPhotos.createdAt, new Date(now.getTime() - PHOTO_UPLOAD_TTL_MS))))
+    .limit(limit);
+  let removed = 0;
+  for (const { id, tenantId, storageKey } of stale) {
+    try {
+      // The row first, and only while it is still `uploading`: a photo confirmed in between keeps
+      // its bytes. A byte delete that fails after this leaves an orphan we pay for, never the store.
+      const gone = await withTenant(tenantId, async (db) => {
+        const row = await db.findById(generationPhotos, id);
+        if (!row || row.status !== 'uploading') return false;
+        return db.deleteById(generationPhotos, id);
+      });
+      if (!gone) continue;
+      await forTenant(tenantId).delete(storageKey);
+      removed++;
+    } catch (error) {
+      log.error('photo sweep failed', { photoId: id, error: String(error) });
+    }
+  }
+  if (removed) log.info('unconfirmed photos removed', { removed });
+  return removed;
 }

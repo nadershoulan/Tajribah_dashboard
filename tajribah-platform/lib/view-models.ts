@@ -257,3 +257,26 @@ export type AiJobView = {
   finishedAt: string | null;
   canCancel: boolean;
 };
+
+/** P3.3 — one product photo for 3D generation, as the merchant sees it after the check. */
+export type GenerationPhotoView = {
+  id: string;
+  angle: 'front' | 'side' | 'back' | 'detail';
+  status: 'uploading' | 'accepted' | 'rejected';
+  format: 'jpeg' | 'png' | 'webp' | null;
+  width: number | null;
+  height: number | null;
+  sizeBytes: number | null;
+  /** About the file (size and shape), not the picture; null until checked or when refused. */
+  score: number | null;
+  issues: { code: string; blocking: boolean; message: Bi }[];
+  createdAt: string;
+};
+
+export type GenerationPhotoSet = {
+  photos: GenerationPhotoView[];
+  /** A generation needs an accepted front photo; more angles make a better model. */
+  ready: boolean;
+  /** Angles with no accepted photo yet, front first. */
+  missing: ('front' | 'side' | 'back')[];
+};

@@ -11,10 +11,7 @@
  */
 import { and, eq, gte, inArray, isNull, lt } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
-import {
-  LIMIT_KEY, creditLedger, dailyTenantStats, modelFiles, planFeatures, planLimits, plans, products, subscriptions, tenantMemberships, usageCounters, models3d,
-  type LimitKey,
-} from '@/db/schema';
+import { creditLedger, dailyTenantStats, generationPhotos, LIMIT_KEY, modelFiles, models3d, planFeatures, planLimits, plans, products, subscriptions, tenantMemberships, type LimitKey, usageCounters } from '@/db/schema';
 import { UNLIMITED, planByCode, type PlanCode, type PlanDefinition, type PlanLimits } from '@/lib/plans';
 import { errors } from '../errors/problem';
 import { log } from '../observability/log';
@@ -184,10 +181,15 @@ export async function creditsUsedIn(db: TenantDb, from: Date, to: Date): Promise
   return Math.max(0, -rows.reduce((sum, r) => sum + r.delta, 0));
 }
 
-/** Bytes this store holds in storage: every model file whose bytes were not deleted. */
+/**
+ * Bytes this store holds in storage: every model file and every product photo (P3.3) whose
+ * bytes were not deleted. A photo still uploading counts at the size it declared, so parallel
+ * uploads cannot overrun the limit.
+ */
 export async function storageBytesHeld(ctx: TenantContext): Promise<number> {
   const files = await ctx.db.find(modelFiles, isNull(modelFiles.bytesDeletedAt), { limit: 100_000 });
-  return files.reduce((sum, file) => sum + file.fileSizeBytes, 0);
+  const photos = await ctx.db.find(generationPhotos, isNull(generationPhotos.bytesDeletedAt), { limit: 100_000 });
+  return files.reduce((sum, file) => sum + file.fileSizeBytes, 0) + photos.reduce((sum, photo) => sum + (photo.sizeBytes ?? 0), 0);
 }
 
 /**

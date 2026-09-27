@@ -19,7 +19,7 @@ import { expireStaleDrafts } from '@/server/modules/models/cleanup';
 import { resealConnections } from '@/server/modules/connections/rotation';
 import { resealTwoFactorSecrets } from '@/server/modules/auth/two-factor';
 import { sweepRetentionHourly } from '@/server/modules/admin/retention';
-import { sweepAiJobs } from '@/server/modules/ai-jobs/sweep';
+import { sweepAiJobs, sweepUnconfirmedPhotos } from '@/server/modules/ai-jobs/sweep';
 import { sendTrialReminders } from '@/server/modules/billing/trial';
 
 export const WORKER_ID = `worker-${Math.random().toString(36).slice(2, 8)}`;
@@ -71,6 +71,7 @@ async function scheduled(): Promise<void> {
   await sendTrialReminders();
   await sweepRetentionHourly(); // A14, T22: data past its retention period
   await sweepAiJobs(); // P3.2: AI jobs never dispatched, or abandoned mid-run
+  await sweepUnconfirmedPhotos(); // P3.3: photo uploads never confirmed
 }
 
 /** Stored webhook deliveries are handled on the same tick as queue jobs (P1.7). */

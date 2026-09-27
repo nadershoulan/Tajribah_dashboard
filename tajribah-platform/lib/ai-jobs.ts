@@ -24,3 +24,26 @@ export const AI_JOB_ERRORS: Record<AiJobErrorCode, Bi> = {
   provider_failed: { ar: 'تعذّر إكمال المهمة. أُعيد إليك رصيدك.', en: 'The job could not be completed. Your credits were returned.' },
   timed_out: { ar: 'استغرقت المهمة وقتًا أطول من المسموح فأُوقفت. أُعيد إليك رصيدك.', en: 'The job took too long and was stopped. Your credits were returned.' },
 };
+
+/** P3.3 — why a product photo was refused (or, for `low_resolution`, accepted with a lower score). */
+export type PhotoIssueCode = 'unsupported_format' | 'unreadable' | 'too_small' | 'too_large_file' | 'extreme_aspect' | 'duplicate' | 'low_resolution';
+
+export const PHOTO_ISSUES: Record<PhotoIssueCode, Bi> = {
+  unsupported_format: { ar: 'الصيغة غير مدعومة. استخدم JPG أو PNG أو WebP (صور HEIC من الآيفون: اختر «الأكثر توافقًا» في إعدادات الكاميرا).', en: 'Unsupported format. Use JPG, PNG or WebP (for iPhone HEIC photos, choose "Most Compatible" in camera settings).' },
+  unreadable: { ar: 'تعذّرت قراءة الصورة. قد يكون الملف تالفًا.', en: 'The image could not be read. The file may be damaged.' },
+  too_small: { ar: 'الصورة صغيرة جدًا: يجب ألا يقل الضلع الأقصر عن 768 بكسل.', en: 'The photo is too small: the short side must be at least 768 pixels.' },
+  too_large_file: { ar: 'الملف أكبر من 20 ميجابايت.', en: 'The file is larger than 20 MB.' },
+  extreme_aspect: { ar: 'الصورة طويلة أو عريضة أكثر من اللازم. صوّر المنتج في إطار أقرب إلى المربع.', en: 'The photo is too long or too wide. Frame the product closer to a square.' },
+  duplicate: { ar: 'هذه الصورة مرفوعة من قبل لهذا المنتج.', en: 'This photo has already been uploaded for this product.' },
+  low_resolution: { ar: 'مقبولة، لكن صورة بدقة أعلى (1500 بكسل أو أكثر للضلع الأقصر) تعطي نموذجًا أدق.', en: 'Accepted, but a sharper photo (1500 pixels or more on the short side) gives a more detailed model.' },
+};
+
+export const GENERATION_ANGLES = ['front', 'side', 'back', 'detail'] as const;
+export type GenerationAngle = (typeof GENERATION_ANGLES)[number];
+
+export const ANGLE_LABELS: Record<GenerationAngle, Bi> = {
+  front: { ar: 'الأمام', en: 'Front' },
+  side: { ar: 'الجانب', en: 'Side' },
+  back: { ar: 'الخلف', en: 'Back' },
+  detail: { ar: 'تفاصيل', en: 'Detail' },
+};

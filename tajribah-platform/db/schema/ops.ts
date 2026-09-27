@@ -9,6 +9,7 @@
 import { index, integer, pgEnum, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { bool, createdAt, json, pk, tenantId, timestamps, ts } from './_shared';
 import { tenants } from './identity';
+import { products } from './commerce';
 
 export const JOB_STATE = ['queued', 'claimed', 'running', 'done', 'failed', 'dead', 'cancelled'] as const;
 export const AI_JOB_TYPE = [
@@ -21,6 +22,7 @@ export const jobState = pgEnum('job_state', JOB_STATE);
 export const aiJobType = pgEnum('ai_job_type', AI_JOB_TYPE);
 export const aiJobStatus = pgEnum('ai_job_status', ['queued', 'processing', 'done', 'failed', 'cancelled']);
 export const generationAngle = pgEnum('generation_angle', ['front', 'side', 'back', 'detail']);
+export const generationPhotoStatus = pgEnum('generation_photo_status', ['uploading', 'accepted', 'rejected']);
 export const notificationLevel = pgEnum('notification_level', ['info', 'success', 'warning', 'error']);
 export const dataRequestType = pgEnum('data_request_type', ['export', 'erase']);
 export const dataRequestStatus = pgEnum('data_request_status', ['received', 'processing', 'completed', 'rejected']);
@@ -114,6 +116,33 @@ export const generationInputs = pgTable('generation_inputs', {
   issues: json<string[]>('issues'),
   createdAt: createdAt(),
 }, (t) => [index('generation_inputs_job_idx').on(t.jobId)]);
+
+/**
+ * P3.3 — product photos a merchant uploads for 3D generation, checked before any credits are
+ * spent. Photos exist before the job does (`generation_inputs` needs one), so they live here;
+ * when a generation starts, its accepted photos are copied into `generation_inputs`.
+ */
+export const generationPhotos = pgTable('generation_photos', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  angle: generationAngle('angle').notNull(),
+  status: generationPhotoStatus('status').notNull().default('uploading'),
+  storageKey: text('storage_key').notNull(),
+  originalFilename: text('original_filename'),
+  /** What the bytes are (from their first bytes), not what the browser said. Null until checked. */
+  format: text('format'),
+  sizeBytes: integer('size_bytes'),
+  width: integer('width'),
+  height: integer('height'),
+  /** SHA-256 of the bytes, hex: the same photo twice for one product is refused. */
+  sha256: text('sha256'),
+  qualityScore: integer('quality_score'),
+  issues: json<string[]>('issues'),
+  /** Set when the bytes are removed (rejected, replaced, deleted); the row stays as the record. */
+  bytesDeletedAt: ts('bytes_deleted_at'),
+  ...timestamps(),
+}, (t) => [index('generation_photos_product_idx').on(t.tenantId, t.productId, t.status)]);
 
 /** Platform-wide by default; a row with a tenant id overrides it for that tenant only. */
 export const featureFlags = pgTable('feature_flags', {

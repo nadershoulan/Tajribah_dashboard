@@ -3,15 +3,15 @@
 _Last updated: 2026-09-27 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-09-27):** security hardening — the dashboard can't be shown inside other sites, only runs its own scripts, and sign-in sessions can't be hammered · 3D-generation job tracking — charged once, progress you can watch, cancel any time (credits back only if it hadn't started, as you decided).
-> **Next:** P3.3 — taking in product photos and checking their quality before a 3D model is generated (no account needed).
-> **Waiting on you:** the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
+> **Just finished (2026-09-27):** product photos for 3D generation — uploaded and checked before any credits are spent (format, resolution, file size, duplicates), with a clear reason in Arabic and English when one is refused · before that: 3D-generation job tracking, and security hardening.
+> **Next:** P3.7 — the dashboard screen where a merchant adds a product's photos and sees each one checked. The **Generate** button needs the provider and one number from you (below).
+> **Waiting on you:** **how many AI credits one 3D generation costs** (no number exists anywhere yet), the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
 
 ```
 P0 Foundation     ████████████████████████████░░░░  19 / 22   (+ P0.20 mostly done, 2 blocked)
 P1 Core loop      █████████████████████████░░░░░░░  20 / 26   ← first sellable product · the rest needs Salla / Cloudflare / domain
 P2 Billing        █████████████░░░░░░░░░░░░░░░░░░░   6 / 15   (+ 3 partly) · the rest needs Moyasar / ZATCA
-P3 3D pipeline    ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   1 / 12   ← NOW · job tracking done; photo intake & checks next
+P3 3D pipeline    █████░░░░░░░░░░░░░░░░░░░░░░░░░░░   2 / 12   ← NOW · job tracking and photo checks done; photo screen next
 P4 Analytics      ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ CSV export partly) · shared with the other session
 P5 Try-on         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 14   (engine already exists in tajribah-try-on)
 P6 AI+connectors  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 16
@@ -19,7 +19,7 @@ P7 Scale          ░░░░░░░░░░░░░░░░░░░░�
 P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
 A  Admin console  ███████████████████████░░░░░░░░░  11 / 15   (+ A7 partly) · the rest needs Moyasar / P3
-                                            overall  70 / 169
+                                            overall  71 / 169
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -163,7 +163,8 @@ The public site that sells Tajribah, Arabic first.
 | | Package | In plain words |
 |---|---|---|
 | ✅ | P3.2 Job tracking | When a merchant asks for a 3D model, the job is charged once, shows its progress (never going backwards), and can be cancelled at any time — credits come back if it hadn't started, and are kept once the provider is working (your decision). It is stopped and refunded automatically if it ever gets stuck, and refunded if it fails. The merchant sees a clear message if it fails, never the provider's technical error. **Nothing generates a model yet** — that needs a 3D provider account |
-| ⏳ | P3.3 Photo intake & checks | Next: uploading the product photos and checking them before any credits are spent |
+| ✅ | P3.3 Photo intake & checks | A merchant uploads a product's photos — front, side, back and up to three close-ups — and each is checked from the file itself before any credits are spent: JPG, PNG or WebP (iPhone HEIC photos are refused with how to fix it), at least 768 pixels on the short side, under 20 MB, not a panorama, not the same photo twice. A refused photo is deleted straight away with the reason in Arabic and English; photos count toward the plan's storage. Blur and lighting checks need the AI service and come later |
+| ⏳ | P3.7 Photo screen | Next: the screen in the dashboard for adding photos and seeing each one checked |
 
 ## P7 — hardening
 
@@ -202,6 +203,8 @@ Zid app names, Saudi trademark search).
 **Decided 2026-09-26:** when a plan's price or limits change, existing subscribers **move to the new terms** (no grandfathering).
 
 **Received 2026-09-27:** SRO Company's VAT certificate and national address — on every invoice now.
+
+**Needed from you:** **how many AI credits one 3D generation costs.** The plans give 5 / 40 / 200 credits a month, but nothing says what a generation uses — so the Generate button can't be priced yet. (Tell me a number, e.g. 1 credit per model, or per product.)
 
 **Decided 2026-09-27 (T24):** cancelling a 3D generation that is already running **keeps its charge**; before it starts, the credits come back.
 
@@ -280,3 +283,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-27 | Security: every dashboard page now only runs the code we sent with it. If someone slips a script into a page (for example through a product name), the browser refuses to run it | 452 pass / 0 fail; checked in a real browser, including a script planted on purpose and blocked |
 | 2026-09-27 | 3D generation, the part that needs no provider: a generation job is charged once, shows its progress, can be cancelled at any time with your credits returned, and is stopped and refunded if it ever gets stuck. One choice for you: when you cancel a job that is already running, this build returns all your credits and Tajribah pays the provider (decision T24) | 461 pass / 0 fail |
 | 2026-09-27 | Your decision applied: cancelling a 3D generation that is already running keeps its charge. This page brought up to date — the top had not changed since the 26th | 3D job tests 9 / 9 |
+| 2026-09-27 | Product photos for 3D generation: upload, automatic checks on each photo (format, size, duplicates), refused photos deleted at once with the reason, counted in storage | 474 pass / 0 fail; checked on real product photos in 7 file types |

@@ -29,6 +29,8 @@ import { SallaPage, ZidPage } from '@/components/pages/PlatformLanding';
 import { BlogIndex, BlogPostPage, CareersPage, HelpArticlePage, HelpIndex, StoriesPage } from '@/components/pages/Resources';
 import { FeaturePageBySlug } from '@/components/pages/FeatureDetail';
 import { featurePage } from '@/content/features';
+import { industry } from '@/content/industries';
+import { IndustriesIndex, IndustryPageBySlug } from '@/components/pages/Industries';
 import { blogPost } from '@/content/blog';
 import { helpArticle } from '@/content/help';
 
@@ -36,6 +38,7 @@ const ROUTES: Record<string, ComponentType> = {
   '/': Home,
   '/demo': Demo,
   '/features': Features,
+  '/industries': IndustriesIndex,
   '/how-it-works': HowItWorks,
   '/integrations': Integrations,
   '/pricing': Pricing,
@@ -63,6 +66,8 @@ function dynamicRoute(path: string): { element: ReactElement; title: { ar: strin
   if (blog) return { element: <BlogPostPage slug={blog[1]!} />, title: blogPost(blog[1]!)?.title ?? null };
   const feature = /^\/features\/([a-z0-9-]+)$/.exec(path);
   if (feature) return { element: <FeaturePageBySlug slug={feature[1]!} />, title: featurePage(feature[1]!)?.nav ?? null };
+  const ind = /^\/industries\/([a-z0-9-]+)$/.exec(path);
+  if (ind) return { element: <IndustryPageBySlug slug={ind[1]!} />, title: industry(ind[1]!)?.nav ?? null };
   return null;
 }
 

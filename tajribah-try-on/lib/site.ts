@@ -50,6 +50,7 @@ export const FOOTER: { title: Bi; links: NavItem[] }[] = [
       { href: '/features', label: { ar: 'المزايا', en: 'Features' } },
       { href: '/how-it-works', label: { ar: 'كيف تعمل', en: 'How it works' } },
       { href: '/integrations', label: { ar: 'التكاملات', en: 'Integrations' } },
+      { href: '/industries', label: { ar: 'حسب ما تبيعه', en: 'By what you sell' } },
       { href: '/salla', label: { ar: 'لمتاجر سلة', en: 'For Salla stores' } },
       { href: '/zid', label: { ar: 'لمتاجر زد', en: 'For Zid stores' } },
       { href: '/pricing', label: { ar: 'الأسعار', en: 'Pricing' } },
@@ -110,5 +111,10 @@ export const TITLES: Record<string, Bi> = {
   '/features/on-model': { ar: 'العرض على العارضة', en: 'On model' },
   '/features/on-me': { ar: 'التجربة على صورتك', en: 'On your own photo' },
   '/features/true-size': { ar: 'المقارنة بالحجم الحقيقي', en: 'True-size comparison' },
+  '/industries': { ar: 'حسب ما تبيعه', en: 'By what you sell' },
+  '/industries/watches': { ar: 'لمتاجر الساعات', en: 'For watch stores' },
+  '/industries/jewellery': { ar: 'لمتاجر المجوهرات', en: 'For jewellery stores' },
+  '/industries/eyewear': { ar: 'لمتاجر النظارات', en: 'For eyewear stores' },
+  '/industries/bags': { ar: 'لمتاجر الحقائب', en: 'For bag stores' },
   '/features/phone-handoff': { ar: 'من الحاسوب إلى الجوال', en: 'Desktop to phone' },
 };

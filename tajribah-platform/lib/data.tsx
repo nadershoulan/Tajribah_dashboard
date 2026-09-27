@@ -100,8 +100,6 @@ export type CouponQuote = { code: string; kind: 'percent' | 'fixed' | 'free_mont
  * off as the merchant's own.
  */
 export function apiSource(client: ApiClient): DataSource {
-  const pending = (what: string) => () => Promise.reject(new ApiError(501, 'not_implemented',
-    `${what} is not available yet — its API arrives with the core-loop phase (P1).`));
   return {
     async currentTenant() {
       const store = currentStore(await client.me());
@@ -185,7 +183,7 @@ export function apiSource(client: ApiClient): DataSource {
       return client.call<ArConfigView>(`/api/ar-configs/${encodeURIComponent(productId)}`, { method: 'PUT', body: input });
     },
     async updateSettings(patch) { return client.call<StoreSettings>('/api/settings', { method: 'PATCH', body: patch }); },
-    analytics: pending('Analytics'),
+    async analytics(range) { return client.call<AnalyticsView>(`/api/analytics?range=${range}`); },
     async onboarding() { return client.call<OnboardingView>('/api/onboarding'); },
     async skipStep(step) { return client.call<OnboardingView>('/api/onboarding/skip', { body: { step } }); },
     async unskipStep(step) { return client.call<OnboardingView>('/api/onboarding/unskip', { body: { step } }); },

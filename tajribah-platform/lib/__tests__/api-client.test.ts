@@ -16,6 +16,7 @@ import { setLogLevel } from '@/server/core/observability/log';
 import { createTestDb } from '@/server/testing/harness';
 import * as http from '@/server/modules/auth/http';
 import * as products from '@/server/modules/products/http';
+import * as analytics from '@/server/modules/analytics/http';
 
 const APP = 'http://localhost:5173';
 const HANDLERS: Record<string, (r: Request) => Promise<Response>> = {
@@ -27,6 +28,7 @@ const HANDLERS: Record<string, (r: Request) => Promise<Response>> = {
   '/api/auth/switch-tenant': http.switchTenantHandler,
   '/api/auth/password-reset': http.requestResetHandler,
   '/api/products': products.listProductsHandler,
+  '/api/analytics': analytics.analyticsHandler,
 };
 
 /** A browser: same-origin fetch into the handlers, with a cookie jar. Counts calls per path. */
@@ -162,8 +164,9 @@ test('refusals arrive as typed errors the forms can explain', async () => {
     await assert.rejects(() => quiet(() => client.register(ACCOUNT)), (e: any) => e.code === 'conflict');
 
     await client.login(ACCOUNT.email, ACCOUNT.password);
-    await assert.rejects(() => apiSource(client).analytics('30d'), (e: any) => e.status === 501,
-      'screens without an API yet say so — they do not fall back to demo numbers');
+    const analytics = await apiSource(client).analytics('30d');
+    assert.deepEqual([analytics.series.length, analytics.totals.views, analytics.totals.upliftPct, analytics.topProducts], [30, 0, null, []],
+      'a new store’s analytics come from the real API: zeros and no uplift, never demo numbers (P4.4)');
     const empty = await apiSource(client).products();
     assert.deepEqual([empty.rows, empty.counts.all, empty.nextCursor], [[], 0, null], 'a new store has an empty catalogue, from the real API');
     await client.call('/api/products', { method: 'POST', body: { name: 'Oyster 41', status: 'draft' } });

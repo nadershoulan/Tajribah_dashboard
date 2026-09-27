@@ -51,6 +51,8 @@ next-env.d.ts
 
 # test bundles written by scripts/test.mjs
 /.tests/
+# test.mjs --out <name>: one bundle directory per concurrent run
+/.tests-*/
 
 # local Worker variables (wrangler) — dev-only secrets, never committed
 /.dev.vars

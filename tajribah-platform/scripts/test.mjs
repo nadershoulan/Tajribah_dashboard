@@ -24,7 +24,7 @@ const modulesFlag = args.indexOf('--modules');
 const MODULES = modulesFlag === -1
   ? join(ROOT, 'node_modules')
   : resolve(args[modulesFlag + 1]);
-const filter = args.filter((a, i) => !a.startsWith('--') && i !== modulesFlag + 1)[0] ?? '';
+const filter = args.filter((a, i) => !a.startsWith('--') && i !== modulesFlag + 1 && i !== args.indexOf('--out') + 1)[0] ?? '';
 
 if (!existsSync(MODULES)) {
   console.error(`No node_modules at ${MODULES}. Pass --modules <dir>.`);
@@ -64,7 +64,16 @@ if (tests.length === 0) {
   process.exit(1);
 }
 
-const OUT = join(MODULES, '..', '.tests');
+/**
+ * Bundles land here, and the directory is wiped at the start of every run — so two runs at
+ * once in the same checkout delete each other's files and fail with MODULE_NOT_FOUND, which
+ * reads exactly like a broken test. `--out <name>` gives a run its own directory. It stays a
+ * sibling of `node_modules` whatever the name, because PGlite is left external and has to
+ * resolve from there. Two sessions sharing one worktree: pass a different name each.
+ */
+const outFlag = args.indexOf('--out');
+const OUT_NAME = outFlag === -1 ? '.tests' : args[outFlag + 1];
+const OUT = join(MODULES, '..', OUT_NAME);
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 

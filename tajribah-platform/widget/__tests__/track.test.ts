@@ -4,6 +4,7 @@ import { EVENT_TYPES, LIMITS, looksPersonal, sanitize } from '../src/events';
 import type { EventBatch } from '../src/events';
 import { createTracker, privacySignal, randomToken, sessionToken, type TrackerEnv } from '../src/track';
 import { parseBatch, toRow } from '../../lib/contracts/analytics';
+import { EVENT_TYPE } from '../../db/schema/analytics';
 
 /** A tracker whose world is a fake: a clock we move, a beacon we watch, no browser. */
 function harness(over: Partial<TrackerEnv> = {}) {
@@ -104,14 +105,26 @@ test('what the SDK sends is exactly what the collector accepts', () => {
   assert.equal(parsed.ok, true, parsed.ok ? '' : parsed.reason);
   if (!parsed.ok) return;
 
-  // And the collector's row mapping keeps the money exact and takes its own clock.
+  // And the collector's row mapping keeps the money in minor units and takes its own clock.
   const receivedAt = new Date('2026-09-27T10:00:00.000Z');
   const batch = parsed.batch;
-  const rows = batch.events.map((e) => toRow(e, batch, { tenantId: 't1', sessionId: 'hashed', receivedAt }));
-  assert.equal(rows[1]!.value, '1299.00');
-  assert.equal(rows[1]!.occurred_at.toISOString(), receivedAt.toISOString(), 'the last event happened when the batch arrived');
-  assert.equal(rows[0]!.occurred_at.toISOString(), new Date(receivedAt.getTime() - 250).toISOString(), 'earlier events, earlier');
-  assert.equal(rows[0]!.session_id, 'hashed', 'the raw token is never a column');
+  const ctx = { tenantId: 't1', sessionId: 'hashed', receivedAt, productId: 'product-uuid', country: 'SA' };
+  const rows = batch.events.map((e) => toRow(e, batch, ctx));
+  assert.equal(rows[1]!.valueMinor, 129_900);
+  assert.equal(rows[1]!.occurredAt!.toISOString(), receivedAt.toISOString(), 'the last event happened when the batch arrived');
+  assert.equal(rows[0]!.occurredAt!.toISOString(), new Date(receivedAt.getTime() - 250).toISOString(), 'earlier events, earlier');
+  assert.equal(rows[0]!.sessionId, 'hashed', 'the raw token is never a column');
+  // The browser said "sku-1"; the column takes this store's uuid, resolved by the collector.
+  assert.equal(rows[0]!.productId, 'product-uuid');
+  assert.equal(rows[0]!.deviceType, 'unknown', 'what the edge did not derive is not invented');
+});
+
+test('every type the SDK can send is a type the column can store', () => {
+  // The reverse is allowed: `ar_close` and `tryon_share` exist as columns with nothing
+  // observing them yet. This is the direction that would lose data.
+  for (const type of EVENT_TYPES) {
+    assert.ok((EVENT_TYPE as readonly string[]).includes(type), `the event_type column cannot hold ${type}`);
+  }
 });
 
 test('the collector refuses a batch whole: bad version, unknown fields, too many events, a bad session', () => {

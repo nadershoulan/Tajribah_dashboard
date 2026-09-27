@@ -130,24 +130,43 @@ only. Screen IDs from the inventory (`ADM-*`).
 
 ## P4 — Analytics (12)
 
-**Open under T18, account-free packages only.** D5 holds: analytics never enters Postgres.
-Events go browser → edge collector → ClickHouse → rollups, and the dashboard reads rollups.
-🔒 ClickHouse Cloud (or a host) is the wall: everything from P4.3 on waits on it.
+**Open under T18.** D5's *rule* holds — analytics never touches the merchant's transactional
+read path — but this build keeps it in Postgres rather than ClickHouse: `analytics_events`
+plus four rollup tables, already in `db/schema/analytics.ts` and recorded in
+`docs/ARCHITECTURE.md`. The event schema stays ClickHouse-shaped, so that move is an exporter,
+not a rewrite. **Almost all of P4 is therefore account-free**; the corrected table is below.
+(An earlier version of this table marked P4.3 onwards 🔒 ClickHouse. That was wrong — written
+from the plan rather than from the schema that exists.)
+
+**Split (2026-09-27, Nader):** two sessions. The **write** side — P4.1, P4.2, P4.3, P4.9,
+P4.10, P4.11 — and the **read** side — P4.4, P4.5, P4.6, P4.8. The four rollup tables are the
+contract between them and neither side changes their columns without telling the other. Files
+are split too: writer in `server/modules/analytics/{ingest,rollup}.ts` and
+`app/api/analytics/collect`, reader in `server/modules/analytics/{metrics,http}.ts` and
+`app/api/analytics/route.ts`.
+
+Two reading rules the write side must honour, agreed across the split:
+store totals come from `daily_tenant_stats` and the per-product table from
+`daily_product_stats`, and the two are **not** required to agree (an event whose product
+reference does not resolve is counted for the store and dropped for the product); and uplift on
+the wire is a **fraction** (0.051 = 5.1 points), **null** unless both sides have at least 100
+sessions — so `conversion_daily` must carry the session counts that let the reader decide that,
+not a pre-computed rate.
 
 | ID | Package | Needs | Done when |
 |---|---|---|---|
-| P4.1 ✅ | Event schema & browser SDK | — | `widget/src/events.ts` (the wire contract, no dependencies, ships in the widget) and `lib/contracts/analytics.ts` (the same constants under zod, for the collector). The SDK batches, sends with `sendBeacon` and leaves with the page; it sends **nothing** under DNT/GPC or before a shop's consent, and nothing that identifies a shopper — unknown fields, over-long values and property values that look like a person are dropped before the queue |
-| P4.2 | Edge collector | 🔒 Cloudflare | The Worker that accepts a batch, rejects the rest, derives country/device from the request it already has, salts and hashes the session token with the day's key, and buffers |
-| P4.3 | ClickHouse schema & rollups | 🔒 ClickHouse | §7.10's table, the materialized views, the 90-day TTL on raw events |
-| P4.4 | Metrics API | 🔒 P4.3 | The dashboard's read path — rollups only, cached |
-| P4.5 | Analytics UI | 🔒 P4.4 | MD-120 on real numbers instead of demo data |
-| P4.6 | Conversion uplift ⭐ | 🔒 P4.3 | Tried vs not tried, stated honestly enough to put in front of a merchant |
-| P4.7 | Return-rate reporting | 🔒 P4.3 + orders | Needs returns from the store platform |
-| P4.8 | Exports & scheduled reports | 🔒 P4.4 | CSV and a scheduled email |
-| P4.9 | Real-time activity | 🔒 P4.3 | What is happening now |
-| P4.10 | Session explorer | 🔒 P4.3 | One session's path, within the 90 days |
-| P4.11 | Analytics privacy & PDPL | partly — | The policy half is written into P4.1 and the try-on privacy page; the retention and access half lands with P4.3 |
-| P4.12 | Analytics load test | 🔒 P4.2/3 | The plan's 2.5M events/day, end to end |
+| P4.1 ✅ | Event schema & browser SDK | — (write side) | `widget/src/events.ts` (the wire contract, no dependencies, ships in the widget) and `lib/contracts/analytics.ts` (the same constants under zod, for the collector). The SDK batches, sends with `sendBeacon` and leaves with the page; it sends **nothing** under DNT/GPC or before a shop's consent, and nothing that identifies a shopper — unknown fields, over-long values and property values that look like a person are dropped before the queue |
+| P4.2 | Event collector | — | `POST /api/analytics/collect`: accepts a batch, refuses the rest, derives country/device/browser from the request it already has (never from the body), salts and hashes the session token with the day's key, resolves the merchant's product reference to this store's uuid, and writes `analytics_events`. No account: it is a route in this app, on the same workerd the rest runs on. Cloudflare only moves it closer to the shopper later |
+| P4.3 | Rollups & retention | — | The four rollup tables filled from `analytics_events` on a schedule, idempotently (a re-run must not double-count), and raw events expiring at 90 days |
+| P4.4 ✅ | Metrics API | — (read side) | The dashboard's read path — rollup tables only, never `analytics_events`; uplift as a fraction, null below 100 sessions a side. Built by the read-side session, on main at a45e85a |
+| P4.5 | Analytics UI | P4.4 (read side) | MD-120 on real numbers instead of demo data |
+| P4.6 | Conversion uplift ⭐ | P4.3 (read side) | Tried vs not tried from `conversion_daily`, stated honestly enough to put in front of a merchant |
+| P4.7 | Return-rate reporting | 🔒 Salla/Zid | Genuinely blocked: returns come from the store platform, and no connector is live |
+| P4.8 | Exports & scheduled reports | P4.4 (read side) | CSV, and a scheduled email once sending is live |
+| P4.9 | Real-time activity | P4.2 (write side) | What is happening now, read from the raw events rather than the rollups |
+| P4.10 | Session explorer | P4.2 (write side) | One session's path, within the 90 days it exists for |
+| P4.11 | Analytics privacy & PDPL | — (write side) | The collection half is P4.1; what is left is retention (the 90 days, enforced by the A14 sweep), who may read it, and the PDPL register's answer for analytics |
+| P4.12 | Analytics load test | 🔒 staging | The plan's 2.5M events/day end to end — and the number at which Postgres stops being the right answer |
 
 ## Track M — Marketing site (12)
 

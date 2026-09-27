@@ -16,11 +16,25 @@
  *  - **A bad batch is refused whole**, not repaired. A shop that sends nonsense gets a 400 and
  *    the next batch is unaffected; there is nothing here worth salvaging an event for.
  *
- * Nothing writes to Postgres: events go to ClickHouse (D5). This file defines the shape; the
- * transport, the buffer and the insert are P4.2 and P4.3.
+ * **Where events land.** The plan says ClickHouse (D5, §7.10); this build writes
+ * `analytics_events` and its rollups in Postgres instead, decided before this package and
+ * recorded in `docs/ARCHITECTURE.md` — same rule (analytics never touches the merchant's
+ * transactional read path), one less store to host, and an event schema kept ClickHouse-shaped
+ * so the move is an exporter rather than a rewrite. The row mapping below therefore targets
+ * `db/schema/analytics.ts`, not §7.10's DDL. The transport and the insert are P4.2 and P4.3.
  */
 import { z } from 'zod';
+import type { InferInsertModel } from 'drizzle-orm';
+import { analyticsEvents, EVENT_TYPE } from '../../db/schema/analytics';
 import { EVENT_SCHEMA_VERSION, EVENT_TYPES, LIMITS } from '../../widget/src/events';
+
+/**
+ * The widget sends a subset of what the database can store: `ar_close` and `tryon_share` exist
+ * as columns before anything can observe them. The compiler holds the direction that matters —
+ * the SDK can never send a type the table cannot hold.
+ */
+const _sdkTypesFitTheColumn: readonly (typeof EVENT_TYPE)[number][] = EVENT_TYPES;
+void _sdkTypesFitTheColumn;
 
 export { EVENT_SCHEMA_VERSION, EVENT_TYPES, LIMITS };
 export type { EventBatch, EventType, WireEvent } from '../../widget/src/events';
@@ -63,34 +77,32 @@ export function parseBatch(input: unknown): { ok: true; batch: ParsedBatch } | {
   return { ok: false, reason: first ? `${first.path.join('.') || 'body'}: ${first.message}` : 'invalid batch' };
 }
 
-/**
- * The columns one wire event becomes (§7.10). Written here, next to the schema, so P4.3's
- * insert has one place to follow and the field names are checked by the compiler.
- *
- * `occurred_at` is the edge's clock minus the event's offset within its batch — the browser's
- * own clock is never stored. `session_id`, `device_type`, `os`, `browser`, `country` and
- * `region` are the collector's to derive; they are not in the batch and cannot be.
- */
-export type EventRow = {
-  tenant_id: string;
-  event_type: (typeof EVENT_TYPES)[number];
-  product_id: string | null;
-  session_id: string;
-  occurred_at: Date;
-  duration_ms: number;
-  value: string;
-  currency: string;
-  ar_supported: 0 | 1;
-  properties: Record<string, string>;
-};
+/** A row of `analytics_events`, as Drizzle wants it for an insert. */
+export type EventRow = InferInsertModel<typeof analyticsEvents>;
 
-/** Everything the collector knows that the browser did not send. */
+/**
+ * Everything the collector knows that the browser did not send — and could not be trusted to.
+ *
+ * `productId` is the notable one: the batch carries the merchant's **own** product reference
+ * (`sku-41`), while the column is this store's product uuid. Resolving one to the other is the
+ * collector's job (P4.2), and an event for a product this store does not have is dropped there
+ * rather than stored with a null.
+ */
 export type CollectorContext = {
   tenantId: string;
   /** Already salted and hashed with the day's key (§7.10) — never the raw token. */
   sessionId: string;
   /** The edge's clock when the batch arrived. */
   receivedAt: Date;
+  /** This store's product uuid for `event.productId`, or null when it resolved to nothing. */
+  productId: string | null;
+  /** Derived at the edge from the request, never sent by the page. */
+  deviceType?: EventRow['deviceType'];
+  os?: string | null;
+  browser?: string | null;
+  country?: string | null;
+  region?: string | null;
+  referrerHost?: string | null;
 };
 
 /** One wire event as a row. Pure, so the mapping is testable without a collector. */
@@ -98,16 +110,24 @@ export function toRow(event: z.infer<typeof WireEventSchema>, batch: ParsedBatch
   // The batch's own span: `t` counts from when the batch was opened, `sentAt` is when it closed.
   const offsetFromSend = Math.max(0, (batch.events.at(-1)?.t ?? 0) - event.t);
   return {
-    tenant_id: ctx.tenantId,
-    event_type: event.type,
-    product_id: event.productId ?? null,
-    session_id: ctx.sessionId,
-    occurred_at: new Date(ctx.receivedAt.getTime() - offsetFromSend),
-    duration_ms: event.durationMs ?? 0,
-    // ClickHouse Decimal(12,2) takes a string; minor units are integers, so this is exact.
-    value: ((event.valueMinor ?? 0) / 100).toFixed(2),
-    currency: event.currency ?? '',
-    ar_supported: event.arSupported ?? 0,
+    tenantId: ctx.tenantId,
+    eventType: event.type,
+    productId: ctx.productId,
+    sessionId: ctx.sessionId,
+    // The edge's clock, walked back by the event's place in its batch. The browser's own clock
+    // is never stored: it is a foreign number that can be wrong by hours or by design.
+    occurredAt: new Date(ctx.receivedAt.getTime() - offsetFromSend),
+    deviceType: ctx.deviceType ?? 'unknown',
+    os: ctx.os ?? null,
+    browser: ctx.browser ?? null,
+    country: ctx.country ?? null,
+    region: ctx.region ?? null,
+    referrerHost: ctx.referrerHost ?? null,
+    arSupported: event.arSupported ?? 0,
+    durationMs: event.durationMs ?? null,
+    // Minor units all the way to the column (bigint), as everywhere else in this codebase.
+    valueMinor: event.valueMinor ?? null,
+    currency: event.currency ?? null,
     properties: event.properties ?? {},
   };
 }

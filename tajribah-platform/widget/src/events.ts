@@ -18,7 +18,12 @@
 
 export const EVENT_SCHEMA_VERSION = 1;
 
-/** Exactly the event types the ClickHouse `events` table declares (§7.10). */
+/**
+ * What the widget can send. The store's `event_type` column (`db/schema/analytics.ts`) holds
+ * two more — `ar_close` and `tryon_share` — which nothing observes yet; a column waiting for
+ * an event is harmless, a widget inventing one the column cannot hold is not, and
+ * `lib/contracts/analytics.ts` makes the compiler keep that direction.
+ */
 export const EVENT_TYPES = [
   'product_view',
   'ar_open',

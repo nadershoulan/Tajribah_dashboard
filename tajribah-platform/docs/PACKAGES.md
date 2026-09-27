@@ -202,7 +202,7 @@ As in the plan's Appendix A, unchanged: P3 3D pipeline (12) ·
 P5 Try-on (14) · P6 AI + connectors (16) · P7 Scale (13) ·
 P8 Enterprise (12) · Track A Admin (15). Track M has its own table above.
 
-**P7.7 security hardening ◐** (2026-09-27) — code-level, so not held by P7's "do not start early". Done: security headers on every response (`server/core/http/security-headers.ts`, `next.config.ts`); `/api/auth/refresh` limited per session (§13.6). Audited sound: auth limits and lockout, webhook signatures, install-check SSRF rules, upload sizes, CSRF surface, no-store, error bodies. Open: full script/style CSP; `form-action` re-check with the P3 checkout; DNS rebinding on the install checker.
+**P7.7 security hardening ◐** (2026-09-27) — code-level, so not held by P7's "do not start early". Done: security headers on every response (`server/core/http/security-headers.ts`, `next.config.ts`); `/api/auth/refresh` limited per session (§13.6). Audited sound: auth limits and lockout, webhook signatures, install-check SSRF rules, upload sizes, CSRF surface, no-store, error bodies. Then the full page CSP: `proxy.ts`, a nonce per page, no inline or eval for scripts, checked in a real browser on a production build. Open: `form-action` re-check with the P3 checkout; DNS rebinding on the install checker; an independent review for the P7 gate.
 
 **Track P5 note:** the try-on engine already exists and is proven in
 `../tajribah-try-on`. It is lifted, not rewritten — see that repo's `CLAUDE.md`.

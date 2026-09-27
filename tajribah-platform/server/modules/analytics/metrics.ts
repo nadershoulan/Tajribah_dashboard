@@ -41,6 +41,21 @@ export function upliftOf(t: ConversionTotals): number | null {
   return Math.round((withAr - without) * 1000) / 1000;
 }
 
+/**
+ * P4.6 — could the gap be chance? A two-proportion z-test on the pooled rate, at the usual 95%
+ * (|z| ≥ 1.96). Null when there is no uplift to judge (the sample rule above).
+ */
+export function verdictOf(t: ConversionTotals): 'likely-real' | 'could-be-chance' | null {
+  if (upliftOf(t) === null) return null;
+  const n1 = t.sessionsWithAr;
+  const n2 = t.sessionsWithoutAr;
+  const pooled = (t.purchasesWithAr + t.purchasesWithoutAr) / (n1 + n2);
+  const se = Math.sqrt(pooled * (1 - pooled) * (1 / n1 + 1 / n2));
+  if (se === 0) return 'could-be-chance'; // no purchases at all on either side: nothing to tell apart
+  const z = (t.purchasesWithAr / n1 - t.purchasesWithoutAr / n2) / se;
+  return Math.abs(z) >= 1.96 ? 'likely-real' : 'could-be-chance';
+}
+
 const addConversion = (a: ConversionTotals, r: ConversionTotals): ConversionTotals => ({
   sessionsWithAr: a.sessionsWithAr + r.sessionsWithAr, purchasesWithAr: a.purchasesWithAr + r.purchasesWithAr,
   sessionsWithoutAr: a.sessionsWithoutAr + r.sessionsWithoutAr, purchasesWithoutAr: a.purchasesWithoutAr + r.purchasesWithoutAr,
@@ -111,6 +126,12 @@ export async function analyticsView(ctx: TenantContext, range: Range, now = new 
     topProducts: top.map(([productId, p]) => ({
       productId, name: names.get(productId) ?? '—', views: p.views, arSessions: p.arSessions, purchases: p.purchases, upliftPct: upliftOf(p.conversion),
     })),
+    conversion: {
+      withAr: { sessions: conversion.sessionsWithAr, purchases: conversion.purchasesWithAr },
+      withoutAr: { sessions: conversion.sessionsWithoutAr, purchases: conversion.purchasesWithoutAr },
+      upliftPct: totals.upliftPct,
+      verdict: verdictOf(conversion),
+    },
     funnel: [
       { step: { ar: 'مشاهدة المنتج', en: 'Product view' }, value: totals.views },
       { step: { ar: 'فتح العرض', en: 'AR opened' }, value: totals.arSessions },

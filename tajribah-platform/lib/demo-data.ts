@@ -258,6 +258,13 @@ export const DEMO_ANALYTICS: AnalyticsView = {
     purchases: Math.round(p.arSessions30 * 0.05),
     upliftPct: i < 3 ? [0.082, 0.064, 0.031][i] : null,
   })),
+  // The demo's uplift (0.069) as two groups: 9.3% of 2,622 with AR, 2.4% of 5,235 without.
+  conversion: {
+    withAr: { sessions: 2622, purchases: 244 },
+    withoutAr: { sessions: 5235, purchases: 127 },
+    upliftPct: TOTALS.upliftPct,
+    verdict: 'likely-real',
+  },
   funnel: [
     { step: { ar: 'مشاهدة المنتج', en: 'Product view' }, value: TOTALS.views },
     { step: { ar: 'فتح العرض', en: 'AR opened' }, value: TOTALS.arSessions },

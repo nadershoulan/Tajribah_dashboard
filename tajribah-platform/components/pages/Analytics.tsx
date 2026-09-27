@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Download, Info, Smartphone } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 import { useData, useResource } from '@/lib/data';
+import type { AnalyticsView } from '@/lib/view-models';
 import { currentStore } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
 import { ROLE_PERMISSIONS } from '@/lib/permissions';
@@ -128,6 +129,8 @@ export default function Analytics() {
                 />
               </Panel>
 
+              <UpliftPanel conversion={data.conversion} />
+
               <Panel
                 title={t('من المشاهدة إلى الشراء', 'From view to purchase')}
                 sub={t('كل خطوة بالنسبة لعدد من وصلها', 'Each step, against how many reached it')}
@@ -212,5 +215,43 @@ export default function Analytics() {
         </>
       )}
     </Shell>
+  );
+}
+
+/**
+ * P4.6 — the uplift with what it rests on: both groups, their sizes, whether the gap could be
+ * chance, and the caveat a merchant needs before quoting it.
+ */
+function UpliftPanel({ conversion }: { conversion: AnalyticsView['conversion'] }) {
+  const { t, lang } = useLang();
+  const rate = (g: { sessions: number; purchases: number }) => (g.sessions ? formatPercent(g.purchases / g.sessions, lang) : '—');
+  const verdict = conversion.verdict === 'likely-real'
+    ? t('الفرق أكبر من أن يكون صدفة (بثقة 95%).', 'The gap is too large to be chance (95% confidence).')
+    : conversion.verdict === 'could-be-chance'
+      ? t('قد يكون الفرق صدفة — انتظر بيانات أكثر قبل الاعتماد عليه.', 'The gap could still be chance — wait for more data before relying on it.')
+      : t('لا نعرض رقمًا حتى يبلغ كل من الفريقين 100 جلسة.', 'No figure until both groups reach 100 sessions.');
+  return (
+    <Panel title={t('من جرّب مقابل من لم يجرّب', 'Tried versus did not')} sub={t('نسبة الشراء في كل فريق، على المنتجات نفسها وفي الفترة نفسها', 'Purchase rate in each group, same products, same period')}>
+      <div className="grid grid-2">
+        <div>
+          <p className="stat-label">{t('فتحوا العرض', 'Opened AR')}</p>
+          <div className="stat-value">{rate(conversion.withAr)}</div>
+          <div className="stat-sub">{t(`${formatNumber(conversion.withAr.purchases, lang)} شراء من ${formatNumber(conversion.withAr.sessions, lang)} جلسة`, `${formatNumber(conversion.withAr.purchases, lang)} purchases from ${formatNumber(conversion.withAr.sessions, lang)} sessions`)}</div>
+        </div>
+        <div>
+          <p className="stat-label">{t('لم يفتحوه', 'Did not')}</p>
+          <div className="stat-value">{rate(conversion.withoutAr)}</div>
+          <div className="stat-sub">{t(`${formatNumber(conversion.withoutAr.purchases, lang)} شراء من ${formatNumber(conversion.withoutAr.sessions, lang)} جلسة`, `${formatNumber(conversion.withoutAr.purchases, lang)} purchases from ${formatNumber(conversion.withoutAr.sessions, lang)} sessions`)}</div>
+        </div>
+      </div>
+      <p style={{ margin: '14px 0 0' }}>
+        {conversion.upliftPct != null && <strong>{t('الفرق: ', 'Difference: ')}{formatPoints(conversion.upliftPct, lang)}. </strong>}
+        {verdict}
+      </p>
+      <p className="hint" style={{ margin: '8px 0 0' }}>
+        {t('تنبيه: من يختار تجربة المنتج قد يكون أكثر اهتمامًا به من البداية. هذه مقارنة، لا دليل على أن العرض وحده سبب الشراء.',
+          'Note: shoppers who choose to try a product may have been more interested to begin with. This is a comparison, not proof that AR alone caused the purchase.')}
+      </p>
+    </Panel>
   );
 }

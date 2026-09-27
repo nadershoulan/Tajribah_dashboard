@@ -110,6 +110,9 @@ export function riyadhDay(value: Date | number | string = new Date()): string {
  */
 export function formatPoints(fraction: number, lang: Lang = 'ar'): string {
   const points = Math.round(fraction * 1000) / 10;
-  const sign = points > 0 ? '+' : points < 0 ? '−' : '';
-  return `${sign}${Math.abs(points).toFixed(1)} ${lang === 'ar' ? 'نقطة' : 'pts'}`;
+  const sign = points > 0 ? '+' : points < 0 ? '\u2212' : '';
+  const figure = `${sign}${Math.abs(points).toFixed(1)}`;
+  // In Arabic the signed figure is isolated left-to-right (U+2066…U+2069), or the sign drifts to
+  // the other side of the number ("6.9+").
+  return lang === 'ar' ? `\u2066${figure}\u2069 نقطة` : `${figure} pts`;
 }

@@ -11,7 +11,7 @@ import { uuidv7 } from '@/lib/ids';
 import { buildTenantContext } from '@/server/core/tenancy/context';
 import { setLogLevel } from '@/server/core/observability/log';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
-import { MIN_SESSIONS, analyticsCsv, analyticsView, daysOf, upliftOf } from '@/server/modules/analytics/metrics';
+import { MIN_SESSIONS, analyticsCsv, analyticsView, daysOf, upliftOf, verdictOf } from '@/server/modules/analytics/metrics';
 import { dashboardSummary } from '@/server/modules/dashboard/service';
 import { formatPoints } from '@/lib/format';
 
@@ -85,6 +85,9 @@ test('the view: the range’s days (empty ones zero), totals inside the range on
       [ids[2], 'Quiet one', 0, null],
     ]);
     assert.deepEqual(view.funnel.map((f) => f.value), [150, 40, 15, 11, 5]);
+    assert.deepEqual(view.conversion, {
+      withAr: { sessions: 210, purchases: 21 }, withoutAr: { sessions: 1040, purchases: 51 }, upliftPct: 0.051, verdict: 'likely-real',
+    }, 'z ≈ 2.9: the gap is not chance');
 
     const quarter = await analyticsView(ctx, '90d', NOW);
     assert.equal(quarter.totals.views, 150 + 999, 'the 21st is inside 90 days');
@@ -95,7 +98,7 @@ test('formatPoints: points, not percent, and the sign is always written', () => 
   assert.equal(formatPoints(0.051, 'en'), '+5.1 pts');
   assert.equal(formatPoints(-0.02, 'en'), '−2.0 pts', 'a worse result reads as worse');
   assert.equal(formatPoints(0, 'en'), '0.0 pts');
-  assert.equal(formatPoints(0.051, 'ar'), '+5.1 نقطة', 'ASCII digits in Arabic too');
+  assert.equal(formatPoints(0.051, 'ar'), '⁦+5.1⁩ نقطة', 'ASCII digits in Arabic, the sign kept beside its number');
 });
 
 test('the home screen’s uplift follows the same rule over 30 days', async () => {
@@ -132,4 +135,12 @@ test('the CSV: one row per day, empty days as zero, riyals with two decimals; vi
     await assert.rejects(() => analyticsCsv(viewer, '7d', NOW), (e: any) => e.code === 'forbidden');
     assert.equal((await analyticsView(viewer, '7d', NOW)).totals.views, 150, 'but can read the screen');
   } finally { await harness.close(); }
+});
+
+test('verdictOf: a clear gap is real, a small one on 100 sessions could be chance, no verdict without an uplift', () => {
+  assert.equal(verdictOf({ sessionsWithAr: 1000, purchasesWithAr: 100, sessionsWithoutAr: 1000, purchasesWithoutAr: 50 }), 'likely-real');
+  assert.equal(verdictOf({ sessionsWithAr: 100, purchasesWithAr: 6, sessionsWithoutAr: 100, purchasesWithoutAr: 4 }), 'could-be-chance', '6% vs 4% on 100 each');
+  assert.equal(verdictOf({ sessionsWithAr: 1000, purchasesWithAr: 40, sessionsWithoutAr: 1000, purchasesWithoutAr: 80 }), 'likely-real', 'a real drop is also real');
+  assert.equal(verdictOf({ sessionsWithAr: 99, purchasesWithAr: 50, sessionsWithoutAr: 1000, purchasesWithoutAr: 1 }), null, 'below the sample rule');
+  assert.equal(verdictOf({ sessionsWithAr: 200, purchasesWithAr: 0, sessionsWithoutAr: 200, purchasesWithoutAr: 0 }), 'could-be-chance', 'no purchases anywhere');
 });

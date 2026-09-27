@@ -225,4 +225,14 @@ export type AnalyticsView = {
   byDevice: { device: 'mobile' | 'tablet' | 'desktop'; sessions: number; arSupported: number }[];
   topProducts: { productId: string; name: string; views: number; arSessions: number; purchases: number; upliftPct: number | null }[];
   funnel: { step: Bi; value: number }[];
+  /**
+   * P4.6 — the two groups behind the uplift, so a merchant can see what it rests on.
+   * `verdict`: whether the gap could be chance (two-proportion test at 95%); null with no uplift.
+   */
+  conversion: {
+    withAr: { sessions: number; purchases: number };
+    withoutAr: { sessions: number; purchases: number };
+    upliftPct: number | null;
+    verdict: 'likely-real' | 'could-be-chance' | null;
+  };
 };

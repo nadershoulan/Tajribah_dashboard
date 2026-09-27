@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageMeta } from '@/lib/seo';
 import { HELP_ARTICLES, helpArticle } from '@/content/help';
 import { HelpArticlePage } from '@/components/pages/Resources';
 
@@ -9,8 +10,9 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const article = helpArticle((await params).slug);
-  return { title: article?.title.ar ?? 'مركز المساعدة', description: article?.summary.ar };
+  const slug = (await params).slug;
+  const article = helpArticle(slug);
+  return pageMeta(`/help/${slug}`, { title: article?.title.ar ?? 'مركز المساعدة', description: article?.summary.ar });
 }
 
 export default async function Page({ params }: Props) {

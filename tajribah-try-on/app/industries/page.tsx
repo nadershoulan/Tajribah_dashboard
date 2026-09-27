@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { TITLES } from '@/lib/site';
+import { pageMeta } from '@/lib/seo';
 import { IndustriesIndex } from '@/components/pages/Industries';
 
-export const metadata: Metadata = { title: TITLES['/industries'].ar };
+export const metadata: Metadata = pageMeta('/industries');
 
 export default function Page() {
   return <IndustriesIndex />;

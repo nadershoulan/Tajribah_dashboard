@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageMeta } from '@/lib/seo';
 import { FEATURE_ORDER, featurePage } from '@/content/features';
 import { FeaturePageBySlug } from '@/components/pages/FeatureDetail';
 
@@ -9,8 +10,9 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const page = featurePage((await params).slug);
-  return { title: page?.hero.title.ar ?? 'المزايا', description: page?.hero.lead.ar };
+  const slug = (await params).slug;
+  const page = featurePage(slug);
+  return pageMeta(`/features/${slug}`, { title: page?.hero.title.ar ?? 'المزايا', description: page?.hero.lead.ar });
 }
 
 export default async function Page({ params }: Props) {

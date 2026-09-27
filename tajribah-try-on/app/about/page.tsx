@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { TITLES } from '@/lib/site';
+import { pageMeta } from '@/lib/seo';
 import About from '@/components/pages/About';
 
-export const metadata: Metadata = { title: TITLES['/about'].ar };
+export const metadata: Metadata = pageMeta('/about');
 
 export default function Page() {
   return <About />;

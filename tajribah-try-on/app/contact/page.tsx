@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { TITLES } from '@/lib/site';
+import { pageMeta } from '@/lib/seo';
 import Contact from '@/components/pages/Contact';
 
-export const metadata: Metadata = { title: TITLES['/contact'].ar };
+export const metadata: Metadata = pageMeta('/contact');
 
 export default function Page() {
   return <Contact />;

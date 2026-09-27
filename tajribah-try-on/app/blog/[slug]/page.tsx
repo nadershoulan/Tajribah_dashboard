@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageMeta } from '@/lib/seo';
 import { BLOG_POSTS, blogPost } from '@/content/blog';
 import { BlogPostPage } from '@/components/pages/Resources';
 import { COMPANY } from '@/lib/site';
@@ -10,8 +11,9 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const post = blogPost((await params).slug);
-  return { title: post?.title.ar ?? 'المدونة', description: post?.excerpt.ar };
+  const slug = (await params).slug;
+  const post = blogPost(slug);
+  return pageMeta(`/blog/${slug}`, { title: post?.title.ar ?? 'المدونة', description: post?.excerpt.ar });
 }
 
 export default async function Page({ params }: Props) {

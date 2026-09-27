@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { TITLES } from '@/lib/site';
+import { pageMeta } from '@/lib/seo';
 import { SallaPage } from '@/components/pages/PlatformLanding';
 
-export const metadata: Metadata = { title: TITLES['/salla'].ar };
+export const metadata: Metadata = pageMeta('/salla');
 
 export default function Page() {
   return <SallaPage />;

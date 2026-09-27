@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { TITLES } from '@/lib/site';
+import { pageMeta } from '@/lib/seo';
 import { PrivacyPage } from '@/components/pages/Legal';
 
-export const metadata: Metadata = { title: TITLES['/privacy'].ar };
+export const metadata: Metadata = pageMeta('/privacy');
 
 export default function Page() {
   return <PrivacyPage />;

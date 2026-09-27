@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { TITLES } from '@/lib/site';
+import { pageMeta } from '@/lib/seo';
 import { HelpIndex } from '@/components/pages/Resources';
 
-export const metadata: Metadata = { title: TITLES['/help'].ar };
+export const metadata: Metadata = pageMeta('/help');
 
 export default function Page() {
   return <HelpIndex />;

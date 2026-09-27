@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pageMeta } from '@/lib/seo';
 import { INDUSTRY_ORDER, industry } from '@/content/industries';
 import { IndustryPageBySlug } from '@/components/pages/Industries';
 
@@ -9,8 +10,9 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const page = industry((await params).slug);
-  return { title: page?.hero.title.ar ?? 'الحلول', description: page?.hero.lead.ar };
+  const slug = (await params).slug;
+  const page = industry(slug);
+  return pageMeta(`/industries/${slug}`, { title: page?.hero.title.ar ?? 'الحلول', description: page?.hero.lead.ar });
 }
 
 export default async function Page({ params }: Props) {

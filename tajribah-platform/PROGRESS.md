@@ -1,25 +1,25 @@
 # Tajribah — where the build is
 
-_Last updated: 2026-09-26 · updated at the end of every work session_
+_Last updated: 2026-09-27 · updated after every package_
 
-> **Now:** **P1 has started** (your call, 2026-09-23) — only the parts that need no account. Done so far: the onboarding checklist, the real product catalogue, the store-connection plumbing, the sync engine, receiving webhooks from the store, uploading 3D models, and shrinking them for phones.
-> **Next:** every P1 piece that needs no account is now built (the last one, two-step sign-in, on 2026-09-26). The rest waits on the Salla Partner account, Cloudflare, the domain — and one decision from you (P1.13b below).
-> **P0:** code gate passed; the rest waits on you — see below. [Gate report](docs/gates/P0.md)
-> **Waiting on you:** a **Hetzner server** for the database (your choice), and the accounts below.
+> **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
+> **Just finished (2026-09-27):** security hardening — the dashboard can't be shown inside other sites, only runs its own scripts, and sign-in sessions can't be hammered · 3D-generation job tracking — charged once, progress you can watch, cancel any time (credits back only if it hadn't started, as you decided).
+> **Next:** P3.3 — taking in product photos and checking their quality before a 3D model is generated (no account needed).
+> **Waiting on you:** the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
 
 ```
 P0 Foundation     ████████████████████████████░░░░  19 / 22   (+ P0.20 mostly done, 2 blocked)
-P1 Core loop      ████████████████████████░░░░░░░░  20 / 26   ← first sellable product (started)
-P2 Billing        █████████████░░░░░░░░░░░░░░░░░░░   6 / 15   ← started 2026-09-26 (parts needing no account)
-P3 3D pipeline    ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   1 / 12   ← started 2026-09-27 (job tracking only)
-P4 Analytics      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
+P1 Core loop      █████████████████████████░░░░░░░  20 / 26   ← first sellable product · the rest needs Salla / Cloudflare / domain
+P2 Billing        █████████████░░░░░░░░░░░░░░░░░░░   6 / 15   (+ 3 partly) · the rest needs Moyasar / ZATCA
+P3 3D pipeline    ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   1 / 12   ← NOW · job tracking done; photo intake & checks next
+P4 Analytics      ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ CSV export partly) · shared with the other session
 P5 Try-on         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 14   (engine already exists in tajribah-try-on)
 P6 AI+connectors  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 16
-P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ P7.7 security partly done)
+P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ P7.7 security: all code-level work done)
 P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
-M  Marketing      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12   (separate site in tajribah-try-on)
-A  Admin console  ███████████████████████░░░░░░░░░  11 / 15   ← started 2026-09-26
-                                            overall  38 / 168
+M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
+A  Admin console  ███████████████████████░░░░░░░░░  11 / 15   (+ A7 partly) · the rest needs Moyasar / P3
+                                            overall  70 / 169
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -124,9 +124,52 @@ wait for those accounts.
 | ◐ | P2.10 Billing screen | The billing screen now shows the store's real plan, prices, AI credits and invoices. Every button works: choosing a plan opens a checkout with monthly or yearly billing (showing the yearly saving), the VAT and the total — priced exactly as the invoice will be. The last step, paying, stays closed with a clear note until the payment gateway (Moyasar) is connected; nothing is charged. Some text promised things that don't exist yet (ZATCA QR, PDF download) — now it only says what is true |
 | ✅ | P2.11 When a trial ends | Found a real gap: nothing actually stopped a store after its free trial ran out. Now, when a trial ends without a plan (or a subscription is cancelled), the store becomes read-only everywhere at once — every change is refused with a clear reason, nothing is deleted — while choosing a plan, fixing business details and reading everything still work. A banner says what happened, when, and links to choose a plan. Owners and admins get a reminder 3 days before, on the last day and when it ends, in the dashboard and by email, once each |
 | ✅ | P2.9 AI credits | Each store's AI credits are now kept as a running list of entries that can only be added to, never edited — so any question about a balance can be answered by reading the list. Each month the plan's credits arrive (Starter 5, Growth 40, Pro 200); what isn't used by month-end lapses, while credits a store buys never expire, and the plan's are used first. A job that is retried is charged once, a payment delivered twice is credited once, a failed job is refunded once, and nobody can spend more than they have. Support corrections need a written reason and are logged. The 3D generation and payments that will use this come later |
-| ✅ | P2.6 Invoices | Tajribah's invoices now exist: issued by **SRO Company** (your CR 7033242079) to the store, numbered in order with no gaps for each store and year, VAT 15% worked out per line so every figure adds up, and each invoice frozen as issued — if the store later renames itself, old invoices don't change. The invoice page shows everything in Arabic and English side by side, with Gregorian and Hijri dates, and prints or saves as PDF. **One thing missing: SRO Company's own VAT number.** The number on the bank letter belongs to the bank, so it isn't used — until you send SRO's, no invoice can be issued. The ZATCA QR comes with e-invoicing (needs the ZATCA account) |
+| ✅ | P2.6 Invoices | Tajribah's invoices now exist: issued by **SRO Company** (your CR 7033242079) to the store, numbered in order with no gaps for each store and year, VAT 15% worked out per line so every figure adds up, and each invoice frozen as issued — if the store later renames itself, old invoices don't change. The invoice page shows everything in Arabic and English side by side, with Gregorian and Hijri dates, and prints or saves as PDF. SRO Company's VAT number (314550511700003, VAT from 2026-02-01) and national address are now on every invoice. The ZATCA QR comes with e-invoicing (needs the ZATCA account) |
 | ✅ | P2.2 Counting what each store uses | Each number a plan limits is counted from one place that cannot double-count: storage is what the store actually holds now (a refused or abandoned upload no longer counts), AR sessions come from the daily analytics for this month, and bandwidth is recorded as a daily total that is replaced, never added to, if it is reported twice. Uploads are now refused up front when the plan's storage is full, with the limit named. The home screen shows exactly the numbers the limits check — it had been showing a smaller product count than the limit used, and on the 31st of a month it forgot the 1st. A storage meter was added. Still to come: deleting a model to free space |
 | ✅ | P2.1 Plans in the database | The four plans (Starter, Growth, Pro, Enterprise) — prices, limits and what each includes — now live in the database, copied exactly from the pricing list and checked by a test. Every limit (products, team size…) is read from there, so a limit changed in the database applies at once, without a new release; the admin console will edit them later. Before this, a real database had no plans at all, so no store could ever have been subscribed. If something is missing from a plan, the answer is "no", never "unlimited". Enterprise shows no price instead of 0 |
+
+## Track M — the website (in tajribah-try-on)
+
+The public site that sells Tajribah, Arabic first.
+
+| | Package | In plain words |
+|---|---|---|
+| ✅ | M2 Home & core pages | Home, features, how it works, integrations, about, contact |
+| ✅ | M3 Pricing | The four plans with a monthly / yearly switch (a year costs ten months) and a calculator that shows when a plan pays for itself on the visitor's own numbers — we publish no uplift claims of our own |
+| ✅ | M4 Salla & Zid pages | A landing page for each platform |
+| ✅ | M5 Feature pages | One page per way to try — on the model, on your photo, true size, phone hand-off — each saying plainly what it does not do |
+| ✅ | M6 Industry pages | Watches, jewellery, eyewear, bags — what works today and what is not built yet |
+| ✅ | M7 Blog | 6 articles, no invented statistics |
+| ✅ | M8 Help centre | 15 articles written against the real dashboard |
+| ✅ | M10 Company & careers | About and careers pages |
+| ✅ | M11 Legal pages | Privacy, terms, refunds, cookies — need a lawyer's review before launch |
+| ◐ | M1 Site setup | Built; the cookie consent and site analytics wait on which analytics tool you choose |
+| ◐ | M9 Customer stories | The page exists, with its stories clearly marked as examples; real ones need real customers |
+| ◐ | M12 Search engines | Sitemap, page titles and share cards done; the rest needs the domain |
+
+## P4 — analytics (started 2026-09-27, shared with the other session)
+
+| | Package | In plain words |
+|---|---|---|
+| ✅ | P4.1 Counting on the shop page | The storefront script counts product views, try-on taps, baskets and purchases — no cookies, nothing that identifies a shopper, silent for anyone who asked not to be tracked. Fixed the same day: a browser rule would have made it lose every event on a real shop; now proven working across sites |
+| ✅ | P4.4 The numbers behind the screen | The dashboard reads daily totals only, and shows the try-on uplift only when there are at least 100 sessions on each side |
+| ✅ | P4.5 Analytics screen | The analytics screen on real numbers, in Arabic and English, with a note when there is no data yet |
+| ✅ | P4.6 Does try-on sell more? | Shoppers who tried on and those who didn't, side by side, and whether the difference could just be chance |
+| ◐ | P4.8 Exports | Download the daily figures as a spreadsheet file — done. Weekly emails wait on live email sending |
+| ⬜ | P4.2 / P4.3 Receiving and adding up events | The other session's part; planned in detail, waiting on its go-ahead |
+
+## P3 — 3D models from photos (started 2026-09-27)
+
+| | Package | In plain words |
+|---|---|---|
+| ✅ | P3.2 Job tracking | When a merchant asks for a 3D model, the job is charged once, shows its progress (never going backwards), and can be cancelled at any time — credits come back if it hadn't started, and are kept once the provider is working (your decision). It is stopped and refunded automatically if it ever gets stuck, and refunded if it fails. The merchant sees a clear message if it fails, never the provider's technical error. **Nothing generates a model yet** — that needs a 3D provider account |
+| ⏳ | P3.3 Photo intake & checks | Next: uploading the product photos and checking them before any credits are spent |
+
+## P7 — hardening
+
+| | Package | In plain words |
+|---|---|---|
+| ◐ | P7.7 Security | The dashboard can no longer be shown inside another website, only runs the code we send with it (a script slipped into a page is refused by the browser), always uses a secure connection, and sign-in sessions can't be refreshed in a tight loop. A review of sign-in, store webhooks, uploads and the install checker found them already sound. Left: a check when payments arrive, and an outside security review before launch |
 
 ---
 
@@ -142,7 +185,7 @@ wait for those accounts.
 | ⬜ | Moyasar merchant account | Billing (P2) |
 | ⬜ | ZATCA Fatoora onboarding | E-invoicing (P2) |
 | ⬜ | Unifonic (SMS / WhatsApp) | Real phone OTP |
-| ⬜ | 3D generation API (Meshy / Tripo3D / CSM) | P3 |
+| ⬜ | 3D generation API (Meshy / Tripo3D / CSM) | Generating models from photos (P3.4 onwards) |
 | ⬜ | **Hetzner server** (for Postgres) | Real sign-in, staging, anything saved outside tests |
 
 Before paying for any of them: check the name **Tajribah** is free (`.com`, `.sa`, Salla and
@@ -158,7 +201,9 @@ Zid app names, Saudi trademark search).
 
 **Decided 2026-09-26:** when a plan's price or limits change, existing subscribers **move to the new terms** (no grandfathering).
 
-**Needed from you:** SRO Company's **own VAT number** (15 digits, starts and ends with 3) and its **national address**. The VAT number on the SNB letter (300002471110003) is the bank's. If SRO is not VAT-registered yet, say so — then invoices carry no VAT.
+**Received 2026-09-27:** SRO Company's VAT certificate and national address — on every invoice now.
+
+**Decided 2026-09-27 (T24):** cancelling a 3D generation that is already running **keeps its charge**; before it starts, the credits come back.
 
 **This machine:** the app now runs here using a temporary Node 22 (your installed Node 20
 is untouched). Installing Node 22 properly would make that permanent — optional.
@@ -234,3 +279,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-27 | Security: the dashboard can no longer be shown inside another website (a trick used to make people click things they cannot see), browsers are told to always use a secure connection, and signing-in sessions can no longer be refreshed in a tight loop | 449 pass / 0 fail, and the new headers seen on the running app |
 | 2026-09-27 | Security: every dashboard page now only runs the code we sent with it. If someone slips a script into a page (for example through a product name), the browser refuses to run it | 452 pass / 0 fail; checked in a real browser, including a script planted on purpose and blocked |
 | 2026-09-27 | 3D generation, the part that needs no provider: a generation job is charged once, shows its progress, can be cancelled at any time with your credits returned, and is stopped and refunded if it ever gets stuck. One choice for you: when you cancel a job that is already running, this build returns all your credits and Tajribah pays the provider (decision T24) | 461 pass / 0 fail |
+| 2026-09-27 | Your decision applied: cancelling a 3D generation that is already running keeps its charge. This page brought up to date — the top had not changed since the 26th | 3D job tests 9 / 9 |

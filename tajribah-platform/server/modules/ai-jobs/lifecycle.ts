@@ -13,11 +13,12 @@
  *    that already finished does nothing.
  *  - **Charged once, refunded once.** Credits are consumed against the job's id (the ledger's
  *    unique reference, P2.9) when it is dispatched, and given back against the same id when it
- *    fails or is cancelled. A job refused for credits never runs.
- *  - **Cancelling is immediate for the merchant.** The status flips at once and the credits come
- *    back (T24). A worker mid-way learns it at its next progress report and stops; if it finishes
- *    anyway, its result is thrown away — but what it cost us is still recorded, because
- *    `actual_cost_cents` is how we learn whether a plan pays (§7.8).
+ *    fails, or is cancelled before it starts. A job refused for credits never runs.
+ *  - **Cancelling is immediate for the merchant** (T24, Nader's): the status flips at once. Before
+ *    the job starts, the credits come back; once the provider is working, they are kept — the
+ *    work was paid for. A worker mid-way learns of the cancel at its next progress report and
+ *    stops; if it finishes anyway, its result is thrown away — but what it cost us is still
+ *    recorded, because `actual_cost_cents` is how we learn whether a plan pays (§7.8).
  *  - **The merchant never sees a provider's error text.** `error_message` keeps it for staff;
  *    the merchant gets the code's own wording (`lib/ai-jobs.ts`).
  */
@@ -174,26 +175,30 @@ export async function dispatch(ctx: TenantContext, job: AiJob): Promise<AiJob> {
 }
 
 /**
- * Cancel a job that has not ended. Immediate: the status, then the credits back. Cancelling a
- * job that already ended is a 409 naming how it ended — never a silent success.
+ * Cancel a job that has not ended. Immediate; credits back only if it had not started (T24).
+ * Tried as two conditional updates — `queued` first — so the refund follows the state the job
+ * was really in, even if a worker picks it up at the same moment. Cancelling a job that already
+ * ended is a 409 naming how it ended — never a silent success.
  */
 export async function cancelAiJob(ctx: TenantContext, jobId: string): Promise<AiJobView> {
   const found = await withTenant(ctx.tenantId, (db) => db.findById(aiJobs, jobId));
   if (!found) throw errors.notFound('ai_job');
   ctx.require(AI_JOB_ROUTES[found.type].permission);
 
-  const cancelled = await withTenant(ctx.tenantId, async (db) => {
-    const row = await transition(db, jobId, ['queued', 'processing'], { status: 'cancelled', finishedAt: new Date() });
-    if (!row) return null;
-    await event(db, jobId, 'cancelled', { was: found.status, by: ctx.actor.userId ?? null });
-    await record(ctx, { action: 'update', resourceType: 'ai_job', resourceId: jobId, before: { status: found.status } as never, after: { status: 'cancelled' } as never }, db);
-    return row;
+  const was = await withTenant(ctx.tenantId, async (db) => {
+    const values = { status: 'cancelled' as const, finishedAt: new Date() };
+    const from = (await transition(db, jobId, ['queued'], values)) ? 'queued'
+      : (await transition(db, jobId, ['processing'], values)) ? 'processing' : null;
+    if (!from) return null;
+    await event(db, jobId, 'cancelled', { was: from, by: ctx.actor.userId ?? null });
+    await record(ctx, { action: 'update', resourceType: 'ai_job', resourceId: jobId, before: { status: from } as never, after: { status: 'cancelled' } as never }, db);
+    return from;
   });
-  if (!cancelled) {
+  if (!was) {
     const now = await withTenant(ctx.tenantId, (db) => db.requireById(aiJobs, jobId));
     throw errors.conflict(`the job has already ended: ${now.status}`);
   }
-  await giveBack(ctx, jobId);
+  if (was === 'queued') await giveBack(ctx, jobId);
   return aiJobView(ctx, jobId);
 }
 

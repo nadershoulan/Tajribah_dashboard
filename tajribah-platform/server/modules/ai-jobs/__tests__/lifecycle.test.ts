@@ -134,7 +134,7 @@ test('cancel before it starts: immediate, credits back once, the worker then doe
   } finally { await harness.close(); }
 });
 
-test('cancel mid-run: the next report says stop; a result that arrives anyway is thrown away, its cost still recorded', async () => {
+test('cancel mid-run: the next report says stop; a late result is thrown away, its cost recorded, and the credits kept (T24)', async () => {
   fresh();
   const harness = await createTestDb();
   try {
@@ -155,7 +155,9 @@ test('cancel mid-run: the next report says stop; a result that arrives anyway is
     assert.deepEqual([row.status, row.output, row.actualCostCents], ['cancelled', null, 37]);
     const events = await eventsOf(harness, job.id);
     assert.ok(events.includes('result_discarded') && !events.includes('done'));
-    assert.deepEqual(await ledger(harness, tenantId), ['consumption:-2', 'refund:2'], 'refunded once (T24)');
+    assert.deepEqual(await ledger(harness, tenantId), ['consumption:-2'], 'the provider was already working: charged, not refunded (T24)');
+    const seen = await aiJobView(ctx, job.id);
+    assert.deepEqual([seen.status, seen.refunded], ['cancelled', false]);
   } finally { await harness.close(); }
 });
 

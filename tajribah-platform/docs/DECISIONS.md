@@ -568,3 +568,18 @@ at most 5 stores a day. A staff member's read-only view of a store cannot add on
 
 **Rollback path.** Remove `POST /api/auth/stores` and the form; `createTrialStore` stays as
 sign-up's helper.
+
+## T31 · 2026-09-28 · The studio draws once its first view's pictures are in
+
+**Decision (Nader's, 2026-09-28: "Yes, load them when picked").** The studio used to wait for all
+seven of its pictures before drawing. It now loads the wrist photo and the watch first and draws;
+the lifestyle photo, the flat product shot and the reference objects load right after (not only
+on the tap, so they are usually in before a shopper picks them — if not, that view shows the
+studio's own loader until they are). Once loaded, every view renders exactly as before — checked
+to the byte. The embed page preloads only the first two.
+
+**What it bought, measured:** on a slow network the watch is on screen ~0.4 s sooner; on a good
+one, no change — there the wait is the page's code starting on the phone.
+
+**Rollback path.** The image effect and the `assetsReady` line in `Studio.tsx`, and
+`studioImages` in `lib/tryon-config.ts`.

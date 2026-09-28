@@ -67,7 +67,10 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
   const [pairBusy, setPairBusy] = useState(false);
   const [pairError, setPairError] = useState('');
   const [notice, setNotice] = useState('');
-  const [assetsReady, setAssetsReady] = useState(false);
+  const [loaded, setLoaded] = useState<ReadonlySet<string>>(() => new Set());
+  // Ready = the pictures this view draws are in (T31: they arrive in two steps).
+  const needed = mode === 'model' ? [model ? 'lifestyle' : 'wrist', 'watch'] : mode === 'compare' ? ['flat', ref] : ['watch'];
+  const assetsReady = needed.every((key) => loaded.has(key));
   const [assetError, setAssetError] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [isPhone, setIsPhone] = useState(false);
@@ -89,16 +92,19 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
     const id = setTimeout(() => setNotice(''), 6000);
     return () => clearTimeout(id);
   }, [notice]);
+  // The first view needs the wrist photo and the watch; the lifestyle photo, the flat shot and the
+  // reference objects load right after, so a phone draws the watch without waiting for all seven
+  // (Nader, 2026-09-28, T31). A view whose pictures are not in yet shows the loader, as before.
   useEffect(() => {
     let live = true;
-    const paths: Record<string, string> = {
-      wrist: MODELS[0].src, lifestyle: MODELS[1].src,
-      watch: product.worn, flat: product.flat,
-    };
-    for (const id of REF_IDS) paths[id] = REFERENCES[id].src;
-    Promise.all(Object.entries(paths).map(async ([key, url]) => [key, await loadImage(asset(url))] as const))
-      .then((p) => { if (live) { images.current = Object.fromEntries(p); setAssetsReady(true); } })
-      .catch(() => { if (live) setAssetError(true); });
+    const first: Record<string, string> = { wrist: MODELS[0].src, watch: product.worn };
+    const later: Record<string, string> = { lifestyle: MODELS[1].src, flat: product.flat };
+    for (const id of REF_IDS) later[id] = REFERENCES[id].src;
+    const load = (paths: Record<string, string>) => Promise.all(Object.entries(paths).map(async ([key, url]) => {
+      const image = await loadImage(asset(url));
+      if (live) { images.current[key] = image; setLoaded((was) => new Set(was).add(key)); }
+    }));
+    load(first).then(() => load(later)).catch(() => { if (live) setAssetError(true); });
     return () => { live = false; };
   }, [asset, product.worn, product.flat]);
   useEffect(() => () => handDetector.current?.close(), []);

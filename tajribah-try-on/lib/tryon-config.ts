@@ -9,7 +9,7 @@
  * A test on this machine may point at a local config and local pictures; a public page never can.
  */
 import type { Bi } from './lang';
-import { MODELS, REFERENCES, type TryOnProduct } from './demo-product';
+import { MODELS, type TryOnProduct } from './demo-product';
 
 /** Where published configs live (the same host the storefront widget reads). */
 export const CONFIG_BASE = 'https://cfg.tajribah.com/v1';
@@ -74,10 +74,11 @@ export function tryOnProductFrom(config: unknown, local = false): TryOnProduct |
 }
 
 /**
- * Every picture the studio loads before it first draws (it waits for all of them), in the order
- * it asks: the two model photos, the watch as worn and flat, the reference objects. The embed page
- * names them in its HTML so they download alongside the page's scripts, not after.
+ * The pictures the studio's first view draws — the wrist photo and the watch as worn. The embed
+ * page names them in its HTML so they download alongside the page's scripts, not after. The rest
+ * (lifestyle photo, flat shot, reference objects) the studio fetches itself right after its first
+ * draw (T31), so they are not named here: they would only compete with these two.
  */
 export function studioImages(product: TryOnProduct): string[] {
-  return [MODELS[0]!.src, MODELS[1]!.src, product.worn, product.flat, ...Object.values(REFERENCES).map((r) => r.src)];
+  return [MODELS[0]!.src, product.worn];
 }

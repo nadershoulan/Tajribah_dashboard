@@ -92,6 +92,20 @@ export async function keepLive(tenantId: string, productId: string): Promise<voi
   }
 }
 
+/**
+ * T36: how long a file a live config named is kept after it is replaced — the host's cache (60 s),
+ * KV's own propagation (up to about 60 s) and a wide margin. Shoppers holding the older config
+ * must still find its pictures.
+ */
+export const LIVE_GRACE_MS = 10 * 60_000;
+
+/** Whether shoppers may be holding a config for this product right now. */
+export async function isLive(tenantId: string, productId: string): Promise<boolean> {
+  const row = await TenantDb.for(tenantId).findOne(edgeConfigs, and(eq(edgeConfigs.productId, productId), isNotNull(edgeConfigs.key)));
+  // Withdrawn within the grace period counts too: a cached copy may still be out there.
+  return !!row && (!row.withdrawnAt || Date.now() - row.withdrawnAt.getTime() < LIVE_GRACE_MS);
+}
+
 export async function handleEdgeJob(job: Job): Promise<void> {
   if (!job.tenantId) throw new Error(`edge job ${job.id} has no tenant`);
   const productId = (job.payload as { productId?: unknown } | null)?.productId;

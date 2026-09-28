@@ -15,11 +15,15 @@ import { MemoryStorage, setStorage } from '@/server/core/storage/storage';
 import { buildTenantContext } from '@/server/core/tenancy/context';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
 import { listArConfigs, saveArConfig } from '@/server/modules/ar/service';
-import { handleEdgeJob, refreshProduct, refreshStore, publishProduct } from '@/server/modules/edge/publish';
+import { handleEdgeJob, isLive, refreshProduct, refreshStore, publishProduct } from '@/server/modules/edge/publish';
 import { entitlementsOf } from '@/server/core/billing/entitlements';
 import { updateSettings } from '@/server/modules/settings/service';
 import { updateProduct } from '@/server/modules/products/service';
-import { updateTryOn } from '@/server/modules/tryon/service';
+import { confirmCutout, startCutoutUpload, updateTryOn } from '@/server/modules/tryon/service';
+import { handleDeleteLater } from '@/server/modules/tryon/retire';
+import { forTenant } from '@/server/core/storage/storage';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { parseConfig } from '@/widget/src/config';
 import { configUrl } from '@/widget/src/main';
 import { tryOnProductFrom } from '../../../../../tajribah-try-on/lib/tryon-config';
@@ -285,6 +289,45 @@ test('the store’s colours reach every live button through the queue', async ()
     assert.equal(stored(kv, 'theta/sa-1001.json').button.color, '#00A7BC', 'not before the job runs');
     await handleEdgeJob(queued[0]);
     assert.deepEqual([stored(kv, 'theta/sa-1001.json').button.color, stored(kv, 'theta/sa-1001.json').button.radius], ['#0B7A75', 20]);
+  } finally { await harness.close(); }
+});
+
+test('T36: a live watch’s replaced picture is kept for shoppers still holding the old config, then deleted', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, tenantId, kv } = await setup(harness, 'kappa', 'pro');
+    const watch = await product(harness, tenantId, {});
+    const fixture = (name: string) => new Uint8Array(readFileSync(join(process.cwd(), 'server/modules/tryon/__tests__/fixtures', name)));
+    const store = forTenant(tenantId);
+    const upload = async (slot: 'worn' | 'flat', name: string, type = 'image/png') => {
+      const started = await startCutoutUpload(ctx, watch.id, { slot, filename: name, contentType: type, sizeBytes: fixture(name).length });
+      await store.put(started.key, fixture(name).slice().buffer as ArrayBuffer);
+      await confirmCutout(ctx, watch.id, { slot, key: started.key });
+      return started.key;
+    };
+    const first = await upload('worn', 'worn.png');
+    await upload('flat', 'flat.png');
+    await updateTryOn(ctx, watch.id, { caseMm: 38, enabled: true });
+    await publishProduct(ctx, watch.id);
+    assert.match(stored(kv, 'kappa/sa-1001.json').tryon.worn, new RegExp(first + '$'));
+
+    const second = await upload('worn', 'worn.webp', 'image/webp');
+    assert.match(stored(kv, 'kappa/sa-1001.json').tryon.worn, new RegExp(second + '$'), 'the live config names the new picture at once');
+    assert.ok(await store.head(first), 'the old one is still there for cached copies');
+    const [job] = await admin(harness, () => harness.db.select().from(jobs).where(eq(jobs.queue, 'storage.delete-later'))) as any[];
+    assert.ok(job.runAfter.getTime() - Date.now() > 9 * 60_000, 'deleted after the grace period, not before');
+    await handleDeleteLater(job);
+    assert.equal(await store.head(first), null);
+    // A job for a picture that is current again deletes nothing.
+    await handleDeleteLater({ ...job, payload: { productId: watch.id, key: second } });
+    assert.ok(await store.head(second));
+
+    // Just withdrawn still counts: a cached copy may still be out there. Long withdrawn does not.
+    await updateTryOn(ctx, watch.id, { enabled: false });
+    assert.equal(stored(kv, 'kappa/sa-1001.json'), null, 'nothing left to open → withdrawn');
+    assert.equal(await isLive(tenantId, watch.id), true);
+    await admin(harness, () => harness.db.update(edgeConfigs).set({ withdrawnAt: new Date(Date.now() - 11 * 60_000) } as any).where(eq(edgeConfigs.productId, watch.id)));
+    assert.equal(await isLive(tenantId, watch.id), false);
   } finally { await harness.close(); }
 });
 

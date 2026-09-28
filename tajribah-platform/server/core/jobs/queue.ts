@@ -30,6 +30,7 @@ export type QueueName =
   | 'ai.generate-3d' | 'ai.postprocess' | 'ai.embed'
   | 'edge.publish-config'
   | 'tryon.quality'
+  | 'storage.delete-later'
   | 'notify.email' | 'notify.sms'
   | 'analytics.rollup' | 'system.cleanup';
 

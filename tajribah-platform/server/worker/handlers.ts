@@ -14,6 +14,7 @@ import { handleProcessJob } from '@/server/modules/models/process';
 import { handleAiJob } from '@/server/modules/ai-jobs/job';
 import { handleQualityJob } from '@/server/modules/tryon/quality';
 import { handleEdgeJob } from '@/server/modules/edge/publish';
+import { handleDeleteLater } from '@/server/modules/tryon/retire';
 
 /** Read the tenant a job is for, refusing to run tenant work without one. */
 export function tenantOf(job: Job): TenantDb {
@@ -37,4 +38,6 @@ export function registerAllHandlers(): void {
   registerHandler('tryon.quality', (job: Job) => handleQualityJob(job));
   // P1.15: keep live viewer configs true after a change — rewrite, or withdraw.
   registerHandler('edge.publish-config', (job: Job) => handleEdgeJob(job));
+  // T36: a replaced try-on picture a live config may still name, deleted after the grace period.
+  registerHandler('storage.delete-later', (job: Job) => handleDeleteLater(job));
 }

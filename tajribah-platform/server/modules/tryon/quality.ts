@@ -31,6 +31,7 @@ import { forTenant } from '@/server/core/storage/storage';
 import { systemContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
 import { keepLive } from '@/server/modules/edge/publish';
+import { retireCutout } from './retire';
 
 export type Slot = 'worn' | 'flat';
 export const QUALITY_PERMISSIONS = ['tryon:read', 'tryon:write'] as const;
@@ -121,7 +122,7 @@ export async function checkCutoutQuality(tenantId: string, productId: string, sl
   }
   if (replaced) {
     await keepLive(tenantId, productId); // P1.15: the live config names the cropped picture before the old one goes
-    await store.delete(replaced).catch(() => undefined); // an orphan costs us, never the store
+    await retireCutout(tenantId, productId, replaced); // T36: kept a while if shoppers may still hold it
   }
   return cropped ? 'replaced' : 'measured';
 }

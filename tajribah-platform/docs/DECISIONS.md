@@ -663,8 +663,8 @@ busywork.
 - Cached for 60 s at the host (a change reaches shoppers within about a minute, plus KV's own
   propagation).
 
-**Known gap.** A replaced cut-out's old picture is deleted right after the live config is rewritten;
-a shopper holding the previous config (cache up to about 2 minutes) could meet a missing picture.
-A delayed delete fixes it; not done yet.
+**Known gap — closed by T36 (2026-09-29).** A replaced cut-out's old picture was deleted right after
+the live config was rewritten; a shopper holding the previous config could meet a missing picture.
+Now a live product's replaced picture is deleted 10 minutes later.
 
 **Rollback path.** Remove the Publish handler; configs already in KV stay until deleted by key.

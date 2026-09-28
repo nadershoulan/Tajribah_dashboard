@@ -11,6 +11,15 @@
 export const MEMBER_ROLE = ['owner', 'admin', 'editor', 'analyst', 'viewer'] as const;
 export type MemberRole = (typeof MEMBER_ROLE)[number];
 
+/** What each role is called on screen (team, store switcher, admin console). */
+export const ROLE_LABEL: Record<MemberRole, { ar: string; en: string }> = {
+  owner: { ar: 'مالك', en: 'Owner' },
+  admin: { ar: 'مدير', en: 'Admin' },
+  editor: { ar: 'محرّر', en: 'Editor' },
+  analyst: { ar: 'محلّل', en: 'Analyst' },
+  viewer: { ar: 'مشاهد', en: 'Viewer' },
+};
+
 export const PERMISSIONS = [
   'products:read', 'products:write', 'products:delete',
   'models:read', 'models:write', 'models:publish',

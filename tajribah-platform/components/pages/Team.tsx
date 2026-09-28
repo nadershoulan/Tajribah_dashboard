@@ -8,19 +8,13 @@ import { useAuth } from '@/lib/auth';
 import { useLang } from '@/lib/i18n';
 import { useData, useResource } from '@/lib/data';
 import { formatRelative } from '@/lib/format';
-import { ROLE_PERMISSIONS } from '@/lib/permissions';
+import { ROLE_LABEL, ROLE_PERMISSIONS } from '@/lib/permissions';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
 import type { Bi, Lang } from '@/lib/lang';
 import type { TeamMemberRow } from '@/lib/view-models';
 
-export const ROLE_LABEL: Record<TeamMemberRow['role'], Bi> = {
-  owner: { ar: 'مالك', en: 'Owner' },
-  admin: { ar: 'مدير', en: 'Admin' },
-  editor: { ar: 'محرّر', en: 'Editor' },
-  analyst: { ar: 'محلّل', en: 'Analyst' },
-  viewer: { ar: 'مشاهد', en: 'Viewer' },
-};
+export { ROLE_LABEL }; // lives in lib/permissions so the shell can use it too (P6)
 
 const ROLE_BLURB: Record<TeamMemberRow['role'], Bi> = {
   owner: { ar: 'كل شيء، بما في ذلك إغلاق المتجر والاشتراك.', en: 'Everything, including the subscription and closing the store.' },

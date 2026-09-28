@@ -6,10 +6,10 @@
  * The sidebar hides an item the role cannot use, and shows a locked item the *plan* does
  * not include — hiding a feature the merchant could buy is how you sell nothing.
  */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   BarChart3, Box, CreditCard, Code2, Home, Link2, Lock, Menu, Package, QrCode,
-  Scan, Settings, ShieldAlert, ShieldCheck, SlidersHorizontal, Users, ChevronDown, X, LogOut, Eye, Megaphone,
+  Scan, Settings, ShieldAlert, ShieldCheck, SlidersHorizontal, Users, ChevronDown, X, LogOut, Eye, Megaphone, Check,
 } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
@@ -20,7 +20,7 @@ import { RequireSession } from './require-session';
 import { CommandPalette } from './command-palette';
 import { NotificationBell } from './notifications';
 import { navGroupsFor } from '@/lib/nav';
-import { ROLE_PERMISSIONS } from '@/lib/permissions';
+import { ROLE_LABEL, ROLE_PERMISSIONS } from '@/lib/permissions';
 import { planByCode } from '@/lib/plans';
 import type { TenantSummary } from '@/lib/view-models';
 import { formatDate, formatDateTime, formatRelative } from '@/lib/format';
@@ -199,17 +199,78 @@ function ReadOnlyBanner({ store }: { store: TenantSummary | null }) {
   );
 }
 
+/**
+ * P6 — the store switcher: every store this person belongs to, their role and plan in each. Moving
+ * to another store is a **full page load** of its home, so no screen can go on showing one store's
+ * data under another store's name.
+ */
 function TenantSwitcher({ tenant }: { tenant: TenantSummary | null }) {
-  const { t } = useLang();
+  const { t, pick } = useLang();
+  const auth = useAuth();
+  const env = useEnv();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const onClick = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onClick);
+    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('mousedown', onClick); };
+  }, [open]);
   if (!tenant) return null;
-  const initials = tenant.name.trim().slice(0, 2);
+  const stores = auth.me?.tenants ?? [];
+  const go = async (id: string) => {
+    if (id === tenant.id) { setOpen(false); return; }
+    setBusy(id); setFailed(false);
+    try {
+      await auth.switchTenant(id);
+      if (auth.live) window.location.assign(env.toHref('/dashboard'));
+      else { setOpen(false); env.navigate('/dashboard'); }
+    } catch {
+      setFailed(true);
+    } finally { setBusy(null); }
+  };
   return (
-    <button type="button" className="tenant-switch" aria-haspopup="listbox">
-      <span className="tenant-avatar" aria-hidden>{initials}</span>
-      <span className="tenant-name">{tenant.name}</span>
-      <ChevronDown size={15} aria-hidden />
-      <span className="sr-only">{t('تبديل المتجر', 'Switch store')}</span>
-    </button>
+    <div className="tenant-menu" ref={box}>
+      <button type="button" className="tenant-switch" aria-haspopup="true" aria-expanded={open} onClick={() => { setOpen((v) => !v); setFailed(false); }}>
+        <span className="tenant-avatar" aria-hidden>{tenant.name.trim().slice(0, 2)}</span>
+        <span className="tenant-name">{tenant.name}</span>
+        <ChevronDown size={15} aria-hidden />
+        <span className="sr-only">{t('تبديل المتجر', 'Switch store')}</span>
+      </button>
+      {open && (
+        <div className="tenant-panel" role="region" aria-label={t('متاجرك', 'Your stores')}>
+          <strong className="tenant-panel-head">{t('متاجرك', 'Your stores')}</strong>
+          <ul>
+            {stores.map((s) => {
+              const current = s.id === tenant.id;
+              const plan = planByCode(s.plan);
+              return (
+                <li key={s.id}>
+                  <button type="button" className={`tenant-item${current ? ' is-current' : ''}`} aria-current={current ? 'true' : undefined}
+                    disabled={busy !== null} onClick={() => void go(s.id)}>
+                    <span className="tenant-avatar" aria-hidden>{s.name.trim().slice(0, 2)}</span>
+                    <span className="tenant-item-text">
+                      <span className="tenant-item-name">{s.name}</span>
+                      <span className="tenant-item-meta">
+                        {pick(ROLE_LABEL[s.role as keyof typeof ROLE_LABEL] ?? { ar: s.role, en: s.role })}
+                        {plan ? ` · ${pick(plan.name)}` : ''}
+                        {s.status === 'suspended' ? ` · ${t('موقوف', 'Suspended')}` : s.readOnly ? ` · ${t('للقراءة فقط', 'Read-only')}` : ''}
+                      </span>
+                    </span>
+                    {current ? <Check size={15} aria-hidden /> : busy === s.id ? <span className="tenant-item-busy">{t('جارٍ…', '…')}</span> : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {failed && <p className="tenant-panel-note" role="alert">{t('تعذّر الانتقال إلى هذا المتجر. ربما لم تعد عضوًا فيه.', 'Could not open that store. You may no longer be a member.')}</p>}
+        </div>
+      )}
+    </div>
   );
 }
 

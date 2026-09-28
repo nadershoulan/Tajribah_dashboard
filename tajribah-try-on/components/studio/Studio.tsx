@@ -41,7 +41,13 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
 
   const [mode, setMode] = useState<Mode>('model');
   const [model, setModel] = useState(0);
-  const [pose, setPose] = useState<Pose>({ ...MODELS[0].pose });
+  // On the model photos the poses are tuned to the demo watch; another watch is drawn in
+  // proportion to its case width, so the size shown is true (Nader, 2026-09-28). The demo: factor 1.
+  const modelPose = (i: number): Pose => {
+    const k = product.caseMm / DEMO_WATCH.caseMm;
+    return k === 1 ? { ...MODELS[i].pose } : { ...MODELS[i].pose, width: MODELS[i].pose.width * k };
+  };
+  const [pose, setPose] = useState<Pose>(modelPose(0));
   const [scale, setScale] = useState(100);
   const [zoom, setZoom] = useState(1);
   const [units, setUnits] = useState('mm');
@@ -105,7 +111,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
   function reset(nextMode: Mode = mode, nextModel = model) {
     setScale(100); setZoom(1); setCalibrating(false); setPoints([]); setActive('watch');
     setPose(
-      nextMode === 'model' ? { ...MODELS[nextModel].pose }
+      nextMode === 'model' ? modelPose(nextModel)
         : nextMode === 'compare' ? { x: 365, y: 550, width: product.caseMm * PX_PER_MM, angle: 0 }
           : { ...photoFit },
     );

@@ -4,7 +4,7 @@ _Last updated: 2026-09-28 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
 > **Just finished (2026-09-28):** **your try-on studio now opens from a shop's product page** — unchanged (proven byte-identical), in a frame over the page, with the merchant's own watch: "Try it on your wrist" → your studio → close. Watches first, as you decided (T26) · before that: the **3D editor** — open any model, turn it until it stands and faces right, check its real size in millimetres, fit it to the product's measurements, and save it as a new version (baked into the file, so iPhone and Android AR see it too) · before that: **AI operations** for the Tajribah team — every AI job across stores, what the providers charged us beside the credits merchants were charged, the latest failures in the provider's own words, and jobs that went quiet (with a cancel) · before that: the **model review queue** — every model made by generation is looked at by a person on the Tajribah team (in 3D, with the product's measurements beside it) before a shopper can see it; approved, or sent back with a note the merchant reads. The merchant's own uploads are never held · before that: 3D models under 2 MB for real (8.97 MB → 509 KB), and the storefront viewer fixed.
-> **Next:** the try-on settings screen — where a merchant uploads the watch's cut-out photos and its case width, so their watch appears in your studio. **One question for you below** about the watch's size in "On model" mode.
+> **Next:** the try-on settings screen — where a merchant uploads the watch's cut-out photos and its case width, so their watch appears in your studio. A merchant's watch now also shows at its true size on the model photos (your yes).
 > **Waiting on you:** **how many AI credits one 3D generation costs** (no number exists anywhere yet), the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
 
 ```
@@ -184,7 +184,7 @@ The public site that sells Tajribah, Arabic first.
 | | Package | In plain words |
 |---|---|---|
 | ✅ | P5.1 Try-on engine core ⭐ | **Your studio, as it is**, now opens from a shop's product page: the shopper taps "Try it on your wrist", your studio opens full-screen in a frame over the page with that shop's watch, and closes back to the page. The only change to your code is an optional `product` input (without it, it is the Failet demo exactly as before — checked byte for byte, Arabic and English, model and compare modes). Your modes, poses, calibration, hand tracking, compare grid, QR pairing: untouched |
-| ◐ | P5.3 Watches | Works end to end in a real browser with a test watch. Needs: the settings screen for the merchant's cut-out photos (next), and your answer on the watch size in "On model" mode |
+| ◐ | P5.3 Watches | Works end to end in a real browser with a test watch, now true to size on the model photos too. Needs: the settings screen for the merchant's cut-out photos (next) |
 
 ---
 
@@ -220,7 +220,7 @@ Zid app names, Saudi trademark search).
 
 **Needed from you:** **how many AI credits one 3D generation costs.** The plans give 5 / 40 / 200 credits a month, but nothing says what a generation uses — so the Generate button can't be priced yet. (Tell me a number, e.g. 1 credit per model, or per product.)
 
-**Question (P5, your studio):** in "On model" mode the watch is drawn at the size your wrist pose fixes (`width: 139`), tuned to the 29.3 mm Failet watch. A merchant's 38 mm watch therefore looks the same size, while its label says 38 mm. Scaling the pose width by the case width (38 ÷ 29.3 ≈ 1.3 larger) would fix it and leaves the Failet demo exactly as it is — but your rule 1 says the poses are yours to change. May I?
+**Decided 2026-09-28 (your studio):** in "On model" mode a merchant's watch is drawn in proportion to its case width (a 38 mm watch 1.3× the 29.3 mm demo's size); the Failet demo is unchanged, checked byte for byte.
 
 **Decided 2026-09-28 (T26):** P5 ships **watches first**, with your studio **loaded unchanged** in a frame (one added, optional `product` input).
 
@@ -308,3 +308,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-28 | AI operations for the team: every AI job, its cost to us against the credits charged, failures, quiet jobs — with a cancel | 487 pass / 0 fail; the screen driven in a real browser, English and Arabic |
 | 2026-09-28 | The 3D editor: turn a model so it stands right, see and fit its real size, save as a new version | 493 pass / 0 fail; turned a real model in the browser and the viewer's own measurement matched the page's |
 | 2026-09-28 | Your try-on studio opens from a shop's product page, unchanged, with the shop's own watch | 496 pass / 0 fail; your studio proven byte-identical; tap → studio → close tested in a real browser on a real shop page |
+| 2026-09-28 | Your answer applied: a merchant's watch is drawn at its true size on the model photos; your demo unchanged | the demo checked byte-identical again; a 38 mm watch seen drawn 1.3× larger |

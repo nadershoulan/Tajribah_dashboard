@@ -547,3 +547,13 @@ example, no switch-on below 97%), it is one condition in `updateTryOn`.
 
 **Rollback path.** Drop the `enqueueQuality` call in `confirmCutout`; the column stays null and
 the screen shows nothing for it.
+
+## T29 · 2026-09-28 · The website lives on tajribah.sa; services stay on tajribah.com
+
+**Decision (Nader's, 2026-09-28: "Website on tajribah.sa").** The website — and so the try-on
+frame, which is one of its pages (`/embed/try-on`) — is served from **tajribah.sa**, as the site
+already assumed (`lib/site.ts`). The dashboard's services keep their hosts on **tajribah.com**:
+published configs (`cfg.`), files (`cdn.`), events (`ev.`). The widget's default try-on address is
+now `https://tajribah.sa/embed/try-on` (a shop can still override it with `data-tajribah-tryon`).
+
+**Rollback path.** One constant in `widget/src/tryon.ts`.

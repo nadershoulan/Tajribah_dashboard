@@ -9,7 +9,8 @@
  * A frame rather than mounting the studio in the page: the shop's CSS and scripts cannot reach
  * it, the camera and QR pairing work as they do on the site, and a failure stays inside it.
  */
-export const DEFAULT_TRYON = 'https://tajribah.com/embed/try-on';
+/** The try-on is a page of the website, which lives on tajribah.sa (T29); services stay on tajribah.com. */
+export const DEFAULT_TRYON = 'https://tajribah.sa/embed/try-on';
 /** What the frame posts when the shopper closes it. Only the frame's own origin is listened to. */
 export const CLOSE_MESSAGE = 'tajribah:tryon:close';
 

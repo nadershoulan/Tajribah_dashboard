@@ -13,7 +13,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
 import {
-  tenantMemberships, tenants, users, verificationTokens,
+  auditLogs, tenantMemberships, tenants, users, verificationTokens,
   type Tenant, type User,
 } from '@/db/schema';
 import { secret, uuidv7 } from '@/lib/ids';
@@ -51,6 +51,28 @@ export type RegisterResult = {
   emailVerificationToken: string;
 };
 
+/**
+ * A new store on its own 14-day trial, starting at the onboarding's store step — for a new
+ * account (sign-up) and for another store of an existing one (T30: every store gets its trial).
+ */
+async function createTrialStore(db: ReturnType<typeof unsafeAdminDb>, storeName: string, locale: 'ar' | 'en' | undefined): Promise<{ tenant: Tenant; derived: string | null }> {
+  const derived = slugify(storeName);
+  const taken = new Set((await db.select({ slug: tenants.slug }).from(tenants)).map((r) => r.slug));
+  const slug = nextAvailable(derived ?? generatedSlug(), taken);
+  const now = new Date();
+  const [tenant] = await db.insert(tenants).values({
+    id: uuidv7(),
+    slug,
+    name: storeName,
+    nameAr: locale === 'en' ? null : storeName,
+    status: 'trial',
+    trialEndsAt: new Date(now.getTime() + TRIAL_DAYS * 24 * 3600 * 1000),
+    locale: locale ?? 'ar',
+    onboardingState: { step: 'store', completedSteps: ['account'] },
+  }).returning();
+  return { tenant: tenant!, derived };
+}
+
 export async function register(input: RegisterInput, config: SessionSecrets): Promise<RegisterResult> {
   const db = unsafeAdminDb();
   const email = normaliseEmail(input.email);
@@ -65,21 +87,7 @@ export async function register(input: RegisterInput, config: SessionSecrets): Pr
     throw errors.conflict('this email already has an account — sign in instead');
   }
 
-  const derived = slugify(input.storeName);
-  const taken = new Set((await db.select({ slug: tenants.slug }).from(tenants)).map((r) => r.slug));
-  const slug = nextAvailable(derived ?? generatedSlug(), taken);
-
-  const now = new Date();
-  const [tenant] = await db.insert(tenants).values({
-    id: uuidv7(),
-    slug,
-    name: input.storeName,
-    nameAr: input.locale === 'en' ? null : input.storeName,
-    status: 'trial',
-    trialEndsAt: new Date(now.getTime() + TRIAL_DAYS * 24 * 3600 * 1000),
-    locale: input.locale ?? 'ar',
-    onboardingState: { step: 'store', completedSteps: ['account'] },
-  }).returning();
+  const { tenant, derived } = await createTrialStore(db, input.storeName, input.locale);
 
   const [user] = await db.insert(users).values({
     id: uuidv7(),
@@ -102,9 +110,31 @@ export async function register(input: RegisterInput, config: SessionSecrets): Pr
     userId: user.id, tenantId: tenant.id, userAgent: input.userAgent, ip: input.ip, config,
   });
 
-  log.info('tenant registered', { tenantId: tenant.id, userId: user.id, slug });
+  log.info('tenant registered', { tenantId: tenant.id, userId: user.id, slug: tenant.slug });
 
   return { user, tenant, session, slugNeedsConfirmation: derived === null, emailVerificationToken };
+}
+
+/**
+ * P6 (T30) — a signed-in person adds another store: its own 14-day trial, them as its owner, the
+ * creation in the new store's activity. The address must be confirmed first, and a person can add
+ * a handful a day, since every store starts a free trial.
+ */
+export async function addStore(userId: string, input: { storeName: string; locale?: 'ar' | 'en' }): Promise<{ tenant: Tenant; slugNeedsConfirmation: boolean }> {
+  const db = unsafeAdminDb(); // like sign-up: the store does not exist yet, so there is no scope to enter
+  const limit = await rateLimiter().hit(`add-store:${userId}`, LIMITS.addStore.limit, LIMITS.addStore.windowSeconds);
+  if (!limit.allowed) throw errors.rateLimited(limit.retryAfter);
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!user) throw errors.unauthenticated();
+  if (!user.emailVerifiedAt) throw errors.forbidden('confirm your email address before adding another store');
+  const { tenant, derived } = await createTrialStore(db, input.storeName, input.locale ?? (user.locale === 'en' ? 'en' : 'ar'));
+  await db.insert(tenantMemberships).values({ id: uuidv7(), tenantId: tenant.id, userId, role: 'owner', status: 'active' });
+  await db.insert(auditLogs).values({
+    id: uuidv7(), tenantId: tenant.id, actorUserId: userId, actorType: 'user', action: 'create', resourceType: 'tenant', resourceId: tenant.id,
+    changes: { after: { name: tenant.name, slug: tenant.slug, status: tenant.status } },
+  } as never);
+  log.info('store added', { tenantId: tenant.id, userId, slug: tenant.slug });
+  return { tenant, slugNeedsConfirmation: derived === null };
 }
 
 export type LoginInput = {

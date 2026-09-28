@@ -6,14 +6,14 @@
  * The sidebar hides an item the role cannot use, and shows a locked item the *plan* does
  * not include — hiding a feature the merchant could buy is how you sell nothing.
  */
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
   BarChart3, Box, CreditCard, Code2, Home, Link2, Lock, Menu, Package, QrCode,
-  Scan, Settings, ShieldAlert, ShieldCheck, SlidersHorizontal, Users, ChevronDown, X, LogOut, Eye, Megaphone, Check,
+  Scan, Settings, ShieldAlert, ShieldCheck, SlidersHorizontal, Users, ChevronDown, X, LogOut, Eye, Megaphone, Check, Plus,
 } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
-import { currentStore } from '@/lib/api-client';
+import { ApiError, currentStore } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
 import { useResource } from '@/lib/data';
 import { RequireSession } from './require-session';
@@ -211,6 +211,9 @@ function TenantSwitcher({ tenant }: { tenant: TenantSummary | null }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [addError, setAddError] = useState<{ ar: string; en: string } | null>(null);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -231,6 +234,23 @@ function TenantSwitcher({ tenant }: { tenant: TenantSummary | null }) {
       else { setOpen(false); env.navigate('/dashboard'); }
     } catch {
       setFailed(true);
+    } finally { setBusy(null); }
+  };
+  // T30: another store, on its own 14-day trial; the session moves to it and its setup starts.
+  const add = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!newName.trim()) return;
+    setBusy('new'); setAddError(null);
+    try {
+      await auth.addStore(newName.trim());
+      if (auth.live) window.location.assign(env.toHref('/dashboard'));
+      else { setOpen(false); env.navigate('/dashboard'); }
+    } catch (error) {
+      const status = error instanceof ApiError ? error.status : 0;
+      setAddError(status === 403 ? { ar: 'أكّد بريدك الإلكتروني أولًا — أرسلنا لك رابطًا.', en: 'Confirm your email address first — we sent you a link.' }
+        : status === 429 ? { ar: 'أضفت عدة متاجر اليوم. حاول غدًا.', en: 'You have added several stores today. Try again tomorrow.' }
+          : status === 409 ? { ar: 'المعاينة فيها متجر واحد — إضافة المتاجر تعمل في لوحة التحكم الحقيقية.', en: 'The preview has one store — adding stores works in the live dashboard.' }
+            : { ar: 'تعذّرت إضافة المتجر. حاول مرة أخرى.', en: 'The store could not be added. Try again.' });
     } finally { setBusy(null); }
   };
   return (
@@ -267,6 +287,22 @@ function TenantSwitcher({ tenant }: { tenant: TenantSummary | null }) {
               );
             })}
           </ul>
+          {adding ? (
+            <form className="tenant-add" onSubmit={add}>
+              <label htmlFor="new-store-name">{t('اسم المتجر الجديد', 'New store name')}</label>
+              <input id="new-store-name" value={newName} maxLength={120} autoFocus onChange={(e) => setNewName(e.target.value)} />
+              <span className="tenant-item-meta">{t('يبدأ بتجربة مجانية لمدة 14 يومًا، وأنت مالكه.', 'It starts on its own 14-day free trial, with you as its owner.')}</span>
+              <div className="tenant-add-actions">
+                <button type="submit" className="btn btn-primary btn-sm" disabled={busy !== null || !newName.trim()}>{busy === 'new' ? t('جارٍ الإنشاء…', 'Creating…') : t('أنشئ المتجر', 'Create the store')}</button>
+                <button type="button" className="btn btn-quiet btn-sm" onClick={() => { setAdding(false); setAddError(null); }}>{t('إلغاء', 'Cancel')}</button>
+              </div>
+              {addError && <p className="tenant-panel-note" role="alert" style={{ padding: 0 }}>{pick(addError)}</p>}
+            </form>
+          ) : (
+            <button type="button" className="tenant-add-open" onClick={() => setAdding(true)} disabled={busy !== null}>
+              <Plus size={15} aria-hidden /> {t('أضف متجرًا', 'Add a store')}
+            </button>
+          )}
           {failed && <p className="tenant-panel-note" role="alert">{t('تعذّر الانتقال إلى هذا المتجر. ربما لم تعد عضوًا فيه.', 'Could not open that store. You may no longer be a member.')}</p>}
         </div>
       )}

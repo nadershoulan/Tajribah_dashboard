@@ -39,6 +39,8 @@ export type AuthApi = {
   register(body: RegisterBody): Promise<{ slugNeedsConfirmation: boolean }>;
   logout(): Promise<void>;
   switchTenant(tenantId: string): Promise<void>;
+  /** P6 (T30): another store for this person, on its own trial; the session moves to it. */
+  addStore(storeName: string): Promise<void>;
   /** P1.24. Rejects with `ApiError` 404 for a used, expired, revoked or someone-else's link. */
   acceptInvitation(token: string): Promise<void>;
   /** P1.2. Always resolves: whether the address has an account is not the caller's to learn. */
@@ -354,6 +356,7 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
     register: async (body) => { const result = await client.register(body); await load(); return result; },
     logout: async () => { await client.logout(); setState({ status: 'signed-out', me: null }); },
     switchTenant: async (tenantId) => { await client.switchTenant(tenantId); await load(); },
+    addStore: async (storeName) => { await client.addStore(storeName); await load(); },
     acceptInvitation: async (token) => { await client.acceptInvitation(token); await load(); },
     requestPasswordReset: (email, locale) => client.requestPasswordReset(email, locale),
     resetPassword: async (token, password) => {
@@ -432,6 +435,7 @@ export function DemoAuthProvider({ children }: { children: ReactNode }) {
     register: async () => ({ slugNeedsConfirmation: false }),
     logout: async () => {},
     switchTenant: async () => {},
+    addStore: async () => { throw new ApiError(409, 'conflict', 'the preview has one store — adding stores works in the live dashboard'); },
     acceptInvitation: async () => {},
     requestPasswordReset: async () => {},
     resetPassword: async () => {},

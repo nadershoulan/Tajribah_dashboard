@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { auditLogs, tenantMemberships, tenants } from '@/db/schema';
+import { auditLogs, sessions, tenantMemberships, tenants, users } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { uuidv7 } from '@/lib/ids';
 import { loadEnv, resetEnv } from '@/server/core/config/env';
 import { configureNotify } from '@/server/core/notify/notify';
@@ -10,7 +11,7 @@ import { setLogLevel } from '@/server/core/observability/log';
 import { REFRESH_COOKIE } from '@/server/core/auth/session';
 import { createTestDb, type TestDb } from '@/server/testing/harness';
 import {
-  confirmResetHandler, loginHandler, logoutHandler, meHandler, refreshHandler, registerHandler,
+  addStoreHandler, confirmResetHandler, loginHandler, logoutHandler, meHandler, refreshHandler, registerHandler,
   requestResetHandler, resendVerificationHandler, switchTenantHandler, verifyEmailHandler,
 } from '@/server/modules/auth/http';
 
@@ -308,3 +309,55 @@ test('a body that is not JSON is a 422, not a crash', async () => {
     assert.equal(response.status, 422);
   } finally { await harness.close(); resetEnv(); }
 });
+
+test('add a store (T30): its own 14-day trial, you as owner, the session moves to it — once your address is confirmed', async () => {
+  setup();
+  const harness = await createTestDb();
+  try {
+    const { token, body } = await signUp(harness);
+    const unconfirmed = await addStoreHandler(req('/api/auth/stores', { token, body: { storeName: 'متجر ثانٍ' } }));
+    assert.equal(unconfirmed.status, 403, 'confirm the address first: every store starts a free trial');
+    await harness.asAdmin(() => harness.db.update(users).set({ emailVerifiedAt: new Date() } as any).where(eq(users.id, body.user.id)));
+
+    assert.equal((await addStoreHandler(req('/api/auth/stores', { token, body: { storeName: '   ' } }))).status, 422, 'a name is needed');
+    const before = Date.now();
+    const created = await addStoreHandler(req('/api/auth/stores', { token, body: { storeName: 'متجر ثانٍ' } }));
+    assert.equal(created.status, 201);
+    const { accessToken, tenantId } = await created.json() as any;
+    const me = await (await meHandler(req('/api/auth/me', { method: 'GET', token: accessToken }))).json() as any;
+    assert.equal(me.currentTenantId, tenantId, 'the session acts for the new store');
+    assert.deepEqual(me.tenants.map((t: any) => t.role).sort(), ['owner', 'owner'], 'both stores, owner of each');
+
+    const [store] = await harness.asAdmin(() => harness.db.select().from(tenants).where(eq(tenants.id, tenantId)));
+    assert.equal(store!.status, 'trial');
+    const days = (store!.trialEndsAt!.getTime() - before) / 86_400_000;
+    assert.ok(days > 13.99 && days < 14.01, `its own 14-day trial, got ${days}`);
+    assert.deepEqual(store!.onboardingState, { step: 'store', completedSteps: ['account'] }, 'set up from the store step, like the first');
+    assert.notEqual(store!.slug, body.tenant.slug);
+    const trail = await harness.asAdmin(() => harness.db.select().from(auditLogs).where(eq(auditLogs.tenantId, tenantId)));
+    assert.deepEqual(trail.map((a: any) => [a.action, a.resourceType, a.actorUserId]), [['create', 'tenant', body.user.id]]);
+    const firstStoreTrail = await harness.asAdmin(() => harness.db.select().from(auditLogs).where(eq(auditLogs.tenantId, body.tenant.id)));
+    assert.ok(!firstStoreTrail.some((a: any) => a.resourceType === 'tenant' && a.resourceId === tenantId), 'recorded in the new store, not the old one');
+  } finally { await harness.close(); }
+});
+
+test('add a store: not from a staff view, and a handful a day', async () => {
+  setup();
+  const harness = await createTestDb();
+  try {
+    const { token, body } = await signUp(harness);
+    await harness.asAdmin(() => harness.db.update(users).set({ emailVerifiedAt: new Date() } as any).where(eq(users.id, body.user.id)));
+    await harness.asAdmin(() => harness.db.update(sessions).set({ impersonatingUntil: new Date(Date.now() + 3_600_000) } as any).where(eq(sessions.userId, body.user.id)));
+    assert.equal((await addStoreHandler(req('/api/auth/stores', { token, body: { storeName: 'X' } }))).status, 403, 'a staff view looks, it does not act');
+    await harness.asAdmin(() => harness.db.update(sessions).set({ impersonatingUntil: null } as any).where(eq(sessions.userId, body.user.id)));
+    let latest = token;
+    for (let i = 1; i <= 5; i++) {
+      const r = await addStoreHandler(req('/api/auth/stores', { token: latest, body: { storeName: `Store ${i}` } }));
+      assert.equal(r.status, 201, `store ${i}`);
+      latest = (await r.json() as any).accessToken;
+    }
+    assert.equal((await addStoreHandler(req('/api/auth/stores', { token: latest, body: { storeName: 'Store 6' } }))).status, 429);
+    assert.equal((await addStoreHandler(req('/api/auth/stores', { token: latest, body: { storeName: 'Y' }, origin: 'https://evil.example' }))).status, 403, 'same origin only');
+  } finally { await harness.close(); }
+});
+

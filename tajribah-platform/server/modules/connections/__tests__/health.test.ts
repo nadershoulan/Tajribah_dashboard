@@ -99,8 +99,9 @@ test('the sweep stores each score, tells the store once when a connection gets w
     assert.equal(await scoreOf(harness, alpha.connectionId), 100);
     assert.equal((await healthNotes(harness, alpha.tenantId)).length, 2);
 
-    // The connections screen shows the same rule, live, with its reasons.
+    // The connections screen shows the same rule, live (the real clock), with its reasons.
     await failSyncs(harness, bravo, 1);
+    await harness.asAdmin(() => harness.db.update(storeConnections).set({ lastSyncAt: new Date() } as any).where(eq(storeConnections.id, bravo.connectionId)));
     const ctx = await buildTenantContext({ actor: { userId: bravo.userId, email: bravo.email, isStaff: false }, tenantId: bravo.tenantId, requestId: 'r' });
     const [detail] = await connectionDetails(ctx);
     assert.deepEqual(detail!.health, { score: 75, level: 'attention', reasons: ['sync_failing'] });

@@ -210,6 +210,13 @@ export class ApiClient {
     this.setToken(result.accessToken);
   }
 
+  /** P6 (T30): add another store (its own trial); the session then acts for it. */
+  async addStore(storeName: string, locale?: 'ar' | 'en'): Promise<string> {
+    const result = await this.call<TokenBody & { tenantId: string }>('/api/auth/stores', { body: { storeName, locale } });
+    this.setToken(result.accessToken);
+    return result.tenantId;
+  }
+
   /** P1.24: join the store that invited this account; the session then acts for it. */
   async acceptInvitation(token: string): Promise<string> {
     const result = await this.call<TokenBody & { tenantId: string }>('/api/invitations/accept', { body: { token } });

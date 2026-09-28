@@ -92,6 +92,8 @@ export const LIMITS = {
   otpSend: { limit: 5, windowSeconds: 60 * 60 },
   otpVerify: { limit: 10, windowSeconds: 15 * 60 },
   register: { limit: 5, windowSeconds: 60 * 60 },
+  /** Per person (P6, T30): every new store starts a free trial. */
+  addStore: { limit: 5, windowSeconds: 24 * 60 * 60 },
 } as const;
 
 let limiter: RateLimiter = new MemoryRateLimiter();

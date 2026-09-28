@@ -557,3 +557,14 @@ published configs (`cfg.`), files (`cdn.`), events (`ev.`). The widget's default
 now `https://tajribah.sa/embed/try-on` (a shop can still override it with `data-tajribah-tryon`).
 
 **Rollback path.** One constant in `widget/src/tryon.ts`.
+
+## T30 · 2026-09-28 · A person's second store starts on its own 14-day trial
+
+**Decision (Nader's, 2026-09-28: "Its own 14-day trial").** Adding a store from the dashboard
+(the store list at the top) creates it exactly as sign-up does — its own 14-day free trial,
+starting at the setup's store step — with the person as its owner. Because each new store is a
+new free trial, two guards: the person's email address must be confirmed, and a person can add
+at most 5 stores a day. A staff member's read-only view of a store cannot add one.
+
+**Rollback path.** Remove `POST /api/auth/stores` and the form; `createTrialStore` stays as
+sign-up's helper.

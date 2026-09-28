@@ -25,7 +25,7 @@ import { EMAIL, sendEmail } from '@/server/core/notify/messages';
 import { recordSessionEvent } from '@/server/core/audit/audit';
 import { log } from '@/server/core/observability/log';
 import { currentScope } from '@/server/core/observability/scope';
-import { login, register, requestPasswordReset, resendEmailVerification, resetPassword, verifyEmail } from './service';
+import { addStore, login, register, requestPasswordReset, resendEmailVerification, resetPassword, verifyEmail } from './service';
 import {
   completeTwoFactorLogin, disableTwoFactor, enableTwoFactor, regenerateBackupCodes, startTwoFactorSetup, twoFactorStatus,
 } from './two-factor';
@@ -172,6 +172,22 @@ export const switchTenantHandler = route(async (request) => {
   });
   const accessToken = await setSessionTenant(caller.sessionId, tenantId, config);
   return json({ accessToken, expiresIn: config.accessTtlMinutes * 60, tenantId });
+});
+
+/**
+ * API-017 — POST /api/auth/stores (P6, T30): add another store on its own trial, and act for it —
+ * the answer is the switch's (a new access token for the new store). Not from a staff view of a
+ * store: that session is looking, not acting.
+ */
+export const addStoreHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const caller = await authenticate(request, config);
+  if (caller.staffViewUntil) throw errors.forbidden('a staff view cannot add stores');
+  const input = await readJson(request, z.object({ storeName: z.string().trim().min(1).max(120), locale: z.enum(['ar', 'en']).optional() }));
+  const { tenant, slugNeedsConfirmation } = await addStore(caller.userId, input);
+  const accessToken = await setSessionTenant(caller.sessionId, tenant.id, config);
+  return json({ accessToken, expiresIn: config.accessTtlMinutes * 60, tenantId: tenant.id, slugNeedsConfirmation }, { status: 201 });
 });
 
 /** API-007 — POST /api/auth/verify-email */

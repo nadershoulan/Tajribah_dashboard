@@ -29,7 +29,7 @@ export const DASHBOARD_NAV: NavGroup[] = [
       { id: 'MD-001', href: '/dashboard', label: { ar: 'الرئيسية', en: 'Home' }, icon: 'home' },
       { id: 'MD-010', href: '/dashboard/products', label: { ar: 'المنتجات', en: 'Products' }, icon: 'package', permission: 'products:read' },
       { id: 'MD-040', href: '/dashboard/models', label: { ar: 'النماذج ثلاثية الأبعاد', en: '3D models' }, icon: 'box', permission: 'models:read' },
-      { id: 'MD-070', href: '/dashboard/tryon', label: { ar: 'التجربة الافتراضية', en: 'Virtual try-on' }, icon: 'scan', permission: 'tryon:read', feature: 'virtual_tryon' },
+      { id: 'MD-070', href: '/dashboard/tryon', label: { ar: 'التجربة الافتراضية', en: 'Virtual try-on' }, icon: 'scan', permission: 'tryon:read' }, // T43: every plan sets watches up (T33); "on me" is Pro, said on the screen
     ],
   },
   {

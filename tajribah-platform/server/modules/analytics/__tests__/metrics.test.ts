@@ -39,9 +39,9 @@ async function seed(harness: TestDb, tenantId: string) {
       { tenantId, day: '2026-09-21', views: 999, arSessions: 999, tryonSessions: 999, addToCart: 999, purchases: 999, revenueMinor: 999, uniqueSessions: 999 }, // outside 7d
     ] as any);
     await db.insert(dailyProductStats).values([
-      { tenantId, productId: ids[0], day: '2026-09-28', views: 70, arSessions: 25, purchases: 3 },
-      { tenantId, productId: ids[1], day: '2026-09-28', views: 30, arSessions: 5, purchases: 1 },
-      { tenantId, productId: ids[1], day: '2026-09-25', views: 50, arSessions: 10, purchases: 1 },
+      { tenantId, productId: ids[0], day: '2026-09-28', views: 70, arSessions: 25, tryonSessions: 9, purchases: 3 },
+      { tenantId, productId: ids[1], day: '2026-09-28', views: 30, arSessions: 5, tryonSessions: 2, purchases: 1 },
+      { tenantId, productId: ids[1], day: '2026-09-25', views: 50, arSessions: 10, tryonSessions: 4, purchases: 1 },
       { tenantId, productId: ids[2], day: '2026-09-28', views: 0, arSessions: 0, purchases: 0 },
     ] as any);
     await db.insert(conversionDaily).values([
@@ -79,10 +79,10 @@ test('the view: the range’s days (empty ones zero), totals inside the range on
     assert.deepEqual(view.byDevice, [
       { device: 'mobile', sessions: 110, arSupported: 95 }, { device: 'tablet', sessions: 0, arSupported: 0 }, { device: 'desktop', sessions: 20, arSupported: 0 },
     ], 'unknown devices are not guessed into a bucket');
-    assert.deepEqual(view.topProducts.map((p) => [p.productId, p.name, p.views, p.upliftPct]), [
-      [ids[1], 'Pearl band', 80, null], // 10 sessions with AR: too few for a number
-      [ids[0], 'Oud 41', 70, 0.05],
-      [ids[2], 'Quiet one', 0, null],
+    assert.deepEqual(view.topProducts.map((p) => [p.productId, p.name, p.views, p.tryonSessions, p.upliftPct]), [
+      [ids[1], 'Pearl band', 80, 6, null], // 10 sessions with AR: too few for a number
+      [ids[0], 'Oud 41', 70, 9, 0.05],
+      [ids[2], 'Quiet one', 0, 0, null],
     ]);
     assert.deepEqual(view.funnel.map((f) => f.value), [150, 40, 15, 11, 5]);
     assert.deepEqual(view.conversion, {

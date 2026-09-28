@@ -10,7 +10,7 @@
  */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
-  DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS,
+  DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
 } from './demo-data';
 import type {
   AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
@@ -333,6 +333,7 @@ function demoTryOnView(p: ProductRow): TryOnWatchView {
     productId: p.id, name: p.name, nameAr: p.nameAr, sku: p.sku, productWidthMm: p.dimensions?.widthMm ?? null, caseMm: s.caseMm,
     worn: s.worn ? { bytes: s.worn.size } : null, flat: s.flat ? { bytes: s.flat.size } : null, finish: s.finish,
     enabled: s.enabled && missing.length === 0, ready: missing.length === 0, missing,
+    last30: { views: p.views30, tryonSessions: demoTryonSessions30(p) },
   };
 }
 /** Which version is live per demo model, when it is not the newest. */

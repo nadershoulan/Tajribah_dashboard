@@ -158,6 +158,11 @@ export const DEMO_PRODUCTS: ProductRow[] = [
   },
 ];
 
+/** The demo's try-on openings over 30 days: watches only, about a third of their AR sessions, like the demo series. */
+export function demoTryonSessions30(p: ProductRow): number {
+  return p.productType === 'watch' ? Math.round(p.arSessions30 * 0.36) : 0;
+}
+
 export const DEMO_MODELS: ModelRow[] = [
   { id: 'm-1', productId: 'p-820241410', productName: 'ساعة فايلت النسائية الألماس', name: 'diamond-watch-v3',
     source: 'uploaded', status: 'ready', qaStatus: 'approved', qaNotes: null, version: 3, sizeBytes: 1_480_000,
@@ -255,6 +260,7 @@ export const DEMO_ANALYTICS: AnalyticsView = {
     name: p.nameAr ?? p.name,
     views: p.views30,
     arSessions: p.arSessions30,
+    tryonSessions: demoTryonSessions30(p),
     purchases: Math.round(p.arSessions30 * 0.05),
     upliftPct: i < 3 ? [0.082, 0.064, 0.031][i] : null,
   })),

@@ -146,6 +146,7 @@ export default function Analytics() {
                         <th scope="col">{t('المنتج', 'Product')}</th>
                         <th scope="col">{t('مشاهدات', 'Views')}</th>
                         <th scope="col">{t('جلسات عرض', 'AR sessions')}</th>
+                        <th scope="col">{t('تجارب افتراضية', 'Try-ons')}</th>
                         <th scope="col">{t('شراء', 'Purchases')}</th>
                         <th scope="col">{t('ارتفاع التحويل', 'Uplift')}</th>
                       </tr>
@@ -156,6 +157,7 @@ export default function Analytics() {
                           <td><strong style={{ fontWeight: 600 }}>{product.name}</strong></td>
                           <td className="num">{formatNumber(product.views, lang)}</td>
                           <td className="num">{formatNumber(product.arSessions, lang)}</td>
+                          <td className="num">{formatNumber(product.tryonSessions, lang)}</td>
                           <td className="num">{formatNumber(product.purchases, lang)}</td>
                           <td className="num">
                             {product.upliftPct == null

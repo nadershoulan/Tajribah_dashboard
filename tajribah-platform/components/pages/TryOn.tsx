@@ -8,7 +8,7 @@ import { AppLink } from '@/lib/app-env';
 import { ApiError, currentStore } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
 import { useData, useResource } from '@/lib/data';
-import { formatBytes } from '@/lib/format';
+import { formatBytes, formatNumber, formatPercent } from '@/lib/format';
 import { useLang } from '@/lib/i18n';
 import { ROLE_PERMISSIONS } from '@/lib/permissions';
 import { TRYON_SLOTS, sayCutout } from '@/lib/tryon';
@@ -89,6 +89,8 @@ function WatchCard({ initial, editable }: { initial: TryOnWatchView; editable: b
   const status = w.enabled ? <Badge tone="ok" dot>{t('مفعّلة', 'On')}</Badge>
     : w.ready ? <Badge tone="accent">{t('جاهزة للتفعيل', 'Ready to switch on')}</Badge>
       : <Badge tone="warn">{t('ناقصة', 'Incomplete')}</Badge>;
+  // P5.13 — from the screen's list only: an upload or a save returns the settings, not the numbers.
+  const stats = initial.last30;
   const missingText = w.missing.map((m) => (m === 'case' ? t('عرض العلبة', 'case width') : pick(TRYON_SLOTS[m].label))).join(t('، ', ', '));
 
   return (
@@ -118,6 +120,14 @@ function WatchCard({ initial, editable }: { initial: TryOnWatchView; editable: b
         </div>
       </div>
 
+      {stats && (
+        <p className="hint tryon-stats">
+          <span>{t('آخر 30 يومًا', 'Last 30 days')}</span>
+          <span>{t('التجارب', 'Try-ons')} <strong dir="ltr">{formatNumber(stats.tryonSessions, lang)}</strong></span>
+          <span>{t('مشاهدات المنتج', 'Product views')} <strong dir="ltr">{formatNumber(stats.views, lang)}</strong></span>
+          {stats.views > 0 && <span>{t('التجارب إلى المشاهدات', 'Try-ons to views')} <strong dir="ltr">{formatPercent(stats.tryonSessions / stats.views, lang)}</strong></span>}
+        </p>
+      )}
       <div className="tryon-foot">
         <label className="toggle">
           <input type="checkbox" role="switch" checked={w.enabled} disabled={!editable || busy !== null || (!w.ready && !w.enabled)} onChange={(e) => void toggle(e.target.checked)} />

@@ -14,9 +14,11 @@
  *  - Reading is open to every role and every plan (the screen explains what is missing); every
  *    change needs `tryon:write` **and** `virtual_tryon` in the plan.
  *  - Pictures count against the plan's storage (`storageBytesHeld`).
+ *  - P5.13: the list shows each watch's last 30 days (views, try-on openings) from the analytics
+ *    rollup — never raw events — to anyone who may read analytics.
  */
-import { and, eq, inArray, isNull } from 'drizzle-orm';
-import { products, tryonConfigs } from '@/db/schema';
+import { and, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
+import { dailyProductStats, products, tryonConfigs } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { CUTOUT_ISSUES } from '@/lib/tryon';
 import type { TryOnScreen, TryOnWatchView } from '@/lib/view-models';
@@ -26,6 +28,7 @@ import { errors } from '@/server/core/errors/problem';
 import { forTenant } from '@/server/core/storage/storage';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
+import { daysOf } from '@/server/modules/analytics/metrics';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { CUTOUT_MAX_BYTES, checkCutout, type CutoutIssue } from './cutout';
 
@@ -39,7 +42,9 @@ export const UPLOAD_SECONDS = 15 * 60;
 /** The English line for each refusal; the Arabic is beside it in `lib/tryon.ts`. */
 export const ISSUE_TEXT = Object.fromEntries(Object.entries(CUTOUT_ISSUES).map(([code, text]) => [code, text.en])) as Record<CutoutIssue, string>;
 
-function view(product: Product, config: Config | null): TryOnWatchView {
+type Last30 = TryOnWatchView['last30'];
+
+function view(product: Product, config: Config | null, last30: Last30 = null): TryOnWatchView {
   const caseMm = config?.caseTenthsMm != null ? config.caseTenthsMm / 10 : null;
   const missing: TryOnWatchView['missing'] = [];
   if (!config?.wornKey) missing.push('worn');
@@ -56,6 +61,7 @@ function view(product: Product, config: Config | null): TryOnWatchView {
     enabled: !!config?.enabled && missing.length === 0,
     ready: missing.length === 0,
     missing,
+    last30,
   };
 }
 
@@ -71,14 +77,24 @@ async function mayChange(ctx: TenantContext): Promise<void> {
   assertFeature(await entitlementsOf(ctx), 'virtual_tryon');
 }
 
-/** API-150 — every watch in the store, with its try-on settings. */
-export async function tryOnScreen(ctx: TenantContext): Promise<TryOnScreen> {
+/** API-150 — every watch in the store, with its try-on settings (and, P5.13, its last 30 days). */
+export async function tryOnScreen(ctx: TenantContext, now = new Date()): Promise<TryOnScreen> {
   ctx.require('tryon:read');
   const included = (await entitlementsOf(ctx)).has('virtual_tryon');
+  const days = daysOf('30d', now);
   return withTenant(ctx.tenantId, async (db) => {
     const watches = await db.find(products, and(eq(products.productType, 'watch'), isNull(products.deletedAt)), { limit: 500 });
-    const configs = watches.length ? await db.find(tryonConfigs, inArray(tryonConfigs.productId, watches.map((p) => p.id)), { limit: 500 }) : [];
-    return { included, watches: watches.map((p) => view(p, configs.find((c) => c.productId === p.id) ?? null)) };
+    const ids = watches.map((p) => p.id);
+    const configs = ids.length ? await db.find(tryonConfigs, inArray(tryonConfigs.productId, ids), { limit: 500 }) : [];
+    const stats = ids.length && ctx.can('analytics:read')
+      ? await db.find(dailyProductStats, and(inArray(dailyProductStats.productId, ids), gte(dailyProductStats.day, days[0]!), lte(dailyProductStats.day, days[days.length - 1]!)), { limit: 100_000 })
+      : null;
+    const last30 = (productId: string): Last30 => {
+      if (!stats) return null;
+      const rows = stats.filter((r) => r.productId === productId);
+      return { views: rows.reduce((s, r) => s + r.views, 0), tryonSessions: rows.reduce((s, r) => s + r.tryonSessions, 0) };
+    };
+    return { included, watches: watches.map((p) => view(p, configs.find((c) => c.productId === p.id) ?? null, last30(p.id))) };
   });
 }
 

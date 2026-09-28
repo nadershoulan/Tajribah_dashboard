@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { products, subscriptions, tenantMemberships, users } from '@/db/schema';
+import { dailyProductStats, products, subscriptions, tenantMemberships, users } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { storageBytesHeld } from '@/server/core/billing/entitlements';
 import { setLogLevel } from '@/server/core/observability/log';
@@ -134,5 +134,34 @@ test('the plan and the role: a Starter store can look but not set up; an analyst
     assert.equal((await tryOnScreen(analyst)).watches.length, 1);
     await assert.rejects(() => updateTryOn(analyst, pro.watch, { caseMm: 38 }), (e: any) => e.code === 'forbidden');
     await assert.rejects(() => updateTryOn(starter.ctx, pro.watch, { caseMm: 38 }), (e: any) => e.code === 'plan_required' || e.code === 'not_found');
+  } finally { await harness.close(); }
+});
+
+test('P5.13: each watch shows its last 30 Riyadh days from the rollup — this store only, and only to those who may read analytics', async () => {
+  const harness = await createTestDb();
+  try {
+    // 22:00 UTC on 27 Sep is already 28 Sep in Riyadh: the 30 days run 30 Aug – 28 Sep.
+    const NOW = new Date('2026-09-27T22:00:00Z');
+    const { ctx, watch, tenantId } = await proStore(harness, 'alpha');
+    const other = await seedTenant(harness, 'bravo');
+    const dress = uuidv7();
+    await harness.asAdmin(() => harness.db.insert(products).values({ id: dress, tenantId, name: 'Dress watch', productType: 'watch' } as any));
+    await harness.asAdmin(() => harness.db.insert(dailyProductStats).values([
+      { tenantId, productId: dress, day: '2026-09-28', views: 40, tryonSessions: 4 },
+      { tenantId, productId: watch, day: '2026-09-28', views: 100, tryonSessions: 12 },
+      { tenantId, productId: watch, day: '2026-08-30', views: 50, tryonSessions: 3 },
+      { tenantId, productId: watch, day: '2026-08-29', views: 999, tryonSessions: 999 }, // a day too early
+      { tenantId: other.tenantId, productId: watch, day: '2026-09-28', views: 7000, tryonSessions: 700 }, // another store's row
+    ] as any));
+
+    const screen = await tryOnScreen(ctx, NOW);
+    const byId = Object.fromEntries(screen.watches.map((w) => [w.productId, w.last30]));
+    assert.deepEqual(byId, { [watch]: { views: 150, tryonSessions: 15 }, [dress]: { views: 40, tryonSessions: 4 } }, 'each watch its own days');
+
+    const noAnalytics = Object.assign(Object.create(ctx), { can: (p: string) => p !== 'analytics:read' && ctx.can(p as never) });
+    assert.deepEqual((await tryOnScreen(noAnalytics, NOW)).watches.map((w) => w.last30), [null, null], 'no analytics permission: no numbers');
+
+    const changed = await updateTryOn(ctx, watch, { caseMm: 38 });
+    assert.equal(changed.last30, null, 'a change returns the settings only; the screen keeps the list’s numbers');
   } finally { await harness.close(); }
 });

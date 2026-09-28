@@ -96,13 +96,14 @@ export async function analyticsView(ctx: TenantContext, range: Range, now = new 
   });
 
   // Top products by views, with each product's own uplift under the same rule.
-  const perProduct = new Map<string, { views: number; arSessions: number; purchases: number; conversion: ConversionTotals }>();
+  const perProduct = new Map<string, { views: number; arSessions: number; tryonSessions: number; purchases: number; conversion: ConversionTotals }>();
+  const EMPTY = { views: 0, arSessions: 0, tryonSessions: 0, purchases: 0, conversion: ZERO };
   for (const r of productRows) {
-    const p = perProduct.get(r.productId) ?? { views: 0, arSessions: 0, purchases: 0, conversion: ZERO };
-    perProduct.set(r.productId, { ...p, views: p.views + r.views, arSessions: p.arSessions + r.arSessions, purchases: p.purchases + r.purchases });
+    const p = perProduct.get(r.productId) ?? EMPTY;
+    perProduct.set(r.productId, { ...p, views: p.views + r.views, arSessions: p.arSessions + r.arSessions, tryonSessions: p.tryonSessions + r.tryonSessions, purchases: p.purchases + r.purchases });
   }
   for (const r of conversionRows) {
-    const p = perProduct.get(r.productId) ?? { views: 0, arSessions: 0, purchases: 0, conversion: ZERO };
+    const p = perProduct.get(r.productId) ?? EMPTY;
     perProduct.set(r.productId, { ...p, conversion: addConversion(p.conversion, r) });
   }
   const top = [...perProduct.entries()].sort((a, b) => b[1].views - a[1].views || a[0].localeCompare(b[0])).slice(0, 10);
@@ -124,7 +125,7 @@ export async function analyticsView(ctx: TenantContext, range: Range, now = new 
     series,
     byDevice: devices,
     topProducts: top.map(([productId, p]) => ({
-      productId, name: names.get(productId) ?? '—', views: p.views, arSessions: p.arSessions, purchases: p.purchases, upliftPct: upliftOf(p.conversion),
+      productId, name: names.get(productId) ?? '—', views: p.views, arSessions: p.arSessions, tryonSessions: p.tryonSessions, purchases: p.purchases, upliftPct: upliftOf(p.conversion),
     })),
     conversion: {
       withAr: { sessions: conversion.sessionsWithAr, purchases: conversion.purchasesWithAr },

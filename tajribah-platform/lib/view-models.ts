@@ -228,7 +228,7 @@ export type AnalyticsView = {
   totals: DashboardSummary['last30'];
   series: MetricPoint[];
   byDevice: { device: 'mobile' | 'tablet' | 'desktop'; sessions: number; arSupported: number }[];
-  topProducts: { productId: string; name: string; views: number; arSessions: number; purchases: number; upliftPct: number | null }[];
+  topProducts: { productId: string; name: string; views: number; arSessions: number; tryonSessions: number; purchases: number; upliftPct: number | null }[];
   funnel: { step: Bi; value: number }[];
   /**
    * P4.6 — the two groups behind the uplift, so a merchant can see what it rests on.
@@ -301,6 +301,11 @@ export type TryOnWatchView = {
   /** Both pictures and a case width: the shop's button can open the studio. */
   ready: boolean;
   missing: ('worn' | 'flat' | 'case')[];
+  /**
+   * P5.13 — the last 30 Riyadh days on this watch's page, from the analytics rollup: views and
+   * try-on openings. Only on the screen's list, and null when the viewer may not read analytics.
+   */
+  last30: { views: number; tryonSessions: number } | null;
 };
 
 export type TryOnScreen = {

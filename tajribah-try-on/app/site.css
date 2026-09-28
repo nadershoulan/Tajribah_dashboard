@@ -749,5 +749,7 @@ html[lang="en"] .legal-body p { line-height: 1.75; }
 .embed-root { min-height: 100vh; background: var(--bg, #fff); padding: 0 12px 16px; }
 .embed-bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; padding: 10px 4px; background: inherit; }
 .embed-brand { font-weight: 700; font-size: 15px; }
+.embed-privacy { display: inline-flex; align-items: center; gap: 6px; min-width: 0; margin-inline: 12px; font-size: 13px; line-height: 1.35; color: inherit; opacity: .78; text-decoration: underline; text-underline-offset: 3px; }
+.embed-privacy svg { flex: none; }
 .embed-close { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 999px; border: 1px solid rgba(0, 0, 0, .12); background: #fff; cursor: pointer; }
 .embed-note { display: grid; gap: 14px; justify-items: center; text-align: center; padding: 64px 16px; }

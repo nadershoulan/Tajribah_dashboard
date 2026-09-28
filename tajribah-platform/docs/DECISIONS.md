@@ -507,3 +507,23 @@ Tajribah's own domain over the product page — isolated from the shop's CSS and
 camera and QR pairing working as they do on the site.
 
 **Rollback path.** Drop the `product` prop (the default is the old behaviour) and the frame.
+
+## T27 · 2026-09-28 · Try-on privacy: a notice, not a gate; unpicked QR photos swept every minute
+
+**Decision (Nader's, 2026-09-28: "Add a scheduled sweep").** The site promises a QR-transferred
+photo is "deleted when received, or after 30 minutes". Expired sessions were only removed when
+someone opened one or started a new one, so with no traffic an unreceived photo stayed. A
+scheduled job (`worker/index.ts` → `lib/pair-sweep.ts`) now removes every expired session and its
+photo, and any photo older than a session whose session is gone. It runs **every minute**, so the
+30-minute promise holds to the minute; each run is two R2 listings. The pairing routes and the
+capture page are unchanged — the sweep calls the pairing's own `removeSession`.
+
+**No blocking consent screen.** The studio never opens a live camera (`getUserMedia` is not used):
+a photo comes through the phone's own picker or camera app, which asks the shopper itself, and the
+studio already says the photo stays in the browser. A gate would add a step without guarding
+anything, and would mean changing the owner's studio. Instead the try-on frame's bar says "Your
+photos are processed on your device" and links to the camera & photo privacy page. If a live
+camera mode is ever added, a consent step comes with it.
+
+**Rollback path.** `main` back to `vinext/server/fetch-handler` and drop `triggers` in
+`vite.config.ts`; remove the `.embed-privacy` link.

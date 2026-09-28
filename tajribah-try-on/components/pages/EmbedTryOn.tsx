@@ -12,12 +12,15 @@
  * Downloads are off here: the merchant's images come from the CDN, and the studio draws them onto
  * its canvas without asking for CORS, which would make saving the picture fail. The studio itself
  * is not changed for that — the environment says "no download", as the static preview does.
+ *
+ * P5.7 — the bar says, before anything is used, that photos are handled on the shopper's device,
+ * and links to the full camera & photo privacy page in a new tab (the shop page stays open).
  */
 import { useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { ShieldCheck, X } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 import type { Bi } from '@/lib/lang';
-import { SiteEnvContext, useSiteEnv } from '@/lib/site-env';
+import { SiteEnvContext, SiteLink, useSiteEnv } from '@/lib/site-env';
 import type { TryOnProduct } from '@/lib/demo-product';
 import Studio from '@/components/studio/Studio';
 
@@ -94,11 +97,11 @@ export default function EmbedTryOn() {
     const p = params();
     const store = p.get('store') ?? '';
     const product = p.get('product') ?? '';
-    if (!/^[a-z0-9-]{1,64}$/i.test(store) || !product || product.length > 200) { setState({ kind: 'unavailable' }); return; }
+    const valid = /^[a-z0-9-]{1,64}$/i.test(store) && !!product && product.length <= 200;
     let live = true;
     const url = `${configBase(p).replace(/\/+$/, '')}/${encodeURIComponent(store)}/${encodeURIComponent(product)}.json`;
-    fetch(url, { credentials: 'omit' })
-      .then((r) => (r.ok ? r.json() : null))
+    // An address that cannot name a published config is simply "unavailable" — nothing is fetched.
+    (valid ? fetch(url, { credentials: 'omit' }).then((r) => (r.ok ? r.json() : null)) : Promise.resolve(null))
       .then((json) => { if (!live) return; const found = tryOnProductFrom(json); setState(found ? { kind: 'ready', product: found } : { kind: 'unavailable' }); })
       .catch(() => { if (live) setState({ kind: 'unavailable' }); });
     return () => { live = false; };
@@ -117,6 +120,9 @@ export default function EmbedTryOn() {
     <div className="embed-root">
       <div className="embed-bar">
         <span className="embed-brand">{t('تجربة', 'Tajribah')}</span>
+        <SiteLink href="/try-on-privacy" target="_blank" rel="noopener" className="embed-privacy">
+          <ShieldCheck size={15} aria-hidden />{t('تُعالج صورك على جهازك', 'Your photos are processed on your device')}
+        </SiteLink>
         <button type="button" className="embed-close" onClick={close} aria-label={t('أغلق التجربة', 'Close the try-on')}><X size={20} aria-hidden /></button>
       </div>
       {state.kind === 'loading' && <p className="embed-note" role="status">{t('جارٍ التحميل…', 'Loading…')}</p>}

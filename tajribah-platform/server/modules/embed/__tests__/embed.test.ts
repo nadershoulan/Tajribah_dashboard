@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { storeConnections } from '@/db/schema';
+import { edgeConfigs, products, storeConnections } from '@/db/schema';
+import { uuidv7 } from '@/lib/ids';
 import { setLogLevel } from '@/server/core/observability/log';
 import { buildTenantContext } from '@/server/core/tenancy/context';
 import { createTestDb, seedTenant } from '@/server/testing/harness';
@@ -91,5 +92,32 @@ test('checking a live page: installed, redirects re-checked, errors reported, si
     await assert.rejects(() => checkInstall(ctx, 'http://127.0.0.1/', site({})), (e: any) => code(e) === 'validation_failed' && 'url' in e.errors);
     await harness.asAdmin(() => harness.db.insert(storeConnections).values({ tenantId: seeded.tenantId, provider: 'salla', externalStoreId: 's', storeUrl: 'https://shop.example.sa', status: 'active' } as any));
     await assert.rejects(() => checkInstall(ctx, 'https://someone-else.example/p', site({})), (e: any) => code(e) === 'validation_failed', 'once connected, only the store\'s own pages');
+  } finally { await harness.close(); }
+});
+
+test('T37: installed right — and whether this product’s button is live, not published, taken down, or unknown', async () => {
+  const harness = await createTestDb();
+  try {
+    const seeded = await seedTenant(harness, 'beta');
+    const ctx = await buildTenantContext({ actor: { userId: seeded.userId, email: seeded.email, isStaff: false }, tenantId: seeded.tenantId, requestId: 'r' });
+    const page = (ref: string): typeof fetch => async () => new Response(`<html>${embedSnippet('beta', ref)}</html>`);
+    const own = uuidv7();
+    const [synced, made, gone] = await harness.asAdmin(() => harness.db.insert(products).values([
+      { tenantId: seeded.tenantId, name: 'Synced watch', nameAr: 'ساعة مزامنة', externalId: 'sa-9' },
+      { id: own, tenantId: seeded.tenantId, name: 'Made here' },
+      { tenantId: seeded.tenantId, name: 'Taken down', externalId: 'sa-10' },
+      { tenantId: seeded.tenantId, name: 'Deleted', externalId: 'sa-11', deletedAt: new Date(), status: 'archived' },
+    ] as any).returning()) as any[];
+    await harness.asAdmin(() => harness.db.insert(edgeConfigs).values([
+      { id: uuidv7(), tenantId: seeded.tenantId, productId: synced.id, key: 'beta/sa-9.json', version: 3, fingerprint: 'f', publishedAt: new Date() },
+      { id: uuidv7(), tenantId: seeded.tenantId, productId: gone.id, key: 'beta/sa-10.json', version: 2, fingerprint: 'f', publishedAt: new Date(), withdrawnAt: new Date() },
+    ] as any));
+    const at = async (ref: string) => (await checkInstall(ctx, 'https://shop.example.sa/p', page(ref))) as any;
+    assert.deepEqual((await at('sa-9')).product, { productId: synced.id, name: 'Synced watch', nameAr: 'ساعة مزامنة', state: 'live', version: 3 });
+    assert.deepEqual([(await at(own)).product.productId, (await at(own)).product.state], [made.id, 'not_published'], 'a product made in the dashboard is found by its own id');
+    assert.deepEqual([(await at('sa-10')).product.state, (await at('sa-10')).product.version], ['withdrawn', 0]);
+    assert.equal((await at('sa-404')).product, null, 'no product has this id');
+    assert.equal((await at('sa-11')).product, null, 'a deleted product is not in the catalogue');
+    assert.equal((await at(synced.id)).product, null, 'a synced product is addressed by its platform id, not ours — as the config key is');
   } finally { await harness.close(); }
 });

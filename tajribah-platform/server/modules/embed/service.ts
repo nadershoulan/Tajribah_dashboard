@@ -9,7 +9,9 @@ import { storeConnections } from '@/db/schema';
 import { errors } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { embedSnippet } from '@/widget/src/snippet';
-import { inspectHtml, safeTarget, type InstallStatus } from './check';
+import type { InstallCheck } from '@/lib/view-models';
+import { publicationOf } from '@/server/modules/edge/publish';
+import { inspectHtml, safeTarget } from './check';
 
 export const CHECK_TIMEOUT_MS = 8000;
 export const CHECK_MAX_BYTES = 1024 * 1024;
@@ -20,7 +22,7 @@ export async function snippetFor(ctx: TenantContext): Promise<{ storeKey: string
   return { storeKey: ctx.tenant.slug, snippet: embedSnippet(ctx.tenant.slug), storeHost: await storeHost(ctx) };
 }
 
-export async function checkInstall(ctx: TenantContext, url: string, fetchImpl: typeof fetch = fetch): Promise<InstallStatus & { url: string }> {
+export async function checkInstall(ctx: TenantContext, url: string, fetchImpl: typeof fetch = fetch): Promise<InstallCheck> {
   ctx.require('ar:read');
   const host = await storeHost(ctx);
   let target = safeTarget(url, host);
@@ -44,7 +46,10 @@ export async function checkInstall(ctx: TenantContext, url: string, fetchImpl: t
     }
     if (!response.ok) { clearTimeout(timer); return { status: 'unreachable', detail: `the page answered ${response.status}`, url: target.url.href }; }
     const html = await readCapped(response).finally(() => clearTimeout(timer));
-    return { ...inspectHtml(html, ctx.tenant.slug), url: target.url.href };
+    const found = inspectHtml(html, ctx.tenant.slug);
+    // T37: installed right is half the answer — is this product's button live?
+    if (found.status === 'installed') return { ...found, url: target.url.href, product: await publicationOf(ctx, found.productRef) };
+    return { ...found, url: target.url.href };
   }
   return { status: 'unreachable', detail: 'too many redirects', url };
 }

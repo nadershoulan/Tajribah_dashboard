@@ -5,6 +5,7 @@
 import { Check, Copy, SearchCheck } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '@/lib/api-client';
+import { AppLink } from '@/lib/app-env';
 import { useData, useResource } from '@/lib/data';
 import { useLang } from '@/lib/i18n';
 import type { Bi } from '@/lib/lang';
@@ -15,7 +16,7 @@ import { Badge, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboa
 /** What each checker answer means, and what to do about it. */
 const VERDICT: Record<InstallCheck['status'], { tone: 'ok' | 'warn' | 'bad'; title: Bi; fix: Bi }> = {
   installed: { tone: 'ok', title: { ar: 'مُركَّب بشكل صحيح', en: 'Installed correctly' },
-    fix: { ar: 'يظهر الزر في هذه الصفحة للمنتجات التي فعّلت لها العرض.', en: 'The button shows on this page for products with AR switched on.' } },
+    fix: { ar: 'يظهر الزر في صفحات المنتجات التي نشرتها.', en: 'The button shows on the pages of products you have published.' } },
   missing_script: { tone: 'bad', title: { ar: 'السطر غير موجود في الصفحة', en: 'The snippet is not on this page' },
     fix: { ar: 'تأكد أنك ألصقته في قالب صفحة المنتج، وليس في الصفحة الرئيسية، ثم احفظ القالب.', en: 'Check that you pasted it into the product page template (not the home page), and saved the template.' } },
   wrong_store: { tone: 'bad', title: { ar: 'السطر لمتجر آخر', en: 'The snippet is for a different store' },
@@ -26,6 +27,18 @@ const VERDICT: Record<InstallCheck['status'], { tone: 'ok' | 'warn' | 'bad'; tit
     fix: { ar: 'السطر موجود لكن القالب لم يضع رقم المنتج مكان {{ product.id }}. تأكد أنه داخل قالب صفحة المنتج.', en: 'The line is there, but the template did not replace {{ product.id }}. Make sure it is inside the product page template.' } },
   unreachable: { tone: 'warn', title: { ar: 'تعذّر فتح الصفحة', en: 'We could not open the page' },
     fix: { ar: 'تأكد أن الرابط صحيح وأن المتجر مفتوح للزوار.', en: 'Check the address, and that the store is open to visitors.' } },
+};
+
+/** T37: installed right — and this product's own state, which is why a button shows or not. */
+const PRODUCT_VERDICT: Record<'live' | 'not_published' | 'withdrawn' | 'unknown', { tone: 'ok' | 'warn'; title: Bi; fix: Bi; link: boolean }> = {
+  live: { tone: 'ok', title: { ar: 'مُركَّب، والزر ظاهر لهذا المنتج', en: 'Installed, and this product’s button is live' },
+    fix: { ar: 'إن لم تره بعد فانتظر دقيقة ثم حدّث الصفحة.', en: 'If you do not see it yet, wait a minute and reload the page.' }, link: false },
+  not_published: { tone: 'warn', title: { ar: 'مُركَّب، لكن هذا المنتج لم يُنشر بعد', en: 'Installed — but this product is not published yet' },
+    fix: { ar: 'انشره من «إعدادات العرض» (انشر في المتجر)، ويظهر الزر خلال دقيقة تقريبًا.', en: 'Publish it from AR settings (Publish to the store); the button appears within about a minute.' }, link: true },
+  withdrawn: { tone: 'warn', title: { ar: 'مُركَّب، لكن زر هذا المنتج أُزيل', en: 'Installed — but this product’s button was taken down' },
+    fix: { ar: 'لم يعد لدى المنتج ما يفتحه الزر (أُوقف العرض أو التجربة، أو أُرشف المنتج)، أو المتجر موقوف. يعود تلقائيًا حين يكتمل من جديد.', en: 'The product no longer has anything for the button to open (AR or try-on switched off, or the product archived), or the store is paused. It comes back by itself once that is fixed.' }, link: true },
+  unknown: { tone: 'warn', title: { ar: 'مُركَّب، لكن لا يوجد منتج بهذا الرقم', en: 'Installed — but no product has this id' },
+    fix: { ar: 'إن كان المنتج جديدًا فزامن متجرك أولًا؛ وإلا فتأكد من الرقم الذي يضعه القالب.', en: 'If the product is new, sync your store first; otherwise check the id your theme fills in.' }, link: false },
 };
 
 const URL_AR: [RegExp, string][] = [
@@ -86,14 +99,15 @@ export default function Embed() {
       body: t('الصق رابط أي صفحة منتج أدناه، ونخبرك إن كان التركيب صحيحًا وما الذي ينقص.', 'Paste the address of any product page below, and we tell you whether the install is right, and what is missing.') },
   ];
 
-  const verdict = result ? VERDICT[result.status] : null;
+  const productVerdict = result?.status === 'installed' ? PRODUCT_VERDICT[result.product?.state ?? 'unknown'] : null;
+  const verdict = productVerdict ?? (result ? VERDICT[result.status] : null);
   return (
     <Shell tenant={null} crumbs={crumbs}>
       <PageHead
         title={t('التركيب في متجرك', 'Install in your store')}
         lead={t(
-          'سطران داخل قالب صفحة المنتج. لا يغيّران تصميم متجرك، والزر لا يظهر إلا على المنتجات التي فعّلت لها العرض.',
-          'Two lines inside your product page template. They do not change your theme, and the button only appears on products where you switched AR on.',
+          'سطران داخل قالب صفحة المنتج. لا يغيّران تصميم متجرك، والزر لا يظهر إلا على المنتجات التي نشرتها من «إعدادات العرض».',
+          'Two lines inside your product page template. They do not change your theme, and the button only appears on products you published from AR settings.',
         )}
       />
       {error && <ErrorNote error={error} />}
@@ -152,7 +166,9 @@ export default function Embed() {
               <div className="check-result" role="status">
                 <Badge tone={verdict.tone} dot>{pick(verdict.title)}</Badge>
                 <p style={{ margin: '8px 0 0', fontSize: 13.5 }}>{pick(verdict.fix)}</p>
-                {result.status === 'installed' && <p className="hint" style={{ margin: '4px 0 0' }}>{t('رقم المنتج في الصفحة', 'Product id on the page')}: <span className="mm" dir="ltr">{result.productRef}</span></p>}
+                {result.status === 'installed' && <p className="hint" style={{ margin: '4px 0 0' }}>{t('رقم المنتج في الصفحة', 'Product id on the page')}: <span className="mm" dir="ltr">{result.productRef}</span>
+                  {result.product && <> · {lang === 'ar' ? result.product.nameAr ?? result.product.name : result.product.name}{result.product.state === 'live' ? t(` · نسخة ${result.product.version}`, ` · version ${result.product.version}`) : null}</>}</p>}
+                {productVerdict?.link && <AppLink href="/dashboard/ar-settings" className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>{t('إعدادات العرض', 'AR settings')}</AppLink>}
                 {result.status !== 'installed' && result.detail && <p className="hint" style={{ margin: '4px 0 0' }} dir="auto">{result.detail}</p>}
               </div>
             )}
@@ -161,8 +177,8 @@ export default function Embed() {
           <Panel title={t('لماذا لا يمكنه كسر متجرك', 'Why it cannot break your shop')}>
             <p style={{ margin: 0, fontSize: 13.5, color: 'var(--text-2)' }}>
               {t(
-                'الزر معزول عن تصميم متجرك، وحجمه أقل من 3 كيلوبايت، ويُحمّل بعد صفحتك. إن حدث أي خطأ لا يظهر الزر فقط — وصفحتك تبقى كما هي حتى لو تعطّلت خدمتنا تمامًا.',
-                'The button is isolated from your theme, under 3 KB, and loads after your page. If anything goes wrong the button simply does not appear — and your page stays exactly as it is, even if our service were down entirely.',
+                'الزر معزول عن تصميم متجرك، وحجمه نحو 6 كيلوبايت مضغوطًا، ويُحمّل بعد صفحتك. إن حدث أي خطأ لا يظهر الزر فقط — وصفحتك تبقى كما هي حتى لو تعطّلت خدمتنا تمامًا.',
+                'The button is isolated from your theme, about 6 KB compressed, and loads after your page. If anything goes wrong the button simply does not appear — and your page stays exactly as it is, even if our service were down entirely.',
               )}
             </p>
           </Panel>

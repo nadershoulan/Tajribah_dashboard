@@ -20,11 +20,12 @@
  * fingerprint that differs and writes again. A key that changed (the product's platform id) has
  * its old entry deleted, so one product never answers at two addresses.
  */
-import { and, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, or } from 'drizzle-orm';
 import { edgeConfigs, products } from '@/db/schema';
 import type { Job } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import type { PublishResult } from '@/lib/contracts/ar-config';
+import type { Publication } from '@/lib/view-models';
 import { record } from '@/server/core/audit/audit';
 import { entitlementsOf, type Entitlements } from '@/server/core/billing/entitlements';
 import { configStore } from '@/server/core/edge/configs';
@@ -145,6 +146,22 @@ export async function edgeStatuses(ctx: TenantContext, productIds: readonly stri
     });
   }
   return out;
+}
+
+/**
+ * T37: which product a page's product ref names, and whether its button is live — for the install
+ * checker. The ref is what the config key is built from: the platform's id, or ours for a product
+ * made in the dashboard (`externalId ?? id`, exactly as `build.ts`).
+ */
+export async function publicationOf(ctx: TenantContext, productRef: string): Promise<Publication | null> {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productRef);
+  const found = await ctx.db.find(products, and(isNull(products.deletedAt),
+    uuid ? or(eq(products.externalId, productRef), and(isNull(products.externalId), eq(products.id, productRef))) : eq(products.externalId, productRef)), { limit: 2 });
+  const product = found[0];
+  if (!product) return null;
+  const row = await rowOf(ctx, product.id);
+  const state = !row?.key ? 'not_published' : row.withdrawnAt ? 'withdrawn' : 'live';
+  return { productId: product.id, name: product.name, nameAr: product.nameAr, state, version: state === 'live' ? row!.version : 0 };
 }
 
 async function rowOf(ctx: TenantContext, productId: string): Promise<EdgeRow | null> {

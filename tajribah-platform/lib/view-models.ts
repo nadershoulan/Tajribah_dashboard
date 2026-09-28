@@ -104,9 +104,12 @@ export type ConnectionDetail = ConnectionSummary & {
   health: ConnectionHealth;
 };
 
-/** The install checker's answer (P1.17). */
+/** T37: the product a page names, and whether its button is live (P1.15). */
+export type Publication = { productId: string; name: string; nameAr: string | null; state: 'live' | 'not_published' | 'withdrawn'; version: number };
+
+/** The install checker's answer (P1.17); `product` (T37) is null when no product has the page's id. */
 export type InstallCheck =
-  | { status: 'installed'; productRef: string; url: string }
+  | { status: 'installed'; productRef: string; url: string; product: Publication | null }
   | { status: 'missing_script' | 'wrong_store' | 'missing_placeholder' | 'template_not_rendered' | 'unreachable'; detail: string | null; url: string };
 
 /** One notification in the bell (P1.23). */

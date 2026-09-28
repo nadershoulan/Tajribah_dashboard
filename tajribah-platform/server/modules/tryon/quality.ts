@@ -5,7 +5,10 @@
  * each confirmed upload this job reads the picture's alpha channel and:
  *  - **crops away empty edges** (nothing visible there, alpha < 3%): the cropped copy is stored
  *    under a new key and replaces the upload — a picture with a margin would otherwise show the
- *    watch smaller than it is. PNG stays PNG; WebP is written lossless (`exact`: even invisible pixels keep their colour).
+ *    watch smaller than it is.
+ *  - P5.12: **stores a PNG as lossless WebP** when that is clearly smaller (about half, measured on
+ *    the studio's own pictures) — the same pixels, fewer bytes on the shopper's phone. WebP is always
+ *    written lossless and `exact` (even invisible pixels keep their colour), so nothing changes.
  *  - **measures the share of real size shown** once cropped (a soft shadow or glow at the sides
  *    still shrinks the watch) and keeps it against the picture's key, with the watch's score
  *    (`quality_score`, the worse picture, 0–100) once both pictures are checked.
@@ -30,7 +33,9 @@ import { withTenant } from '@/server/core/tenancy/rls';
 
 export type Slot = 'worn' | 'flat';
 export const QUALITY_PERMISSIONS = ['tryon:read', 'tryon:write'] as const;
-export type QualityOutcome = 'measured' | 'trimmed' | 'skipped';
+export type QualityOutcome = 'measured' | 'replaced' | 'skipped';
+/** Keep the WebP only when it saves at least this share — a near tie is not worth a new file. */
+export const WEBP_KEEP_BELOW = 0.9;
 
 const KEY_OF = { worn: 'wornKey', flat: 'flatKey' } as const;
 const BYTES_OF = { worn: 'wornBytes', flat: 'flatBytes' } as const;
@@ -59,7 +64,7 @@ export async function checkCutoutQuality(tenantId: string, productId: string, sl
   const bytes = await readAll(object.body);
   const webp = key.endsWith('.webp');
 
-  // Measure; crop when there is anything to crop.
+  // Measure; crop when there is anything to crop; keep the smaller of PNG and lossless WebP.
   let found: Omit<SlotQuality, 'key'>;
   let cropped: { key: string; bytes: Uint8Array } | null = null;
   try {
@@ -67,14 +72,19 @@ export async function checkCutoutQuality(tenantId: string, productId: string, sl
     const facts = alphaFacts(data, info.width, info.height);
     if (!facts.box) found = { sizeShown: 0, trimmed: false, issue: 'empty' };
     else {
-      found = { sizeShown: sizeShown(facts), trimmed: false };
-      if (hasMargins(facts)) {
-        const cut = sharp(bytes).extract(facts.box);
-        const out = new Uint8Array(await (webp ? cut.webp({ lossless: true, exact: true }) : cut.png({ compressionLevel: 9 })).toBuffer());
-        const next = store.key({ kind: 'photo', id: uuidv7(), filename: `${slot}.${webp ? 'webp' : 'png'}` });
-        await store.put(next, out.slice().buffer as ArrayBuffer, { contentType: webp ? 'image/webp' : 'image/png' });
+      const trimmed = hasMargins(facts);
+      const picture = () => (trimmed ? sharp(bytes).extract(facts.box!) : sharp(bytes));
+      const asWebp = new Uint8Array(await picture().webp({ lossless: true, exact: true }).toBuffer());
+      // The PNG to beat: the upload itself, or its cropped copy.
+      const asPng = webp ? null : trimmed ? new Uint8Array(await picture().png({ compressionLevel: 9 }).toBuffer()) : bytes;
+      const useWebp = webp || asWebp.length < asPng!.length * WEBP_KEEP_BELOW;
+      const out = useWebp ? asWebp : asPng!;
+      found = { sizeShown: sizeShown(facts), trimmed, ...(useWebp && !webp ? { converted: true } : {}) };
+      if (trimmed || (useWebp && !webp)) {
+        const next = store.key({ kind: 'photo', id: uuidv7(), filename: `${slot}.${useWebp ? 'webp' : 'png'}` });
+        // A new key for new bytes, never rewritten: phones and the CDN may keep it for good.
+        await store.put(next, out.slice().buffer as ArrayBuffer, { contentType: useWebp ? 'image/webp' : 'image/png', immutable: true });
         cropped = { key: next, bytes: out };
-        found = { ...found, trimmed: true };
       }
     }
   } catch {
@@ -99,7 +109,7 @@ export async function checkCutoutQuality(tenantId: string, productId: string, sl
     await record(ctx, {
       action: 'update', resourceType: 'tryon_config', resourceId: after.id,
       before: { [KEY_OF[slot]]: key } as never,
-      after: { [KEY_OF[slot]]: finalKey, sizeShown: found.sizeShown, trimmed: found.trimmed, qualityScore: after.qualityScore } as never,
+      after: { [KEY_OF[slot]]: finalKey, sizeShown: found.sizeShown, trimmed: found.trimmed, converted: found.converted ?? false, qualityScore: after.qualityScore } as never,
     }, db);
     return { applied: true, replaced: cropped ? key : null };
   });
@@ -109,5 +119,5 @@ export async function checkCutoutQuality(tenantId: string, productId: string, sl
     return 'skipped';
   }
   if (replaced) await store.delete(replaced).catch(() => undefined); // an orphan costs us, never the store
-  return cropped ? 'trimmed' : 'measured';
+  return cropped ? 'replaced' : 'measured';
 }

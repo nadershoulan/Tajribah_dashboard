@@ -22,7 +22,7 @@ import { parseConfig, type ViewerConfig } from './config';
 import { arPath, detectDevice, VIEWER_AR_MODES } from './ar';
 import { LIMITS, type TrackInput } from './events';
 import { createTracker, privacySignal, randomToken, sessionToken, type Consent, type Tracker } from './track';
-import { DEFAULT_TRYON, openTryOn, tryOnUrl } from './tryon';
+import { DEFAULT_TRYON, openTryOn, tryOnUrl, warmTryOn } from './tryon';
 
 export const WIDGET_VERSION = '1.0.0';
 export const CONFIG_TIMEOUT_MS = 3000;
@@ -325,6 +325,7 @@ export async function mount(doc: Document, settings: Settings, fetchImpl: typeof
       tracker?.track({ type: 'ar_open', productId: product, arSupported: hasNativeAr() });
       return openAr(host, config, lang, settings);
     });
+    if (config.placement === 'wrist' && config.tryon) warmTryOn(doc, settings.tryon);
     host.setAttribute(READY, 'yes');
     tracker?.track({ type: 'product_view', productId: product });
     drawn += 1;

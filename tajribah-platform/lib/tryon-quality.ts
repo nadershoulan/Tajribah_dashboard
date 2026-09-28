@@ -67,6 +67,8 @@ export type SlotQuality = {
   sizeShown: number;
   /** Empty edges were cropped away (the stored picture is the cropped one). */
   trimmed: boolean;
+  /** P5.12: a PNG stored as lossless WebP — the same pixels, fewer bytes. */
+  converted?: boolean;
   issue?: 'empty' | 'unreadable';
 };
 export type TryOnQuality = { worn?: SlotQuality; flat?: SlotQuality };

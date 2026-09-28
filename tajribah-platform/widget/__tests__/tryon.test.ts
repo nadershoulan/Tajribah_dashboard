@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseConfig } from '../src/config';
-import { CLOSE_MESSAGE, DEFAULT_TRYON, isCloseFrom, tryOnUrl } from '../src/tryon';
+import { CLOSE_MESSAGE, DEFAULT_TRYON, isCloseFrom, tryOnUrl, warmTryOn } from '../src/tryon';
 import { GOOD } from './fixtures';
 
 const TRYON = { worn: 'https://cdn.tajribah.com/t/store/w/worn.png', flat: 'https://cdn.tajribah.com/t/store/w/flat.png', caseMm: 38, sku: 'SFW-38' };
@@ -46,3 +46,21 @@ test('only our frame closes it', () => {
   assert.equal(isCloseFrom({ ...ok, data: { type: 'other' } }, 'https://tajribah.com', frame), false);
   assert.equal(isCloseFrom({ ...ok, data: CLOSE_MESSAGE }, 'https://tajribah.com', frame), false);
 });
+
+test('P5.12: a try-on button warms the studio host once — its origin only, nothing about the product', () => {
+  const links: { rel: string; href: string }[] = [];
+  const doc = {
+    head: {
+      querySelector: (selector: string) => links.find((l) => selector === `link[rel="preconnect"][href="${l.href}"]`) ?? null,
+      appendChild: (node: { rel: string; href: string }) => links.push(node),
+    },
+    createElement: () => ({ rel: '', href: '' }),
+  };
+  assert.equal(warmTryOn(doc, DEFAULT_TRYON), true);
+  assert.equal(warmTryOn(doc, `${DEFAULT_TRYON}?store=s&product=p`), false, 'once per page');
+  assert.deepEqual(links, [{ rel: 'preconnect', href: 'https://tajribah.com' }]);
+  assert.equal(warmTryOn(doc, 'not a url'), false);
+  assert.equal(warmTryOn({ ...doc, head: null }, DEFAULT_TRYON), false, 'no head, no harm');
+  assert.equal(links.length, 1);
+});
+

@@ -22,6 +22,27 @@ export function tryOnUrl(base: string, store: string, product: string, lang: 'ar
   return url.href;
 }
 
+/** Just enough of a document to add a link to its head (a test passes a fake). */
+type HeadDocument = {
+  head: { querySelector(selector: string): unknown; appendChild(node: never): unknown } | null;
+  createElement(tag: 'link'): { rel: string; href: string };
+};
+
+/**
+ * P5.12 — when a try-on button is drawn, open the connection to the studio's host (DNS, TCP, TLS)
+ * so the shopper's tap does not wait for it. Only the origin, once per page; nothing downloads.
+ */
+export function warmTryOn(doc: HeadDocument, base: string): boolean {
+  let origin: string;
+  try { origin = new URL(base).origin; } catch { return false; }
+  if (!doc.head || origin === 'null' || doc.head.querySelector(`link[rel="preconnect"][href="${origin}"]`)) return false;
+  const link = doc.createElement('link');
+  link.rel = 'preconnect';
+  link.href = origin;
+  doc.head.appendChild(link as never);
+  return true;
+}
+
 /** A close from our frame — never from the shop page or another frame. */
 export function isCloseFrom(event: { origin: string; data: unknown; source: unknown }, frameOrigin: string, frameWindow: unknown): boolean {
   return event.origin === frameOrigin && event.source === frameWindow

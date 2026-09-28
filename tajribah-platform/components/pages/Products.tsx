@@ -203,9 +203,11 @@ export default function Products() {
                     </td>
                     <td><ModelBadge status={product.modelStatus} /></td>
                     <td>
-                      {product.arEnabled
-                        ? <Badge tone="ok" dot>{t('مفعّل', 'On')}</Badge>
-                        : <Badge>{t('متوقف', 'Off')}</Badge>}
+                      {product.live
+                        ? <Badge tone="ok" dot>{t('في المتجر', 'Live')}</Badge>
+                        : product.arEnabled
+                          ? <Badge tone="accent">{t('مفعّل، غير منشور', 'On, not published')}</Badge>
+                          : <Badge>{t('متوقف', 'Off')}</Badge>}
                     </td>
                     <td className="num">{formatNumber(product.views30, lang)}</td>
                     <td style={{ color: 'var(--text-3)', fontSize: 13 }}>{formatRelative(product.updatedAt, lang)}</td>

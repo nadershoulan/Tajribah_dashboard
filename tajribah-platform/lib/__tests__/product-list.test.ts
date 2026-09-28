@@ -6,7 +6,7 @@ import type { ProductRow } from '@/lib/view-models';
 
 const row = (id: string, over: Partial<ProductRow> = {}): ProductRow => ({
   id, name: `Product ${id}`, nameAr: null, sku: null, imageUrl: null, priceMinor: null, currency: 'SAR',
-  productType: 'other', status: 'active', arEnabled: false, tryonEnabled: false, modelStatus: 'none',
+  productType: 'other', status: 'active', arEnabled: false, tryonEnabled: false, modelStatus: 'none', live: false,
   dimensions: null, views30: 0, arSessions30: 0, updatedAt: '2026-09-01T00:00:00Z', ...over,
 });
 

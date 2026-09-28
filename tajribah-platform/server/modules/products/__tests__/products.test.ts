@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { auditLogs, dailyProductStats, models3d, products, storeConnections, tenantMemberships, users } from '@/db/schema';
+import { auditLogs, dailyProductStats, edgeConfigs, models3d, products, storeConnections, tenantMemberships, users } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { riyadhDay } from '@/lib/format';
 import { planByCode } from '@/lib/plans';
@@ -125,6 +125,19 @@ test('model status and 30-day numbers come from the real rows', async () => {
     assert.equal(row.modelStatus, 'ready');
     assert.equal(row.views30, 15, 'the last 30 days in Riyadh, not older');
     assert.equal(row.arSessions30, 4);
+    assert.equal(row.live, false, 'T42: not published');
+
+    // T42: live = published and not withdrawn; a withdrawn or removed product is not live.
+    const [q] = await plant(harness, products, { tenantId, name: 'Taken down' });
+    const [r] = await plant(harness, products, { tenantId, name: 'Removed' });
+    await plant(harness, edgeConfigs, [
+      { tenantId, productId: p.id, key: 'alpha/p.json', version: 1, publishedAt: new Date() },
+      { tenantId, productId: q.id, key: 'alpha/q.json', version: 1, publishedAt: new Date(), withdrawnAt: new Date() },
+      { tenantId, productId: r.id, key: null, version: 1, publishedAt: new Date(), withdrawnAt: new Date() },
+    ]);
+    assert.equal((await getProduct(ctx, p.id)).live, true);
+    const list = await listProducts(ctx, LIST);
+    assert.deepEqual(list.rows.map((x) => [x.name, x.live]).sort(), [['Removed', false], ['Taken down', false], ['With model', true]]);
   } finally { await harness.close(); }
 });
 

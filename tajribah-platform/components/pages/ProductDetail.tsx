@@ -177,7 +177,8 @@ function Editor({ product, onSaved, wasSaved }: { product: ProductRow; onSaved: 
         </label>
         {arMessage
           ? <span id="ar-error" className="field-error">{say(arMessage)}</span>
-          : <span id="ar-hint" className="field-hint">{t('يظهر زر «شاهدها في مكانك» في صفحة المنتج.', 'Shows the “View in your space” button on the product page.')}</span>}
+          : <span id="ar-hint" className="field-hint">{t('يتيح نشر نموذجه في صفحة المنتج من «إعدادات العرض».', 'Lets its 3D model be published to the product page from AR settings.')}{' '}
+            {product.live ? <Badge tone="ok" dot>{t('في المتجر الآن', 'Live on your shop')}</Badge> : null}</span>}
       </div>
       {failure && <ErrorNote error={failure} />}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>

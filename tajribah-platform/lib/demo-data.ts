@@ -99,7 +99,7 @@ export const DEMO_NOTIFICATIONS: NotificationItem[] = [
     title: { ar: 'انضمت sara@failet.sa إلى الفريق', en: 'sara@failet.sa joined the team' }, body: null },
 ];
 
-export const DEMO_PRODUCTS: ProductRow[] = [
+export const DEMO_PRODUCTS: ProductRow[] = ([
   {
     id: 'p-820241410', name: 'Failet women’s diamond watch', nameAr: 'ساعة فايلت النسائية الألماس',
     sku: 'P820241410', imageUrl: null, priceMinor: 289_000, currency: 'SAR', productType: 'watch',
@@ -156,7 +156,7 @@ export const DEMO_PRODUCTS: ProductRow[] = [
     dimensions: { caseMm: 41 },
     views30: 760, arSessions30: 0, updatedAt: iso(8),
   },
-];
+] as Omit<ProductRow, 'live'>[]).map((p) => ({ ...p, live: false })); // the preview publishes in AR settings (lib/data.tsx)
 
 /** The demo's try-on openings over 30 days: watches only, about a third of their AR sessions, like the demo series. */
 export function demoTryonSessions30(p: ProductRow): number {

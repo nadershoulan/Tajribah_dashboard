@@ -312,6 +312,10 @@ const demoEdits = new Map<string, ProductRow>();
 const demoTeam: TeamMemberRow[] = DEMO_TEAM.map((m) => ({ ...m }));
 const demoArConfigs = new Map<string, ArConfigView>();
 const demoNotifications: NotificationItem[] = DEMO_NOTIFICATIONS.map((n) => ({ ...n }));
+/** T42: live in the preview = published in its AR settings. */
+function withLive(p: ProductRow): ProductRow {
+  return { ...p, live: (demoArConfigs.get(p.id)?.publishedVersion ?? 0) > 0 };
+}
 function demoArDefault(p: ProductRow): ArConfigView {
   return {
     productId: p.id, productName: p.name, productNameAr: p.nameAr, productType: p.productType, arEnabled: p.arEnabled,
@@ -457,8 +461,8 @@ export const demoSource: DataSource = {
     });
     return { ...DEMO_DASHBOARD, tenant: { ...demoTenant }, onboarding: { complete: view.complete, steps } };
   },
-  async products(query = {}) { return pageOf(DEMO_PRODUCTS.map((p) => demoEdits.get(p.id) ?? p), query); },
-  async product(id) { return demoEdits.get(id) ?? DEMO_PRODUCTS.find((p) => p.id === id) ?? null; },
+  async products(query = {}) { return pageOf(DEMO_PRODUCTS.map((p) => withLive(demoEdits.get(p.id) ?? p)), query); },
+  async product(id) { const p = demoEdits.get(id) ?? DEMO_PRODUCTS.find((x) => x.id === id); return p ? withLive(p) : null; },
   async updateProduct(id, edit) {
     const current = demoEdits.get(id) ?? DEMO_PRODUCTS.find((p) => p.id === id);
     if (!current) throw new ApiError(404, 'not_found', 'product not found');

@@ -146,6 +146,8 @@ export type ProductRow = {
   arEnabled: boolean;
   tryonEnabled: boolean;
   modelStatus: 'none' | 'processing' | 'ready' | 'failed';
+  /** T42: its button is on the shop now (published and not withdrawn, P1.15). */
+  live: boolean;
   /** Millimetres. Without these the size comparison cannot be true to scale. */
   dimensions: { widthMm?: number; heightMm?: number; depthMm?: number; caseMm?: number } | null;
   views30: number;

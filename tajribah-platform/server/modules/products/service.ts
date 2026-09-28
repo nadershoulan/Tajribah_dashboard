@@ -11,8 +11,8 @@
  *     the next sync, silently. Only the fields the store does not have are editable.
  *  3. **Deleting is soft.** The row stays (orders and analytics still point at it), hidden.
  */
-import { and, desc, eq, gte, ilike, inArray, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm';
-import { dailyProductStats, models3d, products, type Product } from '@/db/schema';
+import { and, desc, eq, gte, ilike, inArray, isNotNull, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm';
+import { dailyProductStats, edgeConfigs, models3d, products, type Product } from '@/db/schema';
 import {
   ProductCreate, ProductPatch, STORE_OWNED_FIELDS,
   type ProductFilter, type ProductListPage, type ProductListQuery,
@@ -132,10 +132,13 @@ async function toRows(ctx: TenantContext, list: Product[]): Promise<ProductRow[]
   const modelIds = list.map((p) => p.primaryModelId).filter((id): id is string => !!id);
   const since = riyadhDay(Date.now() - 29 * 24 * 3600_000);
 
-  const [models, stats] = await Promise.all([
+  const [models, stats, live] = await Promise.all([
     modelIds.length ? ctx.db.find(models3d, inArray(models3d.id, modelIds), { limit: modelIds.length }) : Promise.resolve([]),
     ctx.db.find(dailyProductStats, and(inArray(dailyProductStats.productId, ids), gte(dailyProductStats.day, since)), { limit: ids.length * 30 }),
+    // T42: which of these have a button on the shop now.
+    ctx.db.find(edgeConfigs, and(inArray(edgeConfigs.productId, ids), isNotNull(edgeConfigs.key), isNull(edgeConfigs.withdrawnAt)), { limit: ids.length }),
   ]);
+  const liveIds = new Set(live.map((row) => row.productId));
   const modelStatus = new Map(models.map((m) => [m.id, MODEL_STATUS[m.status] ?? 'none']));
   const totals = new Map<string, { views: number; ar: number }>();
   for (const row of stats) {
@@ -157,6 +160,7 @@ async function toRows(ctx: TenantContext, list: Product[]): Promise<ProductRow[]
     status: p.status,
     arEnabled: p.arEnabled,
     tryonEnabled: p.tryonEnabled,
+    live: liveIds.has(p.id),
     modelStatus: p.primaryModelId ? modelStatus.get(p.primaryModelId) ?? 'none' : 'none',
     dimensions: p.dimensions,
     views30: totals.get(p.id)?.views ?? 0,

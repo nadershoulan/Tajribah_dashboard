@@ -6,7 +6,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq } from 'drizzle-orm';
-import { planLimits, staffAudit, subscriptions, tenants } from '@/db/schema';
+import { edgeConfigs, jobs, planLimits, products, staffAudit, subscriptions, tenants } from '@/db/schema';
+import { uuidv7 } from '@/lib/ids';
 import { entitlementsOf } from '@/server/core/billing/entitlements';
 import { buildTenantContext } from '@/server/core/tenancy/context';
 import { setLogLevel } from '@/server/core/observability/log';
@@ -100,5 +101,21 @@ test('a missing limit row reads as 0 (as entitlements enforce it) and a change w
     assert.equal((await plansForStaff())[2]!.limits.bandwidth_gb, 0);
     await updatePlan(STAFF(store.userId), 'pro', { limits: { bandwidth_gb: 2000 }, reason: 'row was missing' });
     assert.equal((await plansForStaff())[2]!.limits.bandwidth_gb, 2000);
+  } finally { await harness.close(); }
+});
+
+test('T44: a feature change refreshes every store with something published — a limit change does not', async () => {
+  const harness = await createTestDb();
+  try {
+    const live = await seedTenant(harness, 'alpha', { plan: 'pro' });
+    const quiet = await seedTenant(harness, 'bravo', { plan: 'pro' });
+    const [p] = await harness.asAdmin(() => harness.db.insert(products).values({ tenantId: live.tenantId, name: 'W' } as any).returning()) as any[];
+    await harness.asAdmin(() => harness.db.insert(edgeConfigs).values({ id: uuidv7(), tenantId: live.tenantId, productId: p.id, key: 'alpha/w.json', version: 1 } as any));
+    const queued = async () => (await harness.asAdmin(() => harness.db.select().from(jobs).where(eq(jobs.queue, 'edge.publish-config'))) as any[]).map((j) => j.tenantId);
+    await updatePlan(STAFF(live.userId), 'pro', { limits: { products: 999 }, reason: 'limit only' });
+    assert.deepEqual(await queued(), [], 'a limit is not in any config');
+    await updatePlan(STAFF(live.userId), 'pro', { features: { virtual_tryon: false }, reason: 'on me paused' });
+    assert.deepEqual(await queued(), [live.tenantId], 'the published store only — its “on me” changes');
+    void quiet;
   } finally { await harness.close(); }
 });

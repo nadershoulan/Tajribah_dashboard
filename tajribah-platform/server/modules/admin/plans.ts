@@ -10,9 +10,10 @@
  * The change and its staff-trail row (every field before and after) are one transaction, the
  * plan row locked. Only what differs is written; a save that changes nothing is refused.
  */
-import { and, count, eq, inArray, isNull, not, notExists } from 'drizzle-orm';
+import { and, count, eq, inArray, isNotNull, isNull, not, notExists } from 'drizzle-orm';
 import { unsafeAdminDb, type Db } from '@/db/client';
-import { LIMIT_KEY, PLAN_CODE, planFeatures, planLimits, plans, subscriptions, tenants, type LimitKey } from '@/db/schema';
+import { edgeConfigs, LIMIT_KEY, PLAN_CODE, planFeatures, planLimits, plans, subscriptions, tenants, type LimitKey } from '@/db/schema';
+import { enqueueEdgeRefresh } from '@/server/modules/edge/publish';
 import { FEATURE_LABELS, TRIAL_PLAN, UNLIMITED, type PlanCode } from '@/lib/plans';
 import { errors } from '@/server/core/errors/problem';
 import { staffLog, type StaffContext } from './access';
@@ -116,7 +117,7 @@ export async function updatePlan(staff: StaffContext, code: PlanCode, change: Pl
   if (reason.length < 5) throw errors.validation({ reason: ['say why, in a few words'] });
   if (!(PLAN_CODE as readonly string[]).includes(code)) throw errors.notFound('plan');
 
-  return unsafeAdminDb().transaction(async (tx) => {
+  const result = await unsafeAdminDb().transaction(async (tx) => {
     const [plan] = await tx.select().from(plans).where(eq(plans.code, code)).for('update');
     if (!plan) throw errors.notFound('plan');
     const before = termsOf(plan,
@@ -156,4 +157,11 @@ export async function updatePlan(staff: StaffContext, code: PlanCode, change: Pl
     await staffLog(staff, { action: 'plan.update', targetType: 'plan', targetId: plan.id, reason, detail: { code, changes: diff, stores: reach } }, tx as unknown as Db);
     return { changed };
   });
+  // T44: a feature can change what a published config says ("on me" is `virtual_tryon`). Every store
+  // with something published is refreshed; a refresh rewrites only a config that really changed.
+  if (result.changed.some((field) => field.startsWith('features.'))) {
+    const published = await unsafeAdminDb().selectDistinct({ tenantId: edgeConfigs.tenantId }).from(edgeConfigs).where(isNotNull(edgeConfigs.key));
+    for (const { tenantId } of published) await enqueueEdgeRefresh(tenantId);
+  }
+  return result;
 }

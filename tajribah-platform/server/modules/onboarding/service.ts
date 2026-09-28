@@ -4,9 +4,9 @@
  * Every read goes through `ctx.db` (tenant-scoped); every change goes through
  * `auditedUpdate`, so "who skipped connecting Salla, and when" is in the store's trail.
  */
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import {
-  analyticsEvents, models3d, products, storeConnections, subscriptions, tenants,
+  analyticsEvents, edgeConfigs, models3d, products, storeConnections, subscriptions, tenants, tryonConfigs,
   type OnboardingState,
 } from '@/db/schema';
 import { auditedUpdate } from '@/server/core/audit/audit';
@@ -21,7 +21,7 @@ import {
 /** One indexed existence check per fact — cheap enough to run on every dashboard load. */
 export async function factsFor(ctx: TenantContext): Promise<Facts> {
   const tenant = await ctx.db.requireById(tenants, ctx.tenantId);
-  const [hasPlan, hasActiveConnection, hasSizedProduct, hasReadyModel, widgetSeen] = await Promise.all([
+  const [hasPlan, hasActiveConnection, hasSizedProduct, hasReadyModel, hasReadyTryOn, hasLiveConfig, widgetSeen] = await Promise.all([
     ctx.db.exists(subscriptions),
     ctx.db.exists(storeConnections, eq(storeConnections.status, 'active')),
     // Width and height in millimetres are what make "real size" real; depth is optional.
@@ -32,12 +32,16 @@ export async function factsFor(ctx: TenantContext): Promise<Facts> {
       sql`(${products.dimensions}->>'heightMm') is not null`,
     )),
     ctx.db.exists(models3d, eq(models3d.status, 'ready')),
+    // T38: a watch set up for the try-on — switched on, which needs both pictures and the case width.
+    ctx.db.exists(tryonConfigs, and(eq(tryonConfigs.enabled, true), isNotNull(tryonConfigs.wornKey), isNotNull(tryonConfigs.flatKey), isNotNull(tryonConfigs.caseTenthsMm))),
+    // T38: a product's button is live on the shop (P1.15).
+    ctx.db.exists(edgeConfigs, and(isNotNull(edgeConfigs.key), isNull(edgeConfigs.withdrawnAt))),
     // The widget reports a product view from the live storefront: the install worked.
     ctx.db.exists(analyticsEvents, eq(analyticsEvents.eventType, 'product_view')),
   ]);
   return {
     storeConfirmed: tenant.onboardingState?.completedSteps?.includes('store') ?? false,
-    hasPlan, hasActiveConnection, hasSizedProduct, hasReadyModel, widgetSeen,
+    hasPlan, hasActiveConnection, hasSizedProduct, hasReadyModel, hasReadyTryOn, hasLiveConfig, widgetSeen,
   };
 }
 

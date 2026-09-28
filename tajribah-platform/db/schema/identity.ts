@@ -29,7 +29,7 @@ export { MEMBER_ROLE };
 export type { MemberRole } from '../../lib/permissions';
 
 export type OnboardingState = {
-  step: 'account' | 'store' | 'plan' | 'connect' | 'catalogue' | 'first_model' | 'embed' | 'done';
+  step: 'account' | 'store' | 'plan' | 'connect' | 'catalogue' | 'first_model' | 'publish' | 'embed' | 'done';
   completedSteps: string[];
   skipped?: string[];
 };

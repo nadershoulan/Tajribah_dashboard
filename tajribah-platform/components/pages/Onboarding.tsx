@@ -228,10 +228,21 @@ function StepPanel({ step, onMoved }: { step: StepState; onMoved: (view: Onboard
       body = (
         <>
           <p>{t(
-            'ارفع ملف GLB أو USDZ لمنتج واحد. نُحسّنه تلقائيًا، وتتم الخطوة عندما يصبح جاهزًا.',
-            'Upload a GLB or USDZ file for one product. We optimise it automatically, and the step is done once it is ready.',
+            'ارفع ملف GLB أو USDZ لمنتج واحد. نُحسّنه تلقائيًا، وتتم الخطوة عندما يصبح جاهزًا. لساعة، تكفي تجربتها بدل النموذج: صورتان مفرّغتان وعرض العلبة.',
+            'Upload a GLB or USDZ file for one product. We optimise it automatically, and the step is done once it is ready. For a watch, its try-on is enough instead of a model: two cut-out pictures and the case width.',
           )}</p>
-          {!step.done && <div className="btn-row">{goTo(t('ارفع نموذجًا', 'Upload a model'))}</div>}
+          {!step.done && <div className="btn-row">{goTo(t('ارفع نموذجًا', 'Upload a model'))}<AppLink href="/dashboard/tryon" className="btn btn-ghost">{t('تجربة الساعات', 'Watch try-on')}</AppLink></div>}
+        </>
+      );
+      break;
+    case 'publish':
+      body = (
+        <>
+          <p>{t(
+            'اختر منتجًا في «إعدادات العرض» واضغط «انشر في المتجر». يظهر زره في صفحة المنتج خلال دقيقة تقريبًا، ويبقى محدّثًا بعد ذلك تلقائيًا.',
+            'Pick a product in AR settings and press “Publish to the store”. Its button appears on the product page within about a minute, and stays up to date by itself after that.',
+          )}</p>
+          {!step.done && <div className="btn-row">{goTo(t('إعدادات العرض', 'AR settings'))}</div>}
         </>
       );
       break;

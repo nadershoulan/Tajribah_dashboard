@@ -426,6 +426,8 @@ function demoFacts(): Facts {
     hasActiveConnection: demoConnectionState.status === 'active',
     hasSizedProduct: products.some((p) => p.status === 'active' && p.dimensions?.widthMm != null && p.dimensions?.heightMm != null),
     hasReadyModel: demoModels.some((m) => m.status === 'ready'),
+    hasReadyTryOn: false,
+    hasLiveConfig: [...demoArConfigs.values()].some((c) => c.publishedVersion > 0),
     widgetSeen: false,
   };
 }

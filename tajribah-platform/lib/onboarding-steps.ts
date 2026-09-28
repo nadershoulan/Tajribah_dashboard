@@ -22,10 +22,13 @@ export const STEP_COPY: Omit<OnboardingStep, 'done' | 'skipped'>[] = [
     description: { ar: 'المقاس بالمليمتر هو ما يجعل الحجم حقيقيًا', en: 'Millimetres are what make the size real' },
     href: '/dashboard/products', minutes: 10 },
   { key: 'first_model', title: { ar: 'أول نموذج ثلاثي الأبعاد', en: 'Your first 3D model' },
-    description: { ar: 'ارفع ملف GLB أو USDZ للمنتج', en: 'Upload a GLB or USDZ file for a product' },
+    description: { ar: 'ارفع ملف GLB أو USDZ لمنتج — أو اضبط تجربة ساعة', en: 'Upload a GLB or USDZ file for a product — or set up a watch’s try-on' },
     href: '/dashboard/models', minutes: 5 },
+  { key: 'publish', title: { ar: 'النشر في متجرك', en: 'Publish to your store' },
+    description: { ar: 'انشر زر منتج من «إعدادات العرض»', en: 'Publish a product’s button from AR settings' },
+    href: '/dashboard/ar-settings', minutes: 1 },
   { key: 'embed', title: { ar: 'تركيب الزر في متجرك', en: 'Install the button in your store' },
-    description: { ar: 'سطر واحد في قالب صفحة المنتج', en: 'One line in your product page template' },
+    description: { ar: 'سطران في قالب صفحة المنتج', en: 'Two lines in your product page template' },
     href: '/dashboard/embed', minutes: 5 },
 ];
 

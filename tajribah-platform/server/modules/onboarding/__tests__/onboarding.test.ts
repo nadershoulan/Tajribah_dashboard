@@ -2,8 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  analyticsEvents, auditLogs, models3d, products, storeConnections, subscriptions,
-  tenantMemberships, tenants, users,
+  analyticsEvents, auditLogs, edgeConfigs, models3d, products, storeConnections, subscriptions,
+  tenantMemberships, tenants, tryonConfigs, users,
 } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { buildTenantContext } from '@/server/core/tenancy/context';
@@ -14,8 +14,8 @@ import { confirmStoreStep, onboardingOf, skipStep, unskipStep } from '@/server/m
 
 setLogLevel('error');
 
-const NONE: Facts = { storeConfirmed: false, hasPlan: false, hasActiveConnection: false, hasSizedProduct: false, hasReadyModel: false, widgetSeen: false };
-const ALL: Facts = { storeConfirmed: true, hasPlan: true, hasActiveConnection: true, hasSizedProduct: true, hasReadyModel: true, widgetSeen: true };
+const NONE: Facts = { storeConfirmed: false, hasPlan: false, hasActiveConnection: false, hasSizedProduct: false, hasReadyModel: false, hasReadyTryOn: false, hasLiveConfig: false, widgetSeen: false };
+const ALL: Facts = { storeConfirmed: true, hasPlan: true, hasActiveConnection: true, hasSizedProduct: true, hasReadyModel: true, hasReadyTryOn: true, hasLiveConfig: true, widgetSeen: true };
 
 // ------------------------------------------------------------------ pure rules
 
@@ -103,6 +103,12 @@ test('each step turns done when its fact appears in the database — and only fo
     await plant(harness, models3d, { tenantId, name: 'draft', source: 'uploaded', status: 'processing' });
     assert.equal((await onboardingOf(ctx)).current, 'first_model');
     await plant(harness, models3d, { tenantId, name: 'ok', source: 'uploaded', status: 'ready' });
+    assert.equal((await onboardingOf(ctx)).current, 'publish', 'T38: a button shows only for a published product');
+
+    const [watch] = await harness.asAdmin(() => harness.db.insert(products).values({ tenantId, name: 'W', productType: 'watch' } as any).returning()) as any[];
+    await plant(harness, edgeConfigs, { tenantId, productId: watch.id, key: 'alpha/w.json', version: 1, publishedAt: new Date(), withdrawnAt: new Date() });
+    assert.equal((await onboardingOf(ctx)).current, 'publish', 'a withdrawn button is not live');
+    await harness.asAdmin(() => harness.db.update(edgeConfigs).set({ withdrawnAt: null } as any));
     assert.equal((await onboardingOf(ctx)).current, 'embed');
 
     await plant(harness, analyticsEvents, { tenantId, eventType: 'product_view', sessionId: 's', occurredAt: new Date() });
@@ -162,5 +168,22 @@ test('P1.2: the store address can be chosen while confirming — not once a stor
     const rows = await harness.asAdmin(() => harness.db.select().from(tenants));
     assert.equal(rows.find((r: any) => r.id === tenantId)!.slug, 'alpha-shop');
     await assert.rejects(() => confirmStoreStep(ctx, { slug: 'alpha-again' }), (e: any) => /fixed/.test(e.errors?.slug?.[0]), 'fixed once confirmed');
+  } finally { await harness.close(); }
+});
+
+test('T38: a watch set up for the try-on counts as the first model — only once it is switched on', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, tenantId } = await store(harness, 'alpha');
+    await confirmStoreStep(ctx);
+    await skipStep(ctx, 'plan');
+    await skipStep(ctx, 'connect');
+    await plant(harness, products, { tenantId, name: 'Oyster', dimensions: { widthMm: 41, heightMm: 48 } });
+    assert.equal((await onboardingOf(ctx)).current, 'first_model');
+    const [watch] = await harness.asAdmin(() => harness.db.insert(products).values({ tenantId, name: 'W', productType: 'watch' } as any).returning()) as any[];
+    await plant(harness, tryonConfigs, { tenantId, productId: watch.id, category: 'watch', wornKey: 'w', flatKey: 'f', caseTenthsMm: 380, enabled: false });
+    assert.equal((await onboardingOf(ctx)).current, 'first_model', 'set up but switched off');
+    await harness.asAdmin(() => harness.db.update(tryonConfigs).set({ enabled: true } as any));
+    assert.equal((await onboardingOf(ctx)).current, 'publish');
   } finally { await harness.close(); }
 });

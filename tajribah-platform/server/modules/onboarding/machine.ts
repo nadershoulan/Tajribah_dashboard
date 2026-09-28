@@ -9,10 +9,14 @@
  * The order is the merchant journey (§3). Skipping is allowed only where the product still
  * works without the step: no plan yet (the trial continues) and no store connection
  * (products can be added by hand). Real size is the product, so `catalogue` cannot be skipped.
+ *
+ * T38: `first_model` is also done by a watch whose try-on is ready (T33: every plan has the studio,
+ * and a watch needs no 3D model), and `publish` sits before `embed` — the storefront script draws a
+ * button, and reports the view `embed` waits for, only for a published product.
  */
 import type { OnboardingState } from '@/db/schema';
 
-export const STEPS = ['account', 'store', 'plan', 'connect', 'catalogue', 'first_model', 'embed'] as const;
+export const STEPS = ['account', 'store', 'plan', 'connect', 'catalogue', 'first_model', 'publish', 'embed'] as const;
 export type StepKey = (typeof STEPS)[number];
 
 export const SKIPPABLE: ReadonlySet<StepKey> = new Set<StepKey>(['plan', 'connect']);
@@ -24,6 +28,8 @@ export type Facts = {
   hasActiveConnection: boolean;
   hasSizedProduct: boolean;
   hasReadyModel: boolean;
+  hasReadyTryOn: boolean;
+  hasLiveConfig: boolean;
   widgetSeen: boolean;
 };
 
@@ -37,7 +43,8 @@ const FACT: Record<StepKey, (f: Facts) => boolean> = {
   plan: (f) => f.hasPlan,
   connect: (f) => f.hasActiveConnection,
   catalogue: (f) => f.hasSizedProduct,
-  first_model: (f) => f.hasReadyModel,
+  first_model: (f) => f.hasReadyModel || f.hasReadyTryOn,
+  publish: (f) => f.hasLiveConfig,
   embed: (f) => f.widgetSeen,
 };
 

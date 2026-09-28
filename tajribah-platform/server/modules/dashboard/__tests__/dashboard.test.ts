@@ -38,7 +38,7 @@ test('a new store: honest zeros, a full 30-day series, the plan\'s limits, onboa
     assert.deepEqual(s.counts, { products: 0, arEnabled: 0, models: 0, modelsReady: 0, teamMembers: 1 });
     assert.equal(s.usage.products.limit, planByCode('starter').limits.products);
     assert.deepEqual(s.onboarding.steps.map((st) => [st.key, st.done]),
-      [['account', true], ['store', false], ['connect', false], ['catalogue', false], ['first_model', false], ['embed', false]]);
+      [['account', true], ['store', false], ['connect', false], ['catalogue', false], ['first_model', false], ['publish', false], ['embed', false]]);
     assert.equal(s.connection, null);
     assert.equal(s.tenant.role, 'owner');
   } finally { await harness.close(); }

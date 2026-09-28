@@ -25,7 +25,7 @@ export type TenantSummary = {
 };
 
 export type OnboardingStep = {
-  key: 'account' | 'store' | 'connect' | 'catalogue' | 'first_model' | 'embed';
+  key: 'account' | 'store' | 'connect' | 'catalogue' | 'first_model' | 'publish' | 'embed';
   title: Bi;
   description: Bi;
   href: string;

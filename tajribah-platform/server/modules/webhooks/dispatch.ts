@@ -23,6 +23,7 @@ import { backoffMs, FAIR_SHARE } from '@/server/core/jobs/queue';
 import { log } from '@/server/core/observability/log';
 import { systemContext, type TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
+import { keepLive } from '@/server/modules/edge/publish';
 import { entitlementsOf } from '@/server/core/billing/entitlements';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { revokeIn } from '@/server/modules/connections/service';
@@ -61,7 +62,7 @@ export const HANDLERS: Record<string, TopicHandler> = {
     if (!before) return { outcome: 'ignored' };
     const after = await db.updateById(products, before.id, { status: 'archived', arEnabled: false, syncedAt: new Date() });
     await record(ctx, { action: 'update', resourceType: 'product', resourceId: before.id, before, after }, db);
-    return { outcome: 'processed' };
+    return { outcome: 'processed', afterCommit: () => keepLive(ctx.tenantId, before.id) }; // P1.15: its button leaves the shop
   },
 
   'app.uninstalled': async (event, _delivery, { ctx, db }) => {

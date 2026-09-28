@@ -15,6 +15,7 @@ import { auditLogs, subscriptions, tenants, type Tenant } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { errors } from '@/server/core/errors/problem';
 import { adjustCredits } from '@/server/modules/billing/credits';
+import { enqueueEdgeRefresh } from '@/server/modules/edge/publish';
 import { staffLog, type StaffContext } from './access';
 import { staffActingContext } from './stores';
 
@@ -81,6 +82,8 @@ export async function actOnStore(staff: StaffContext, storeId: string, action: S
     });
     await staffLog(staff, { action: name, targetType: 'store', targetId: storeId, storeId, reason, detail }, tx as unknown as Db);
   });
+  // P1.15: a suspended store's buttons leave its shop; a restored store's come back.
+  if (action.type !== 'extend_trial') await enqueueEdgeRefresh(storeId);
 }
 
 /** A credit adjustment as the staff member: the ledger's rules, the store's trail, then the staff trail. */

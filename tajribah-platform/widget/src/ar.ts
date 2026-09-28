@@ -12,7 +12,7 @@
  *  - **Everything else** (desktop, iPhone without a USDZ, face/wrist items until try-on in
  *    P5) → `<model-viewer>` in the page, which also offers WebXR where the browser has it.
  */
-import type { ViewerConfig } from './config';
+import type { ModelConfig, ViewerConfig } from './config';
 
 /** The in-page viewer's AR modes. No `scene-viewer`: it would be handed the compressed web file. */
 export const VIEWER_AR_MODES = 'webxr quick-look';
@@ -32,7 +32,7 @@ export function detectDevice(userAgent: string, maxTouchPoints: number, anchorSu
   return { ios, quickLook: ios && anchorSupportsAr, android };
 }
 
-export function arPath(device: Device, config: ViewerConfig, pageUrl: string): ArPath {
+export function arPath(device: Device, config: ModelConfig, pageUrl: string): ArPath {
   // Face and wrist are try-on anchors (P5); placing a watch on the floor would be wrong.
   const tryOn = config.placement === 'face' || config.placement === 'wrist';
   if (!tryOn && device.quickLook && config.model.usdz) {

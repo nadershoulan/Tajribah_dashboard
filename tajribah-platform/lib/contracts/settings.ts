@@ -56,3 +56,5 @@ export type StoreSettings = {
 
 /** What the AR button looks like until the merchant brands it. */
 export const DEFAULT_BUTTON_RADIUS = 12;
+/** The button's colour until the store sets its own — the dashboard's aqua, which its preview shows too (P1.15). */
+export const DEFAULT_BUTTON_COLOR = '#00A7BC';

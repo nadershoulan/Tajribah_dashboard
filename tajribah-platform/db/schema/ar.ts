@@ -140,6 +140,26 @@ export const tryonConfigs = pgTable('tryon_configs', {
   ...timestamps(),
 }, (t) => [uniqueIndex('tryon_configs_product_unq').on(t.productId)]);
 
+/**
+ * P1.15 (0021) — what each product has live at the edge: the key the shop's widget reads
+ * (`{store}/{product ref}.json`), a version bumped on every write, and the fingerprint of what was
+ * written, so the screen can tell "shoppers see an older one" from any change — a label, a new
+ * model, a try-on switched off, a store suspended. One row per product. Withdrawn (`withdrawn_at`):
+ * the entry is deleted, the key kept — a product that qualifies again is published there again.
+ * `ar_configs.published_*` predates this and is not used.
+ */
+export const edgeConfigs = pgTable('edge_configs', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  key: text('key'),
+  version: integer('version').notNull().default(0),
+  fingerprint: text('fingerprint'),
+  publishedAt: ts('published_at'),
+  withdrawnAt: ts('withdrawn_at'),
+  ...timestamps(),
+}, (t) => [uniqueIndex('edge_configs_product_unq').on(t.productId)]);
+
 export const qrCodes = pgTable('qr_codes', {
   id: pk(),
   tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),

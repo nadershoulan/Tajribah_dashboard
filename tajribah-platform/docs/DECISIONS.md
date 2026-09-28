@@ -638,3 +638,33 @@ the store picks a plan. And every plan feature the catalogue lists is **enforced
 A trial store also gets Growth's monthly AI credits (40), because credits follow the plan.
 
 **Rollback path.** `TRIAL_PLAN` back to `'starter'`; each check is one line at its call site.
+
+## P1.15 · 2026-09-29 · Publishing a viewer config: explicit, then kept true
+
+**Decision.** Publishing is the merchant's act ("Publish to the store", `ar:publish`) — a saved
+label or placement does not reach shoppers until then. After that, what shoppers see is **kept
+true** without asking: a product that no longer qualifies (archived, deleted, AR off with no try-on,
+the store suspended) is withdrawn at once, and a change made elsewhere that alters the published
+config (try-on switched off, a new model version, the store's button colour, a sync) is written. A
+withdrawn product that qualifies again is published again — the merchant published it and never
+took that back. A product never published is never published by a refresh.
+
+**Why.** A live button that opens a deleted picture or a store's suspended catalogue is worse than
+no button; and asking the merchant to re-publish every product after changing the brand colour is
+busywork.
+
+**Also decided (in-plan detail).**
+- The config store sits behind `ConfigStore`; production is Cloudflare KV (the plan's choice),
+  memory locally. No KV before the account exists.
+- A watch with try-on and **no 3D model** gets a config (`model: null`) — T33 gave every plan the
+  studio, and many watches will never have a model. The widget accepts `model: null` only with a
+  valid try-on block on the wrist.
+- The config's colour defaults to `#00A7BC`, the aqua the dashboard's preview already showed.
+- Cached for 60 s at the host (a change reaches shoppers within about a minute, plus KV's own
+  propagation).
+
+**Known gap.** A replaced cut-out's old picture is deleted right after the live config is rewritten;
+a shopper holding the previous config (cache up to about 2 minutes) could meet a missing picture.
+A delayed delete fixes it; not done yet.
+
+**Rollback path.** Remove the Publish handler; configs already in KV stay until deleted by key.

@@ -31,6 +31,16 @@ export const DEFAULT_AR_CONFIG = {
   shadow: 1,
 };
 
+/**
+ * The button's words until the merchant writes their own (P1.15): a watch's button opens the try-on
+ * on the wrist, so "view in your space" would promise the wrong thing.
+ */
+export function defaultLabelsFor(type: ProductRow['productType']): { buttonLabelAr: string; buttonLabelEn: string } {
+  return type === 'watch'
+    ? { buttonLabelAr: 'جرّبها على معصمك', buttonLabelEn: 'Try it on your wrist' }
+    : { buttonLabelAr: DEFAULT_AR_CONFIG.buttonLabelAr, buttonLabelEn: DEFAULT_AR_CONFIG.buttonLabelEn };
+}
+
 export const ArConfigInput = z.object({
   buttonLabelAr: z.string().trim().min(1, 'the button needs a label').max(40, 'at most 40 characters'),
   buttonLabelEn: z.string().trim().min(1, 'the button needs a label').max(40, 'at most 40 characters'),
@@ -51,11 +61,18 @@ export type ArConfigView = ArConfigInput & {
   arEnabled: boolean;
   /** False until the merchant saves anything: the defaults are shown, not stored. */
   saved: boolean;
-  /** 0 until the edge config is published (P1.15). */
+  /** 0 until the product's config is published (P1.15); the version shoppers see. */
   publishedVersion: number;
-  /** Saved after the last publish — what shoppers see is older than this. */
+  publishedAt: string | null;
+  /**
+   * Published: what would be published now differs from what shoppers see (any source — these
+   * settings, the model, the try-on, the store's colours, the plan). Not published: saved settings.
+   */
   unpublishedChanges: boolean;
 };
+
+/** API-102's answer (P1.15): the version shoppers now see. */
+export type PublishResult = { version: number; publishedAt: string | null; outdated: boolean };
 
 /** The placement-for-type rule, as field errors (empty when allowed). */
 export function placementErrors(type: ProductRow['productType'], placement: Placement): Record<string, string[]> {

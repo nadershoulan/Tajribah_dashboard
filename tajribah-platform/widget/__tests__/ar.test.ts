@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { arPath, detectDevice, sceneViewerIntent, VIEWER_AR_MODES } from '../src/ar';
-import { parseConfig, type ViewerConfig } from '../src/config';
+import { parseConfig, type ModelConfig } from '../src/config';
 import { GOOD } from './fixtures';
 
 const UA = {
@@ -10,8 +10,8 @@ const UA = {
   android: 'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36',
   desktop: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
 };
-const config = (over: Partial<ViewerConfig> = {}, model: Partial<ViewerConfig['model']> = {}): ViewerConfig =>
-  ({ ...parseConfig(GOOD)!, placement: 'floor', ...over, model: { ...parseConfig(GOOD)!.model, usdz: 'https://cdn.example.test/m/v1/model.usdz', glbNative: 'https://cdn.example.test/m/v1/native.glb', ...model } });
+const config = (over: Partial<ModelConfig> = {}, model: Partial<ModelConfig['model']> = {}): ModelConfig =>
+  ({ ...parseConfig(GOOD)!, placement: 'floor', ...over, model: { ...parseConfig(GOOD)!.model!, usdz: 'https://cdn.example.test/m/v1/model.usdz', glbNative: 'https://cdn.example.test/m/v1/native.glb', ...model } });
 const PAGE = 'https://shop.example.sa/p/1?x=1';
 
 test('devices: iPhone, an iPad that says it is a Mac, Android, desktop', () => {
@@ -64,7 +64,7 @@ test('the in-page viewer never hands its (compressed) file to Scene Viewer', () 
 });
 
 test('the config carries the plain GLB when there is one, and nothing when not', () => {
-  assert.equal(parseConfig(GOOD)!.model.glbNative, null);
+  assert.equal(parseConfig(GOOD)!.model!.glbNative, null);
   const withNative = { ...GOOD, model: { ...GOOD.model, glbNative: 'https://cdn.example.test/m/v1/native.glb' } };
-  assert.equal(parseConfig(withNative)!.model.glbNative, 'https://cdn.example.test/m/v1/native.glb');
+  assert.equal(parseConfig(withNative)!.model!.glbNative, 'https://cdn.example.test/m/v1/native.glb');
 });

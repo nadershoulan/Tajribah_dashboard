@@ -13,6 +13,7 @@ import { handleSyncJob } from '@/server/modules/sync/job';
 import { handleProcessJob } from '@/server/modules/models/process';
 import { handleAiJob } from '@/server/modules/ai-jobs/job';
 import { handleQualityJob } from '@/server/modules/tryon/quality';
+import { handleEdgeJob } from '@/server/modules/edge/publish';
 
 /** Read the tenant a job is for, refusing to run tenant work without one. */
 export function tenantOf(job: Job): TenantDb {
@@ -25,7 +26,7 @@ export function registerAllHandlers(): void {
   registerHandler('system.cleanup', async (job: Job) => {
     log.info('cleanup tick', { jobId: job.id });
   });
-  // P1.6. The edge handler arrives with its own package (P1.15).
+  // P1.6.
   registerHandler('sync.products', (job: Job) => handleSyncJob(job));
   // P1.13: optimise a confirmed model upload.
   registerHandler('ai.postprocess', (job: Job) => handleProcessJob(job));
@@ -34,4 +35,6 @@ export function registerAllHandlers(): void {
   registerHandler('ai.embed', (job: Job) => handleAiJob(job));
   // P5.9: check a confirmed try-on cut-out — crop empty edges, measure the size shown.
   registerHandler('tryon.quality', (job: Job) => handleQualityJob(job));
+  // P1.15: keep live viewer configs true after a change — rewrite, or withdraw.
+  registerHandler('edge.publish-config', (job: Job) => handleEdgeJob(job));
 }

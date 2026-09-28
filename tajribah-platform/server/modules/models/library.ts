@@ -16,6 +16,7 @@ import { record } from '@/server/core/audit/audit';
 import { errors } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
+import { keepLive } from '@/server/modules/edge/publish';
 import { fileFor } from './files';
 
 export async function listModels(ctx: TenantContext): Promise<ModelRow[]> {
@@ -61,11 +62,11 @@ export async function listModels(ctx: TenantContext): Promise<ModelRow[]> {
  */
 export async function publishVersion(ctx: TenantContext, versionId: string): Promise<void> {
   ctx.require('models:publish');
-  await withTenant(ctx.tenantId, async (db) => {
+  const productId = await withTenant(ctx.tenantId, async (db) => {
     const version = await db.findById(modelVersions, versionId);
     if (!version) throw errors.notFound('model version');
     const model = await db.lockById(models3d, version.modelId);
-    if (model.currentVersionId === versionId) return;
+    if (model.currentVersionId === versionId) return null;
     if (version.status !== 'ready') {
       throw errors.conflict(`version ${version.version} is ${version.status} — only a ready version can go live`);
     }
@@ -81,5 +82,7 @@ export async function publishVersion(ctx: TenantContext, versionId: string): Pro
       action: 'publish', resourceType: 'model', resourceId: model.id,
       before: { currentVersionId: model.currentVersionId }, after: { currentVersionId: after.currentVersionId, version: version.version },
     }, db);
+    return model.productId;
   });
+  if (productId) await keepLive(ctx.tenantId, productId); // P1.15: a live button shows the new version
 }

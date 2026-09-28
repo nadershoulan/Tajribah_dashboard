@@ -67,7 +67,7 @@ not marked done until it has run against the real service.
 | P1.13 ✅ | Model processing pipeline | — | Optimise (prune, dedup, weld, meshopt) as an `ai.postprocess` job; < 2 MB target reported. KTX2 and GLB→USDZ split to P1.13b |
 | P1.13b | Textures + USDZ | ❓ worker container decision | KTX2/Basis textures and GLB→USDZ need native encoders (`toktx`; Blender or `usd-core`) in the worker image — choose the image first |
 | P1.14 ✅ | Model library UI | — | Versions, status, publish |
-| P1.15 | **Edge viewer config ⭐⭐** | 🔒 Cloudflare KV | Publish writes a versioned KV entry; the shopper path never reads Postgres |
+| P1.15 ◐ | **Edge viewer config ⭐⭐** | 🔒 Cloudflare KV (code done 2026-09-29) | Publish writes a versioned entry behind `ConfigStore` (KV in production); the shopper path never reads Postgres. Built: builder checked by the widget's parser, publisher, keep-true refreshes, config host. Left: the KV namespace, the `cfg.` Worker deploy, a live check |
 | P1.16 ✅ | **AR viewer widget ⭐⭐** | — | < 60 KB gzipped, loads after the page, fails closed |
 | P1.17 ✅ | Embed & install | — | Snippet + install checker |
 | P1.18 ✅ | Shopper AR experience | — | WebXR / Quick Look / Scene Viewer paths |

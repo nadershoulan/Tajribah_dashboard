@@ -18,7 +18,7 @@
  *  - **Small.** On a tap, phones open their native AR app (P1.18, `ar.ts`); the heavy viewer
  *    (`<model-viewer>`) loads only where there is none.
  */
-import { parseConfig, type ViewerConfig } from './config';
+import { hasModel, parseConfig, type ModelConfig, type ViewerConfig } from './config';
 import { arPath, detectDevice, VIEWER_AR_MODES } from './ar';
 import { LIMITS, type TrackInput } from './events';
 import { createTracker, privacySignal, randomToken, sessionToken, type Consent, type Tracker } from './track';
@@ -178,7 +178,7 @@ function hasNativeAr(): boolean {
 }
 
 /** P1.18: the native AR app where the phone has one, the in-page viewer otherwise. */
-async function openAr(host: HTMLElement, config: ViewerConfig, lang: 'ar' | 'en', settings: Settings): Promise<void> {
+async function openAr(host: HTMLElement, config: ModelConfig, lang: 'ar' | 'en', settings: Settings): Promise<void> {
   const probe = document.createElement('a');
   const device = detectDevice(navigator.userAgent, navigator.maxTouchPoints ?? 0, !!probe.relList?.supports?.('ar'));
   const path = arPath(device, config, location.href);
@@ -203,7 +203,7 @@ async function openAr(host: HTMLElement, config: ViewerConfig, lang: 'ar' | 'en'
 }
 
 /** `<model-viewer>` in a modal: desktops, and phones without a native AR path. */
-async function openViewer(host: HTMLElement, config: ViewerConfig, lang: 'ar' | 'en', settings: Settings): Promise<void> {
+async function openViewer(host: HTMLElement, config: ModelConfig, lang: 'ar' | 'en', settings: Settings): Promise<void> {
   const root = host.shadowRoot!;
   let loaded = true;
   try { await loadViewer(settings.viewer); } catch { loaded = false; }
@@ -321,6 +321,7 @@ export async function mount(doc: Document, settings: Settings, fetchImpl: typeof
         openTryOn(host.shadowRoot!, tryOnUrl(settings.tryon, settings.store, product, lang), lang, lang === 'ar' ? config.product.nameAr ?? config.product.name : config.product.name);
         return;
       }
+      if (!hasModel(config)) return; // unreachable: a config without a model is a wrist try-on (parseConfig)
       // The tap is the event; what it opens depends on the device (P1.18).
       tracker?.track({ type: 'ar_open', productId: product, arSupported: hasNativeAr() });
       return openAr(host, config, lang, settings);

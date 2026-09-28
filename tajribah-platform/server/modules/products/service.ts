@@ -22,6 +22,7 @@ import type { ProductRow } from '@/lib/view-models';
 import { auditedInsert, auditedUpdate } from '@/server/core/audit/audit';
 import { assertWithinQuota } from '@/server/core/billing/entitlements';
 import { errors, fieldErrorsFrom } from '@/server/core/errors/problem';
+import { keepLive } from '@/server/modules/edge/publish';
 import type { TenantContext } from '@/server/core/tenancy/context';
 
 const SIZED = and(
@@ -99,6 +100,7 @@ export async function updateProduct(ctx: TenantContext, id: string, input: unkno
   }
 
   await auditedUpdate(ctx, products, id, patch as Record<string, unknown>, { resourceType: 'product' });
+  await keepLive(ctx.tenantId, id); // P1.15: name, sizes and AR on/off are in the published config
   return getProduct(ctx, id);
 }
 
@@ -108,6 +110,7 @@ export async function deleteProduct(ctx: TenantContext, id: string): Promise<voi
   if (!current) throw errors.notFound('product');
   await auditedUpdate(ctx, products, id, { deletedAt: new Date(), status: 'archived', arEnabled: false },
     { resourceType: 'product', action: 'delete' });
+  await keepLive(ctx.tenantId, id); // P1.15: a deleted product's button goes too
 }
 
 // ------------------------------------------------------------------ view mapping

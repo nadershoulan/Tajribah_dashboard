@@ -8,7 +8,7 @@ import { AppLink } from '@/lib/app-env';
 import { ApiError } from '@/lib/api-client';
 import { ArConfigInput, placementErrors, placementsFor, type ArConfigView, type Placement } from '@/lib/contracts/ar-config';
 import { useData, useResource } from '@/lib/data';
-import { formatNumber } from '@/lib/format';
+import { formatDateTime, formatNumber } from '@/lib/format';
 import { useLang } from '@/lib/i18n';
 import type { Bi } from '@/lib/lang';
 import { Shell } from '@/components/dashboard/chrome';
@@ -30,6 +30,11 @@ const MESSAGE_AR: [RegExp, string][] = [
   [/between 0 and 2/, 'بين 0 و 2'],
   [/not for this kind of product/, 'لا يناسب هذا النوع من المنتجات'],
   [/missing permission: ar:write/, 'دورك لا يسمح بتغيير إعدادات العرض'],
+  [/missing permission: ar:publish/, 'دورك لا يسمح بالنشر في المتجر'],
+  [/nothing for the button to open/, 'لا يوجد ما يفتحه الزر بعد — فعّل العرض مع نموذج ثلاثي الأبعاد منشور، أو اضبط تجربة الساعة.'],
+  [/archived or deleted/, 'هذا المنتج مؤرشف أو محذوف.'],
+  [/suspended or closed/, 'هذا المتجر موقوف أو مغلق.'],
+  [/not make a valid config/, 'الإعدادات لا تكوّن عرضًا صالحًا — تواصل مع الدعم.'],
 ];
 
 export default function ArSettings() {
@@ -100,6 +105,8 @@ function Editor({ config, name, brandColor, radius, onSaved }: {
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<Error | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
   const set = <K extends keyof ArConfigInput>(key: K) => (value: ArConfigInput[K]) => setForm((f) => ({ ...f, [key]: value }));
   const say = (m: string) => (lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(m))?.[1] ?? m : m);
   const err = (key: string) => errors[key]?.[0];
@@ -123,11 +130,31 @@ function Editor({ config, name, brandColor, radius, onSaved }: {
     }
   };
 
+  // Publishing sends what is saved; unsaved edits would not be in it, so save first.
+  const dirty = (Object.keys(form) as (keyof ArConfigInput)[]).some((k) => form[k] !== config[k]);
+  const publish = async () => {
+    setRefusal(null);
+    setPublishing(true);
+    try {
+      await source.publishArConfig(config.productId);
+      onSaved();
+    } catch (e) {
+      setRefusal(say((e as Error).message));
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   const color = brandColor ?? 'var(--aqua)';
   const label = lang === 'ar' ? form.buttonLabelAr : form.buttonLabelEn;
   return (
     <Panel title={name} sub={t('يُطبَّق على صفحة هذا المنتج فقط', 'Applies to this product’s page only')}
-      actions={config.saved && config.unpublishedChanges ? <Badge tone="warn">{t('تغييرات غير منشورة', 'Unpublished changes')}</Badge> : undefined}>
+      actions={<>
+        {config.publishedVersion > 0
+          ? <Badge tone="ok" dot>{t(`منشور · نسخة ${config.publishedVersion}`, `Live · version ${config.publishedVersion}`)}</Badge>
+          : <Badge>{t('غير منشور', 'Not published')}</Badge>}
+        {config.unpublishedChanges && (config.saved || config.publishedVersion > 0) ? <Badge tone="warn">{t('تغييرات غير منشورة', 'Unpublished changes')}</Badge> : null}
+      </>}>
       <div className="button-preview" aria-hidden style={{ marginBottom: 16 }}>
         <span style={form.variant === 'solid'
           ? { background: color, borderRadius: radius }
@@ -195,11 +222,17 @@ function Editor({ config, name, brandColor, radius, onSaved }: {
       {failure && <ErrorNote error={failure} />}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>{saving ? t('جارٍ الحفظ…', 'Saving…') : t('احفظ', 'Save')}</button>
-        <button type="button" className="btn btn-ghost" disabled title={t('يتطلب حساب Cloudflare', 'Needs the Cloudflare account')}>{t('انشر في المتجر', 'Publish to the store')}</button>
+        <button type="button" className="btn btn-ghost" onClick={publish} disabled={publishing || saving || dirty}
+          title={dirty ? t('احفظ أولًا', 'Save first') : undefined}>
+          {publishing ? t('جارٍ النشر…', 'Publishing…') : t('انشر في المتجر', 'Publish to the store')}
+        </button>
       </div>
-      <p className="hint">{t(
-        'الحفظ يحفظ الإعدادات هنا. النشر إلى صفحات متجرك يعمل عند تفعيل خدمة العرض السريع (تنتظر حساب Cloudflare).',
-        'Saving keeps the settings here. Publishing them to your store pages works once the fast viewer service is switched on (it waits on the Cloudflare account).',
+      {refusal && <p className="field-error" role="alert" style={{ marginTop: 10 }}>{refusal}</p>}
+      <p className="hint">{config.publishedAt
+        ? t(`آخر نشر ${formatDateTime(config.publishedAt, 'ar')}. `, `Last published ${formatDateTime(config.publishedAt, 'en')}. `)
+        : null}{t(
+        'الحفظ يحفظ الإعدادات هنا. النشر يضعها في صفحة المنتج في متجرك مع نموذجه ثلاثي الأبعاد (وتجربة الساعة إن وُجدت)، ويراها المتسوّقون خلال دقيقة تقريبًا.',
+        'Saving keeps the settings here. Publishing puts them on the product’s page in your store, with its 3D model (and a watch’s try-on); shoppers see it within about a minute.',
       )}</p>
     </Panel>
   );

@@ -30,6 +30,7 @@ import { currentScope } from '@/server/core/observability/scope';
 import { forTenant } from '@/server/core/storage/storage';
 import { systemContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
+import { keepLive } from '@/server/modules/edge/publish';
 
 export type Slot = 'worn' | 'flat';
 export const QUALITY_PERMISSIONS = ['tryon:read', 'tryon:write'] as const;
@@ -118,6 +119,9 @@ export async function checkCutoutQuality(tenantId: string, productId: string, sl
     if (cropped) await store.delete(cropped.key).catch(() => undefined);
     return 'skipped';
   }
-  if (replaced) await store.delete(replaced).catch(() => undefined); // an orphan costs us, never the store
+  if (replaced) {
+    await keepLive(tenantId, productId); // P1.15: the live config names the cropped picture before the old one goes
+    await store.delete(replaced).catch(() => undefined); // an orphan costs us, never the store
+  }
   return cropped ? 'replaced' : 'measured';
 }

@@ -66,3 +66,13 @@ test('P5.12: a try-on button warms the studio host once — its origin only, not
   assert.equal(links.length, 1);
 });
 
+
+test('P1.15: a watch with try-on but no 3D model still gets its button; without try-on it gets none', () => {
+  const noModel = { ...withTryOn(TRYON), model: null };
+  assert.equal(parseConfig(noModel)?.model, null);
+  assert.deepEqual(parseConfig(noModel)?.tryon, { ...TRYON, onMe: false }, 'the button opens the try-on');
+  assert.equal(parseConfig({ ...noModel, tryon: undefined }), null, 'nothing to open');
+  assert.equal(parseConfig({ ...noModel, tryon: { ...TRYON, caseMm: 4 } }), null, 'a bad try-on block leaves nothing to open');
+  assert.equal(parseConfig({ ...noModel, placement: 'floor' }), null, 'only the wrist opens the try-on');
+  assert.equal(parseConfig({ ...noModel, model: undefined }), null, 'the model is null or a model, never missing');
+});

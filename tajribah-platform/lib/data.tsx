@@ -26,7 +26,7 @@ import type { Bi, Lang } from './lang';
 import type { ProductListPage, ProductListQuery } from './contracts/products';
 import type { PlanCode } from './plans';
 import { DEFAULT_BUTTON_RADIUS, SettingsPatch, type StoreSettings } from './contracts/settings';
-import { ArConfigInput, DEFAULT_AR_CONFIG, placementErrors, placementsFor, type ArConfigView } from './contracts/ar-config';
+import { ArConfigInput, DEFAULT_AR_CONFIG, defaultLabelsFor, placementErrors, placementsFor, type ArConfigView, type PublishResult } from './contracts/ar-config';
 import { pageOf } from './product-list';
 import { MODEL_TARGET_BYTES } from './model-size';
 import { embedSnippet } from '../widget/src/snippet';
@@ -99,6 +99,8 @@ export interface DataSource {
   /** P1.21: AR button and viewer settings per product. */
   arConfigs(): Promise<ArConfigView[]>;
   saveArConfig(productId: string, input: ArConfigInput): Promise<ArConfigView>;
+  /** P1.15 — publish the product's config to the store shops read. */
+  publishArConfig(productId: string): Promise<PublishResult>;
   updateSettings(patch: Record<string, unknown>): Promise<StoreSettings>;
   analytics(range: '7d' | '30d' | '90d'): Promise<AnalyticsView>;
   /** P4.8: the range's daily figures as CSV text. */
@@ -244,6 +246,9 @@ export function apiSource(client: ApiClient): DataSource {
     async saveArConfig(productId, input) {
       return client.call<ArConfigView>(`/api/ar-configs/${encodeURIComponent(productId)}`, { method: 'PUT', body: input });
     },
+    async publishArConfig(productId) {
+      return client.call<PublishResult>(`/api/ar-configs/${encodeURIComponent(productId)}/publish`, { method: 'POST' });
+    },
     async updateSettings(patch) { return client.call<StoreSettings>('/api/settings', { method: 'PATCH', body: patch }); },
     async analytics(range) { return client.call<AnalyticsView>(`/api/analytics?range=${range}`); },
     async analyticsCsv(range) { return client.callText(`/api/analytics/export?range=${range}`); },
@@ -305,9 +310,9 @@ const demoNotifications: NotificationItem[] = DEMO_NOTIFICATIONS.map((n) => ({ .
 function demoArDefault(p: ProductRow): ArConfigView {
   return {
     productId: p.id, productName: p.name, productNameAr: p.nameAr, productType: p.productType, arEnabled: p.arEnabled,
-    buttonLabelAr: DEFAULT_AR_CONFIG.buttonLabelAr, buttonLabelEn: DEFAULT_AR_CONFIG.buttonLabelEn, variant: DEFAULT_AR_CONFIG.variant,
+    ...defaultLabelsFor(p.productType), variant: DEFAULT_AR_CONFIG.variant,
     showIcon: DEFAULT_AR_CONFIG.showIcon, placement: placementsFor(p.productType)[0], scale: 1, autoRotate: true, shadow: 1,
-    saved: false, publishedVersion: 0, unpublishedChanges: false,
+    saved: false, publishedVersion: 0, publishedAt: null, unpublishedChanges: false,
   };
 }
 /** The preview store's settings: blank identity fields, as a new merchant has (§11). */
@@ -630,9 +635,19 @@ export const demoSource: DataSource = {
     const fields: Record<string, string[]> = parsed.success ? placementErrors(product.productType, parsed.data.placement) : {};
     if (!parsed.success) for (const issue of parsed.error.issues) (fields[String(issue.path[0] ?? '_')] ??= []).push(issue.message);
     if (Object.keys(fields).length) throw new ApiError(422, 'validation_failed', 'Validation failed', fields);
-    const view = { ...demoArDefault(product), ...parsed.data!, saved: true, unpublishedChanges: true };
+    const view = { ...demoArDefault(product), ...parsed.data!, saved: true, unpublishedChanges: true, publishedVersion: demoArConfigs.get(productId)?.publishedVersion ?? 0, publishedAt: demoArConfigs.get(productId)?.publishedAt ?? null };
     demoArConfigs.set(productId, view);
     return view;
+  },
+  async publishArConfig(productId) {
+    // The preview's own copy only — no shop reads it. Same refusal as the server for a product with nothing to open.
+    const product = DEMO_PRODUCTS.find((p) => p.id === productId);
+    if (!product) throw new ApiError(404, 'not_found', 'product not found');
+    if (!product.arEnabled) throw new ApiError(409, 'conflict', 'cannot publish: nothing for the button to open yet — switch AR on with a live 3D model, or set up the watch’s try-on');
+    const view = demoArConfigs.get(productId) ?? demoArDefault(product);
+    const published = { ...view, publishedVersion: view.publishedVersion + 1, publishedAt: new Date().toISOString(), unpublishedChanges: false };
+    demoArConfigs.set(productId, published);
+    return { version: published.publishedVersion, publishedAt: published.publishedAt, outdated: false };
   },
   async updateSettings(patch) {
     const parsed = SettingsPatch.safeParse(patch);

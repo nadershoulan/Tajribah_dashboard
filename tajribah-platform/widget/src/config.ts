@@ -21,8 +21,12 @@ export type ViewerConfig = {
    * for Android's Scene Viewer, which reads neither compression; null when none could be made.
    * `usdz`: iPhone Quick Look. Both optional fields were added without a version bump: an
    * older widget ignores them, and no config has been published yet (P1.15).
+   *
+   * P1.15: null for a watch offered only in the owner's try-on (T33: every plan has the studio; many
+   * watches have no 3D model). Then the placement is `wrist` and `tryon` is set, so the button
+   * always opens something.
    */
-  model: { glb: string; glbNative: string | null; usdz: string | null };
+  model: { glb: string; glbNative: string | null; usdz: string | null } | null;
   button: { labelAr: string; labelEn: string; color: string; radius: number; variant: 'solid' | 'outline'; icon: boolean };
   placement: Placement;
   scale: number;
@@ -36,6 +40,10 @@ export type ViewerConfig = {
   /** `onMe` (T33): the shopper may also try it on their own photo — Pro and up; anything but `true` is off. */
   tryon: { worn: string; flat: string; caseMm: number; sku: string | null; onMe: boolean } | null;
 };
+
+/** A config with a 3D model — what AR and the in-page viewer need. */
+export type ModelConfig = ViewerConfig & { model: NonNullable<ViewerConfig['model']> };
+export const hasModel = (config: ViewerConfig): config is ModelConfig => config.model !== null;
 
 const PLACEMENTS: readonly string[] = ['floor', 'wall', 'table', 'face', 'wrist'];
 
@@ -60,29 +68,32 @@ export function parseConfig(input: unknown): ViewerConfig | null {
   try {
     if (!isObj(input) || input.v !== CONFIG_VERSION) return null;
     const { product, model, button } = input;
-    if (!isObj(product) || !isObj(model) || !isObj(button)) return null;
+    if (!isObj(product) || !(model === null || isObj(model)) || !isObj(button)) return null;
     if (!str(product.name) || !(product.nameAr === null || str(product.nameAr))) return null;
     const mm = (v: unknown) => (v === null || v === undefined ? null : num(v, 0.1, 3000) ? v : undefined);
     const widthMm = mm(product.widthMm);
     const heightMm = mm(product.heightMm);
     if (widthMm === undefined || heightMm === undefined) return null;
     const optionalUrl = (v: unknown) => v === null || v === undefined || httpsUrl(v);
-    if (!httpsUrl(model.glb) || !optionalUrl(model.usdz) || !optionalUrl(model.glbNative)) return null;
+    if (model !== null && (!httpsUrl(model.glb) || !optionalUrl(model.usdz) || !optionalUrl(model.glbNative))) return null;
     if (!str(button.labelAr, 40) || !str(button.labelEn, 40)) return null;
     if (typeof button.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(button.color)) return null;
     if (!num(button.radius, 0, 24) || (button.variant !== 'solid' && button.variant !== 'outline') || typeof button.icon !== 'boolean') return null;
     if (typeof input.placement !== 'string' || !PLACEMENTS.includes(input.placement)) return null;
     if (!num(input.scale, 0.5, 2) || !num(input.shadow, 0, 2) || typeof input.autoRotate !== 'boolean') return null;
+    const tryon = tryOnOf(input.tryon);
+    // No model: only a watch whose try-on is set up — otherwise the button would open nothing.
+    if (model === null && (!tryon || input.placement !== 'wrist')) return null;
     return {
       v: 1,
       product: { name: product.name, nameAr: (product.nameAr as string | null) ?? null, widthMm, heightMm },
-      model: { glb: model.glb, glbNative: (model.glbNative as string | null | undefined) ?? null, usdz: (model.usdz as string | null | undefined) ?? null },
+      model: model === null ? null : { glb: model.glb as string, glbNative: (model.glbNative as string | null | undefined) ?? null, usdz: (model.usdz as string | null | undefined) ?? null },
       button: { labelAr: button.labelAr, labelEn: button.labelEn, color: button.color, radius: button.radius, variant: button.variant, icon: button.icon },
       placement: input.placement as Placement,
       scale: input.scale,
       autoRotate: input.autoRotate,
       shadow: input.shadow,
-      tryon: tryOnOf(input.tryon),
+      tryon,
     };
   } catch {
     return null;

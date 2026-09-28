@@ -37,6 +37,7 @@ import { daysOf } from '@/server/modules/analytics/metrics';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { CUTOUT_MAX_BYTES, checkCutout, type CutoutIssue } from './cutout';
 import { enqueueQuality } from './quality';
+import { keepLive } from '@/server/modules/edge/publish';
 
 export type Slot = 'worn' | 'flat';
 type Config = typeof tryonConfigs.$inferSelect;
@@ -163,6 +164,7 @@ export async function confirmCutout(ctx: TenantContext, productId: string, input
     const old = before?.[`${input.slot}Key`];
     return { result: view(product, after), replaced: old && old !== input.key ? old : null };
   });
+  await keepLive(ctx.tenantId, productId); // P1.15: before the old picture goes, the live config stops naming it
   if (replaced) await store.delete(replaced).catch(() => undefined); // an orphan costs us, never the store
   await enqueueQuality(ctx.tenantId, productId, input.slot, input.key);
   return result;
@@ -178,7 +180,7 @@ export async function updateTryOn(ctx: TenantContext, productId: string, patch: 
   if (finish.some((f) => f && f.trim().length > 80)) problems.finish = ['80 characters at most'];
   if (Object.keys(problems).length) throw errors.validation(problems);
 
-  return withTenant(ctx.tenantId, async (db) => {
+  const result = await withTenant(ctx.tenantId, async (db) => {
     const product = await watchOf(db, productId);
     await db.lockById(products, productId);
     const before = await db.findOne(tryonConfigs, eq(tryonConfigs.productId, productId));
@@ -202,6 +204,8 @@ export async function updateTryOn(ctx: TenantContext, productId: string, patch: 
     await record(ctx, { action: before ? 'update' : 'create', resourceType: 'tryon_config', resourceId: after.id, before: before as never, after: after as never }, db);
     return view(product, after);
   });
+  await keepLive(ctx.tenantId, productId); // P1.15: switched off → gone from the shop; case width, finish → rewritten
+  return result;
 }
 
 /** API-154 — one stored picture, for the settings screen's preview. */

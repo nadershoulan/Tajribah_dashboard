@@ -130,17 +130,19 @@ export async function buildStaffViewContext(input: { actor: Actor; tenantId: str
  * no session and no membership, so nothing is inherited: the caller names the tenant (from
  * the job row, which only tenant-scoped code could have written) and the exact permissions
  * the job needs. Changes land in the audit trail as `system`. A suspended or deleted tenant
- * is refused, as it would be for a person.
+ * is refused, as it would be for a person — except `evenIfSuspended` (P1.15): taking a suspended
+ * store's buttons off its shop is the one job that must run *because* it is suspended.
  */
 export async function systemContext(input: {
   tenantId: string;
   requestId: string;
   permissions: readonly Permission[];
+  evenIfSuspended?: boolean;
 }): Promise<TenantContext> {
   const scoped = TenantDb.for(input.tenantId);
   const tenant = await scoped.findById(tenants, input.tenantId);
   if (!tenant || tenant.deletedAt) throw errors.notFound('tenant');
-  if (tenant.status === 'suspended') throw errors.forbidden('this store is suspended — background work is paused');
+  if (tenant.status === 'suspended' && !input.evenIfSuspended) throw errors.forbidden('this store is suspended — background work is paused');
   const permissions = new Set(input.permissions);
   return {
     tenantId: tenant.id,

@@ -13,6 +13,7 @@ import { record } from '@/server/core/audit/audit';
 import { errors, fieldErrorsFrom } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
+import { enqueueEdgeRefresh } from '@/server/modules/edge/publish';
 
 const TENANT_FIELDS = ['name', 'nameAr', 'crNumber', 'vatNumber', 'nationalAddress', 'city'] as const;
 
@@ -61,6 +62,8 @@ export async function updateSettings(ctx: TenantContext, input: unknown): Promis
       after: { ...pick(after), branding: settingsAfter.branding, consentTextAr: settingsAfter.consentTextAr, consentTextEn: settingsAfter.consentTextEn },
     }, db);
   });
+  // P1.15: the button's colour and corners are in every live config.
+  if ('brandColor' in patch || 'buttonRadius' in patch) await enqueueEdgeRefresh(ctx.tenantId);
   return getSettings(ctx);
 }
 

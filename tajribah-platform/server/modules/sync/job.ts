@@ -14,6 +14,7 @@ import { enqueue } from '@/server/core/jobs/queue';
 import { currentScope } from '@/server/core/observability/scope';
 import { systemContext } from '@/server/core/tenancy/context';
 import { markSyncFailed, runSyncStep, SYNC_PERMISSIONS } from './engine';
+import { enqueueEdgeRefresh } from '@/server/modules/edge/publish';
 
 export async function handleSyncJob(job: Job, options: { maxPages?: number } = {}): Promise<void> {
   const syncJobId = (job.payload as { syncJobId?: string } | null)?.syncJobId;
@@ -26,6 +27,8 @@ export async function handleSyncJob(job: Job, options: { maxPages?: number } = {
     if (result === 'more' && sync) {
       await enqueue({ queue: 'sync.products', tenantId, payload: { syncJobId }, dedupeKey: `sync:${syncJobId}:${sync.cursor}` });
     }
+    // P1.15: names, sizes and archived products change what published configs say.
+    if (result === 'done') await enqueueEdgeRefresh(tenantId);
   } catch (error) {
     if (job.attempts >= job.maxAttempts) {
       const ctx = await systemContext({ tenantId, requestId, permissions: SYNC_PERMISSIONS });

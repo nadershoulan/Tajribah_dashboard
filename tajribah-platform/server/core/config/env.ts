@@ -118,6 +118,10 @@ export const REGISTRY = {
   R2_SECRET_ACCESS_KEY: entry({
     schema: z.string().optional(), scope: 'runtime', secret: true, doc: 'R2 S3 API token secret.',
   }),
+  CONFIG_STORE: entry({
+    schema: z.enum(['memory', 'kv']).default('memory'),
+    scope: 'runtime', doc: 'Where published viewer configs live (P1.15). memory is local only; kv uses the CONFIGS KV binding the config host reads.',
+  }),
   JOBS_MODE: entry({
     schema: z.enum(['inline', 'cf-queue']).default('inline'),
     scope: 'runtime', doc: 'inline runs jobs in-process (local only). cf-queue needs the Cloudflare account (T6).',
@@ -153,6 +157,10 @@ const envSchema = z.object(shape).superRefine((value, ctx) => {
   if (v.NODE_ENV === 'production' && v.STORAGE_PROVIDER === 'memory') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['STORAGE_PROVIDER'],
       message: 'memory storage is not allowed in production — every upload would vanish on restart' });
+  }
+  if (v.NODE_ENV === 'production' && v.CONFIG_STORE === 'memory') {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['CONFIG_STORE'],
+      message: 'memory configs are not allowed in production — a published button would never reach a shop' });
   }
   if (v.NODE_ENV === 'production' && v.JOBS_MODE === 'inline') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['JOBS_MODE'],

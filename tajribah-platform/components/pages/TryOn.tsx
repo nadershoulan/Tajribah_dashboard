@@ -100,7 +100,7 @@ function WatchCard({ initial, editable }: { initial: TryOnWatchView; editable: b
     caseMm: caseMm.trim() === '' ? null : Number(caseMm.replace(',', '.')), finishAr: finishAr || null, finishEn: finishEn || null,
   }), { ar: 'حُفظ.', en: 'Saved.' });
   const toggle = (on: boolean) => run('toggle', () => source.updateTryOn(w.productId, { enabled: on }),
-    on ? { ar: 'زر التجربة يظهر في متجرك عند نشر إعداداتك.', en: 'The try-on button appears in your store once your settings are published.' } : { ar: 'أُوقف.', en: 'Switched off.' });
+    on ? { ar: 'زر التجربة يظهر في متجرك بعد نشر المنتج من «إعدادات العرض» (انشر في المتجر). إن كان منشورًا فقد حُدّث.', en: 'The try-on button appears in your store once the product is published from AR settings (Publish to the store). If it is already published, it has been updated.' } : { ar: 'أُوقف.', en: 'Switched off.' });
 
   const status = w.enabled ? <Badge tone="ok" dot>{t('مفعّلة', 'On')}</Badge>
     : w.ready ? <Badge tone="accent">{t('جاهزة للتفعيل', 'Ready to switch on')}</Badge>

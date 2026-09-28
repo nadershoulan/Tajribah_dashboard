@@ -3,16 +3,17 @@
  *
  * A product without a saved row shows the defaults (`DEFAULT_AR_CONFIG`) and a placement that
  * fits its type; nothing is written until the merchant saves. Saving is audited. Publishing —
- * copying the config to the edge store the shopper's page reads (P1.15, needs Cloudflare KV) —
- * is not here: `unpublishedChanges` tells the screen that shoppers still see the older one.
+ * the product's whole config, to the store shops read — is `edge/publish.ts` (P1.15); the view
+ * carries its status: the version shoppers see, and whether what would be published now differs.
  */
 import { and, eq, inArray, isNull, ne } from 'drizzle-orm';
 import { arConfigs, products } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
-import { ArConfigInput, DEFAULT_AR_CONFIG, placementErrors, placementsFor, type ArConfigView } from '@/lib/contracts/ar-config';
+import { ArConfigInput, DEFAULT_AR_CONFIG, defaultLabelsFor, placementErrors, placementsFor, type ArConfigView } from '@/lib/contracts/ar-config';
 import { auditedInsert, auditedUpdate } from '@/server/core/audit/audit';
 import { errors, fieldErrorsFrom } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
+import { edgeStatuses, type EdgeStatus } from '@/server/modules/edge/publish';
 
 type Product = typeof products.$inferSelect;
 type Config = typeof arConfigs.$inferSelect;
@@ -21,7 +22,15 @@ export async function listArConfigs(ctx: TenantContext): Promise<ArConfigView[]>
   ctx.require('ar:read');
   const rows = await ctx.db.find(products, and(isNull(products.deletedAt), ne(products.status, 'archived')), { limit: 500 });
   const configs = rows.length ? await ctx.db.find(arConfigs, inArray(arConfigs.productId, rows.map((p) => p.id)), { limit: 500 }) : [];
-  return rows.map((p) => viewOf(p, configs.find((c) => c.productId === p.id) ?? null));
+  const live = await edgeStatuses(ctx, rows.map((p) => p.id));
+  return rows.map((p) => withEdge(arViewOf(p, configs.find((c) => c.productId === p.id) ?? null), live.get(p.id)));
+}
+
+/** P1.15: what shoppers see, from `edge_configs` — the settings row's own publish columns are unused. */
+function withEdge(view: ArConfigView, live: EdgeStatus | undefined): ArConfigView {
+  return live
+    ? { ...view, publishedVersion: live.version, publishedAt: live.publishedAt, unpublishedChanges: live.outdated }
+    : view;
 }
 
 export async function saveArConfig(ctx: TenantContext, productId: string, input: unknown): Promise<ArConfigView> {
@@ -44,14 +53,15 @@ export async function saveArConfig(ctx: TenantContext, productId: string, input:
   if (existing) await auditedUpdate(ctx, arConfigs, existing.id, values, { resourceType: 'ar_config' });
   else await auditedInsert(ctx, arConfigs, { id: uuidv7(), tenantId: ctx.tenantId, productId, ...values }, { resourceType: 'ar_config' });
   const saved = await ctx.db.findOne(arConfigs, eq(arConfigs.productId, productId));
-  return viewOf(product, saved);
+  return withEdge(arViewOf(product, saved), (await edgeStatuses(ctx, [productId])).get(productId));
 }
 
-function viewOf(p: Product, c: Config | null): ArConfigView {
+/** A product's AR settings as shown and as published (P1.15): the saved row, or the defaults. */
+export function arViewOf(p: Product, c: Config | null): ArConfigView {
   return {
     productId: p.id, productName: p.name, productNameAr: p.nameAr, productType: p.productType, arEnabled: p.arEnabled,
-    buttonLabelAr: c?.buttonLabelAr ?? DEFAULT_AR_CONFIG.buttonLabelAr,
-    buttonLabelEn: c?.buttonLabelEn ?? DEFAULT_AR_CONFIG.buttonLabelEn,
+    buttonLabelAr: c?.buttonLabelAr ?? defaultLabelsFor(p.productType).buttonLabelAr,
+    buttonLabelEn: c?.buttonLabelEn ?? defaultLabelsFor(p.productType).buttonLabelEn,
     variant: c?.buttonStyle?.variant === 'outline' ? 'outline' : 'solid',
     showIcon: c?.buttonStyle?.icon ?? DEFAULT_AR_CONFIG.showIcon,
     placement: c?.placement ?? placementsFor(p.productType)[0],
@@ -59,7 +69,8 @@ function viewOf(p: Product, c: Config | null): ArConfigView {
     autoRotate: c?.autoRotate ?? DEFAULT_AR_CONFIG.autoRotate,
     shadow: (c?.shadowIntensityBp ?? 10_000) / 10_000,
     saved: !!c,
-    publishedVersion: c?.publishedVersion ?? 0,
-    unpublishedChanges: !!c && (!c.publishedAt || c.updatedAt.getTime() > c.publishedAt.getTime()),
+    publishedVersion: 0,
+    publishedAt: null,
+    unpublishedChanges: !!c,
   };
 }

@@ -19,6 +19,7 @@ import { connectorFor, TokenRevokedError, type TokenSet } from '@/server/connect
 import { auditedInsert, auditedUpdate, record } from '@/server/core/audit/audit';
 import { loadEnv } from '@/server/core/config/env';
 import { AppError, errors, isUniqueViolation } from '@/server/core/errors/problem';
+import { assertFeature, entitlementsOf } from '@/server/core/billing/entitlements';
 import { log } from '@/server/core/observability/log';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
@@ -53,6 +54,9 @@ const vaultKey = () => vaultKeys().current;
 
 export async function connectStore(ctx: TenantContext, input: ConnectInput): Promise<ConnectionSummary> {
   ctx.require('connections:write');
+  // T35: a store platform is a plan feature (Salla and Zid from Growth — the trial runs on Growth —
+  // Shopify and WooCommerce from Pro); the feature keys are the provider names.
+  assertFeature(await entitlementsOf(ctx), input.provider);
   if (!input.externalStoreId || !input.tokens.accessToken) {
     throw errors.validation({ tokens: ['the store did not hand over an access token'] });
   }

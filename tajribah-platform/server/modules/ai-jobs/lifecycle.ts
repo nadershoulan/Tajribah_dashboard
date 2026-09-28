@@ -30,6 +30,7 @@ import type { AiJobView } from '@/lib/view-models';
 import type { Permission } from '@/lib/permissions';
 import { record } from '@/server/core/audit/audit';
 import { errors, isAppError } from '@/server/core/errors/problem';
+import { assertFeature, entitlementsOf } from '@/server/core/billing/entitlements';
 import { enqueue, type QueueName } from '@/server/core/jobs/queue';
 import { log } from '@/server/core/observability/log';
 import { systemContext, type TenantContext } from '@/server/core/tenancy/context';
@@ -41,13 +42,14 @@ export type AiJobType = (typeof AI_JOB_TYPE)[number];
 export type AiJob = typeof aiJobs.$inferSelect;
 
 /** Where each type runs and who may start it. Models work is `models:write`; catalogue text is `products:write`. */
-export const AI_JOB_ROUTES: Record<AiJobType, { queue: QueueName; permission: Permission }> = {
-  generate_3d: { queue: 'ai.generate-3d', permission: 'models:write' },
-  enhance_texture: { queue: 'ai.generate-3d', permission: 'models:write' },
-  quality_check: { queue: 'ai.generate-3d', permission: 'models:write' },
-  convert_format: { queue: 'ai.generate-3d', permission: 'models:write' },
-  embed_product: { queue: 'ai.embed', permission: 'products:write' },
-  enrich_content: { queue: 'ai.embed', permission: 'products:write' },
+/** `feature` (T35): the plan feature a job needs — 3D work is `ai_3d` (Pro and up), product embeddings serve recommendations (Pro and up); content enrichment is in no plan's list, so it is not gated. */
+export const AI_JOB_ROUTES: Record<AiJobType, { queue: QueueName; permission: Permission; feature: string | null }> = {
+  generate_3d: { queue: 'ai.generate-3d', permission: 'models:write', feature: 'ai_3d' },
+  enhance_texture: { queue: 'ai.generate-3d', permission: 'models:write', feature: 'ai_3d' },
+  quality_check: { queue: 'ai.generate-3d', permission: 'models:write', feature: 'ai_3d' },
+  convert_format: { queue: 'ai.generate-3d', permission: 'models:write', feature: 'ai_3d' },
+  embed_product: { queue: 'ai.embed', permission: 'products:write', feature: 'recommendations' },
+  enrich_content: { queue: 'ai.embed', permission: 'products:write', feature: null },
 };
 
 /** Queue attempts for one AI job. Each attempt can cost real money, so fewer than the default five. */
@@ -130,6 +132,7 @@ export async function createAiJob(ctx: TenantContext, request: CreateAiJob): Pro
   const route = AI_JOB_ROUTES[request.type];
   if (!route) throw errors.validation({ type: ['not a job type'] });
   ctx.require(route.permission);
+  if (route.feature) assertFeature(await entitlementsOf(ctx), route.feature); // T35: before any charge
   if (!Number.isInteger(request.creditsCost) || request.creditsCost < 1) throw errors.validation({ creditsCost: ['a whole number of credits, at least 1'] });
 
   const now = new Date();

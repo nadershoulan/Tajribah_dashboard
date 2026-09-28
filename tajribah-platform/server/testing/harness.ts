@@ -147,7 +147,22 @@ export async function seededPlanId(harness: TestDb, code: (typeof schema.PLAN_CO
   return row.id;
 }
 
-export async function seedTenant(harness: TestDb, name: string): Promise<{
+/**
+ * Switch a feature on for a plan in this test database's catalogue (the catalogue is data, T19) —
+ * for a test about something other than plans that needs a gated feature on a plan whose other
+ * numbers it relies on (the AI tests keep Starter's 5 credits and switch `ai_3d` on).
+ */
+export async function enablePlanFeature(harness: TestDb, code: (typeof schema.PLAN_CODE)[number], feature: string): Promise<void> {
+  const planId = await seededPlanId(harness, code);
+  await harness.asAdmin(() => harness.db.insert(schema.planFeatures).values({ planId, featureKey: feature, enabled: true } as any).onConflictDoNothing());
+}
+
+/**
+ * A store with its owner. `plan` subscribes it (active, this month) — for tests that use a plan
+ * feature: store platforms need Growth, AI 3D work needs Pro (T35). Without it the store has no
+ * subscription and is not on trial, so it is on Starter.
+ */
+export async function seedTenant(harness: TestDb, name: string, options: { plan?: (typeof schema.PLAN_CODE)[number] } = {}): Promise<{
   tenantId: string; userId: string; email: string;
 }> {
   const tenantId = uuidv7();
@@ -166,6 +181,13 @@ export async function seedTenant(harness: TestDb, name: string): Promise<{
     } as any);
   });
 
+  if (options.plan) {
+    const planId = await seededPlanId(harness, options.plan);
+    const now = new Date();
+    await harness.asAdmin(() => harness.db.insert(schema.subscriptions).values({
+      tenantId, planId, status: 'active', currentPeriodStart: now, currentPeriodEnd: new Date(now.getTime() + 30 * 86_400_000),
+    } as any));
+  }
   return { tenantId, userId, email };
 }
 

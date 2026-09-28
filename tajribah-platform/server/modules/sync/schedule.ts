@@ -17,10 +17,11 @@ import { and, asc, eq, inArray, lt, sql } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
 import { storeConnections, syncJobs } from '@/db/schema';
 import { enqueue } from '@/server/core/jobs/queue';
+import { AppError } from '@/server/core/errors/problem';
 import { log } from '@/server/core/observability/log';
 import { systemContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
-import { createSyncIn, enqueueSync } from './service';
+import { assertPlatformInPlan, createSyncIn, enqueueSync } from './service';
 
 /** A sync row untouched this long has no job behind it. Pages commit in well under this. */
 export const STALE_AFTER_MS = 15 * 60_000;
@@ -76,9 +77,12 @@ export async function scheduleSyncs(now = new Date(), limit = 100): Promise<Sche
   for (const { id, tenantId } of due) {
     try {
       const ctx = await systemContext({ tenantId, requestId: `schedule-${id}`, permissions: SCHEDULE_PERMISSIONS });
+      await assertPlatformInPlan(ctx, id);
       const { job, fresh } = await withTenant(tenantId, (tx) => createSyncIn(ctx, tx, id, { type: 'incremental', triggeredBy: 'schedule' }));
       if (fresh) { await enqueueSync(tenantId, job.id); scheduled += 1; }
     } catch (error) {
+      // T35: a platform no longer in the store's plan is skipped quietly — every tick would repeat it.
+      if (error instanceof AppError && error.code === 'plan_required') continue;
       // One store (suspended, revoked in between) never stops the rest of the tick.
       log.warn('sync schedule skipped a connection', { connectionId: id, tenantId, error: error instanceof Error ? error.message : String(error) });
     }

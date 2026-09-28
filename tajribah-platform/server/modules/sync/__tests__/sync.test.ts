@@ -10,7 +10,7 @@ import { loadEnv, resetEnv } from '@/server/core/config/env';
 import { clearHandlers, registerHandler, tick } from '@/server/core/jobs/runner';
 import { setLogLevel } from '@/server/core/observability/log';
 import { buildTenantContext } from '@/server/core/tenancy/context';
-import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
+import { createTestDb, enablePlanFeature, seedTenant, type TestDb } from '@/server/testing/harness';
 import { FakeStore } from '@/server/testing/fake-store';
 import { connectStore, disconnectStore } from '@/server/modules/connections/service';
 import { runSyncStep } from '@/server/modules/sync/engine';
@@ -27,6 +27,8 @@ const admin = <T>(harness: TestDb, fn: () => Promise<T>) => harness.asAdmin(fn);
 /** A merchant with a connected fake store. `plan: 'enterprise'` lifts the product limit. */
 async function merchant(harness: TestDb, name: string, store: FakeStore, plan: 'starter' | 'enterprise' = 'enterprise') {
   const seeded = await seedTenant(harness, name);
+  // T35: Salla is Growth and up. The Starter case keeps Starter's 20-product limit and switches Salla on.
+  if (plan === 'starter') await enablePlanFeature(harness, 'starter', 'salla');
   if (plan === 'enterprise') {
     const planId = uuidv7();
     const now = new Date();

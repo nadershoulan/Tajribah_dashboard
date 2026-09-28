@@ -23,6 +23,7 @@ import { backoffMs, FAIR_SHARE } from '@/server/core/jobs/queue';
 import { log } from '@/server/core/observability/log';
 import { systemContext, type TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
+import { entitlementsOf } from '@/server/core/billing/entitlements';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { revokeIn } from '@/server/modules/connections/service';
 import { createSyncIn, enqueueSync } from '@/server/modules/sync/service';
@@ -31,16 +32,18 @@ import { notifyIn } from '@/server/modules/notifications/service';
 
 export type WebhookEvent = typeof webhookEvents.$inferSelect;
 export type HandlerResult = { outcome: 'processed' | 'ignored'; afterCommit?: () => Promise<void> };
-export type TopicHandler = (event: WebhookEvent, delivery: Delivery, scope: { ctx: TenantContext; db: TenantDb }) => Promise<HandlerResult>;
+/** `entitled` (T35): the store's plan features, read before the transaction — handlers run inside it. */
+export type TopicHandler = (event: WebhookEvent, delivery: Delivery, scope: { ctx: TenantContext; db: TenantDb; entitled: (feature: string) => boolean }) => Promise<HandlerResult>;
 export type DispatchOutcome = 'processed' | 'ignored' | 'retry' | 'failed' | 'skipped';
 
 export const MAX_WEBHOOK_ATTEMPTS = 5;
 export const WEBHOOK_PERMISSIONS = ['connections:read', 'connections:write', 'products:read', 'products:write'] as const;
 
 /** A change on the store's side: catch up with an incremental sync (deduped per store). */
-const catchUp: TopicHandler = async (event, _delivery, { ctx, db }) => {
+const catchUp: TopicHandler = async (event, _delivery, { ctx, db, entitled }) => {
   const connection = await db.findById(storeConnections, event.connectionId!);
   if (!connection || connection.status !== 'active') return { outcome: 'ignored' };
+  if (!entitled(connection.provider)) return { outcome: 'ignored' }; // T35: the platform is no longer in the plan
   const { job, fresh } = await createSyncIn(ctx, db, connection.id, { type: 'incremental', triggeredBy: 'webhook' });
   return { outcome: 'processed', afterCommit: fresh ? () => enqueueSync(ctx.tenantId, job.id) : undefined };
 };
@@ -99,13 +102,14 @@ export async function dispatchOne(tenantId: string, eventId: string, now = new D
   const ctx = await systemContext({ tenantId, requestId: `webhook-${eventId}`, permissions: WEBHOOK_PERMISSIONS });
   let afterCommit: (() => Promise<void>) | undefined;
   try {
+    const plan = await entitlementsOf(ctx); // before the transaction: its own handle must not wait inside it
     const outcome = await withTenant(tenantId, async (db): Promise<DispatchOutcome> => {
       const event = await db.tryLockById(webhookEvents, eventId);
       if (!event || event.status !== 'received') return 'skipped';
       const delivery = webhookSourceFor(event.provider)?.parse(event.payload);
       if (!delivery) throw new Error(`no webhook source can read this ${event.provider} delivery`);
       const handler = HANDLERS[event.topic];
-      const result: HandlerResult = handler ? await handler(event, delivery, { ctx, db }) : { outcome: 'ignored' };
+      const result: HandlerResult = handler ? await handler(event, delivery, { ctx, db, entitled: (feature) => plan.has(feature) }) : { outcome: 'ignored' };
       await db.updateById(webhookEvents, eventId, { status: result.outcome, attempts: event.attempts + 1, processedAt: new Date(), error: null });
       afterCommit = result.afterCommit;
       return result.outcome;

@@ -7,7 +7,7 @@ import { planByCode } from '@/lib/plans';
 import { setLogLevel } from '@/server/core/observability/log';
 import { loadEnv, resetEnv } from '@/server/core/config/env';
 import { buildTenantContext } from '@/server/core/tenancy/context';
-import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
+import { createTestDb, enablePlanFeature, seedTenant, type TestDb } from '@/server/testing/harness';
 import { connectStore } from '@/server/modules/connections/service';
 import { dashboardSummary } from '@/server/modules/dashboard/service';
 import { updateSettings } from '@/server/modules/settings/service';
@@ -20,6 +20,7 @@ const NOW = new Date('2026-09-25T09:00:00Z');
 
 async function store(harness: TestDb, name: string) {
   const seeded = await seedTenant(harness, name);
+  await enablePlanFeature(harness, 'starter', 'salla'); // T35: Salla is Growth and up; this test keeps Starter's limits
   return { ...seeded, ctx: await buildTenantContext({ actor: { userId: seeded.userId, email: seeded.email, isStaff: false }, tenantId: seeded.tenantId, requestId: `req-${name}` }) };
 }
 const stat = (tenantId: string, daysAgo: number, views: number, arSessions = 0, purchases = 0) =>

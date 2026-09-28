@@ -93,7 +93,7 @@ test('sign up → dashboard data → reload → sign out → sign in', async () 
     const store = await apiSource(client).currentTenant();
     assert.equal(store.name, 'Oud House');
     assert.equal(store.slug, 'oud-house');
-    assert.equal(store.plan, 'starter');
+    assert.equal(store.plan, 'growth', 'a new store is on the trial, which runs on Growth (T35)');
     assert.equal(store.status, 'trial');
     assert.equal(store.role, 'owner');
     assert.ok(store.trialEndsAt);

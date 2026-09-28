@@ -143,3 +143,9 @@ export const LIMIT_LABELS: Record<keyof PlanLimits, Bi> = {
 
 /** Trial length for a new store, in days. */
 export const TRIAL_DAYS = 14;
+
+/** T35: the free trial runs on Growth's features (catalogue sync included), so setup works as designed. */
+export const TRIAL_PLAN: PlanCode = 'growth';
+
+/** The plan of a store with no subscription: the trial's while it is on trial, Starter otherwise. */
+export const implicitPlan = (tenantStatus: string): PlanCode => (tenantStatus === 'trial' ? TRIAL_PLAN : 'starter');

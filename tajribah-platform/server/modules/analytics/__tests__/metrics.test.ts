@@ -61,7 +61,7 @@ async function seed(harness: TestDb, tenantId: string) {
 test('the view: the range’s days (empty ones zero), totals inside the range only, devices, top products with names and uplift, the funnel', async () => {
   const harness = await createTestDb();
   try {
-    const store = await seedTenant(harness, 'alpha');
+    const store = await seedTenant(harness, 'alpha', { plan: 'growth' }); // T35: full analytics is Growth and up
     const other = await seedTenant(harness, 'bravo');
     const ids = await seed(harness, store.tenantId);
     await seed(harness, other.tenantId); // the same numbers in another store must not leak in
@@ -104,7 +104,7 @@ test('formatPoints: points, not percent, and the sign is always written', () => 
 test('the home screen’s uplift follows the same rule over 30 days', async () => {
   const harness = await createTestDb();
   try {
-    const store = await seedTenant(harness, 'alpha');
+    const store = await seedTenant(harness, 'alpha', { plan: 'growth' }); // T35: full analytics is Growth and up
     await seed(harness, store.tenantId);
     const ctx = await buildTenantContext({ actor: { userId: store.userId, email: store.email, isStaff: false }, tenantId: store.tenantId, requestId: 'r' });
     const summary = await dashboardSummary(ctx, NOW);
@@ -116,7 +116,7 @@ test('the home screen’s uplift follows the same rule over 30 days', async () =
 test('the CSV: one row per day, empty days as zero, riyals with two decimals; viewers cannot export', async () => {
   const harness = await createTestDb();
   try {
-    const store = await seedTenant(harness, 'alpha');
+    const store = await seedTenant(harness, 'alpha', { plan: 'growth' }); // T35: full analytics is Growth and up
     await seed(harness, store.tenantId);
     const ctx = await buildTenantContext({ actor: { userId: store.userId, email: store.email, isStaff: false }, tenantId: store.tenantId, requestId: 'r' });
     const lines = (await analyticsCsv(ctx, '7d', NOW)).trimEnd().split('\r\n');
@@ -143,4 +143,19 @@ test('verdictOf: a clear gap is real, a small one on 100 sessions could be chanc
   assert.equal(verdictOf({ sessionsWithAr: 1000, purchasesWithAr: 40, sessionsWithoutAr: 1000, purchasesWithoutAr: 80 }), 'likely-real', 'a real drop is also real');
   assert.equal(verdictOf({ sessionsWithAr: 99, purchasesWithAr: 50, sessionsWithoutAr: 1000, purchasesWithoutAr: 1 }), null, 'below the sample rule');
   assert.equal(verdictOf({ sessionsWithAr: 200, purchasesWithAr: 0, sessionsWithoutAr: 200, purchasesWithoutAr: 0 }), 'could-be-chance', 'no purchases anywhere');
+});
+
+test('T35: basic analytics (Starter) — totals, the daily chart and devices; no conversion, funnel, top products or export, and those tables not read', async () => {
+  const harness = await createTestDb();
+  try {
+    const store = await seedTenant(harness, 'alpha'); // no subscription, not on trial: Starter
+    await seed(harness, store.tenantId);
+    const ctx = await buildTenantContext({ actor: { userId: store.userId, email: store.email, isStaff: false }, tenantId: store.tenantId, requestId: 'r' });
+    const view = await analyticsView(ctx, '7d', NOW);
+    assert.equal(view.level, 'basic');
+    assert.deepEqual([view.totals.views, view.totals.purchases, view.series.length, view.byDevice[0]!.sessions], [150, 5, 7, 110], 'the basics are all there');
+    assert.deepEqual([view.totals.upliftPct, view.topProducts, view.funnel, view.conversion.upliftPct, view.conversion.withAr.sessions], [null, [], [], null, 0], 'the full reports are not');
+    await assert.rejects(() => analyticsCsv(ctx, '7d', NOW), (e: any) => e.code === 'plan_required');
+    assert.equal((await dashboardSummary(ctx, NOW)).last30.upliftPct, null, 'the home screen follows');
+  } finally { await harness.close(); }
 });

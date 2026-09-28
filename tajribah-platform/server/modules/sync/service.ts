@@ -14,6 +14,7 @@ import { uuidv7 } from '@/lib/ids';
 import type { SyncProgress } from '@/lib/view-models';
 import { record } from '@/server/core/audit/audit';
 import { errors } from '@/server/core/errors/problem';
+import { assertFeature, entitlementsOf } from '@/server/core/billing/entitlements';
 import { enqueue } from '@/server/core/jobs/queue';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
@@ -26,8 +27,19 @@ export type SyncRequest = {
   triggeredBy?: SyncJob['triggeredBy'];
 };
 
+/**
+ * T35: the store's plan must include the connection's platform (Salla and Zid from Growth, Shopify
+ * and WooCommerce from Pro). Checked **before** the sync's transaction by every caller — entitlements
+ * are read on their own handle, which must not wait inside a transaction holding the store's locks.
+ */
+export async function assertPlatformInPlan(ctx: TenantContext, connectionId: string): Promise<void> {
+  const connection = await ctx.db.findById(storeConnections, connectionId);
+  if (connection) assertFeature(await entitlementsOf(ctx), connection.provider);
+}
+
 export async function requestSync(ctx: TenantContext, connectionId: string, request: SyncRequest = {}): Promise<SyncProgress> {
   ctx.require('connections:write');
+  await assertPlatformInPlan(ctx, connectionId);
   const { job, fresh } = await withTenant(ctx.tenantId, (db) => createSyncIn(ctx, db, connectionId, request));
   if (fresh) await enqueueSync(ctx.tenantId, job.id);
   return toProgress(job);

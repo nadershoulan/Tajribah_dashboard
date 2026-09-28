@@ -11,8 +11,8 @@
  */
 import { and, eq, gte, inArray, isNull, lt } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
-import { creditLedger, dailyTenantStats, generationPhotos, LIMIT_KEY, modelFiles, models3d, planFeatures, planLimits, plans, products, subscriptions, tenantMemberships, tryonConfigs, type LimitKey, usageCounters } from '@/db/schema';
-import { UNLIMITED, planByCode, type PlanCode, type PlanDefinition, type PlanLimits } from '@/lib/plans';
+import { creditLedger, dailyTenantStats, generationPhotos, LIMIT_KEY, modelFiles, models3d, planFeatures, planLimits, plans, products, subscriptions, tenantMemberships, tenants, tryonConfigs, type LimitKey, usageCounters } from '@/db/schema';
+import { UNLIMITED, implicitPlan, planByCode, type PlanCode, type PlanDefinition, type PlanLimits } from '@/lib/plans';
 import { errors } from '../errors/problem';
 import { log } from '../observability/log';
 import { writeStateOf, type ReadOnlyReason } from './lifecycle';
@@ -29,9 +29,9 @@ export type Entitlements = {
 };
 
 /**
- * Resolve what a tenant is entitled to. A tenant with no subscription row is on the trial
- * of the Starter plan: the product is usable immediately after signup, which is what the
- * onboarding flow depends on.
+ * Resolve what a tenant is entitled to. A tenant with no subscription row is on the trial, which
+ * runs on **Growth**'s features (T35 — catalogue sync included, so setup works as designed); one
+ * with no subscription that is not on trial is on Starter (`implicitPlan`).
  *
  * P2.1: limits and features are the plan's **rows** (`plan_limits`, `plan_features`, seeded
  * from lib/plans.ts by drizzle/0006), so a change made in the database — the admin console,
@@ -49,7 +49,7 @@ export async function entitlementsOf(ctx: TenantContext): Promise<Entitlements> 
     .limit(1);
   const subscription = found?.subscription;
 
-  const code: PlanCode = found?.code ?? 'starter';
+  const code: PlanCode = found?.code ?? implicitPlan(ctx.tenant.status); // T35: a trial runs on Growth
   const planId = found?.planId
     ?? (await db.select({ id: plans.id }).from(plans).where(eq(plans.code, code)).limit(1))[0]?.id;
   if (!planId) log.error('plan catalogue is missing a plan — every limit reads as 0', { code });
@@ -82,12 +82,13 @@ export async function entitlementsOf(ctx: TenantContext): Promise<Entitlements> 
 
 /**
  * The plan each tenant is on, for summaries (the store switcher, `/me`). Same rule as
- * `entitlementsOf`: no subscription row means the Starter trial.
+ * `entitlementsOf`: no subscription row means the trial's plan while on trial, else Starter.
  */
 export async function planCodesFor(tenantIds: readonly string[]): Promise<Map<string, PlanCode>> {
-  const codes = new Map<string, PlanCode>(tenantIds.map((id) => [id, 'starter']));
+  const codes = new Map<string, PlanCode>();
   if (tenantIds.length === 0) return codes;
   const db = unsafeAdminDb(); // platform billing state, filtered to the caller's own tenants
+  for (const t of await db.select({ id: tenants.id, status: tenants.status }).from(tenants).where(inArray(tenants.id, [...tenantIds]))) codes.set(t.id, implicitPlan(t.status));
   // Plan ids are uuids: the code lives on the plans row, never in the id.
   const rows = await db.select({ tenantId: subscriptions.tenantId, code: plans.code })
     .from(subscriptions).innerJoin(plans, eq(plans.id, subscriptions.planId))

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { sql } from 'drizzle-orm';
 import { products, subscriptions } from '@/db/schema';
 import { UNLIMITED } from '@/lib/plans';
 import { uuidv7 } from '@/lib/ids';
@@ -103,4 +104,23 @@ test('the billing period is the calendar month in Riyadh', () => {
   // 23:30 UTC on 31 Jan is already 1 Feb in Riyadh (UTC+3).
   assert.equal(currentPeriodStart(new Date('2026-01-31T23:30:00Z')).toISOString(), '2026-01-31T21:00:00.000Z');
   assert.equal(currentPeriodStart(new Date('2026-01-31T20:00:00Z')).toISOString(), '2025-12-31T21:00:00.000Z');
+});
+
+test('T35: no subscription = Growth while on trial (sync included), Starter otherwise; a subscription decides once there is one', async () => {
+  const harness = await createTestDb();
+  try {
+    const ctxOf = async (name: string, status: string) => {
+      const s = await seedTenant(harness, name);
+      await harness.asAdmin(() => harness.db.execute(sql`update tenants set status = ${status} where id = ${s.tenantId}`));
+      return { s, ctx: await buildTenantContext({ actor: { userId: s.userId, email: s.email, isStaff: false }, tenantId: s.tenantId, requestId: 'r' }) };
+    };
+    const trial = await entitlementsOf((await ctxOf('trial', 'trial')).ctx);
+    assert.deepEqual([trial.plan.code, trial.has('salla'), trial.has('zid'), trial.limit('products')], ['growth', true, true, 200], 'the trial: Growth');
+    const plain = await entitlementsOf((await ctxOf('plain', 'active')).ctx);
+    assert.deepEqual([plain.plan.code, plain.has('salla'), plain.limit('products')], ['starter', false, 20], 'no subscription, not on trial: Starter');
+    const paying = await ctxOf('paying', 'trial');
+    const pro = await seededPlanId(harness, 'pro');
+    await harness.asAdmin(() => harness.db.insert(subscriptions).values({ tenantId: paying.s.tenantId, planId: pro, status: 'active', currentPeriodStart: new Date(), currentPeriodEnd: new Date(Date.now() + 86_400_000) } as any));
+    assert.equal((await entitlementsOf(paying.ctx)).plan.code, 'pro', 'a subscription wins over the trial');
+  } finally { await harness.close(); }
 });

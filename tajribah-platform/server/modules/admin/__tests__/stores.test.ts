@@ -41,8 +41,9 @@ test('the list: newest first, search by name / Arabic name / address / id, statu
     assert.deepEqual((await listStores({ q: '100%' })).stores.map((s) => s.id), [b.tenantId], '% is a character, not a wildcard');
     assert.deepEqual((await listStores({ q: '_' })).stores, [], '_ is a character too: no store has one in its name or address');
     assert.deepEqual((await listStores({ status: 'suspended' })).stores.map((s) => s.id), [c.tenantId]);
-    assert.deepEqual((await listStores({ plan: 'growth' })).stores.map((s) => [s.id, s.plan, s.subscription]), [[a.tenantId, 'growth', 'active']]);
-    assert.deepEqual((await listStores({ plan: 'starter' })).stores.map((s) => s.id), [c.tenantId, b.tenantId], 'no subscription = the Starter trial');
+    // T35: no subscription = Growth while on trial (bravo), Starter otherwise (charlie).
+    assert.deepEqual((await listStores({ plan: 'growth' })).stores.map((s) => [s.id, s.plan, s.subscription]), [[b.tenantId, 'growth', null], [a.tenantId, 'growth', 'active']]);
+    assert.deepEqual((await listStores({ plan: 'starter' })).stores.map((s) => [s.id, s.plan]), [[c.tenantId, 'starter']], 'no subscription, not on trial = Starter');
 
     const first = await listStores({ limit: 2 });
     assert.equal(first.stores.length, 2);

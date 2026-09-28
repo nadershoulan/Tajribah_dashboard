@@ -19,7 +19,7 @@ resetEnv();
 loadEnv({ APP_URL: 'http://localhost:5173', AUTH_SECRET: 's'.repeat(40), ENCRYPTION_KEY: 'e'.repeat(40) });
 
 async function store(harness: TestDb, name: string, role: 'owner' | 'viewer' = 'owner') {
-  const seeded = await seedTenant(harness, name);
+  const seeded = await seedTenant(harness, name, { plan: 'growth' }); // T35: store platforms are Growth and up
   let userId = seeded.userId;
   if (role !== 'owner') {
     userId = uuidv7();

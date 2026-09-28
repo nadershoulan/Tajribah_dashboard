@@ -18,6 +18,7 @@ import { conversionDaily, dailyProductStats, dailyTenantStats, deviceBreakdownDa
 import { riyadhDay } from '@/lib/format';
 import type { AnalyticsView, MetricPoint } from '@/lib/view-models';
 import type { TenantContext } from '@/server/core/tenancy/context';
+import { assertFeature, entitlementsOf } from '@/server/core/billing/entitlements';
 
 const DAY = 86_400_000;
 export type Range = '7d' | '30d' | '90d';
@@ -68,15 +69,21 @@ export async function conversionTotals(ctx: TenantContext, from: string, to: str
   return rows.reduce(addConversion, ZERO);
 }
 
+/**
+ * T35: `basic_analytics` (Starter) is the totals, the daily chart and devices; `full_analytics`
+ * (Growth and up — the trial too) adds conversion reporting — the uplift and its verdict — the funnel,
+ * top products and the CSV export. A basic view does not even read the tables behind the rest.
+ */
 export async function analyticsView(ctx: TenantContext, range: Range, now = new Date()): Promise<AnalyticsView> {
   ctx.require('analytics:read');
+  const full = (await entitlementsOf(ctx)).has('full_analytics');
   const days = daysOf(range, now);
   const from = days[0]!;
   const to = days[days.length - 1]!;
   const [tenantRows, productRows, conversionRows, deviceRows] = await Promise.all([
     ctx.db.find(dailyTenantStats, and(gte(dailyTenantStats.day, from), lte(dailyTenantStats.day, to)), { limit: 200 }),
-    ctx.db.find(dailyProductStats, and(gte(dailyProductStats.day, from), lte(dailyProductStats.day, to)), { limit: 100_000 }),
-    ctx.db.find(conversionDaily, and(gte(conversionDaily.day, from), lte(conversionDaily.day, to)), { limit: 100_000 }),
+    full ? ctx.db.find(dailyProductStats, and(gte(dailyProductStats.day, from), lte(dailyProductStats.day, to)), { limit: 100_000 }) : [],
+    full ? ctx.db.find(conversionDaily, and(gte(conversionDaily.day, from), lte(conversionDaily.day, to)), { limit: 100_000 }) : [],
     ctx.db.find(deviceBreakdownDaily, and(gte(deviceBreakdownDaily.day, from), lte(deviceBreakdownDaily.day, to)), { limit: 1000 }),
   ]);
 
@@ -114,13 +121,14 @@ export async function analyticsView(ctx: TenantContext, range: Range, now = new 
   const totals = {
     views: sum('views'), arSessions: sum('arSessions'), tryonSessions: sum('tryonSessions'),
     addToCart: sum('addToCart'), purchases: sum('purchases'), revenueMinor: sum('revenueMinor'),
-    upliftPct: upliftOf(conversion),
+    upliftPct: full ? upliftOf(conversion) : null,
     // Return rates need returns from the store platform (P4.7, blocked on order sync): not a guess.
     returnDeltaPct: null,
   };
 
   return {
     range,
+    level: full ? 'full' : 'basic',
     totals,
     series,
     byDevice: devices,
@@ -133,7 +141,7 @@ export async function analyticsView(ctx: TenantContext, range: Range, now = new 
       upliftPct: totals.upliftPct,
       verdict: verdictOf(conversion),
     },
-    funnel: [
+    funnel: !full ? [] : [
       { step: { ar: 'مشاهدة المنتج', en: 'Product view' }, value: totals.views },
       { step: { ar: 'فتح العرض', en: 'AR opened' }, value: totals.arSessions },
       { step: { ar: 'تجربة افتراضية', en: 'Try-on started' }, value: totals.tryonSessions },
@@ -150,6 +158,7 @@ export async function analyticsView(ctx: TenantContext, range: Range, now = new 
  */
 export async function analyticsCsv(ctx: TenantContext, range: Range, now = new Date()): Promise<string> {
   ctx.require('analytics:export');
+  assertFeature(await entitlementsOf(ctx), 'full_analytics'); // T35: reports are full analytics
   const days = daysOf(range, now);
   const rows = await ctx.db.find(dailyTenantStats, and(gte(dailyTenantStats.day, days[0]!), lte(dailyTenantStats.day, days[days.length - 1]!)), { limit: 200 });
   const byDay = new Map(rows.map((r) => [String(r.day), r]));

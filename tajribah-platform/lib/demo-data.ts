@@ -248,6 +248,7 @@ export const DEMO_BILLING: BillingSummary = {
 
 export const DEMO_ANALYTICS: AnalyticsView = {
   range: '30d',
+  level: 'full', // the demo store is on Growth
   totals: TOTALS,
   series: SERIES,
   byDevice: [

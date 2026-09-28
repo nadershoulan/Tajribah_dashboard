@@ -11,7 +11,7 @@ import { aiJobEvents, aiJobs, auditLogs, staffAudit, users } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { setLogLevel } from '@/server/core/observability/log';
 import { buildTenantContext } from '@/server/core/tenancy/context';
-import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
+import { createTestDb, enablePlanFeature, seedTenant, type TestDb } from '@/server/testing/harness';
 import type { StaffContext } from '@/server/modules/admin/access';
 import { QUIET_MS, aiOperations, cancelJobForStore } from '@/server/modules/admin/ai-ops';
 import { AiJobError, cancelAiJob, clearExecutors, createAiJob, registerExecutor, runAiJob } from '@/server/modules/ai-jobs/lifecycle';
@@ -21,6 +21,8 @@ setLogLevel('error');
 
 async function store(harness: TestDb, name: string) {
   const seeded = await seedTenant(harness, name); // Starter: 5 credits a month
+  await enablePlanFeature(harness, 'starter', 'ai_3d'); // T35 gates 3D work on Pro; these tests keep Starter's credits
+  await enablePlanFeature(harness, 'starter', 'recommendations'); // and product embeddings (recommendations) too
   const ctx = await buildTenantContext({ actor: { userId: seeded.userId, email: seeded.email, isStaff: false }, tenantId: seeded.tenantId, requestId: `r-${name}` });
   return { ...seeded, ctx };
 }

@@ -77,7 +77,8 @@ export async function dashboardSummary(ctx: TenantContext, now = new Date()): Pr
       views: sum('views'), arSessions: sum('arSessions'), tryonSessions: sum('tryonSessions'),
       addToCart: sum('addToCart'), purchases: sum('purchases'), revenueMinor: sum('revenueMinor'),
       // P4.4's rule, shared: null unless both groups reach 100 sessions. Returns wait on P4.7.
-      upliftPct: upliftOf(await conversionTotals(ctx, days[0]!, days[days.length - 1]!)), returnDeltaPct: null,
+      upliftPct: entitlements.has('full_analytics') ? upliftOf(await conversionTotals(ctx, days[0]!, days[days.length - 1]!)) : null, // T35: full analytics
+      returnDeltaPct: null,
     },
     series,
     connection,

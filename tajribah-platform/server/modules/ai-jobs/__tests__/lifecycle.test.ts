@@ -16,7 +16,7 @@ import { configureNotify } from '@/server/core/notify/notify';
 import { setLogLevel } from '@/server/core/observability/log';
 import { MemoryRateLimiter, setRateLimiter } from '@/server/core/ratelimit/limiter';
 import { buildTenantContext } from '@/server/core/tenancy/context';
-import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
+import { createTestDb, enablePlanFeature, seedTenant, type TestDb } from '@/server/testing/harness';
 import { creditSummary } from '@/server/modules/billing/credits';
 import { registerHandler as registerAccount } from '@/server/modules/auth/http';
 import {
@@ -31,6 +31,7 @@ setLogLevel('error');
 
 async function store(harness: TestDb, name: string) {
   const seeded = await seedTenant(harness, name); // Starter: 5 AI credits a month
+  await enablePlanFeature(harness, 'starter', 'ai_3d'); // T35 gates 3D work on Pro; these tests keep Starter's credits
   const ctx = await buildTenantContext({ actor: { userId: seeded.userId, email: seeded.email, isStaff: false }, tenantId: seeded.tenantId, requestId: `req-${name}` });
   return { ...seeded, ctx };
 }
@@ -289,6 +290,7 @@ test('over HTTP: list, one job, cancel — and the refusals', async () => {
     const body = await response.json() as any;
     const auth = { authorization: `Bearer ${body.accessToken}`, origin: APP };
     const ctx = await buildTenantContext({ actor: { userId: body.user.id, email: 'o@example.test', isStaff: false }, tenantId: body.tenant.id, requestId: 'r' });
+    await enablePlanFeature(harness, 'growth', 'ai_3d'); // a new store is on the trial (Growth, T35); 3D work is Pro
     const job = await createAiJob(ctx, GENERATE);
 
     const listed = await (await listAiJobsHandler(new Request(`${APP}/api/ai-jobs?active=1`, { headers: auth }))).json() as any;

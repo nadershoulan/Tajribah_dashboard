@@ -23,7 +23,7 @@ const admin = <T>(harness: TestDb, fn: () => Promise<T>) => harness.asAdmin(fn);
 const MINUTE = 60_000;
 
 async function merchant(harness: TestDb, name: string) {
-  const seeded = await seedTenant(harness, name);
+  const seeded = await seedTenant(harness, name, { plan: 'growth' }); // T35: store platforms are Growth and up
   const ctx = await buildTenantContext({ actor: { userId: seeded.userId, email: seeded.email, isStaff: false }, tenantId: seeded.tenantId, requestId: `req-${name}` });
   const connection = await connectStore(ctx, { provider: 'salla', externalStoreId: `store-${name}`, tokens: { accessToken: 'token' } });
   return { ...seeded, ctx, connectionId: connection.id };

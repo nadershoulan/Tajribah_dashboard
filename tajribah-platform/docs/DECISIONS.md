@@ -622,3 +622,19 @@ on the pricing page) is not built — it is the plan's P6 comparison engine, whi
 provider. Until it exists, the pricing table and the Growth card say "coming soon", and a test
 stops it being shown as a plain tick. When it ships, the cells become ticks and the test changes
 with it.
+
+## T35 · 2026-09-28 · The trial runs on Growth; plan features are enforced where they are used
+
+**Decision (Nader's, 2026-09-28).** The 14-day free trial gives **Growth**'s features — catalogue
+sync included — so the setup's "connect your store" step and sign-up's promise hold; after the trial
+the store picks a plan. And every plan feature the catalogue lists is **enforced where it is used**:
+- store platforms — connecting and every sync (Salla and Zid from Growth, Shopify and WooCommerce
+  from Pro); a store whose plan no longer has its platform stops syncing, quietly;
+- AI 3D work (`ai_3d`, Pro and up) and product embeddings (`recommendations`, Pro and up), refused
+  before anything is charged;
+- analytics: basic on Starter (totals, daily chart, devices); full from Growth (conversion reports,
+  the funnel, top products, export).
+
+A trial store also gets Growth's monthly AI credits (40), because credits follow the plan.
+
+**Rollback path.** `TRIAL_PLAN` back to `'starter'`; each check is one line at its call site.

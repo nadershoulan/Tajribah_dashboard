@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import { Download, Info, Smartphone } from 'lucide-react';
+import { AppLink } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
 import { useData, useResource } from '@/lib/data';
 import type { AnalyticsView } from '@/lib/view-models';
@@ -69,8 +70,9 @@ export default function Analytics() {
                 </button>
               ))}
             </div>
-            <button type="button" className="btn btn-ghost" onClick={exportCsv} disabled={!canExport || exporting}
-              title={canExport ? undefined : t('التصدير للمالك والمسؤول والمحلّل', 'Export is for owners, admins and analysts')}>
+            <button type="button" className="btn btn-ghost" onClick={exportCsv} disabled={!canExport || exporting || data?.level === 'basic'}
+              title={data?.level === 'basic' ? t('التصدير ضمن التحليلات الكاملة (باقة النمو فأعلى)', 'Export is part of full analytics (Growth and up)')
+                : canExport ? undefined : t('التصدير للمالك والمسؤول والمحلّل', 'Export is for owners, admins and analysts')}>
               <Download size={16} aria-hidden />{exporting ? t('جارٍ التصدير…', 'Exporting…') : t('تصدير CSV', 'Export CSV')}
             </button>
           </>
@@ -129,16 +131,26 @@ export default function Analytics() {
                 />
               </Panel>
 
-              <UpliftPanel conversion={data.conversion} />
+              {data.level === 'basic' && (
+                <Panel title={t('تقارير التحويل', 'Conversion reports')}>
+                  <p style={{ margin: 0 }}>
+                    {t('مقارنة من جرّب بمن لم يجرّب، ومسار المشاهدة إلى الشراء، وأفضل منتجاتك، وتصدير الأرقام — ضمن التحليلات الكاملة في باقة النمو فأعلى.',
+                      'Tried versus did not, the path from view to purchase, your top products and exporting the figures are part of full analytics, in the Growth plan and up.')}{' '}
+                    <AppLink href="/dashboard/billing">{t('الباقات', 'Plans')}</AppLink>
+                  </p>
+                </Panel>
+              )}
 
-              <Panel
+              {data.level === 'full' && <UpliftPanel conversion={data.conversion} />}
+
+              {data.level === 'full' && <Panel
                 title={t('من المشاهدة إلى الشراء', 'From view to purchase')}
                 sub={t('كل خطوة بالنسبة لعدد من وصلها', 'Each step, against how many reached it')}
               >
                 <Funnel steps={data.funnel} />
-              </Panel>
+              </Panel>}
 
-              <Panel flush title={t('أفضل المنتجات', 'Top products')}>
+              {data.level === 'full' && <Panel flush title={t('أفضل المنتجات', 'Top products')}>
                 <div className="table-wrap">
                   <table className="data">
                     <thead>
@@ -169,7 +181,7 @@ export default function Analytics() {
                     </tbody>
                   </table>
                 </div>
-              </Panel>
+              </Panel>}
             </div>
 
             <div className="grid" style={{ gap: 18 }}>

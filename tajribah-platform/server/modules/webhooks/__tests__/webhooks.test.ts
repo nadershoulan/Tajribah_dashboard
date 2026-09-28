@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq } from 'drizzle-orm';
-import { auditLogs, jobs, products, storeConnections, syncJobs, webhookEvents } from '@/db/schema';
+import { auditLogs, jobs, products, storeConnections, subscriptions, syncJobs, webhookEvents } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { clearConnectors, registerConnector } from '@/server/connectors/types';
 import { loadEnv, resetEnv } from '@/server/core/config/env';
@@ -46,7 +46,7 @@ async function deliver(raw: string, options: { signature?: string | null; provid
 const envelope = (fields: Record<string, unknown>) => JSON.stringify({ id: uuidv7(), store: 'store-alpha', event: 'product.updated', ...fields });
 
 async function merchant(harness: TestDb, name: string) {
-  const seeded = await seedTenant(harness, name);
+  const seeded = await seedTenant(harness, name, { plan: 'growth' }); // T35: store platforms are Growth and up
   const ctx = await buildTenantContext({ actor: { userId: seeded.userId, email: seeded.email, isStaff: false }, tenantId: seeded.tenantId, requestId: `req-${name}` });
   clearConnectors();
   registerConnector(new FakeStore().seed(3));
@@ -230,4 +230,16 @@ test('two workers on one event: it is handled once', async () => {
     assert.deepEqual(outcomes.sort(), ['processed', 'skipped']);
     assert.equal(calls, 1);
   } finally { delete HANDLERS['test.count']; clearConnectors(); await harness.close(); }
+});
+
+test('T35: a store whose plan no longer has its platform — its product updates are ignored, no sync starts', async () => {
+  const harness = await createTestDb();
+  try {
+    const { tenantId } = await merchant(harness, 'alpha');
+    await admin(harness, () => harness.db.delete(subscriptions).where(eq(subscriptions.tenantId, tenantId))); // back on Starter
+    await deliver(envelope({ event: 'product.updated', product: 'p00001' }));
+    const counts = await dispatchPending();
+    assert.deepEqual([counts.processed, counts.ignored], [0, 1]);
+    assert.equal((await admin(harness, () => harness.db.select().from(syncJobs)) as any[]).length, 0);
+  } finally { await harness.close(); }
 });

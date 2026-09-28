@@ -229,6 +229,8 @@ export type BillingSummary = {
 
 export type AnalyticsView = {
   range: '7d' | '30d' | '90d';
+  /** T35: `basic` (Starter) — totals, daily chart, devices; `full` adds conversion, funnel, top products, export. */
+  level: 'basic' | 'full';
   totals: DashboardSummary['last30'];
   series: MetricPoint[];
   byDevice: { device: 'mobile' | 'tablet' | 'desktop'; sessions: number; arSupported: number }[];

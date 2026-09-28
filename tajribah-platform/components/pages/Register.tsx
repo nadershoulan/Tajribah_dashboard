@@ -11,7 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { authErrorMessage } from './auth-errors';
 import { safeNext } from '@/lib/safe-next';
 import { slugify } from '@/lib/slug';
-import { TRIAL_DAYS, planByCode, type PlanCode } from '@/lib/plans';
+import { TRIAL_DAYS, TRIAL_PLAN, planByCode, type PlanCode } from '@/lib/plans';
 
 export default function Register() {
   const { t, lang } = useLang();
@@ -22,11 +22,11 @@ export default function Register() {
   const [pending, setPending] = useState(false);
 
   const slug = slugify(storeName);
-  // T32: a plan chosen on the website's pricing page. The trial itself runs on Starter's features
-  // (`entitlementsOf`: no subscription = the Starter trial), so the page says so plainly.
+  // T32: a plan chosen on the website's pricing page. The trial itself runs on Growth's features
+  // (T35: `implicitPlan`), so the page says so plainly when another plan was chosen.
   const asked = new URLSearchParams(env.search).get('plan');
   const chosen = asked === 'starter' || asked === 'growth' || asked === 'pro' ? planByCode(asked as PlanCode) : null;
-  const starter = planByCode('starter').name;
+  const trial = planByCode(TRIAL_PLAN).name;
   // §13.6: never derive a slug from an Arabic name without showing the merchant the result.
   const needsConfirmation = storeName.trim().length > 2 && slug === null;
 
@@ -82,10 +82,10 @@ export default function Register() {
           <p>{t('دقيقتان، ثم نربط متجرك.', 'Two minutes, then we connect your store.')}</p>
           {chosen && (
             <p className="auth-plan-note" role="note">
-              {chosen.code === 'starter'
+              {chosen.code === TRIAL_PLAN
                 ? t(`اخترت باقة ${chosen.name.ar}. تبدأ تجربتك المجانية لمدة ${TRIAL_DAYS} يومًا عليها الآن.`, `You chose ${chosen.name.en}. Your ${TRIAL_DAYS}-day free trial starts on it now.`)
-                : t(`اخترت باقة ${chosen.name.ar}. تبدأ التجربة المجانية لمدة ${TRIAL_DAYS} يومًا بمزايا باقة ${starter.ar}، وتنتقل إلى ${chosen.name.ar} من صفحة الفوترة متى شئت.`,
-                  `You chose ${chosen.name.en}. The ${TRIAL_DAYS}-day free trial runs on the ${starter.en} plan’s features; move to ${chosen.name.en} from Billing whenever you like.`)}
+                : t(`اخترت باقة ${chosen.name.ar}. تبدأ التجربة المجانية لمدة ${TRIAL_DAYS} يومًا بمزايا باقة ${trial.ar}، وتختار ${chosen.name.ar} من صفحة الفوترة متى شئت.`,
+                  `You chose ${chosen.name.en}. The ${TRIAL_DAYS}-day free trial runs on the ${trial.en} plan’s features; choose ${chosen.name.en} from Billing whenever you like.`)}
             </p>
           )}
 

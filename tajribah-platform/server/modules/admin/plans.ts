@@ -10,10 +10,10 @@
  * The change and its staff-trail row (every field before and after) are one transaction, the
  * plan row locked. Only what differs is written; a save that changes nothing is refused.
  */
-import { and, count, eq, inArray, isNull, notExists } from 'drizzle-orm';
+import { and, count, eq, inArray, isNull, not, notExists } from 'drizzle-orm';
 import { unsafeAdminDb, type Db } from '@/db/client';
 import { LIMIT_KEY, PLAN_CODE, planFeatures, planLimits, plans, subscriptions, tenants, type LimitKey } from '@/db/schema';
-import { FEATURE_LABELS, UNLIMITED, type PlanCode } from '@/lib/plans';
+import { FEATURE_LABELS, TRIAL_PLAN, UNLIMITED, type PlanCode } from '@/lib/plans';
 import { errors } from '@/server/core/errors/problem';
 import { staffLog, type StaffContext } from './access';
 
@@ -22,15 +22,16 @@ export const FEATURE_KEYS = Object.keys(FEATURE_LABELS);
 const LIVE = ['trialing', 'active', 'past_due'] as const;
 
 /**
- * How many stores a change to this plan reaches today: live subscriptions on it — and, for
- * Starter, every store with no subscription at all, which runs on the Starter trial (P2.1).
+ * How many stores a change to this plan reaches today: live subscriptions on it — and the stores
+ * with no subscription that run on it: Growth for those on trial, Starter for the rest (T35).
  */
 async function reachOf(db: Db, planId: string, code: PlanCode): Promise<number> {
   const [subscribed] = await db.select({ n: count() }).from(subscriptions)
     .where(and(eq(subscriptions.planId, planId), inArray(subscriptions.status, [...LIVE])));
-  if (code !== 'starter') return Number(subscribed?.n ?? 0);
+  if (code !== 'starter' && code !== TRIAL_PLAN) return Number(subscribed?.n ?? 0);
+  const onTrial = eq(tenants.status, 'trial');
   const [unsubscribed] = await db.select({ n: count() }).from(tenants)
-    .where(and(isNull(tenants.deletedAt), notExists(db.select({ one: subscriptions.id }).from(subscriptions).where(eq(subscriptions.tenantId, tenants.id)))));
+    .where(and(isNull(tenants.deletedAt), code === TRIAL_PLAN ? onTrial : not(onTrial), notExists(db.select({ one: subscriptions.id }).from(subscriptions).where(eq(subscriptions.tenantId, tenants.id)))));
   return Number(subscribed?.n ?? 0) + Number(unsubscribed?.n ?? 0);
 }
 

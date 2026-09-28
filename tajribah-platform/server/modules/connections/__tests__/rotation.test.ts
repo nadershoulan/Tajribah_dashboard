@@ -24,7 +24,7 @@ const raw = (harness: TestDb, id: string): Promise<any> =>
 const kidOf = (envelope: string | null) => envelope?.split('.')[1];
 
 async function connected(harness: TestDb, name: string) {
-  const seeded = await seedTenant(harness, name);
+  const seeded = await seedTenant(harness, name, { plan: 'growth' }); // T35: store platforms are Growth and up
   const ctx = await buildTenantContext({ actor: { userId: seeded.userId, email: seeded.email, isStaff: false }, tenantId: seeded.tenantId, requestId: `req-${name}` });
   const summary = await connectStore(ctx, {
     provider: 'salla', externalStoreId: `store-${name}`,

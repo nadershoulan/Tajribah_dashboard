@@ -51,7 +51,7 @@ test('the rule, at its edges', () => {
 });
 
 async function store(harness: TestDb, name: string) {
-  const seeded = await seedTenant(harness, name);
+  const seeded = await seedTenant(harness, name, { plan: 'growth' }); // T35: store platforms are Growth and up
   const connectionId = uuidv7();
   await harness.asAdmin(() => harness.db.insert(storeConnections).values({
     id: connectionId, tenantId: seeded.tenantId, provider: 'salla', externalStoreId: `${name}-store`, storeName: `${name} store`,

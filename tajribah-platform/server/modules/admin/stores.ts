@@ -10,11 +10,11 @@
  * Nothing here writes: the AI credit balance is read as the ledger's sum, not through
  * `creditSummary`, which would make the month's grant as a side effect.
  */
-import { and, desc, eq, ilike, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
 import { creditLedger, plans, subscriptions, tenants, type Tenant } from '@/db/schema';
 import { PERMISSIONS, type Permission } from '@/lib/permissions';
-import type { PlanCode } from '@/lib/plans';
+import { implicitPlan, type PlanCode } from '@/lib/plans';
 import { creditsUsedIn, currentPeriodStart, currentUsage, entitlementsOf, nextPeriodStart } from '@/server/core/billing/entitlements';
 import { writeStateOf, type ReadOnlyReason } from '@/server/core/billing/lifecycle';
 import { errors } from '@/server/core/errors/problem';
@@ -75,13 +75,17 @@ export async function listStores(input: { q?: string; status?: Tenant['status'];
     .from(tenants)
     .leftJoin(subscriptions, eq(subscriptions.tenantId, tenants.id))
     .leftJoin(plans, eq(plans.id, subscriptions.planId))
-    .where(input.plan ? and(where, input.plan === 'starter' ? or(eq(plans.code, 'starter'), isNull(plans.code)) : eq(plans.code, input.plan)) : where)
+    // T35: no subscription = Growth while on trial, Starter otherwise.
+    .where(input.plan ? and(where,
+      input.plan === 'starter' ? or(eq(plans.code, 'starter'), and(isNull(plans.code), ne(tenants.status, 'trial')))
+        : input.plan === 'growth' ? or(eq(plans.code, 'growth'), and(isNull(plans.code), eq(tenants.status, 'trial')))
+          : eq(plans.code, input.plan)) : where)
     .orderBy(desc(tenants.id)).limit(limit + 1);
   const page = rows.slice(0, limit);
   return {
     stores: page.map(({ tenant, status, code }) => ({
       id: tenant.id, name: tenant.name, nameAr: tenant.nameAr, slug: tenant.slug, status: tenant.status,
-      plan: code ?? 'starter', subscription: status ?? null,
+      plan: code ?? implicitPlan(tenant.status), subscription: status ?? null,
       readOnly: writeStateOf({ subscriptionStatus: status ?? null, trialEndsAt: tenant.trialEndsAt }).readOnly,
       trialEndsAt: tenant.trialEndsAt?.toISOString() ?? null, createdAt: tenant.createdAt.toISOString(),
     })),

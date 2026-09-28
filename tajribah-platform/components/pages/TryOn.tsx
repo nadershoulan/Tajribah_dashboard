@@ -12,6 +12,7 @@ import { formatBytes, formatNumber, formatPercent } from '@/lib/format';
 import { useLang } from '@/lib/i18n';
 import { ROLE_PERMISSIONS } from '@/lib/permissions';
 import { TRYON_SLOTS, sayCutout } from '@/lib/tryon';
+import { TRUE_SIZE_MIN, type SlotQuality } from '@/lib/tryon-quality';
 import type { TryOnWatchView } from '@/lib/view-models';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, Empty, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
@@ -63,6 +64,21 @@ function WatchCard({ initial, editable }: { initial: TryOnWatchView; editable: b
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ tone: 'ok' | 'bad'; text: { ar: string; en: string } } | null>(null);
   const [failure, setFailure] = useState<Error | null>(null);
+  // P5.9: a new picture is checked in the background; look again until its check is back.
+  const checking = (!!w.worn && !w.quality.worn) || (!!w.flat && !w.quality.flat);
+  useEffect(() => {
+    if (!checking) return;
+    let live = true;
+    let tries = 0;
+    const timer = setInterval(() => {
+      if (++tries > 20) { clearInterval(timer); return; }
+      source.tryOn().then((screen) => {
+        const next = screen.watches.find((x) => x.productId === w.productId);
+        if (live && next) setW((now) => ({ ...now, worn: next.worn, flat: next.flat, quality: next.quality }));
+      }).catch(() => undefined);
+    }, 4000);
+    return () => { live = false; clearInterval(timer); };
+  }, [checking, source, w.productId]);
 
   const run = async (what: string, fn: () => Promise<TryOnWatchView>, done?: { ar: string; en: string }) => {
     setBusy(what); setFailure(null); setNote(null);
@@ -97,7 +113,7 @@ function WatchCard({ initial, editable }: { initial: TryOnWatchView; editable: b
     <Panel title={lang === 'ar' ? w.nameAr ?? w.name : w.name} sub={w.sku ? `${t('الرمز', 'SKU')} ${w.sku}` : undefined} actions={status}>
       <div className="tryon-grid">
         {(['worn', 'flat'] as const).map((slot) => (
-          <Picture key={slot} productId={w.productId} slot={slot} has={w[slot]} disabled={!editable || busy !== null}
+          <Picture key={slot} productId={w.productId} slot={slot} has={w[slot]} quality={w.quality[slot]} disabled={!editable || busy !== null}
             busy={busy === slot} onPick={(file) => run(slot, () => source.uploadCutout(w.productId, slot, file), { ar: 'قُبلت الصورة.', en: 'Picture accepted.' })} />
         ))}
         <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
@@ -141,21 +157,22 @@ function WatchCard({ initial, editable }: { initial: TryOnWatchView; editable: b
   );
 }
 
-function Picture({ productId, slot, has, disabled, busy, onPick }: {
-  productId: string; slot: 'worn' | 'flat'; has: { bytes: number } | null; disabled: boolean; busy: boolean; onPick: (file: File) => void;
+function Picture({ productId, slot, has, quality, disabled, busy, onPick }: {
+  productId: string; slot: 'worn' | 'flat'; has: { bytes: number } | null; quality: SlotQuality | null; disabled: boolean; busy: boolean; onPick: (file: File) => void;
 }) {
   const { t, pick, lang } = useLang();
   const source = useData();
   const picker = useRef<HTMLInputElement>(null);
   const [src, setSrc] = useState<string | null>(null);
   // Stored pictures are private until published: fetched with the session, shown from a blob.
+  const bytes = has?.bytes ?? null;
   useEffect(() => {
-    if (!has) return;
+    if (bytes === null) return;
     let live = true;
     let url: string | null = null;
     source.cutoutImage(productId, slot).then((blob) => { if (live) { url = URL.createObjectURL(blob); setSrc(url); } }).catch(() => undefined);
     return () => { live = false; if (url) URL.revokeObjectURL(url); };
-  }, [source, productId, slot, has]);
+  }, [source, productId, slot, bytes]);
   const info = TRYON_SLOTS[slot];
   return (
     <div className="tryon-picture">
@@ -166,9 +183,29 @@ function Picture({ productId, slot, has, disabled, busy, onPick }: {
         {busy && <span className="photo-slot-busy" role="status">{t('جارٍ الرفع والفحص…', 'Uploading and checking…')}</span>}
       </div>
       {has && <span className="hint" style={{ margin: 0 }}><span dir="ltr">{formatBytes(has.bytes, lang)}</span></span>}
+      {has && <QualityNote quality={quality} />}
       <span className="hint" style={{ margin: 0 }}>{pick(info.hint)}</span>
       <input ref={picker} type="file" accept="image/png,image/webp,.png,.webp" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.target.value = ''; }} />
       <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} onClick={() => picker.current?.click()}>{has ? t('بدّل الصورة', 'Replace') : t('ارفع صورة', 'Upload')}</button>
     </div>
   );
+}
+
+/** P5.9 — what the check found: the studio draws the picture's full width as the case width. */
+function QualityNote({ quality }: { quality: SlotQuality | null }) {
+  const { t } = useLang();
+  if (!quality) return <span className="quality-note" role="status">{t('جارٍ فحص المقاس…', 'Checking the size…')}</span>;
+  if (quality.issue === 'empty') return <span className="quality-note quality-bad">{t('لا يظهر شيء في هذه الصورة. ارفع صورة الساعة.', 'Nothing is visible in this picture. Upload the watch.')}</span>;
+  if (quality.issue === 'unreadable') return <span className="quality-note quality-bad">{t('تعذّرت قراءة الصورة. ارفعها مرة أخرى.', 'The picture could not be read. Upload it again.')}</span>;
+  const pct = `${Math.floor(quality.sizeShown * 100)}%`;
+  const trimmed = quality.trimmed ? t(' قصصنا الحواف الفارغة لتظهر بمقاسها.', ' We cropped away the empty edges so it shows at its size.') : '';
+  if (quality.sizeShown < TRUE_SIZE_MIN) {
+    return (
+      <span className="quality-note quality-warn">
+        {t(`تظهر الساعة بنحو ${pct} من مقاسها الحقيقي: ظل أو توهج خفيف على الجانبين يوسّع الصورة دون الساعة. قصّها على حافتي العلبة بحدّ واضح.`,
+          `The watch shows at about ${pct} of its real size: a soft shadow or glow at the sides widens the picture, not the watch. Crop it to the case’s edges, with a clean edge.`)}{trimmed}
+      </span>
+    );
+  }
+  return <span className="quality-note quality-ok">{t('بمقاسها الحقيقي.', 'True to size.')}{trimmed}</span>;
 }

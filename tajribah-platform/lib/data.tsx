@@ -19,6 +19,7 @@ import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
 import { checkCutout } from '@/server/modules/tryon/cutout';
 import { CUTOUT_ISSUES } from './tryon';
+import { alphaFacts, hasMargins, qualityScore, sizeShown, type SlotQuality } from './tryon-quality';
 import { ApiError, currentStore, type ApiClient } from './api-client';
 import type { Bi, Lang } from './lang';
 import type { ProductListPage, ProductListQuery } from './contracts/products';
@@ -320,7 +321,32 @@ const demoModels: ModelRow[] = DEMO_MODELS.map((m) => ({ ...m }));
  */
 const demoPhotos = new Map<string, { view: GenerationPhotoView; sha: string }[]>();
 /** P5.10 — the preview's try-on settings, per watch, for this page load; pictures kept as Blobs. */
-const demoTryOn = new Map<string, { worn: Blob | null; flat: Blob | null; caseMm: number | null; finish: { ar: string; en: string } | null; enabled: boolean }>();
+const demoTryOn = new Map<string, { worn: Blob | null; flat: Blob | null; caseMm: number | null; finish: { ar: string; en: string } | null; enabled: boolean; quality?: { worn?: SlotQuality; flat?: SlotQuality } }>();
+/**
+ * P5.9 in the preview: the worker's check, on a canvas — the same `alphaFacts`; empty edges
+ * cropped away, the share of real size measured.
+ */
+async function demoCutoutQuality(file: Blob, slot: 'worn' | 'flat'): Promise<{ picture: Blob; quality: SlotQuality }> {
+  const key = `preview:${slot}:${Date.now()}`;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width; canvas.height = bitmap.height;
+    const g = canvas.getContext('2d')!;
+    g.drawImage(bitmap, 0, 0);
+    const facts = alphaFacts(g.getImageData(0, 0, bitmap.width, bitmap.height).data, bitmap.width, bitmap.height);
+    if (!facts.box) return { picture: file, quality: { key, sizeShown: 0, trimmed: false, issue: 'empty' } };
+    if (!hasMargins(facts)) return { picture: file, quality: { key, sizeShown: sizeShown(facts), trimmed: false } };
+    const { left, top, width, height } = facts.box;
+    const cut = document.createElement('canvas');
+    cut.width = width; cut.height = height;
+    cut.getContext('2d')!.drawImage(canvas, left, top, width, height, 0, 0, width, height);
+    const picture = await new Promise<Blob>((done) => cut.toBlob((b) => done(b ?? file), 'image/png'));
+    return { picture, quality: { key, sizeShown: sizeShown(facts), trimmed: true } };
+  } catch {
+    return { picture: file, quality: { key, sizeShown: 0, trimmed: false, issue: 'unreadable' } };
+  }
+}
 /** The preview store's plan (Growth) does not include try-on, as the real one would say. */
 const DEMO_TRYON_INCLUDED = false;
 function demoTryOnView(p: ProductRow): TryOnWatchView {
@@ -334,6 +360,11 @@ function demoTryOnView(p: ProductRow): TryOnWatchView {
     worn: s.worn ? { bytes: s.worn.size } : null, flat: s.flat ? { bytes: s.flat.size } : null, finish: s.finish,
     enabled: s.enabled && missing.length === 0, ready: missing.length === 0, missing,
     last30: { views: p.views30, tryonSessions: demoTryonSessions30(p) },
+    quality: {
+      worn: s.worn ? s.quality?.worn ?? null : null,
+      flat: s.flat ? s.quality?.flat ?? null : null,
+      score: s.worn && s.flat ? qualityScore(s.quality?.worn, s.quality?.flat) : null,
+    },
   };
 }
 /** Which version is live per demo model, when it is not the newest. */
@@ -514,7 +545,8 @@ export const demoSource: DataSource = {
     const verdict = checkCutout(new Uint8Array(await file.arrayBuffer()), file.size);
     if (!verdict.ok) throw new ApiError(422, 'validation_failed', 'Validation failed', { [slot]: [CUTOUT_ISSUES[verdict.issue].en] });
     const s = demoTryOn.get(p.id) ?? { worn: null, flat: null, caseMm: null, finish: null, enabled: false };
-    demoTryOn.set(p.id, { ...s, [slot]: file });
+    const checked = await demoCutoutQuality(file, slot);
+    demoTryOn.set(p.id, { ...s, [slot]: checked.picture, quality: { ...s.quality, [slot]: checked.quality } });
     return demoTryOnView(p);
   },
   async updateTryOn(productId, patch) {

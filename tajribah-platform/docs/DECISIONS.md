@@ -527,3 +527,23 @@ camera mode is ever added, a consent step comes with it.
 
 **Rollback path.** `main` back to `vinext/server/fetch-handler` and drop `triggers` in
 `vite.config.ts`; remove the `.embed-privacy` link.
+
+## T28 · 2026-09-28 · A watch picture's empty edges are cropped automatically; size problems warn, not block
+
+**Why.** The owner's studio draws a cut-out's **full width as the case width** (compare mode:
+`caseMm × 4.3 px`; model mode: poses tuned to the demo's tightly cropped pictures). A merchant's
+picture with empty space at its sides would therefore show the watch smaller than it is, quietly
+breaking "true to size". The studio is not changed (rule 1); the pictures are made to fit it.
+
+**Decision.** After each confirmed upload, a background check (`tryon.quality`) crops away edges
+where nothing is visible (alpha below ~3%) and stores the cropped copy in place of the upload.
+It is lossless — PNG stays PNG, WebP is re-encoded lossless and `exact` — and the test compares
+every pixel. The crop is audited as a system change and the merchant is told ("we cropped away
+the empty edges"). What cropping cannot fix — a soft shadow or glow that widens the picture but
+not the watch — is **measured and shown**, with the share of real size it costs and how to fix
+it. It does **not** stop the merchant switching try-on on: the number is theirs to act on, and a
+threshold that blocks would be a business rule nobody has set. If Nader wants a floor (for
+example, no switch-on below 97%), it is one condition in `updateTryOn`.
+
+**Rollback path.** Drop the `enqueueQuality` call in `confirmCutout`; the column stays null and
+the screen shows nothing for it.

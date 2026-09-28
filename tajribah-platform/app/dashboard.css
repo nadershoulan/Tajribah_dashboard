@@ -856,6 +856,10 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
   background-size: 18px 18px; background-position: 0 0, 0 9px, 9px -9px, -9px 0;
 }
 .tryon-checker img { max-width: 86%; max-height: 86%; object-fit: contain; }
+.quality-note { font-size: 13px; line-height: 1.45; color: var(--text-2); }
+.quality-ok { color: var(--ok); }
+.quality-warn { color: var(--warn); }
+.quality-bad { color: var(--bad); }
 .tryon-stats { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 16px 0 0; }
 .tryon-stats span:first-child { font-weight: 600; }
 .tryon-foot { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }

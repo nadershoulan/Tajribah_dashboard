@@ -29,6 +29,7 @@ export type QueueName =
   | 'sync.products' | 'sync.inventory' | 'sync.orders'
   | 'ai.generate-3d' | 'ai.postprocess' | 'ai.embed'
   | 'edge.publish-config'
+  | 'tryon.quality'
   | 'notify.email' | 'notify.sms'
   | 'analytics.rollup' | 'system.cleanup';
 

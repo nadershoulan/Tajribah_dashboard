@@ -13,6 +13,7 @@ import { index, integer, pgEnum, pgTable, text, uniqueIndex, uuid } from 'drizzl
 import { bool, createdAt, json, pk, tenantId, timestamps, ts } from './_shared';
 import { tenants } from './identity';
 import { products } from './commerce';
+import type { TryOnQuality } from '../../lib/tryon-quality';
 
 export const MODEL_SOURCE = ['uploaded', 'ai_generated', 'professional_service'] as const;
 export const MODEL_STATUS = ['draft', 'processing', 'ready', 'failed', 'archived'] as const;
@@ -134,6 +135,8 @@ export const tryonConfigs = pgTable('tryon_configs', {
   finishAr: text('finish_ar'),
   finishEn: text('finish_en'),
   enabled: bool('enabled').notNull().default(false),
+  /** P5.9 (0018) — each picture's check, against the key it was made for (`lib/tryon-quality.ts`). */
+  quality: json<TryOnQuality>('quality'),
   ...timestamps(),
 }, (t) => [uniqueIndex('tryon_configs_product_unq').on(t.productId)]);
 

@@ -14,6 +14,9 @@
  *  - Reading is open to every role and every plan (the screen explains what is missing); every
  *    change needs `tryon:write` **and** `virtual_tryon` in the plan.
  *  - Pictures count against the plan's storage (`storageBytesHeld`).
+ *  - P5.9: each confirmed picture is queued for its check (`quality.ts`): empty edges cropped,
+ *    the share of real size measured. The view shows a picture's check only while it is still
+ *    that picture's (`quality[slot].key`), so a replaced picture shows "checking", never the old result.
  *  - P5.13: the list shows each watch's last 30 days (views, try-on openings) from the analytics
  *    rollup — never raw events — to anyone who may read analytics.
  */
@@ -31,6 +34,7 @@ import { withTenant } from '@/server/core/tenancy/rls';
 import { daysOf } from '@/server/modules/analytics/metrics';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { CUTOUT_MAX_BYTES, checkCutout, type CutoutIssue } from './cutout';
+import { enqueueQuality } from './quality';
 
 export type Slot = 'worn' | 'flat';
 type Config = typeof tryonConfigs.$inferSelect;
@@ -59,6 +63,11 @@ function view(product: Product, config: Config | null, last30: Last30 = null): T
     flat: config?.flatKey ? { bytes: config.flatBytes ?? 0 } : null,
     finish: config?.finishAr && config.finishEn ? { ar: config.finishAr, en: config.finishEn } : null,
     enabled: !!config?.enabled && missing.length === 0,
+    quality: {
+      worn: config?.wornKey && config.quality?.worn?.key === config.wornKey ? config.quality.worn : null,
+      flat: config?.flatKey && config.quality?.flat?.key === config.flatKey ? config.quality.flat : null,
+      score: config?.qualityScore ?? null,
+    },
     ready: missing.length === 0,
     missing,
     last30,
@@ -154,6 +163,7 @@ export async function confirmCutout(ctx: TenantContext, productId: string, input
     return { result: view(product, after), replaced: old && old !== input.key ? old : null };
   });
   if (replaced) await store.delete(replaced).catch(() => undefined); // an orphan costs us, never the store
+  await enqueueQuality(ctx.tenantId, productId, input.slot, input.key);
   return result;
 }
 

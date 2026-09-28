@@ -12,6 +12,7 @@ import type { Job } from '@/db/schema';
 import { handleSyncJob } from '@/server/modules/sync/job';
 import { handleProcessJob } from '@/server/modules/models/process';
 import { handleAiJob } from '@/server/modules/ai-jobs/job';
+import { handleQualityJob } from '@/server/modules/tryon/quality';
 
 /** Read the tenant a job is for, refusing to run tenant work without one. */
 export function tenantOf(job: Job): TenantDb {
@@ -31,4 +32,6 @@ export function registerAllHandlers(): void {
   // P3.2: AI jobs — the lifecycle runs whichever executor is registered for the job's type.
   registerHandler('ai.generate-3d', (job: Job) => handleAiJob(job));
   registerHandler('ai.embed', (job: Job) => handleAiJob(job));
+  // P5.9: check a confirmed try-on cut-out — crop empty edges, measure the size shown.
+  registerHandler('tryon.quality', (job: Job) => handleQualityJob(job));
 }

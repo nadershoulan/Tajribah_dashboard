@@ -8,6 +8,7 @@
 import type { AiJobStage } from './ai-jobs';
 import type { Bi } from './lang';
 import type { PlanCode } from './plans';
+import type { SlotQuality } from './tryon-quality';
 
 export type TenantSummary = {
   id: string;
@@ -306,6 +307,11 @@ export type TryOnWatchView = {
    * try-on openings. Only on the screen's list, and null when the viewer may not read analytics.
    */
   last30: { views: number; tryonSessions: number } | null;
+  /**
+   * P5.9 — each picture's check (null while it is being checked), and the watch's score: the
+   * worse picture's share of its real size, 0–100, once both are checked.
+   */
+  quality: { worn: SlotQuality | null; flat: SlotQuality | null; score: number | null };
 };
 
 export type TryOnScreen = {

@@ -487,3 +487,23 @@ Models made by the professional service are Tajribah's own work and are shown as
 
 **Rollback path.** The gate is one check in `publishVersion`; removing it lets generated models
 publish on the merchant's word. Review state and history stay as recorded.
+
+## T26 · 2026-09-28 · P5 ships watches first, with the owner's studio loaded unchanged
+
+**Decision (Nader's, 2026-09-28: "Watches first" and "Load it unchanged").** The plan orders
+try-on glasses → watches; the engine that exists and is proven is the owner's wrist studio
+(`tajribah-try-on/components/studio/Studio.tsx`). P5 therefore starts by bringing **that studio**
+to merchants' product pages, and glasses (a new face-tracking engine) come after.
+
+The studio is not rewritten or re-implemented. The one change is additive: `Studio` takes an
+optional `product` (`TryOnProduct` in `lib/demo-product.ts`) and defaults to `DEMO_WATCH`, so the
+site demo is unchanged — proven byte-identical (the studio's HTML and its canvas pixels, model and
+compare modes, Arabic and English, before and after). A merchant's watch brings its own cut-out
+photos, case width and names; `demo: false` hides the Failet badge and note. Nothing in the
+try-on repo's rule 1 list moved.
+
+**How it reaches a shop:** the storefront script opens the studio, as it is, in a frame on
+Tajribah's own domain over the product page — isolated from the shop's CSS and scripts, with the
+camera and QR pairing working as they do on the site.
+
+**Rollback path.** Drop the `product` prop (the default is the old behaviour) and the frame.

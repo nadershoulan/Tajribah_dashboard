@@ -16,7 +16,7 @@ import { useSiteEnv } from '@/lib/site-env';
 import { preparePhoto } from '@/lib/photo';
 import {
   DEMO_WATCH, MODELS, PX_PER_MM, REFERENCES, STAGE, constrainToModel,
-  type ModelId, type Pose, type ReferenceId,
+  type ModelId, type Pose, type ReferenceId, type TryOnProduct,
 } from '@/lib/demo-product';
 
 type Mode = 'model' | 'me' | 'compare';
@@ -32,7 +32,8 @@ const loadImage = (src: string) =>
     i.src = src;
   });
 
-export default function Studio() {
+/** `product`: the watch to try on — the Failet demo unless a merchant's own is given (P5, T26). */
+export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduct } = {}) {
   const { lang } = useLang();
   const { asset, features } = useSiteEnv();
   const ar = lang === 'ar';
@@ -86,14 +87,14 @@ export default function Studio() {
     let live = true;
     const paths: Record<string, string> = {
       wrist: MODELS[0].src, lifestyle: MODELS[1].src,
-      watch: DEMO_WATCH.worn, flat: DEMO_WATCH.flat,
+      watch: product.worn, flat: product.flat,
     };
     for (const id of REF_IDS) paths[id] = REFERENCES[id].src;
     Promise.all(Object.entries(paths).map(async ([key, url]) => [key, await loadImage(asset(url))] as const))
       .then((p) => { if (live) { images.current = Object.fromEntries(p); setAssetsReady(true); } })
       .catch(() => { if (live) setAssetError(true); });
     return () => { live = false; };
-  }, [asset]);
+  }, [asset, product.worn, product.flat]);
   useEffect(() => () => handDetector.current?.close(), []);
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { setExpanded(false); setCalibrating(false); } };
@@ -105,7 +106,7 @@ export default function Studio() {
     setScale(100); setZoom(1); setCalibrating(false); setPoints([]); setActive('watch');
     setPose(
       nextMode === 'model' ? { ...MODELS[nextModel].pose }
-        : nextMode === 'compare' ? { x: 365, y: 550, width: DEMO_WATCH.caseMm * PX_PER_MM, angle: 0 }
+        : nextMode === 'compare' ? { x: 365, y: 550, width: product.caseMm * PX_PER_MM, angle: 0 }
           : { ...photoFit },
     );
     setRefPose({ x: 790, y: 550, angle: 0 });
@@ -172,7 +173,7 @@ export default function Studio() {
         ctx.translate(0, y + 31);
         ctx.rotate((-pose.angle * Math.PI) / 180);
         ctx.fillStyle = '#0A2237'; ctx.font = '19px "IBM Plex Sans Arabic", Arial, sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText(measure(DEMO_WATCH.caseMm), 0, 0);
+        ctx.fillText(measure(product.caseMm), 0, 0);
         ctx.restore();
       }
       ctx.restore();
@@ -187,7 +188,7 @@ export default function Studio() {
     }
     ctx.restore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assetsReady, mode, model, photo, pose, scale, zoom, ref, refPose, active, rulers, units, ar, calibrating, points]);
+  }, [assetsReady, mode, model, photo, pose, scale, zoom, ref, refPose, active, rulers, units, ar, calibrating, points, product.caseMm]);
   useEffect(() => redraw(), [redraw]);
 
   function getPoint(e: { clientX: number; clientY: number }) {
@@ -413,23 +414,27 @@ export default function Studio() {
     <div className={'studio-root ' + (expanded ? 'is-expanded' : '')}>
       <div className="studio-layout">
         <aside className="product-panel">
-          <div className="demo-badge"><span className="dot" />{t('Demo store · Failet (example)', 'متجر تجريبي · فايلت (مثال)')}</div>
-          <div className="eyebrow">{t(DEMO_WATCH.collection.en, DEMO_WATCH.collection.ar)}</div>
-          <h1>{t(DEMO_WATCH.headLead.en, DEMO_WATCH.headLead.ar)}<br /><em>{t(DEMO_WATCH.headEm.en, DEMO_WATCH.headEm.ar)}</em></h1>
-          <p className="product-name">{t(DEMO_WATCH.name.en, DEMO_WATCH.name.ar)}</p>
-          <p className="finish-name"><span className="finish-dot" />{t(DEMO_WATCH.finish.en, DEMO_WATCH.finish.ar)}</p>
+          {product.demo && <div className="demo-badge"><span className="dot" />{t('Demo store · Failet (example)', 'متجر تجريبي · فايلت (مثال)')}</div>}
+          <div className="eyebrow">{t(product.collection.en, product.collection.ar)}</div>
+          <h1>{t(product.headLead.en, product.headLead.ar)}<br /><em>{t(product.headEm.en, product.headEm.ar)}</em></h1>
+          <p className="product-name">{t(product.name.en, product.name.ar)}</p>
+          <p className="finish-name"><span className="finish-dot" />{t(product.finish.en, product.finish.ar)}</p>
           <div className="product-image">
-            <img src={asset(DEMO_WATCH.worn)} alt={t('Failet gold watch with a green dial and multicolour bracelet', 'ساعة فايلت ذهبية بمينا أخضر وسوار متعدد الألوان')} />
+            <img src={asset(product.worn)} alt={t(product.alt.en, product.alt.ar)} />
           </div>
-          <div className="product-detail"><span>{t('Reference', 'رقم المنتج')}</span><strong dir="ltr">{DEMO_WATCH.sku}</strong></div>
-          <div className="product-detail"><span>{t('Approx. case width', 'عرض العلبة التقريبي')}</span><strong dir="ltr">{measure(DEMO_WATCH.caseMm)}</strong></div>
-          <a href={DEMO_WATCH.storeUrl} className="store-link" target="_blank" rel="noreferrer">
-            {t('Explore Failet', 'تسوّق فايلت')}<ChevronRight size={16} />
-          </a>
-          <p className="product-note">
-            {t('Failet is an independent brand. It appears here only as an example store, and this demo does not imply a partnership.',
-              'فايلت علامة تجارية مستقلة، تظهر هنا مثالًا لمتجر فقط، ولا يعني هذا العرض وجود شراكة أو اعتماد.')}
-          </p>
+          <div className="product-detail"><span>{t('Reference', 'رقم المنتج')}</span><strong dir="ltr">{product.sku}</strong></div>
+          <div className="product-detail"><span>{t('Approx. case width', 'عرض العلبة التقريبي')}</span><strong dir="ltr">{measure(product.caseMm)}</strong></div>
+          {product.storeLink && (
+            <a href={product.storeLink.href} className="store-link" target="_blank" rel="noreferrer">
+              {t(product.storeLink.label.en, product.storeLink.label.ar)}<ChevronRight size={16} />
+            </a>
+          )}
+          {product.demo && (
+            <p className="product-note">
+              {t('Failet is an independent brand. It appears here only as an example store, and this demo does not imply a partnership.',
+                'فايلت علامة تجارية مستقلة، تظهر هنا مثالًا لمتجر فقط، ولا يعني هذا العرض وجود شراكة أو اعتماد.')}
+            </p>
+          )}
         </aside>
 
         <section className="studio-panel" aria-label={t('Watch try-on studio', 'استوديو تجربة الساعة')}>

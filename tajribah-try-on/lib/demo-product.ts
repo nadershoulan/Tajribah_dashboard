@@ -7,10 +7,32 @@ export const PX_PER_MM = 4.3;
 export type Pose = { x: number; y: number; width: number; angle: number };
 
 /**
+ * What the studio shows for one watch. The studio defaults to `DEMO_WATCH`; a merchant's own
+ * watch comes in through `<Studio product={…} />` (P5, T26 — added, nothing in the studio moved).
+ * `demo` switches on the demo-store badge and the no-partnership note; `storeLink` is the
+ * "explore the store" link, or null for none (on the merchant's own page it would lead nowhere new).
+ */
+export type TryOnProduct = {
+  sku: string;
+  collection: Bi;
+  headLead: Bi;
+  headEm: Bi;
+  name: Bi;
+  finish: Bi;
+  caseMm: number;
+  worn: string;
+  flat: string;
+  storeUrl: string;
+  alt: Bi;
+  storeLink: { label: Bi; href: string } | null;
+  demo: boolean;
+};
+
+/**
  * The demo product. Case width is approximate, inferred from the reference
  * widget's watch/iPhone relative sizes — see ASSETS.md.
  */
-export const DEMO_WATCH = {
+export const DEMO_WATCH: TryOnProduct = {
   sku: 'P820241410',
   collection: { ar: 'تشكيلة الألماس', en: 'The diamond collection' } as Bi,
   headLead: { ar: 'لمسة من', en: 'A touch of' } as Bi,
@@ -21,6 +43,9 @@ export const DEMO_WATCH = {
   worn: '/assets/watch-layer-0.png',
   flat: '/assets/watch-flat.png',
   storeUrl: 'https://failet.sa',
+  alt: { ar: 'ساعة فايلت ذهبية بمينا أخضر وسوار متعدد الألوان', en: 'Failet gold watch with a green dial and multicolour bracelet' },
+  storeLink: { label: { ar: 'تسوّق فايلت', en: 'Explore Failet' }, href: 'https://failet.sa' },
+  demo: true,
 };
 
 export type ModelId = 'wrist' | 'lifestyle';

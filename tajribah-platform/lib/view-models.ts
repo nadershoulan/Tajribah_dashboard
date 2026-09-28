@@ -9,6 +9,7 @@ import type { AiJobStage } from './ai-jobs';
 import type { Bi } from './lang';
 import type { PlanCode } from './plans';
 import type { SlotQuality } from './tryon-quality';
+import type { ConnectionHealth } from './connection-health';
 
 export type TenantSummary = {
   id: string;
@@ -99,6 +100,8 @@ export type ConnectionSummary = {
 export type ConnectionDetail = ConnectionSummary & {
   latestSync: SyncProgress | null;
   webhooks: WebhookHealth;
+  /** P6.16 — computed now, with the reasons (`lib/connection-health.ts`). */
+  health: ConnectionHealth;
 };
 
 /** The install checker's answer (P1.17). */

@@ -11,6 +11,7 @@ import { formatDateTime, formatNumber, formatRelative } from '@/lib/format';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
 import type { Bi } from '@/lib/lang';
+import { HEALTH_LEVELS, HEALTH_REASONS, type HealthLevel } from '@/lib/connection-health';
 
 type ProviderCard = {
   id: 'salla' | 'zid' | 'shopify' | 'woocommerce';
@@ -136,6 +137,8 @@ export default function Connections() {
   );
 }
 
+const HEALTH_TONE: Record<HealthLevel, 'ok' | 'warn' | 'bad'> = { healthy: 'ok', attention: 'warn', failing: 'bad' };
+
 const STATUS: Record<ConnectionDetail['status'], { tone: 'ok' | 'bad' | 'warn'; label: Bi }> = {
   active: { tone: 'ok', label: { ar: 'نشط', en: 'Active' } },
   expired: { tone: 'warn', label: { ar: 'انتهت الصلاحية', en: 'Access expired' } },
@@ -192,6 +195,11 @@ function ConnectionPanel({ connection, onChanged }: { connection: ConnectionDeta
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 4, flexWrap: 'wrap' }}>
             <strong style={{ fontSize: 16 }}>{connection.storeName}</strong>
             <Badge tone={status.tone} dot>{pick(status.label)}</Badge>
+            {active && (
+              <Badge tone={HEALTH_TONE[connection.health.level]}>
+                {pick(HEALTH_LEVELS[connection.health.level])} · <span className="num" dir="ltr">{connection.health.score}</span>
+              </Badge>
+            )}
           </div>
           <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 13.5, overflowWrap: 'anywhere' }}>
             {connection.storeUrl ? `${connection.storeUrl} · ` : ''}{t('المنتجات', 'Products')}: <span className="num">{n(connection.productCount)}</span>
@@ -203,6 +211,12 @@ function ConnectionPanel({ connection, onChanged }: { connection: ConnectionDeta
             </p>
           )}
           {sync && <SyncLine sync={sync} />}
+          {/* P6.16: why the connection is not fully healthy — "reconnect" is explained below for a store that is not active. */}
+          {connection.health.reasons.filter((r) => r !== 'reconnect').length > 0 && (
+            <ul className="health-reasons">
+              {connection.health.reasons.filter((r) => r !== 'reconnect').map((r) => <li key={r}>{pick(HEALTH_REASONS[r])}</li>)}
+            </ul>
+          )}
           {connection.lastError && (
             <p role="alert" style={{ margin: '8px 0 0', color: 'var(--bad)', fontSize: 13 }}>
               <AlertTriangle size={13} aria-hidden /> {connection.lastError}

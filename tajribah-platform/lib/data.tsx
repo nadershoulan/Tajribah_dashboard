@@ -20,6 +20,7 @@ import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/s
 import { checkCutout } from '@/server/modules/tryon/cutout';
 import { CUTOUT_ISSUES } from './tryon';
 import { alphaFacts, hasMargins, qualityScore, sizeShown, type SlotQuality } from './tryon-quality';
+import { healthOf } from './connection-health';
 import { ApiError, currentStore, type ApiClient } from './api-client';
 import type { Bi, Lang } from './lang';
 import type { ProductListPage, ProductListQuery } from './contracts/products';
@@ -395,6 +396,12 @@ function demoConnections(): ConnectionDetail[] {
   return [{
     ...DEMO_CONNECTION, status: demoConnectionState.status, lastSyncAt: demoConnectionState.lastSyncAt,
     latestSync: demoConnectionState.sync ?? DEMO_SYNC, webhooks: DEMO_WEBHOOKS,
+    // P6.16: the server's own rule, on the demo's facts.
+    health: healthOf({
+      status: demoConnectionState.status, createdAt: new Date(Date.now() - 30 * 86_400_000),
+      lastSyncAt: demoConnectionState.lastSyncAt ? new Date(demoConnectionState.lastSyncAt) : null, syncIntervalMinutes: 60,
+      failedSyncsInRow: 0, webhooks24h: { processed: DEMO_WEBHOOKS.last24h.processed, failed: DEMO_WEBHOOKS.last24h.failed }, oldestWaitingAt: null,
+    }, new Date()),
   }];
 }
 

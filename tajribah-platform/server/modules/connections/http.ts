@@ -10,6 +10,8 @@ import { errors } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { latestSync, requestSync } from '@/server/modules/sync/service';
 import { webhookHealth } from '@/server/modules/webhooks/service';
+import { storeConnections } from '@/db/schema';
+import { connectionHealth } from './health';
 import { disconnectStore, listConnections } from './service';
 
 /** The `[id]` segment at `index` from the end. A malformed id is a 404, like a missing one. */
@@ -26,6 +28,7 @@ export async function connectionDetails(ctx: TenantContext): Promise<ConnectionD
     ...c,
     latestSync: await latestSync(ctx, c.id),
     webhooks: await webhookHealth(ctx, c.id),
+    health: await connectionHealth(ctx.db, await ctx.db.requireById(storeConnections, c.id)),
   })));
 }
 

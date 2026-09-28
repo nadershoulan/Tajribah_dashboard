@@ -411,6 +411,7 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .code-block .attr { color: #b8c7a8; }
 
 .hint { font-size: 13px; color: var(--text-3); margin-top: 8px; }
+.health-reasons { margin: 8px 0 0; padding-inline-start: 18px; color: var(--warn); font-size: 13px; line-height: 1.5; }
 
 .mm { font-family: var(--f-mono); font-size: 12.5px; color: var(--text-2); }
 

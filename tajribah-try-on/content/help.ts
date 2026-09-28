@@ -134,6 +134,24 @@ export const HELP_ARTICLES: HelpArticle[] = [
     ],
   },
   {
+    // P5.14 — the try-on settings (P5.10), the size check (P5.9) and the numbers (P5.13), as built.
+    slug: 'watch-tryon-setup', category: 'button', updated: '2026-09-28',
+    title: { ar: 'تجهيز ساعة للتجربة الافتراضية', en: 'Set up a watch for the try-on' },
+    summary: { ar: 'صورتان بخلفية شفافة وعرض العلبة، لتظهر الساعة بمقاسها الحقيقي.', en: 'Two pictures on a transparent background and the case width, so the watch shows at its real size.' },
+    steps: [
+      { ar: 'اجعل نوع المنتج «ساعة» في صفحته، ثم افتح «التجربة الافتراضية» من لوحة التحكم.', en: 'Set the product’s type to Watch on its page, then open “Virtual try-on” in the dashboard.' },
+      { ar: 'ارفع «الساعة كما تُلبس»: الساعة من الأمام بسوارها مفتوحًا كما على المعصم. وارفع «صورة المنتج»: الساعة وحدها من الأمام.', en: 'Upload “The watch as worn”: the watch from the front with its strap as on a wrist. Then upload “The product shot”: the watch alone, from the front.' },
+      { ar: 'أدخل عرض العلبة بالمليمتر — العلبة وحدها دون التاج، كما تقيسها — ووصف اللون إن أردت، بالعربية والإنجليزية معًا.', en: 'Enter the case width in millimetres — the case alone, without the crown, as you measure it — and a finish line if you like, in Arabic and English together.' },
+      { ar: 'فعّل زر «جرّبها» حين تكتمل الصورتان وعرض العلبة. يظهر الزر في صفحة المنتج في متجرك بعد نشر إعداداتك.', en: 'Switch on the “Try it on” button once both pictures and the case width are there. The button appears on the product’s page in your store once your settings are published.' },
+    ],
+    body: [
+      { ar: 'الصورتان بصيغة PNG أو WebP وبخلفية شفافة فعلًا، لا بيضاء. نقرأ الشفافية من الملف نفسه ونرفض الصورة التي بلا شفافية مع السبب. أطول ضلع 200 بكسل على الأقل، والحجم حتى 10 ميغابايت.', en: 'Both pictures are PNG or WebP with a truly transparent background, not a white one. We read the transparency from the file itself and refuse a picture without it, saying why. The long side is at least 200 pixels, and the file up to 10 MB.' },
+      { ar: 'قصّ الصورة على حافتي العلبة: الاستوديو يعدّ عرض الصورة كله هو عرض العلبة، فالمساحة الفارغة على الجانبين تُصغّر الساعة. نقصّ الحواف الفارغة تمامًا تلقائيًا دون أن يتغير شيء مما يُرى، أما الظل أو التوهج الخفيف على الجانبين فيوسّع الصورة دون الساعة — فنريك بكم في المئة من مقاسها الحقيقي تظهر، لتقصّها بحدّ واضح.', en: 'Crop each picture to the case’s edges: the studio takes the picture’s whole width as the case width, so empty space at the sides makes the watch smaller. We crop fully empty edges away for you, with nothing visible changed; a soft shadow or glow at the sides, though, widens the picture but not the watch — so we show what share of its real size it appears at, for you to crop it to a clean edge.' },
+      { ar: 'نحفظ الصورة بصيغة WebP دون فقد حين تكون أصغر — نحو نصف الحجم بالبكسلات نفسها — فتفتح التجربة أسرع على جوال عميلك. وتُحسب الصور ضمن مساحة التخزين في باقتك.', en: 'We store a picture as lossless WebP when that is smaller — about half the size, with the same pixels — so the try-on opens faster on your shopper’s phone. The pictures count toward your plan’s storage.' },
+      { ar: 'التجربة الافتراضية ضمن باقتي «الاحترافية» و«المؤسسات». في كل ساعة ترى آخر 30 يومًا: عدد التجارب ومشاهدات المنتج والنسبة بينهما.', en: 'Virtual try-on is in the Pro and Enterprise plans. Each watch shows its last 30 days: try-ons, product views and the two side by side.' },
+    ],
+  },
+  {
     slug: 'trial-and-plans', category: 'billing', updated: '2026-09-26',
     title: { ar: 'التجربة المجانية وما بعدها', en: 'The free trial and what comes after' },
     summary: { ar: 'ماذا يحدث حين تنتهي الأيام الأربعة عشر.', en: 'What happens when the 14 days end.' },

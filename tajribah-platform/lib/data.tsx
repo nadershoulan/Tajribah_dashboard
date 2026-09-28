@@ -101,6 +101,8 @@ export interface DataSource {
   saveArConfig(productId: string, input: ArConfigInput): Promise<ArConfigView>;
   /** P1.15 — publish the product's config to the store shops read. */
   publishArConfig(productId: string): Promise<PublishResult>;
+  /** T40 — take the product off the shop. */
+  unpublishArConfig(productId: string): Promise<PublishResult>;
   updateSettings(patch: Record<string, unknown>): Promise<StoreSettings>;
   analytics(range: '7d' | '30d' | '90d'): Promise<AnalyticsView>;
   /** P4.8: the range's daily figures as CSV text. */
@@ -248,6 +250,9 @@ export function apiSource(client: ApiClient): DataSource {
     },
     async publishArConfig(productId) {
       return client.call<PublishResult>(`/api/ar-configs/${encodeURIComponent(productId)}/publish`, { method: 'POST' });
+    },
+    async unpublishArConfig(productId) {
+      return client.call<PublishResult>(`/api/ar-configs/${encodeURIComponent(productId)}/publish`, { method: 'DELETE' });
     },
     async updateSettings(patch) { return client.call<StoreSettings>('/api/settings', { method: 'PATCH', body: patch }); },
     async analytics(range) { return client.call<AnalyticsView>(`/api/analytics?range=${range}`); },
@@ -650,6 +655,12 @@ export const demoSource: DataSource = {
     const published = { ...view, publishedVersion: view.publishedVersion + 1, publishedAt: new Date().toISOString(), unpublishedChanges: false };
     demoArConfigs.set(productId, published);
     return { version: published.publishedVersion, publishedAt: published.publishedAt, outdated: false };
+  },
+  async unpublishArConfig(productId) {
+    const view = demoArConfigs.get(productId);
+    if (!view || view.publishedVersion === 0) throw new ApiError(409, 'conflict', 'this product is not published');
+    demoArConfigs.set(productId, { ...view, publishedVersion: 0, publishedAt: null, unpublishedChanges: view.saved });
+    return { version: 0, publishedAt: null, outdated: false };
   },
   async updateSettings(patch) {
     const parsed = SettingsPatch.safeParse(patch);

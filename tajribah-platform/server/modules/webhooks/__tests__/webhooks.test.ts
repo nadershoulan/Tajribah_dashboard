@@ -2,7 +2,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq } from 'drizzle-orm';
-import { auditLogs, jobs, products, storeConnections, subscriptions, syncJobs, webhookEvents } from '@/db/schema';
+import { auditLogs, jobs, modelFiles, models3d, modelVersions, products, storeConnections, subscriptions, syncJobs, webhookEvents } from '@/db/schema';
+import { MemoryConfigStore, setConfigStore } from '@/server/core/edge/configs';
+import { MemoryStorage, setStorage } from '@/server/core/storage/storage';
+import { publishProduct } from '@/server/modules/edge/publish';
 import { uuidv7 } from '@/lib/ids';
 import { clearConnectors, registerConnector } from '@/server/connectors/types';
 import { loadEnv, resetEnv } from '@/server/core/config/env';
@@ -242,4 +245,31 @@ test('T35: a store whose plan no longer has its platform — its product updates
     assert.deepEqual([counts.processed, counts.ignored], [0, 1]);
     assert.equal((await admin(harness, () => harness.db.select().from(syncJobs)) as any[]).length, 0);
   } finally { await harness.close(); }
+});
+
+test('T40: an uninstall takes that store connection’s buttons off the shop — and only those', async () => {
+  const harness = await createTestDb();
+  try {
+    setStorage(new (class extends MemoryStorage { publicUrl(k: string) { return `https://cdn.example.test/${k}`; } })());
+    const kv = new MemoryConfigStore();
+    setConfigStore(kv);
+    const { ctx, tenantId, connectionId } = await merchant(harness, 'alpha');
+    const live = async (over: Record<string, unknown>) => {
+      const [p] = await admin(harness, () => harness.db.insert(products).values({ tenantId, name: 'W', productType: 'watch', arEnabled: true, dimensions: { widthMm: 38, heightMm: 45 }, ...over } as any).returning()) as any[];
+      const modelId = uuidv7(); const versionId = uuidv7();
+      await admin(harness, async () => {
+        await harness.db.insert(models3d).values({ id: modelId, tenantId, productId: p.id, name: 'm', source: 'uploaded', status: 'ready', currentVersionId: versionId } as any);
+        await harness.db.insert(modelVersions).values({ id: versionId, tenantId, modelId, version: 1, status: 'ready' } as any);
+        await harness.db.insert(modelFiles).values({ id: uuidv7(), tenantId, modelVersionId: versionId, format: 'glb', variant: 'optimized', compression: 'meshopt', storageKey: `t/${tenantId}/model/${modelId}/v1/optimized.glb` } as any);
+      });
+      await publishProduct(ctx, p.id);
+      return p;
+    };
+    await live({ connectionId, externalId: 'p00001' });
+    await live({ externalId: null, name: 'Made in the dashboard' });
+    assert.equal(kv.entries.size, 2);
+    await deliver(envelope({ event: 'app.uninstalled' }));
+    await dispatchPending();
+    assert.deepEqual([...kv.entries.keys()].map((k) => k.startsWith('alpha/p00001')), [false], 'the store’s product is gone; the dashboard-made one stays');
+  } finally { clearConnectors(); await harness.close(); }
 });

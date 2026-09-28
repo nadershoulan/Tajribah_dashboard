@@ -15,7 +15,7 @@ import { MemoryStorage, setStorage } from '@/server/core/storage/storage';
 import { buildTenantContext } from '@/server/core/tenancy/context';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
 import { listArConfigs, saveArConfig } from '@/server/modules/ar/service';
-import { handleEdgeJob, isLive, refreshProduct, refreshStore, publishProduct } from '@/server/modules/edge/publish';
+import { handleEdgeJob, isLive, refreshProduct, refreshStore, publishProduct, unpublishProduct } from '@/server/modules/edge/publish';
 import { entitlementsOf } from '@/server/core/billing/entitlements';
 import { updateSettings } from '@/server/modules/settings/service';
 import { updateProduct } from '@/server/modules/products/service';
@@ -189,6 +189,10 @@ test('publishing needs ar:publish — an analyst cannot', async () => {
     const analyst = await buildTenantContext({ actor: { userId: analystId, email: 'analyst@example.test', isStaff: false }, tenantId, requestId: 'req-a' });
     await assert.rejects(publishProduct(analyst, watch.id), (e: any) => code(e) === 'forbidden');
     assert.equal(kv.entries.size, 0);
+    const owner = await buildTenantContext({ actor: { userId: (await admin(harness, () => harness.db.select().from(users)) as any[]).find((u) => u.id !== analystId).id, email: 'delta@example.test', isStaff: false }, tenantId, requestId: 'req-o' });
+    await publishProduct(owner, watch.id);
+    await assert.rejects(unpublishProduct(analyst, watch.id), (e: any) => code(e) === 'forbidden', 'nor take it down');
+    assert.equal(kv.entries.size, 1);
   } finally { await harness.close(); }
 });
 
@@ -328,6 +332,30 @@ test('T36: a live watch’s replaced picture is kept for shoppers still holding 
     assert.equal(await isLive(tenantId, watch.id), true);
     await admin(harness, () => harness.db.update(edgeConfigs).set({ withdrawnAt: new Date(Date.now() - 11 * 60_000) } as any).where(eq(edgeConfigs.productId, watch.id)));
     assert.equal(await isLive(tenantId, watch.id), false);
+  } finally { await harness.close(); }
+});
+
+test('T40: "Remove from the store" takes it down for good — no refresh brings it back; publishing again does', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, tenantId, kv } = await setup(harness, 'lambda', 'pro');
+    const watch = await product(harness, tenantId, { arEnabled: true });
+    await liveModel(harness, tenantId, watch.id);
+    await assert.rejects(unpublishProduct(ctx, watch.id), /not published/);
+    await publishProduct(ctx, watch.id);
+    await unpublishProduct(ctx, watch.id);
+    assert.equal(stored(kv, 'lambda/sa-1001.json'), null);
+    const [row] = await admin(harness, () => harness.db.select().from(edgeConfigs)) as any[];
+    assert.deepEqual([row.key, !!row.withdrawnAt, row.version], [null, true, 1]);
+    assert.equal((await listArConfigs(ctx)).find((c) => c.productId === watch.id)!.publishedVersion, 0);
+    assert.equal(await isLive(tenantId, watch.id), true, 'a cached copy may still be out for a few minutes');
+    assert.deepEqual([...(await refreshStore(tenantId, watch.id, 'r'))], [[watch.id, 'never_published']]);
+    assert.equal(stored(kv, 'lambda/sa-1001.json'), null, 'the merchant took it back: nothing republishes it');
+    await assert.rejects(unpublishProduct(ctx, watch.id), /not published/);
+    assert.equal((await publishProduct(ctx, watch.id)).version, 2, 'publishing again brings it back');
+    assert.ok(stored(kv, 'lambda/sa-1001.json'));
+    const trail = await admin(harness, () => harness.db.select().from(auditLogs).where(eq(auditLogs.resourceType, 'edge_config'))) as any[];
+    assert.deepEqual(trail.map((r) => [r.action, r.actorType]), [['publish', 'user'], ['unpublish', 'user'], ['publish', 'user']]);
   } finally { await harness.close(); }
 });
 

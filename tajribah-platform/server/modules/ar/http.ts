@@ -6,7 +6,7 @@ import { route } from '@/server/core/observability/request';
 import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@/server/core/http/api';
 import { errors } from '@/server/core/errors/problem';
 import { listArConfigs, saveArConfig } from './service';
-import { publishProduct } from '@/server/modules/edge/publish';
+import { publishProduct, unpublishProduct } from '@/server/modules/edge/publish';
 
 /** API-100 — GET /api/ar-configs */
 export const listArConfigsHandler = route(async (request) => {
@@ -33,4 +33,15 @@ export const publishArConfigHandler = route(async (request) => {
   const id = parts[parts.length - 2] ?? '';
   if (!z.string().uuid().safeParse(id).success) throw errors.notFound('product');
   return json(await publishProduct(ctx, id));
+});
+
+/** API-103 — DELETE /api/ar-configs/[productId]/publish (T40): take the product off the shop. */
+export const unpublishArConfigHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  const parts = new URL(request.url).pathname.split('/').filter(Boolean);
+  const id = parts[parts.length - 2] ?? '';
+  if (!z.string().uuid().safeParse(id).success) throw errors.notFound('product');
+  return json(await unpublishProduct(ctx, id));
 });

@@ -35,6 +35,7 @@ const MESSAGE_AR: [RegExp, string][] = [
   [/archived or deleted/, 'هذا المنتج مؤرشف أو محذوف.'],
   [/suspended or closed/, 'هذا المتجر موقوف أو مغلق.'],
   [/not make a valid config/, 'الإعدادات لا تكوّن عرضًا صالحًا — تواصل مع الدعم.'],
+  [/is not published/, 'هذا المنتج غير منشور.'],
 ];
 
 export default function ArSettings() {
@@ -107,6 +108,7 @@ function Editor({ config, name, brandColor, radius, onSaved }: {
   const [failure, setFailure] = useState<Error | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<'ask' | 'busy' | null>(null);
   const set = <K extends keyof ArConfigInput>(key: K) => (value: ArConfigInput[K]) => setForm((f) => ({ ...f, [key]: value }));
   const say = (m: string) => (lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(m))?.[1] ?? m : m);
   const err = (key: string) => errors[key]?.[0];
@@ -142,6 +144,20 @@ function Editor({ config, name, brandColor, radius, onSaved }: {
       setRefusal(say((e as Error).message));
     } finally {
       setPublishing(false);
+    }
+  };
+
+  // T40: the merchant takes the product off the shop; nothing brings it back but publishing again.
+  const remove = async () => {
+    setRefusal(null);
+    setRemoving('busy');
+    try {
+      await source.unpublishArConfig(config.productId);
+      onSaved();
+    } catch (e) {
+      setRefusal(say((e as Error).message));
+    } finally {
+      setRemoving(null);
     }
   };
 
@@ -226,7 +242,24 @@ function Editor({ config, name, brandColor, radius, onSaved }: {
           title={dirty ? t('احفظ أولًا', 'Save first') : undefined}>
           {publishing ? t('جارٍ النشر…', 'Publishing…') : t('انشر في المتجر', 'Publish to the store')}
         </button>
+        {config.publishedVersion > 0 && !removing && (
+          <button type="button" className="btn btn-quiet" onClick={() => setRemoving('ask')} disabled={publishing || saving}>{t('أزِله من المتجر', 'Remove from the store')}</button>
+        )}
       </div>
+      {removing && (
+        <div className="confirm" role="alertdialog" aria-labelledby="ar-remove" style={{ marginTop: 12 }}>
+          <p id="ar-remove" style={{ margin: 0 }}>
+            <strong>{t('إزالة الزر من صفحة هذا المنتج؟', 'Remove the button from this product’s page?')}</strong>{' '}
+            {t('يختفي خلال دقيقة تقريبًا. إعداداته تبقى هنا، ويمكنك نشره من جديد متى شئت.', 'It disappears within about a minute. Its settings stay here, and you can publish it again whenever you like.')}
+          </p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <button type="button" className="btn btn-danger btn-sm" onClick={remove} disabled={removing === 'busy'}>
+              {removing === 'busy' ? t('جارٍ الإزالة…', 'Removing…') : t('نعم، أزِله', 'Yes, remove it')}
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRemoving(null)} disabled={removing === 'busy'}>{t('إلغاء', 'Cancel')}</button>
+          </div>
+        </div>
+      )}
       {refusal && <p className="field-error" role="alert" style={{ marginTop: 10 }}>{refusal}</p>}
       <p className="hint">{config.publishedAt
         ? t(`آخر نشر ${formatDateTime(config.publishedAt, 'ar')}. `, `Last published ${formatDateTime(config.publishedAt, 'en')}. `)

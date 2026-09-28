@@ -676,3 +676,15 @@ plan** — stock sync, add-to-cart inside the studio, a studio preview in the da
 "AI product comparison" as *coming soon* because Nader chose that for a planned feature; for an
 unplanned one, "coming" would invent a roadmap, so the claim is removed. If Nader wants either
 feature, it goes into the plan first and the website can then say it is coming.
+
+## T40 · 2026-09-29 · Removing is the merchant's; withdrawing is the system's
+
+Two ways a live button leaves a shop, kept apart on purpose:
+- **Withdrawn** (the system, P1.15): the product stopped qualifying — archived, nothing to open, the
+  store suspended. The key is kept; when it qualifies again it is published again.
+- **Removed** (the merchant, or the store uninstalling our app): the key is cleared; only publishing
+  again brings it back.
+
+An app uninstall removes the buttons of that connection's products (the website's Salla FAQ says
+they disappear at once). A dashboard **Disconnect** does not: it stops syncing, and its confirmation
+says the products and their models stay.

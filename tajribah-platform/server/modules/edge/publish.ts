@@ -55,6 +55,34 @@ export async function publishProduct(ctx: TenantContext, productId: string): Pro
   return { version: row.version, publishedAt: row.publishedAt!.toISOString(), outdated: false };
 }
 
+/**
+ * T40 — the merchant takes a product off the shop ("Remove from the store"). Unlike a withdrawal,
+ * this is their choice: the key is cleared, so no refresh brings it back; publishing again does.
+ */
+export async function unpublishProduct(ctx: TenantContext, productId: string): Promise<EdgeStatus> {
+  ctx.require('ar:publish');
+  const row = await rowOf(ctx, productId);
+  if (!row?.key) throw errors.conflict('this product is not published');
+  await takeDown(ctx, row, 'user', 'removed by the merchant');
+  return { version: 0, publishedAt: null, outdated: false };
+}
+
+/**
+ * T40 — the store uninstalled our app: every published product that came from that connection
+ * leaves the shop at once (the website's promise), as if the merchant had removed each one.
+ * Called after the webhook's transaction commits.
+ */
+export async function takeDownConnection(tenantId: string, connectionId: string, requestId: string): Promise<number> {
+  const db = TenantDb.for(tenantId);
+  const own = await db.find(products, eq(products.connectionId, connectionId), { limit: 10_000 });
+  if (own.length === 0) return 0;
+  const rows = await db.find(edgeConfigs, and(inArray(edgeConfigs.productId, own.map((p) => p.id)), isNotNull(edgeConfigs.key)), { limit: own.length });
+  if (rows.length === 0) return 0;
+  const ctx = await systemContext({ tenantId, requestId, permissions: REFRESH_PERMISSIONS, evenIfSuspended: true });
+  for (const row of rows) await takeDown(ctx, row, 'system', 'the app was uninstalled from the store');
+  return rows.length;
+}
+
 export type RefreshOutcome = 'never_published' | 'unchanged' | 'rewritten' | 'withdrawn';
 
 /** Rebuild one published product's config and write, withdraw or leave it. Idempotent. */
@@ -102,9 +130,11 @@ export const LIVE_GRACE_MS = 10 * 60_000;
 
 /** Whether shoppers may be holding a config for this product right now. */
 export async function isLive(tenantId: string, productId: string): Promise<boolean> {
-  const row = await TenantDb.for(tenantId).findOne(edgeConfigs, and(eq(edgeConfigs.productId, productId), isNotNull(edgeConfigs.key)));
-  // Withdrawn within the grace period counts too: a cached copy may still be out there.
-  return !!row && (!row.withdrawnAt || Date.now() - row.withdrawnAt.getTime() < LIVE_GRACE_MS);
+  const row = await TenantDb.for(tenantId).findOne(edgeConfigs, eq(edgeConfigs.productId, productId));
+  if (!row) return false;
+  // Taken down (withdrawn or removed) within the grace period counts too: a cached copy may still be out there.
+  if (row.withdrawnAt) return Date.now() - row.withdrawnAt.getTime() < LIVE_GRACE_MS;
+  return !!row.key;
 }
 
 export async function handleEdgeJob(job: Job): Promise<void> {
@@ -196,6 +226,19 @@ async function withdraw(ctx: TenantContext, row: EdgeRow, reason: EdgeBlock): Pr
     await db.updateById(edgeConfigs, row.id, { withdrawnAt: now, updatedAt: now });
     await record(ctx, {
       action: 'unpublish', resourceType: 'edge_config', resourceId: row.productId, actorType: 'system',
+      before: { version: row.version, key: row.key }, after: { reason },
+    }, db);
+  });
+}
+
+/** T40: the entry deleted and the key cleared — nothing brings it back but publishing again. */
+async function takeDown(ctx: TenantContext, row: EdgeRow, actor: 'user' | 'system', reason: string): Promise<void> {
+  await configStore().delete(row.key!); // already gone after a withdrawal; deleting again is harmless
+  const now = new Date();
+  await withTenant(ctx.tenantId, async (db) => {
+    await db.updateById(edgeConfigs, row.id, { key: null, withdrawnAt: now, updatedAt: now });
+    await record(ctx, {
+      action: 'unpublish', resourceType: 'edge_config', resourceId: row.productId, actorType: actor,
       before: { version: row.version, key: row.key }, after: { reason },
     }, db);
   });

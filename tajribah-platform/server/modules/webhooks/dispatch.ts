@@ -23,7 +23,7 @@ import { backoffMs, FAIR_SHARE } from '@/server/core/jobs/queue';
 import { log } from '@/server/core/observability/log';
 import { systemContext, type TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
-import { keepLive } from '@/server/modules/edge/publish';
+import { keepLive, takeDownConnection } from '@/server/modules/edge/publish';
 import { entitlementsOf } from '@/server/core/billing/entitlements';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { revokeIn } from '@/server/modules/connections/service';
@@ -67,7 +67,8 @@ export const HANDLERS: Record<string, TopicHandler> = {
 
   'app.uninstalled': async (event, _delivery, { ctx, db }) => {
     await revokeIn(ctx, db, event.connectionId!, 'the app was uninstalled from the store');
-    return { outcome: 'processed' };
+    // T40: its buttons leave the shop at once, as the website promises.
+    return { outcome: 'processed', afterCommit: async () => { await takeDownConnection(ctx.tenantId, event.connectionId!, ctx.requestId); } };
   },
 };
 

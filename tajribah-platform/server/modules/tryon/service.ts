@@ -1,0 +1,189 @@
+/**
+ * P5.10 — a merchant's try-on settings for their watches (T26: the owner's studio, unchanged).
+ *
+ * For each watch the studio needs two transparent pictures — the watch **as worn** (laid over the
+ * wrist) and a **flat** product shot — its **case width** in millimetres (what makes it true to
+ * size), and optionally a finish line ("Gold · green dial"). When all are there, the merchant can
+ * switch it on and the shop's button opens the studio (published with the store's config, P1.15).
+ *
+ *  - Pictures upload straight to storage (presigned PUT), then a confirm checks the bytes
+ *    (`cutout.ts`): PNG/WebP with transparency, big enough. Refused bytes are deleted at once;
+ *    an accepted one replaces the old, whose bytes are deleted after the change commits.
+ *  - A confirm only accepts a key shaped exactly as this store's cut-out for this slot, so a
+ *    request cannot attach some other file of the store as a watch.
+ *  - Reading is open to every role and every plan (the screen explains what is missing); every
+ *    change needs `tryon:write` **and** `virtual_tryon` in the plan.
+ *  - Pictures count against the plan's storage (`storageBytesHeld`).
+ */
+import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { products, tryonConfigs } from '@/db/schema';
+import { uuidv7 } from '@/lib/ids';
+import { CUTOUT_ISSUES } from '@/lib/tryon';
+import type { TryOnScreen, TryOnWatchView } from '@/lib/view-models';
+import { record } from '@/server/core/audit/audit';
+import { assertFeature, assertStorageRoom, entitlementsOf } from '@/server/core/billing/entitlements';
+import { errors } from '@/server/core/errors/problem';
+import { forTenant } from '@/server/core/storage/storage';
+import type { TenantContext } from '@/server/core/tenancy/context';
+import { withTenant } from '@/server/core/tenancy/rls';
+import type { TenantDb } from '@/server/core/tenancy/tenant-db';
+import { CUTOUT_MAX_BYTES, checkCutout, type CutoutIssue } from './cutout';
+
+export type Slot = 'worn' | 'flat';
+type Config = typeof tryonConfigs.$inferSelect;
+type Product = typeof products.$inferSelect;
+
+const TYPES: Record<string, 'png' | 'webp'> = { 'image/png': 'png', 'image/webp': 'webp' };
+export const UPLOAD_SECONDS = 15 * 60;
+
+/** The English line for each refusal; the Arabic is beside it in `lib/tryon.ts`. */
+export const ISSUE_TEXT = Object.fromEntries(Object.entries(CUTOUT_ISSUES).map(([code, text]) => [code, text.en])) as Record<CutoutIssue, string>;
+
+function view(product: Product, config: Config | null): TryOnWatchView {
+  const caseMm = config?.caseTenthsMm != null ? config.caseTenthsMm / 10 : null;
+  const missing: TryOnWatchView['missing'] = [];
+  if (!config?.wornKey) missing.push('worn');
+  if (!config?.flatKey) missing.push('flat');
+  if (caseMm === null) missing.push('case');
+  const dims = product.dimensions as { widthMm?: number } | null;
+  return {
+    productId: product.id, name: product.name, nameAr: product.nameAr, sku: product.sku,
+    productWidthMm: typeof dims?.widthMm === 'number' ? dims.widthMm : null,
+    caseMm,
+    worn: config?.wornKey ? { bytes: config.wornBytes ?? 0 } : null,
+    flat: config?.flatKey ? { bytes: config.flatBytes ?? 0 } : null,
+    finish: config?.finishAr && config.finishEn ? { ar: config.finishAr, en: config.finishEn } : null,
+    enabled: !!config?.enabled && missing.length === 0,
+    ready: missing.length === 0,
+    missing,
+  };
+}
+
+async function watchOf(db: TenantDb, productId: string): Promise<Product> {
+  const product = await db.findById(products, productId);
+  if (!product || product.deletedAt) throw errors.notFound('product');
+  if (product.productType !== 'watch') throw errors.conflict('try-on is for watches for now — set this product’s type to Watch first');
+  return product;
+}
+
+async function mayChange(ctx: TenantContext): Promise<void> {
+  ctx.require('tryon:write');
+  assertFeature(await entitlementsOf(ctx), 'virtual_tryon');
+}
+
+/** API-150 — every watch in the store, with its try-on settings. */
+export async function tryOnScreen(ctx: TenantContext): Promise<TryOnScreen> {
+  ctx.require('tryon:read');
+  const included = (await entitlementsOf(ctx)).has('virtual_tryon');
+  return withTenant(ctx.tenantId, async (db) => {
+    const watches = await db.find(products, and(eq(products.productType, 'watch'), isNull(products.deletedAt)), { limit: 500 });
+    const configs = watches.length ? await db.find(tryonConfigs, inArray(tryonConfigs.productId, watches.map((p) => p.id)), { limit: 500 }) : [];
+    return { included, watches: watches.map((p) => view(p, configs.find((c) => c.productId === p.id) ?? null)) };
+  });
+}
+
+/** API-151 — a presigned PUT for one picture of one watch. */
+export async function startCutoutUpload(ctx: TenantContext, productId: string, input: { slot: Slot; filename: string; contentType: string; sizeBytes: number }): Promise<{ key: string; uploadUrl: string; contentType: string; expiresAt: string }> {
+  await mayChange(ctx);
+  const format = TYPES[input.contentType];
+  const problems: Record<string, string[]> = {};
+  if (input.slot !== 'worn' && input.slot !== 'flat') problems.slot = ['worn or flat'];
+  if (!format) problems.contentType = [ISSUE_TEXT.not_png_or_webp];
+  if (!Number.isInteger(input.sizeBytes) || input.sizeBytes <= 0) problems.sizeBytes = ['the file is empty'];
+  else if (input.sizeBytes > CUTOUT_MAX_BYTES) problems.sizeBytes = [ISSUE_TEXT.too_large_file];
+  if (Object.keys(problems).length) throw errors.validation(problems);
+  await withTenant(ctx.tenantId, (db) => watchOf(db, productId));
+  await assertStorageRoom(ctx, input.sizeBytes);
+  const store = forTenant(ctx.tenantId);
+  const key = store.key({ kind: 'photo', id: uuidv7(), filename: `${input.slot}.${format}` });
+  const contentType = input.contentType;
+  const { url, expiresAt } = await store.presignUpload(key, { contentType, expiresInSeconds: UPLOAD_SECONDS });
+  return { key, uploadUrl: url, contentType, expiresAt: expiresAt.toISOString() };
+}
+
+/** A key this store's cut-out upload for `slot` would have — nothing else can be attached. */
+function isCutoutKey(key: string, tenantId: string, slot: Slot): boolean {
+  return new RegExp(`^t/${tenantId}/photo/[0-9a-f-]{36}/${slot}\\.(png|webp)$`).test(key);
+}
+
+async function readAll(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+/** API-152 — check what arrived; attach it to the watch, or delete it and say why. */
+export async function confirmCutout(ctx: TenantContext, productId: string, input: { slot: Slot; key: string }): Promise<TryOnWatchView> {
+  await mayChange(ctx);
+  if ((input.slot !== 'worn' && input.slot !== 'flat') || !isCutoutKey(input.key, ctx.tenantId, input.slot)) throw errors.notFound('upload');
+  await withTenant(ctx.tenantId, (db) => watchOf(db, productId));
+  const store = forTenant(ctx.tenantId);
+  const stored = await store.head(input.key);
+  if (!stored) throw errors.conflict('the picture has not arrived yet — upload it to the URL you were given, then confirm');
+  const object = stored.size > CUTOUT_MAX_BYTES ? null : await store.get(input.key);
+  const bytes = object ? await readAll(object.body) : new Uint8Array();
+  const verdict = checkCutout(bytes, stored.size);
+  if (!verdict.ok) {
+    await store.delete(input.key);
+    throw errors.validation({ [input.slot]: [ISSUE_TEXT[verdict.issue]] });
+  }
+
+  const { result, replaced } = await withTenant(ctx.tenantId, async (db) => {
+    const product = await db.lockById(products, productId);
+    const before = await db.findOne(tryonConfigs, eq(tryonConfigs.productId, productId));
+    const values = input.slot === 'worn' ? { wornKey: input.key, wornBytes: stored.size } : { flatKey: input.key, flatBytes: stored.size };
+    const after = before
+      ? await db.updateById(tryonConfigs, before.id, values as never)
+      : await db.insert(tryonConfigs, { id: uuidv7(), productId, category: 'watch', ...values } as never);
+    await record(ctx, { action: before ? 'update' : 'create', resourceType: 'tryon_config', resourceId: after.id, before: before ? { [`${input.slot}Key`]: before[`${input.slot}Key`] } as never : undefined, after: { [`${input.slot}Key`]: input.key } as never }, db);
+    const old = before?.[`${input.slot}Key`];
+    return { result: view(product, after), replaced: old && old !== input.key ? old : null };
+  });
+  if (replaced) await store.delete(replaced).catch(() => undefined); // an orphan costs us, never the store
+  return result;
+}
+
+/** API-153 — case width, finish, on/off. Switching on needs both pictures and a case width. */
+export async function updateTryOn(ctx: TenantContext, productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean }): Promise<TryOnWatchView> {
+  await mayChange(ctx);
+  const problems: Record<string, string[]> = {};
+  if (patch.caseMm != null && (!Number.isFinite(patch.caseMm) || patch.caseMm < 5 || patch.caseMm > 80)) problems.caseMm = ['between 5 and 80 mm'];
+  const finish = [patch.finishAr, patch.finishEn];
+  if (finish.some((f) => f !== undefined) && finish.filter((f) => f && f.trim()).length === 1) problems.finish = ['in both Arabic and English, or neither'];
+  if (finish.some((f) => f && f.trim().length > 80)) problems.finish = ['80 characters at most'];
+  if (Object.keys(problems).length) throw errors.validation(problems);
+
+  return withTenant(ctx.tenantId, async (db) => {
+    const product = await watchOf(db, productId);
+    await db.lockById(products, productId);
+    const before = await db.findOne(tryonConfigs, eq(tryonConfigs.productId, productId));
+    const values: Partial<Config> = {};
+    if (patch.caseMm !== undefined) values.caseTenthsMm = patch.caseMm === null ? null : Math.round(patch.caseMm * 10);
+    if (patch.finishAr !== undefined || patch.finishEn !== undefined) {
+      const ar = patch.finishAr?.trim() || null;
+      const en = patch.finishEn?.trim() || null;
+      values.finishAr = ar && en ? ar : null;
+      values.finishEn = ar && en ? en : null;
+    }
+    if (patch.enabled !== undefined) values.enabled = patch.enabled;
+    const next = { ...(before ?? {}), ...values } as Config;
+    if (next.enabled) {
+      const missing = view(product, next).missing;
+      if (missing.length) throw errors.conflict(`try-on cannot be switched on yet — missing: ${missing.join(', ')}`);
+    }
+    const after = before
+      ? await db.updateById(tryonConfigs, before.id, values as never)
+      : await db.insert(tryonConfigs, { id: uuidv7(), productId, category: 'watch', ...values } as never);
+    await record(ctx, { action: before ? 'update' : 'create', resourceType: 'tryon_config', resourceId: after.id, before: before as never, after: after as never }, db);
+    return view(product, after);
+  });
+}
+
+/** API-154 — one stored picture, for the settings screen's preview. */
+export async function cutoutFile(ctx: TenantContext, productId: string, slot: Slot): Promise<{ body: ReadableStream; contentType: string }> {
+  ctx.require('tryon:read');
+  const config = await withTenant(ctx.tenantId, (db) => db.findOne(tryonConfigs, eq(tryonConfigs.productId, productId)));
+  const key = slot === 'worn' ? config?.wornKey : slot === 'flat' ? config?.flatKey : null;
+  if (!key) throw errors.notFound('picture');
+  const object = await forTenant(ctx.tenantId).get(key);
+  if (!object) throw errors.notFound('picture');
+  return { body: object.body, contentType: key.endsWith('.webp') ? 'image/webp' : 'image/png' };
+}

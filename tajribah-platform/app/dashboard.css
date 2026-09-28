@@ -842,3 +842,19 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .editor-view { display: grid; place-items: center; height: 520px; border-radius: var(--radius); background: var(--tint); overflow: hidden; border: 1px solid var(--line); }
 @media (max-width: 520px) { .editor-view { height: 360px; } }
 .editor-turns { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 8px; align-items: center; font-size: 13.5px; margin-bottom: 8px; }
+
+/* P5.10 — try-on settings */
+.tryon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.tryon-picture { display: grid; gap: 8px; align-content: start; }
+.tryon-picture strong { font-size: 14px; }
+/* A checkerboard behind the picture shows the merchant where it is transparent. */
+.tryon-checker {
+  position: relative; display: grid; place-items: center; aspect-ratio: 1; border-radius: 10px; overflow: hidden; color: var(--text-3);
+  background-color: #fff; border: 1px solid var(--line);
+  background-image: linear-gradient(45deg, #e9eef2 25%, transparent 25%), linear-gradient(-45deg, #e9eef2 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e9eef2 75%), linear-gradient(-45deg, transparent 75%, #e9eef2 75%);
+  background-size: 18px 18px; background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+}
+.tryon-checker img { max-width: 86%; max-height: 86%; object-fit: contain; }
+.tryon-foot { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.field input + input { margin-top: 6px; }

@@ -284,3 +284,27 @@ export type GenerationPhotoSet = {
   /** Angles with no accepted photo yet, front first. */
   missing: ('front' | 'side' | 'back')[];
 };
+
+/** P5.10 — one watch's try-on settings, as the merchant sees them (T26: the owner's studio). */
+export type TryOnWatchView = {
+  productId: string;
+  name: string;
+  nameAr: string | null;
+  sku: string | null;
+  /** The product's own width, offered as the case width when none is set yet. */
+  productWidthMm: number | null;
+  caseMm: number | null;
+  worn: { bytes: number } | null;
+  flat: { bytes: number } | null;
+  finish: Bi | null;
+  enabled: boolean;
+  /** Both pictures and a case width: the shop's button can open the studio. */
+  ready: boolean;
+  missing: ('worn' | 'flat' | 'case')[];
+};
+
+export type TryOnScreen = {
+  /** Virtual try-on is in the store's plan (Pro and Enterprise). */
+  included: boolean;
+  watches: TryOnWatchView[];
+};

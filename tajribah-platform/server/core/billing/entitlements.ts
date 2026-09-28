@@ -11,7 +11,7 @@
  */
 import { and, eq, gte, inArray, isNull, lt } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
-import { creditLedger, dailyTenantStats, generationPhotos, LIMIT_KEY, modelFiles, models3d, planFeatures, planLimits, plans, products, subscriptions, tenantMemberships, type LimitKey, usageCounters } from '@/db/schema';
+import { creditLedger, dailyTenantStats, generationPhotos, LIMIT_KEY, modelFiles, models3d, planFeatures, planLimits, plans, products, subscriptions, tenantMemberships, tryonConfigs, type LimitKey, usageCounters } from '@/db/schema';
 import { UNLIMITED, planByCode, type PlanCode, type PlanDefinition, type PlanLimits } from '@/lib/plans';
 import { errors } from '../errors/problem';
 import { log } from '../observability/log';
@@ -189,7 +189,9 @@ export async function creditsUsedIn(db: TenantDb, from: Date, to: Date): Promise
 export async function storageBytesHeld(ctx: TenantContext): Promise<number> {
   const files = await ctx.db.find(modelFiles, isNull(modelFiles.bytesDeletedAt), { limit: 100_000 });
   const photos = await ctx.db.find(generationPhotos, isNull(generationPhotos.bytesDeletedAt), { limit: 100_000 });
-  return files.reduce((sum, file) => sum + file.fileSizeBytes, 0) + photos.reduce((sum, photo) => sum + (photo.sizeBytes ?? 0), 0);
+  const tryon = await ctx.db.find(tryonConfigs, undefined, { limit: 100_000 }); // P5.10: watch cut-outs
+  return files.reduce((sum, file) => sum + file.fileSizeBytes, 0) + photos.reduce((sum, photo) => sum + (photo.sizeBytes ?? 0), 0)
+    + tryon.reduce((sum, c) => sum + (c.wornBytes ?? 0) + (c.flatBytes ?? 0), 0);
 }
 
 /**

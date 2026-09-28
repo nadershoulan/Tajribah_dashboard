@@ -120,6 +120,20 @@ export const tryonConfigs = pgTable('tryon_configs', {
   occlusionEnabled: bool('occlusion_enabled').notNull().default(false),
   qualityScore: integer('quality_score'),
   calibratedAt: ts('calibrated_at'),
+  /**
+   * P5.10 (0017) — what the owner's studio needs for one watch (T26): the cut-out as worn and the
+   * flat product shot (transparent PNG/WebP, stored where the CDN serves them), the case width in
+   * tenths of a millimetre (29.3 mm is not a whole number; `scale_reference_mm` is), the finish
+   * line, and whether the shop's button opens the studio.
+   */
+  wornKey: text('worn_key'),
+  wornBytes: integer('worn_bytes'),
+  flatKey: text('flat_key'),
+  flatBytes: integer('flat_bytes'),
+  caseTenthsMm: integer('case_tenths_mm'),
+  finishAr: text('finish_ar'),
+  finishEn: text('finish_en'),
+  enabled: bool('enabled').notNull().default(false),
   ...timestamps(),
 }, (t) => [uniqueIndex('tryon_configs_product_unq').on(t.productId)]);
 

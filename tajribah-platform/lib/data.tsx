@@ -13,10 +13,12 @@ import {
   DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS,
 } from './demo-data';
 import type {
-  AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
+import { checkCutout } from '@/server/modules/tryon/cutout';
+import { CUTOUT_ISSUES } from './tryon';
 import { ApiError, currentStore, type ApiClient } from './api-client';
 import type { Bi, Lang } from './lang';
 import type { ProductListPage, ProductListQuery } from './contracts/products';
@@ -64,6 +66,13 @@ export interface DataSource {
   /** Start → PUT straight to storage → the server's verdict on the bytes. Refusals before upload: 422 / 409. */
   uploadProductPhoto(productId: string, angle: GenerationAngle, file: File): Promise<GenerationPhotoView>;
   removeProductPhoto(productId: string, photoId: string): Promise<void>;
+  /** P5.10: every watch and its try-on settings, and whether the plan includes try-on. */
+  tryOn(): Promise<TryOnScreen>;
+  /** P5.10: start → PUT straight to storage → the server's check of the picture (422 with the reason). */
+  uploadCutout(productId: string, slot: 'worn' | 'flat', file: File): Promise<TryOnWatchView>;
+  updateTryOn(productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean }): Promise<TryOnWatchView>;
+  /** P5.10: a stored picture, for the preview (a Blob: private until published). */
+  cutoutImage(productId: string, slot: 'worn' | 'flat'): Promise<Blob>;
   /** P3.8: a version's web GLB, for the editor's viewer (a Blob: the viewer's own fetch has no session). */
   modelFile(versionId: string): Promise<Blob>;
   /** P3.8: turn (90° steps) and/or fit a ready version; the result is the next version, processing. */
@@ -186,6 +195,22 @@ export function apiSource(client: ApiClient): DataSource {
     async modelFile(versionId) {
       return client.callBlob(`/api/models/versions/${encodeURIComponent(versionId)}/file`);
     },
+    async tryOn() { return client.call<TryOnScreen>('/api/tryon'); },
+    async uploadCutout(productId, slot, file) {
+      const base = `/api/tryon/${encodeURIComponent(productId)}/images`;
+      const started = await client.call<{ key: string; uploadUrl: string; contentType: string }>(base, {
+        method: 'POST', body: { slot, filename: file.name, contentType: photoContentType(file), sizeBytes: file.size },
+      });
+      const put = await fetch(started.uploadUrl, { method: 'PUT', headers: { 'content-type': started.contentType }, body: file });
+      if (!put.ok) throw new ApiError(put.status, 'upload_failed', 'the picture did not reach storage — try again');
+      return client.call<TryOnWatchView>(`${base}/confirm`, { method: 'POST', body: { slot, key: started.key } });
+    },
+    async updateTryOn(productId, patch) {
+      return client.call<TryOnWatchView>(`/api/tryon/${encodeURIComponent(productId)}`, { method: 'PATCH', body: patch });
+    },
+    async cutoutImage(productId, slot) {
+      return client.callBlob(`/api/tryon/${encodeURIComponent(productId)}/images/${slot}`);
+    },
     async editModel(modelId, edit) {
       return client.call<{ versionId: string; version: number }>(`/api/models/${encodeURIComponent(modelId)}/edit`, { method: 'POST', body: edit });
     },
@@ -294,6 +319,22 @@ const demoModels: ModelRow[] = DEMO_MODELS.map((m) => ({ ...m }));
  * check runs here, in the browser: the same `checkPhoto` the server runs, on the file you picked.
  */
 const demoPhotos = new Map<string, { view: GenerationPhotoView; sha: string }[]>();
+/** P5.10 — the preview's try-on settings, per watch, for this page load; pictures kept as Blobs. */
+const demoTryOn = new Map<string, { worn: Blob | null; flat: Blob | null; caseMm: number | null; finish: { ar: string; en: string } | null; enabled: boolean }>();
+/** The preview store's plan (Growth) does not include try-on, as the real one would say. */
+const DEMO_TRYON_INCLUDED = false;
+function demoTryOnView(p: ProductRow): TryOnWatchView {
+  const s = demoTryOn.get(p.id) ?? { worn: null, flat: null, caseMm: null, finish: null, enabled: false };
+  const missing: TryOnWatchView['missing'] = [];
+  if (!s.worn) missing.push('worn');
+  if (!s.flat) missing.push('flat');
+  if (s.caseMm === null) missing.push('case');
+  return {
+    productId: p.id, name: p.name, nameAr: p.nameAr, sku: p.sku, productWidthMm: p.dimensions?.widthMm ?? null, caseMm: s.caseMm,
+    worn: s.worn ? { bytes: s.worn.size } : null, flat: s.flat ? { bytes: s.flat.size } : null, finish: s.finish,
+    enabled: s.enabled && missing.length === 0, ready: missing.length === 0, missing,
+  };
+}
 /** Which version is live per demo model, when it is not the newest. */
 const demoLive = new Map<string, number>();
 /** Versions 1…n of a demo model; older ready versions stand in for rollbacks. */
@@ -461,6 +502,38 @@ export const demoSource: DataSource = {
   },
   async modelFile() {
     throw new ApiError(404, 'not_found', 'the preview has no 3D files — open a model in the live dashboard to see it');
+  },
+  async tryOn() {
+    return { included: DEMO_TRYON_INCLUDED, watches: DEMO_PRODUCTS.filter((p) => p.productType === 'watch').map(demoTryOnView) };
+  },
+  async uploadCutout(productId, slot, file) {
+    if (!DEMO_TRYON_INCLUDED) throw new ApiError(402, 'plan_required', 'virtual_tryon is not included in this plan');
+    const p = DEMO_PRODUCTS.find((x) => x.id === productId && x.productType === 'watch');
+    if (!p) throw new ApiError(404, 'not_found', 'product not found');
+    const verdict = checkCutout(new Uint8Array(await file.arrayBuffer()), file.size);
+    if (!verdict.ok) throw new ApiError(422, 'validation_failed', 'Validation failed', { [slot]: [CUTOUT_ISSUES[verdict.issue].en] });
+    const s = demoTryOn.get(p.id) ?? { worn: null, flat: null, caseMm: null, finish: null, enabled: false };
+    demoTryOn.set(p.id, { ...s, [slot]: file });
+    return demoTryOnView(p);
+  },
+  async updateTryOn(productId, patch) {
+    if (!DEMO_TRYON_INCLUDED) throw new ApiError(402, 'plan_required', 'virtual_tryon is not included in this plan');
+    const p = DEMO_PRODUCTS.find((x) => x.id === productId && x.productType === 'watch');
+    if (!p) throw new ApiError(404, 'not_found', 'product not found');
+    const s = demoTryOn.get(p.id) ?? { worn: null, flat: null, caseMm: null, finish: null, enabled: false };
+    const next = { ...s };
+    if (patch.caseMm !== undefined) next.caseMm = patch.caseMm;
+    if (patch.finishAr !== undefined || patch.finishEn !== undefined) next.finish = patch.finishAr?.trim() && patch.finishEn?.trim() ? { ar: patch.finishAr.trim(), en: patch.finishEn.trim() } : null;
+    if (patch.enabled !== undefined) next.enabled = patch.enabled;
+    demoTryOn.set(p.id, next);
+    const shown = demoTryOnView(p);
+    if (next.enabled && shown.missing.length) { demoTryOn.set(p.id, s); throw new ApiError(409, 'conflict', `try-on cannot be switched on yet — missing: ${shown.missing.join(', ')}`); }
+    return shown;
+  },
+  async cutoutImage(productId, slot) {
+    const picture = demoTryOn.get(productId)?.[slot];
+    if (!picture) throw new ApiError(404, 'not_found', 'picture not found');
+    return picture;
   },
   async editModel() {
     throw new ApiError(409, 'conflict', 'the preview cannot make new versions — this works in the live dashboard');

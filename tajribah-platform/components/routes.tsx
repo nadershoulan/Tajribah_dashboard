@@ -37,6 +37,7 @@ import AdminOperations from '@/components/pages/admin/AdminOperations';
 import AdminQa from '@/components/pages/admin/AdminQa';
 import AdminAi from '@/components/pages/admin/AdminAi';
 import ModelEditor from '@/components/pages/ModelEditor';
+import TryOn from '@/components/pages/TryOn';
 import AdminSupport from '@/components/pages/admin/AdminSupport';
 import AdminCoupons from '@/components/pages/admin/AdminCoupons';
 import AdminCompliance from '@/components/pages/admin/AdminCompliance';
@@ -49,6 +50,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/dashboard/security': Security,
   '/dashboard/products': Products,
   '/dashboard/models': Models,
+  '/dashboard/tryon': TryOn, // MD-070, P5.10
   '/dashboard/connections': Connections,
   '/dashboard/analytics': Analytics,
   '/dashboard/billing': Billing,

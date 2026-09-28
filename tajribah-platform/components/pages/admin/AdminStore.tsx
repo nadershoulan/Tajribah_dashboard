@@ -51,6 +51,10 @@ function Detail() {
             <dt>{t('الرقم الضريبي', 'VAT')}</dt><dd dir="ltr" className="mm">{store.vatNumber ?? '—'}</dd>
             <dt>{t('المدينة', 'City')}</dt><dd>{store.city ?? '—'}</dd>
             <dt>{t('أُنشئ', 'Created')}</dt><dd>{formatDate(store.createdAt, lang)}</dd>
+            <dt>{t('في متجره', 'On its shop')}</dt>
+            <dd>{data.detail.publishing.firstAt
+              ? t(`أول نشر ${formatDate(data.detail.publishing.firstAt, lang)} · ${data.detail.publishing.live} منشور الآن`, `First published ${formatDate(data.detail.publishing.firstAt, lang)} · ${data.detail.publishing.live} live now`)
+              : t('لم يُنشر أي زر بعد', 'Nothing published yet')}</dd>
             <dt>{t('المعرّف', 'Id')}</dt><dd dir="ltr" className="mm">{store.id}</dd>
           </dl>
         </Panel>

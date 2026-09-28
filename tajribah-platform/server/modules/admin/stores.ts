@@ -10,9 +10,9 @@
  * Nothing here writes: the AI credit balance is read as the ledger's sum, not through
  * `creditSummary`, which would make the month's grant as a side effect.
  */
-import { and, desc, eq, ilike, isNull, lt, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
-import { creditLedger, plans, subscriptions, tenants, type Tenant } from '@/db/schema';
+import { auditLogs, creditLedger, edgeConfigs, plans, subscriptions, tenants, type Tenant } from '@/db/schema';
 import { PERMISSIONS, type Permission } from '@/lib/permissions';
 import { implicitPlan, type PlanCode } from '@/lib/plans';
 import { creditsUsedIn, currentPeriodStart, currentUsage, entitlementsOf, nextPeriodStart } from '@/server/core/billing/entitlements';
@@ -103,6 +103,12 @@ export type StoreDetail = {
   connections: Awaited<ReturnType<typeof listConnections>>;
   members: Awaited<ReturnType<typeof listTeam>>;
   staffTrail: Awaited<ReturnType<typeof staffTrail>>;
+  /**
+   * T41: whether the store has put a button on its shop — the refund policy's test (a full refund
+   * within 7 days of the first payment if the try-on was never published). From the audit trail, so
+   * a product taken down since still counts as published once.
+   */
+  publishing: { firstAt: string | null; live: number };
 };
 
 /** ADM-04…07 — one store: profile, usage against its plan, billing, connections, members, staff actions. */
@@ -135,6 +141,13 @@ export async function storeDetail(staff: StaffContext, storeId: string, now = ne
     connections: await listConnections(ctx),
     members: await listTeam(ctx),
     staffTrail: await staffTrail({ storeId }),
+    publishing: await publishingOf(ctx),
   };
+}
+
+async function publishingOf(ctx: TenantContext): Promise<StoreDetail['publishing']> {
+  const [first] = await ctx.db.find(auditLogs, and(eq(auditLogs.resourceType, 'edge_config'), eq(auditLogs.action, 'publish')), { limit: 1, orderBy: [asc(auditLogs.createdAt)] });
+  const live = await ctx.db.count(edgeConfigs, and(isNotNull(edgeConfigs.key), isNull(edgeConfigs.withdrawnAt)));
+  return { firstAt: first?.createdAt.toISOString() ?? null, live };
 }
 

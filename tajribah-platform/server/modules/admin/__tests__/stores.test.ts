@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq } from 'drizzle-orm';
-import { creditLedger, products, subscriptions, tenants } from '@/db/schema';
+import { auditLogs, creditLedger, edgeConfigs, products, subscriptions, tenants } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { currentUsage } from '@/server/core/billing/entitlements';
 import { buildTenantContext } from '@/server/core/tenancy/context';
@@ -69,6 +69,22 @@ test('one store: the merchant’s own numbers, members, staff actions — for a 
     assert.deepEqual(detail.staffTrail.map((r) => r.action), ['trial.extend']);
     assert.equal(detail.credits.balance, 0);
     assert.equal((await harness.asAdmin(() => harness.db.select().from(creditLedger))).length, 0, 'inspecting made no credit grant');
+    assert.deepEqual(detail.publishing, { firstAt: null, live: 0 }, 'T41: never published');
+
+    // T41: the first publish is the refund policy's line; a product taken down since still counts as published once.
+    const [p] = await harness.asAdmin(() => harness.db.select().from(products)) as any[];
+    const first = new Date('2026-09-20T08:00:00Z');
+    await harness.asAdmin(async () => {
+      await harness.db.insert(auditLogs).values([
+        { id: uuidv7(), tenantId: store.tenantId, actorType: 'user', action: 'publish', resourceType: 'edge_config', resourceId: p.id, createdAt: new Date('2026-09-25T08:00:00Z') },
+        { id: uuidv7(), tenantId: store.tenantId, actorType: 'user', action: 'publish', resourceType: 'edge_config', resourceId: p.id, createdAt: first },
+        { id: uuidv7(), tenantId: store.tenantId, actorType: 'user', action: 'publish', resourceType: 'model', resourceId: p.id, createdAt: new Date('2026-09-01T08:00:00Z') },
+      ] as any);
+      await harness.db.insert(edgeConfigs).values({ id: uuidv7(), tenantId: store.tenantId, productId: p.id, key: 'alpha/a.json', version: 2, withdrawnAt: new Date() } as any); // withdrawn by the system
+    });
+    assert.deepEqual((await storeDetail(staff, store.tenantId)).publishing, { firstAt: first.toISOString(), live: 0 }, 'the earliest config publish, not a model publish; nothing live now');
+    await harness.asAdmin(() => harness.db.update(edgeConfigs).set({ withdrawnAt: null } as any));
+    assert.equal((await storeDetail(staff, store.tenantId)).publishing.live, 1);
 
     await harness.asAdmin(() => harness.db.update(tenants).set({ status: 'suspended' }).where(eq(tenants.id, store.tenantId)));
     assert.equal((await storeDetail(staff, store.tenantId)).store.status, 'suspended', 'a suspended store can still be inspected');

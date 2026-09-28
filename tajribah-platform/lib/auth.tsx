@@ -95,6 +95,8 @@ export type AdminStoreDetail = {
   connections: ConnectionSummary[];
   members: TeamMemberRow[];
   staffTrail: StaffTrailRow[];
+  /** T41: first config published (the refund policy's test) and how many buttons are live now. */
+  publishing: { firstAt: string | null; live: number };
 };
 
 /** A4 — server/modules/admin/actions.ts */

@@ -13,9 +13,11 @@ const TRYON = { worn: 'https://cdn.tajribah.com/t/store/w/worn.png', flat: 'http
 const withTryOn = (tryon: unknown) => ({ ...GOOD, placement: 'wrist', tryon });
 
 test('the try-on block: kept when right; anything off turns try-on off and leaves the AR button', () => {
-  assert.deepEqual(parseConfig(withTryOn(TRYON))?.tryon, TRYON);
+  assert.deepEqual(parseConfig(withTryOn(TRYON))?.tryon, { ...TRYON, onMe: false }, 'no onMe: the shopper’s own photo is off');
+  assert.deepEqual(parseConfig(withTryOn({ ...TRYON, onMe: true }))?.tryon, { ...TRYON, onMe: true }, 'T33: Pro and up');
+  for (const odd of ['true', 1, null]) assert.equal(parseConfig(withTryOn({ ...TRYON, onMe: odd }))?.tryon?.onMe, false, `onMe ${JSON.stringify(odd)} is off`);
   assert.equal(parseConfig(GOOD)?.tryon, null, 'absent: no try-on');
-  assert.deepEqual(parseConfig(withTryOn({ ...TRYON, sku: undefined }))?.tryon, { ...TRYON, sku: null });
+  assert.deepEqual(parseConfig(withTryOn({ ...TRYON, sku: undefined }))?.tryon, { ...TRYON, sku: null, onMe: false });
   const bad: unknown[] = [
     { ...TRYON, worn: 'http://cdn.example.test/w.png' }, { ...TRYON, flat: 'javascript:alert(1)' },
     { ...TRYON, caseMm: 4 }, { ...TRYON, caseMm: 81 }, { ...TRYON, caseMm: '38' }, { ...TRYON, sku: 'x'.repeat(65) }, 'yes', [TRYON],

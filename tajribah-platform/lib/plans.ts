@@ -43,7 +43,8 @@ export const PLANS: PlanDefinition[] = [
     priceMonthlyMinor: 9900,
     priceAnnualMinor: 99000,
     limits: { products: 20, ai_credits: 5, storage_gb: 2, ar_sessions: 5_000, team_members: 2, bandwidth_gb: 50 },
-    features: ['ar_viewer', 'hosted_pages', 'qr_codes', 'basic_analytics'],
+    // T33: the try-on studio (on the model, true-size comparison) on every plan, as the website says.
+    features: ['ar_viewer', 'hosted_pages', 'qr_codes', 'size_comparison', 'basic_analytics'],
     highlights: [
       { ar: '20 منتجًا بعرض ثلاثي الأبعاد', en: '20 products with 3D viewing' },
       { ar: 'زر «شاهدها في مكانك» داخل متجرك', en: '“View in your space” button in your store' },
@@ -119,7 +120,8 @@ export const FEATURE_LABELS: Record<string, Bi> = {
   zid: { ar: 'تكامل زد', en: 'Zid integration' },
   shopify: { ar: 'تكامل Shopify', en: 'Shopify integration' },
   woocommerce: { ar: 'تكامل WooCommerce', en: 'WooCommerce integration' },
-  virtual_tryon: { ar: 'التجربة الافتراضية', en: 'Virtual try-on' },
+  // T33: the studio itself is on every plan; this is trying the watch on the shopper's own photo.
+  virtual_tryon: { ar: 'التجربة الافتراضية بالذكاء الاصطناعي', en: 'AI virtual try-on' },
   ai_3d: { ar: 'توليد النماذج بالذكاء الاصطناعي', en: 'AI 3D generation' },
   recommendations: { ar: 'توصيات المنتجات', en: 'Product recommendations' },
   white_label: { ar: 'علامة بيضاء', en: 'White label' },

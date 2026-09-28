@@ -454,7 +454,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
             <Tabs value={mode} onValueChange={changeMode}>
               <TabsList className="mode-tabs">
                 <TabsTrigger value="model"><Hand size={17} />{t('On model', 'على النموذج')}</TabsTrigger>
-                <TabsTrigger value="me"><Camera size={17} />{t('On me', 'عليّ')}</TabsTrigger>
+                {product.onMe !== false && <TabsTrigger value="me"><Camera size={17} />{t('On me', 'عليّ')}</TabsTrigger>}
                 <TabsTrigger value="compare"><Ruler size={17} />{t('Compare', 'قارن الحجم')}</TabsTrigger>
               </TabsList>
             </Tabs>

@@ -348,8 +348,8 @@ async function demoCutoutQuality(file: Blob, slot: 'worn' | 'flat'): Promise<{ p
     return { picture: file, quality: { key, sizeShown: 0, trimmed: false, issue: 'unreadable' } };
   }
 }
-/** The preview store's plan (Growth) does not include try-on, as the real one would say. */
-const DEMO_TRYON_INCLUDED = false;
+/** The preview store's plan (Growth): watches can be set up; trying on the shopper's own photo is Pro (T33). */
+const DEMO_TRYON_ON_ME = false;
 function demoTryOnView(p: ProductRow): TryOnWatchView {
   const s = demoTryOn.get(p.id) ?? { worn: null, flat: null, caseMm: null, finish: null, enabled: false };
   const missing: TryOnWatchView['missing'] = [];
@@ -543,10 +543,9 @@ export const demoSource: DataSource = {
     throw new ApiError(404, 'not_found', 'the preview has no 3D files — open a model in the live dashboard to see it');
   },
   async tryOn() {
-    return { included: DEMO_TRYON_INCLUDED, watches: DEMO_PRODUCTS.filter((p) => p.productType === 'watch').map(demoTryOnView) };
+    return { onMe: DEMO_TRYON_ON_ME, watches: DEMO_PRODUCTS.filter((p) => p.productType === 'watch').map(demoTryOnView) };
   },
   async uploadCutout(productId, slot, file) {
-    if (!DEMO_TRYON_INCLUDED) throw new ApiError(402, 'plan_required', 'virtual_tryon is not included in this plan');
     const p = DEMO_PRODUCTS.find((x) => x.id === productId && x.productType === 'watch');
     if (!p) throw new ApiError(404, 'not_found', 'product not found');
     const verdict = checkCutout(new Uint8Array(await file.arrayBuffer()), file.size);
@@ -557,7 +556,6 @@ export const demoSource: DataSource = {
     return demoTryOnView(p);
   },
   async updateTryOn(productId, patch) {
-    if (!DEMO_TRYON_INCLUDED) throw new ApiError(402, 'plan_required', 'virtual_tryon is not included in this plan');
     const p = DEMO_PRODUCTS.find((x) => x.id === productId && x.productType === 'watch');
     if (!p) throw new ApiError(404, 'not_found', 'product not found');
     const s = demoTryOn.get(p.id) ?? { worn: null, flat: null, caseMm: null, finish: null, enabled: false };

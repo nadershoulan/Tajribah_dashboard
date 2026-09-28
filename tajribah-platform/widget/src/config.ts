@@ -33,7 +33,8 @@ export type ViewerConfig = {
    * Optional and added without a version bump (like `glbNative`); a malformed block only turns
    * try-on off, the AR button still works.
    */
-  tryon: { worn: string; flat: string; caseMm: number; sku: string | null } | null;
+  /** `onMe` (T33): the shopper may also try it on their own photo — Pro and up; anything but `true` is off. */
+  tryon: { worn: string; flat: string; caseMm: number; sku: string | null; onMe: boolean } | null;
 };
 
 const PLACEMENTS: readonly string[] = ['floor', 'wall', 'table', 'face', 'wrist'];
@@ -51,7 +52,7 @@ const httpsUrl = (v: unknown): v is string => {
 function tryOnOf(v: unknown): ViewerConfig['tryon'] {
   if (!isObj(v) || !httpsUrl(v.worn) || !httpsUrl(v.flat) || !num(v.caseMm, 5, 80)) return null;
   if (!(v.sku === null || v.sku === undefined || str(v.sku, 64))) return null;
-  return { worn: v.worn, flat: v.flat, caseMm: v.caseMm, sku: (v.sku as string | null | undefined) ?? null };
+  return { worn: v.worn, flat: v.flat, caseMm: v.caseMm, sku: (v.sku as string | null | undefined) ?? null, onMe: v.onMe === true };
 }
 
 /** The config, or null when anything about it is wrong. Never throws. */

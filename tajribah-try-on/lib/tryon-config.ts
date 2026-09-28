@@ -70,6 +70,7 @@ export function tryOnProductFrom(config: unknown, local = false): TryOnProduct |
     alt: name,
     storeLink: null, // the shopper is already on the store's page
     demo: false,
+    onMe: tryon.onMe === true, // T33: the shopper's own photo — Pro and up; anything else is off
   };
 }
 

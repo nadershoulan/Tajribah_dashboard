@@ -318,7 +318,10 @@ export type TryOnWatchView = {
 };
 
 export type TryOnScreen = {
-  /** Virtual try-on is in the store's plan (Pro and Enterprise). */
-  included: boolean;
+  /**
+   * T33: every plan sets watches up for the studio (on the model, true-size comparison); this says
+   * whether shoppers may also try them on their own photo — `virtual_tryon`, Pro and Enterprise.
+   */
+  onMe: boolean;
   watches: TryOnWatchView[];
 };

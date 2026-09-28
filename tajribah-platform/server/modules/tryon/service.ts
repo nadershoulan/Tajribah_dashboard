@@ -11,8 +11,10 @@
  *    an accepted one replaces the old, whose bytes are deleted after the change commits.
  *  - A confirm only accepts a key shaped exactly as this store's cut-out for this slot, so a
  *    request cannot attach some other file of the store as a watch.
- *  - Reading is open to every role and every plan (the screen explains what is missing); every
- *    change needs `tryon:write` **and** `virtual_tryon` in the plan.
+ *  - Reading is open to every role; every change needs `tryon:write`. **Every plan** sets watches
+ *    up (T33: the studio's on-the-model view and true-size comparison are on every plan, as the
+ *    website says); `onMe` tells the screen — and the published config — whether the shopper may
+ *    also try the watch on their own photo (`virtual_tryon`, Pro and up).
  *  - Pictures count against the plan's storage (`storageBytesHeld`).
  *  - P5.9: each confirmed picture is queued for its check (`quality.ts`): empty edges cropped,
  *    the share of real size measured. The view shows a picture's check only while it is still
@@ -26,7 +28,7 @@ import { uuidv7 } from '@/lib/ids';
 import { CUTOUT_ISSUES } from '@/lib/tryon';
 import type { TryOnScreen, TryOnWatchView } from '@/lib/view-models';
 import { record } from '@/server/core/audit/audit';
-import { assertFeature, assertStorageRoom, entitlementsOf } from '@/server/core/billing/entitlements';
+import { assertStorageRoom, entitlementsOf } from '@/server/core/billing/entitlements';
 import { errors } from '@/server/core/errors/problem';
 import { forTenant } from '@/server/core/storage/storage';
 import type { TenantContext } from '@/server/core/tenancy/context';
@@ -82,14 +84,13 @@ async function watchOf(db: TenantDb, productId: string): Promise<Product> {
 }
 
 async function mayChange(ctx: TenantContext): Promise<void> {
-  ctx.require('tryon:write');
-  assertFeature(await entitlementsOf(ctx), 'virtual_tryon');
+  ctx.require('tryon:write'); // T33: every plan may set watches up
 }
 
 /** API-150 — every watch in the store, with its try-on settings (and, P5.13, its last 30 days). */
 export async function tryOnScreen(ctx: TenantContext, now = new Date()): Promise<TryOnScreen> {
   ctx.require('tryon:read');
-  const included = (await entitlementsOf(ctx)).has('virtual_tryon');
+  const onMe = (await entitlementsOf(ctx)).has('virtual_tryon');
   const days = daysOf('30d', now);
   return withTenant(ctx.tenantId, async (db) => {
     const watches = await db.find(products, and(eq(products.productType, 'watch'), isNull(products.deletedAt)), { limit: 500 });
@@ -103,7 +104,7 @@ export async function tryOnScreen(ctx: TenantContext, now = new Date()): Promise
       const rows = stats.filter((r) => r.productId === productId);
       return { views: rows.reduce((s, r) => s + r.views, 0), tryonSessions: rows.reduce((s, r) => s + r.tryonSessions, 0) };
     };
-    return { included, watches: watches.map((p) => view(p, configs.find((c) => c.productId === p.id) ?? null, last30(p.id))) };
+    return { onMe, watches: watches.map((p) => view(p, configs.find((c) => c.productId === p.id) ?? null, last30(p.id))) };
   });
 }
 

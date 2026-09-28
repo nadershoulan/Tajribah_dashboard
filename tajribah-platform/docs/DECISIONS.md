@@ -599,3 +599,18 @@ settings and reads its pages: the install lines, the script address, the sign-up
 plans' names must match, or the test fails.
 
 **Rollback path.** Pricing's link back to `/contact`; `NEXT_PUBLIC_APP_URL` for another address.
+
+## T33 · 2026-09-28 · Every plan gets the studio; "on me" is Pro; analytics as the dashboard has it
+
+**Decision (Nader's, 2026-09-28).** The website's pricing table is right about the try-on, the
+dashboard is right about analytics:
+- **Every plan** sets its watches up for the owner's studio: shoppers try the watch **on the model**
+  and **compare its size** (`size_comparison`, now on Starter too). **On me** — the shopper's own
+  photo (`virtual_tryon`) — is Pro and Enterprise; for other shops the studio does not show that
+  tab (an optional `onMe` on the product; the published config carries it, only `true` counts).
+- **Analytics:** basic on Starter, full from Growth; the website's table says so.
+
+The studio's modes are a protected item; this change was made on Nader's answer, as an option
+that defaults to all three modes — the demo renders identically, checked to the pixel.
+
+**Rollback path.** Restore the `virtual_tryon` check in `tryon/service.ts`; drop 0020.

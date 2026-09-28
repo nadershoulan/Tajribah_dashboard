@@ -48,7 +48,7 @@ export const PLANS: Plan[] = [
       { ar: 'كل ما في باقة البداية', en: 'Everything in Starter' },
       { ar: 'المقارنة الذكية بين المنتجات', en: 'AI product comparison' },
       { ar: 'مزامنة الكتالوج من منصة متجرك', en: 'Catalogue sync from your store platform' },
-      { ar: 'تقارير الاستخدام الشهرية', en: 'Monthly usage reports' },
+      { ar: 'تحليلات كاملة وتقارير التحويل', en: 'Full analytics and conversion reporting' },
     ],
   },
   {
@@ -61,7 +61,6 @@ export const PLANS: Plan[] = [
     features: [
       { ar: 'كل ما في باقة النمو', en: 'Everything in Growth' },
       { ar: 'التجربة الافتراضية بالذكاء الاصطناعي', en: 'AI virtual try-on' },
-      { ar: 'لوحة تحليلات: الجلسات والتجارب والتحويل', en: 'Analytics: sessions, try-ons and conversion' },
       { ar: 'أولوية في الدعم', en: 'Priority support' },
     ],
   },
@@ -90,7 +89,7 @@ export const MATRIX: { label: Bi; cells: (boolean | Bi)[] }[] = [
   { label: { ar: 'المقارنة الذكية بين المنتجات', en: 'AI product comparison' }, cells: [false, true, true, true] },
   { label: { ar: 'التجربة الافتراضية بالذكاء الاصطناعي', en: 'AI virtual try-on' }, cells: [false, false, true, true] },
   { label: { ar: 'مزامنة الكتالوج', en: 'Catalogue sync' }, cells: [false, true, true, true] },
-  { label: { ar: 'لوحة التحليلات', en: 'Analytics dashboard' }, cells: [false, { ar: 'تقارير شهرية', en: 'Monthly reports' }, true, true] },
+  { label: { ar: 'لوحة التحليلات', en: 'Analytics dashboard' }, cells: [{ ar: 'أساسية', en: 'Basic' }, { ar: 'كاملة', en: 'Full' }, { ar: 'كاملة', en: 'Full' }, { ar: 'كاملة', en: 'Full' }] },
   { label: { ar: 'علامة بيضاء', en: 'White label' }, cells: [false, false, false, true] },
   { label: { ar: 'واجهة برمجة التطبيقات', en: 'API access' }, cells: [false, false, false, true] },
   { label: { ar: 'الدعم', en: 'Support' }, cells: [{ ar: 'بريد', en: 'Email' }, { ar: 'بريد', en: 'Email' }, { ar: 'أولوية', en: 'Priority' }, { ar: 'مخصص', en: 'Dedicated' }] },

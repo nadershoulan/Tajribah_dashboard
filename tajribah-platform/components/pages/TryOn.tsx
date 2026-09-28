@@ -34,10 +34,10 @@ export default function TryOn() {
       />
       {loading && !data && <Loading rows={4} />}
       {error && <ErrorNote error={error} />}
-      {data && !data.included && (
+      {data && !data.onMe && (
         <Panel>
           <p style={{ margin: 0, display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Lock size={16} aria-hidden />{t('التجربة الافتراضية ضمن الباقة الاحترافية. ترى ساعاتك هنا، والإعداد يُفتح عند الترقية.', 'Virtual try-on is in the Pro plan. You can see your watches here; setting them up opens when you upgrade.')}
+            <Lock size={16} aria-hidden />{t('في باقتك يجرّب المتسوق الساعة على النموذج ويقارن مقاسها. تجربتها على صورته هو تأتي مع الباقة الاحترافية.', 'On your plan, shoppers try the watch on the model and compare its size. Trying it on their own photo comes with the Pro plan.')}
             <AppLink href="/dashboard/billing" className="btn btn-accent btn-sm" style={{ marginInlineStart: 'auto' }}>{t('الباقات', 'Plans')}</AppLink>
           </p>
         </Panel>
@@ -48,7 +48,7 @@ export default function TryOn() {
           action={<AppLink href="/dashboard/products" className="btn btn-ghost">{t('المنتجات', 'Products')}</AppLink>} />
       )}
       <div style={{ display: 'grid', gap: 16 }}>
-        {data?.watches.map((w) => <WatchCard key={w.productId} initial={w} editable={canEdit && data.included} />)}
+        {data?.watches.map((w) => <WatchCard key={w.productId} initial={w} editable={canEdit} />)}
       </div>
     </Shell>
   );

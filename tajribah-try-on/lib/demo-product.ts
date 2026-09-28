@@ -26,6 +26,11 @@ export type TryOnProduct = {
   alt: Bi;
   storeLink: { label: Bi; href: string } | null;
   demo: boolean;
+  /**
+   * T33: `false` hides "On me" (the shopper's own photo — Pro and up); the studio then offers the
+   * model and the size comparison, which every plan has. Left out (the demo), all three modes.
+   */
+  onMe?: boolean;
 };
 
 /**

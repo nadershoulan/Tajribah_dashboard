@@ -11,7 +11,7 @@ import { ATTR, WIDGET_SRC } from '../src/main';
 import { embedSnippet } from '../src/snippet';
 import { PLANS } from '@/lib/plans';
 import { COMPANY } from '../../../tajribah-try-on/lib/site';
-import { PLANS as SITE_PLANS } from '../../../tajribah-try-on/lib/plans';
+import { MATRIX, PLANS as SITE_PLANS } from '../../../tajribah-try-on/lib/plans';
 
 const site = (file: string) => readFileSync(join(process.cwd(), '..', 'tajribah-try-on', file), 'utf8');
 
@@ -35,4 +35,22 @@ test('"Start with this plan" opens this app\'s sign-up with the plan, and the pl
     PLANS.map((p) => [p.code, p.name.ar, p.name.en]),
     'the same four plans, in the same order, with the same names in both languages',
   );
+});
+
+test('T33: what the pricing matrix promises per plan is what the dashboard enforces', () => {
+  const row = (en: string) => {
+    const found = MATRIX.find((r) => r.label.en === en);
+    assert.ok(found, `no matrix row "${en}"`);
+    return found.cells;
+  };
+  const has = (feature: string) => PLANS.map((p) => p.features.includes(feature));
+  const yes = (cells: (boolean | { en: string })[]) => cells.map((c) => c !== false);
+  assert.deepEqual(yes(row('True-size comparison')), has('size_comparison'), 'the studio compare mode, every plan');
+  assert.deepEqual(yes(row('On-model view')), has('size_comparison'), 'the studio itself, every plan (set up in the dashboard on every plan)');
+  assert.deepEqual(yes(row('AI virtual try-on')), has('virtual_tryon'), 'the shopper’s own photo, Pro and up');
+  assert.deepEqual(yes(row('Catalogue sync')), has('salla'));
+  assert.deepEqual(yes(row('White label')), has('white_label'));
+  assert.deepEqual(yes(row('API access')), has('public_api'));
+  assert.deepEqual(row('Analytics dashboard').map((c) => (typeof c === 'object' ? c.en : c)),
+    PLANS.map((p) => (p.features.includes('full_analytics') ? 'Full' : p.features.includes('basic_analytics') ? 'Basic' : false)));
 });

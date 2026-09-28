@@ -66,7 +66,7 @@ test('set up a watch: both pictures, the case width, a finish — then switch it
   try {
     const { ctx, watch } = await proStore(harness, 'alpha');
     const first = await tryOnScreen(ctx);
-    assert.equal(first.included, true);
+    assert.equal(first.onMe, true, 'Pro: shoppers may also use their own photo');
     assert.deepEqual(first.watches.map((w) => [w.productId, w.productWidthMm, w.ready, w.missing]), [[watch, 38, false, ['worn', 'flat', 'case']]], 'only watches are listed');
 
     await assert.rejects(() => updateTryOn(ctx, watch, { enabled: true }), (e: any) => e.code === 'conflict' && /missing: worn, flat, case/.test(e.message));
@@ -115,14 +115,15 @@ test('refused pictures are deleted with the reason; a replaced picture’s bytes
   } finally { await harness.close(); }
 });
 
-test('the plan and the role: a Starter store can look but not set up; an analyst can look but not change', async () => {
+test('the plan and the role (T33): every plan sets watches up, only Pro and up lets shoppers use their own photo; an analyst can look but not change', async () => {
   const harness = await createTestDb();
   try {
     const starter = await proStore(harness, 'bravo', 'starter');
     const screen = await tryOnScreen(starter.ctx);
-    assert.equal(screen.included, false);
-    await assert.rejects(() => startCutoutUpload(starter.ctx, starter.watch, { slot: 'worn', filename: 'w.png', contentType: 'image/png', sizeBytes: 100 }), (e: any) => e.code === 'plan_required');
-    await assert.rejects(() => updateTryOn(starter.ctx, starter.watch, { caseMm: 38 }), (e: any) => e.code === 'plan_required');
+    assert.equal(screen.onMe, false, 'Starter: on the model and true-size comparison, not on the shopper’s photo');
+    const worn = await upload(starter.ctx, starter.watch, 'worn', fixture('worn.png'));
+    assert.ok(worn.view.worn, 'a Starter store sets its watch up');
+    assert.equal((await updateTryOn(starter.ctx, starter.watch, { caseMm: 38 })).caseMm, 38);
 
     const pro = await proStore(harness, 'alpha');
     const analystId = uuidv7();
@@ -133,7 +134,7 @@ test('the plan and the role: a Starter store can look but not set up; an analyst
     const analyst = await buildTenantContext({ actor: { userId: analystId, email: 'an@example.test', isStaff: false }, tenantId: pro.tenantId, requestId: 'r' });
     assert.equal((await tryOnScreen(analyst)).watches.length, 1);
     await assert.rejects(() => updateTryOn(analyst, pro.watch, { caseMm: 38 }), (e: any) => e.code === 'forbidden');
-    await assert.rejects(() => updateTryOn(starter.ctx, pro.watch, { caseMm: 38 }), (e: any) => e.code === 'plan_required' || e.code === 'not_found');
+    await assert.rejects(() => updateTryOn(starter.ctx, pro.watch, { caseMm: 38 }), (e: any) => e.code === 'not_found', 'another store’s watch');
   } finally { await harness.close(); }
 });
 

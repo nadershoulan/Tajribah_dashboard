@@ -21,7 +21,8 @@ export const memberRole = pgEnum('member_role', MEMBER_ROLE);
 export const membershipStatus = pgEnum('membership_status', ['active', 'invited', 'suspended']);
 export const localeEnum = pgEnum('locale', ['ar', 'en']);
 export const actorType = pgEnum('actor_type', ['user', 'system', 'staff', 'api_key', 'webhook']);
-export const revokedReason = pgEnum('revoked_reason', ['logout', 'rotation_reuse', 'password_change', 'admin', 'expired']);
+/** `security_change` (0022, T47): ended because the account's security changed — two-step sign-in turned on. */
+export const revokedReason = pgEnum('revoked_reason', ['logout', 'rotation_reuse', 'password_change', 'admin', 'expired', 'security_change']);
 export const verificationPurpose = pgEnum('verification_purpose', ['email_verify', 'password_reset', 'phone_otp', 'email_change']);
 
 export type TenantStatus = (typeof TENANT_STATUS)[number];

@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq } from 'drizzle-orm';
 import { ApiClient, ApiError } from '@/lib/api-client';
-import { users } from '@/db/schema';
+import { sessions, users } from '@/db/schema';
 import { loadEnv, resetEnv } from '@/server/core/config/env';
 import { configureNotify } from '@/server/core/notify/notify';
 import { MemoryRateLimiter, setRateLimiter } from '@/server/core/ratelimit/limiter';
@@ -140,6 +140,25 @@ test('setup: password again, then the first code; backup codes once; the owner i
     assert.ok(value.backupCodes.every((code) => !hashes.some((h) => h.includes(code.replace('-', '')))), 'only hashes are stored');
 
     await assert.rejects(() => client.startTwoFactorSetup(ACCOUNT.password), is(409), 'already on: a new setup cannot replace the secret');
+  } finally { await harness.close(); resetEnv(); }
+});
+
+test('T47: turning two-step on ends every other session of the account — not the one that turned it on', async () => {
+  setup();
+  const harness = await createTestDb();
+  try {
+    const mine = new ApiClient(browser().fetchImpl);
+    await mailed(() => mine.register(ACCOUNT));
+    const elsewhere = new ApiClient(browser().fetchImpl); // e.g. a session someone took earlier
+    await elsewhere.login(ACCOUNT.email, ACCOUNT.password);
+    assert.deepEqual(await elsewhere.twoFactorStatus(), { enabled: false, backupCodesLeft: 0 }, 'signed in elsewhere');
+
+    const { secret } = await mine.startTwoFactorSetup(ACCOUNT.password);
+    await mailed(async () => mine.enableTwoFactor(await phone(secret).next()));
+    await assert.rejects(() => elsewhere.twoFactorStatus(), is(401), 'the other session is over — its refresh too');
+    assert.deepEqual(await mine.twoFactorStatus(), { enabled: true, backupCodesLeft: 10 }, 'the session that turned it on carries on');
+    const ended = (await harness.asAdmin(() => harness.db.select().from(sessions))).filter((row) => row.revokedAt);
+    assert.deepEqual(ended.map((row) => row.revokedReason), ['security_change']);
   } finally { await harness.close(); resetEnv(); }
 });
 

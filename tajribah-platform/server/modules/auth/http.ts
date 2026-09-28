@@ -237,7 +237,7 @@ export const twoFactorEnableHandler = route(async (request) => {
   assertSameOrigin(request, config);
   const caller = await authenticate(request, config);
   const { code } = await readJson(request, z.object({ code: z.string().trim().min(1).max(20) }));
-  return json(await enableTwoFactor(caller.userId, code, config.authSecret));
+  return json(await enableTwoFactor(caller.userId, code, config.authSecret, caller.sessionId));
 });
 
 /** API-015 — POST /api/auth/2fa/disable: the password and a code (or a backup code). */

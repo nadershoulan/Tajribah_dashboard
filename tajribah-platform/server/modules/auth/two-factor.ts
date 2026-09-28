@@ -22,7 +22,7 @@ import { foldDigits } from '@/lib/money';
 import { users, type User } from '@/db/schema';
 import { loadEnv } from '@/server/core/config/env';
 import { decryptSecret, encryptSecret, encryptionKeyId, keyedHash, verifyPassword } from '@/server/core/auth/crypto';
-import type { IssuedSession, SessionSecrets } from '@/server/core/auth/session';
+import { revokeFamily, type IssuedSession, type SessionSecrets } from '@/server/core/auth/session';
 import { matchTotp, newBackupCodes, newTotpSecret, normaliseBackupCode, otpauthUrl } from '@/server/core/auth/totp';
 import { errors } from '@/server/core/errors/problem';
 import { EMAIL, sendEmail } from '@/server/core/notify/messages';
@@ -138,7 +138,7 @@ export async function startTwoFactorSetup(userId: string, password: string): Pro
 }
 
 /** AUTH-21, step 2 → AUTH-22: the first code proves the app has the secret; backup codes, once. */
-export async function enableTwoFactor(userId: string, code: string, authSecret: string): Promise<{ backupCodes: string[] }> {
+export async function enableTwoFactor(userId: string, code: string, authSecret: string, keepSessionId?: string): Promise<{ backupCodes: string[] }> {
   const user = await userById(userId);
   if (user.totpEnabled) throw errors.conflict('two-step sign-in is already on');
   if (!user.totpSecretEncrypted) throw errors.conflict('start the setup first');
@@ -146,6 +146,8 @@ export async function enableTwoFactor(userId: string, code: string, authSecret: 
   if (!(await acceptCode(user, code))) throw errors.validation({ code: ['that code is not right'] });
   const { codes, hashes } = await newCodes(authSecret);
   await unsafeAdminDb().update(users).set({ totpEnabled: true, backupCodesHash: hashes }).where(eq(users.id, userId));
+  // T47: a session taken before this moment must not outlive it — every other session ends.
+  await revokeFamily(userId, 'security_change', keepSessionId);
   await notify(user, true);
   return { backupCodes: codes };
 }

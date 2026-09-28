@@ -11,7 +11,7 @@
  * or a readable cookie: all three are readable by any script on the origin. The refresh
  * token lives in an httpOnly, Secure, SameSite=Lax cookie and is never sent to JavaScript.
  */
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, ne } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
 import { refreshTokens, sessions, users, type Session } from '@/db/schema';
 import { secret, uuidv7 } from '@/lib/ids';
@@ -201,12 +201,15 @@ export async function actorOf(userId: string): Promise<{ userId: string; email: 
   };
 }
 
-/** Every live session for a user. Used on reuse detection and on password change. */
-export async function revokeFamily(userId: string, reason: Session['revokedReason']): Promise<number> {
+/**
+ * Every live session for a user — but `except` (the session asking, T47). Used on reuse detection,
+ * on password change, and when two-step sign-in is turned on.
+ */
+export async function revokeFamily(userId: string, reason: Session['revokedReason'], except?: string): Promise<number> {
   const db = unsafeAdminDb();
   const revoked = await db.update(sessions)
     .set({ revokedAt: new Date(), revokedReason: reason })
-    .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)))
+    .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt), except ? ne(sessions.id, except) : undefined))
     .returning();
   return revoked.length;
 }

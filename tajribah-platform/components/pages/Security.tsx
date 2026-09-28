@@ -21,7 +21,7 @@ type Stage =
   | { kind: 'overview' }
   | { kind: 'password'; purpose: 'setup' | 'codes' | 'disable' }
   | { kind: 'scan'; secret: string; otpauthUrl: string }
-  | { kind: 'codes'; codes: string[] };
+  | { kind: 'codes'; codes: string[]; justEnabled?: boolean };
 
 export default function Security() {
   const { t } = useLang();
@@ -61,8 +61,8 @@ export default function Security() {
           onDisabled={back}
         />
       )}
-      {stage.kind === 'scan' && <ScanStep secret={stage.secret} otpauthUrl={stage.otpauthUrl} onCancel={back} onEnabled={(codes) => setStage({ kind: 'codes', codes })} />}
-      {stage.kind === 'codes' && <CodesStep codes={stage.codes} onDone={back} />}
+      {stage.kind === 'scan' && <ScanStep secret={stage.secret} otpauthUrl={stage.otpauthUrl} onCancel={back} onEnabled={(codes) => setStage({ kind: 'codes', codes, justEnabled: true })} />}
+      {stage.kind === 'codes' && <CodesStep codes={stage.codes} justEnabled={!!stage.justEnabled} onDone={back} />}
     </Shell>
   );
 }
@@ -249,7 +249,7 @@ function ScanStep({ secret, otpauthUrl, onCancel, onEnabled }: {
 }
 
 /** AUTH-22: shown once. Each code signs in once when the phone is not at hand. */
-function CodesStep({ codes, onDone }: { codes: string[]; onDone: () => void }) {
+function CodesStep({ codes, justEnabled, onDone }: { codes: string[]; justEnabled: boolean; onDone: () => void }) {
   const { t } = useLang();
   const [copied, setCopied] = useState(false);
   const text = `${t('رموز الاستعداد — تجربة', 'Tajribah backup codes')}\n${t('كل رمز يعمل مرة واحدة.', 'Each code works once.')}\n\n${codes.join('\n')}\n`;
@@ -271,6 +271,10 @@ function CodesStep({ codes, onDone }: { codes: string[]; onDone: () => void }) {
         'If you lose your phone, these codes are your only way in. Each works once, and we will not show them again.',
       )}</p>
       <ul className="codes" dir="ltr">{codes.map((c) => <li key={c}>{c}</li>)}</ul>
+      {justEnabled && <p className="hint">{t(
+        'للأمان سجّلنا خروج حسابك من كل جهاز آخر كان مسجّلًا فيه، والدخول منها بعد الآن يحتاج رمزًا من التطبيق.',
+        'For safety, your account was signed out on every other device. They will need a code from the app to sign in from now on.',
+      )}</p>}
       <div className="btn-row">
         <button type="button" className="btn btn-ghost" onClick={download}><Download size={15} aria-hidden />{t('تنزيل', 'Download')}</button>
         <button type="button" className="btn btn-ghost" onClick={copy}><Copy size={15} aria-hidden />{copied ? t('نُسخت', 'Copied') : t('نسخ', 'Copy')}</button>

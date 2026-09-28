@@ -614,3 +614,11 @@ The studio's modes are a protected item; this change was made on Nader's answer,
 that defaults to all three modes — the demo renders identically, checked to the pixel.
 
 **Rollback path.** Restore the `virtual_tryon` check in `tryon/service.ts`; drop 0020.
+
+## T34 · 2026-09-28 · Unbuilt features are shown as coming, never sold as included
+
+**Decision (Nader's, 2026-09-28: "Mark it coming soon").** "AI product comparison" (Growth and up
+on the pricing page) is not built — it is the plan's P6 comparison engine, which needs an AI
+provider. Until it exists, the pricing table and the Growth card say "coming soon", and a test
+stops it being shown as a plain tick. When it ships, the cells become ticks and the test changes
+with it.

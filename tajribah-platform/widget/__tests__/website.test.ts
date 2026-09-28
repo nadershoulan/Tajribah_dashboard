@@ -54,3 +54,11 @@ test('T33: what the pricing matrix promises per plan is what the dashboard enfor
   assert.deepEqual(row('Analytics dashboard').map((c) => (typeof c === 'object' ? c.en : c)),
     PLANS.map((p) => (p.features.includes('full_analytics') ? 'Full' : p.features.includes('basic_analytics') ? 'Basic' : false)));
 });
+
+test('T34: a feature the dashboard does not have is never sold as included', () => {
+  const comparison = MATRIX.find((r) => r.label.en === 'AI product comparison');
+  assert.ok(comparison, 'the row exists');
+  assert.ok(comparison.cells.every((c) => c === false || (typeof c === 'object' && c.en === 'Coming soon')), 'false or "Coming soon" — never a plain tick');
+  const growth = SITE_PLANS.find((p) => p.id === 'growth')!;
+  assert.ok(growth.features.some((f) => f.en === 'AI product comparison (coming soon)'), 'the Growth card says it is coming');
+});

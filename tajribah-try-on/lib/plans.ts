@@ -46,7 +46,7 @@ export const PLANS: Plan[] = [
     products: { ar: 'حتى 200 منتج', en: 'Up to 200 products' },
     features: [
       { ar: 'كل ما في باقة البداية', en: 'Everything in Starter' },
-      { ar: 'المقارنة الذكية بين المنتجات', en: 'AI product comparison' },
+      { ar: 'المقارنة الذكية بين المنتجات (قريبًا)', en: 'AI product comparison (coming soon)' }, // T34: not built yet
       { ar: 'مزامنة الكتالوج من منصة متجرك', en: 'Catalogue sync from your store platform' },
       { ar: 'تحليلات كاملة وتقارير التحويل', en: 'Full analytics and conversion reporting' },
     ],
@@ -86,7 +86,8 @@ export const MATRIX: { label: Bi; cells: (boolean | Bi)[] }[] = [
   { label: { ar: 'المقارنة بالحجم الحقيقي', en: 'True-size comparison' }, cells: [true, true, true, true] },
   { label: { ar: 'العرض على العارضة', en: 'On-model view' }, cells: [true, true, true, true] },
   { label: { ar: 'العرض ثلاثي الأبعاد والواقع المعزز', en: '3D and AR viewing' }, cells: [{ ar: 'أساسي', en: 'Basic' }, { ar: 'أساسي', en: 'Basic' }, { ar: 'كامل', en: 'Full' }, { ar: 'كامل', en: 'Full' }] },
-  { label: { ar: 'المقارنة الذكية بين المنتجات', en: 'AI product comparison' }, cells: [false, true, true, true] },
+  // T34: not built yet — shown as coming, so no one pays for it today.
+  { label: { ar: 'المقارنة الذكية بين المنتجات', en: 'AI product comparison' }, cells: [false, { ar: 'قريبًا', en: 'Coming soon' }, { ar: 'قريبًا', en: 'Coming soon' }, { ar: 'قريبًا', en: 'Coming soon' }] },
   { label: { ar: 'التجربة الافتراضية بالذكاء الاصطناعي', en: 'AI virtual try-on' }, cells: [false, false, true, true] },
   { label: { ar: 'مزامنة الكتالوج', en: 'Catalogue sync' }, cells: [false, true, true, true] },
   { label: { ar: 'لوحة التحليلات', en: 'Analytics dashboard' }, cells: [{ ar: 'أساسية', en: 'Basic' }, { ar: 'كاملة', en: 'Full' }, { ar: 'كاملة', en: 'Full' }, { ar: 'كاملة', en: 'Full' }] },

@@ -9,7 +9,7 @@
  * or before anything is live, the newest version — so the list never shows the numbers of a
  * version nobody sees.
  */
-import { desc, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, ne } from 'drizzle-orm';
 import { modelFiles, models3d, modelVersions, products } from '@/db/schema';
 import type { ModelRow } from '@/lib/view-models';
 import { record } from '@/server/core/audit/audit';
@@ -17,11 +17,12 @@ import { errors } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
 import { keepLive } from '@/server/modules/edge/publish';
+import { retireFile } from '@/server/modules/tryon/retire';
 import { fileFor } from './files';
 
 export async function listModels(ctx: TenantContext): Promise<ModelRow[]> {
   ctx.require('models:read');
-  const models = await ctx.db.find(models3d, undefined, { orderBy: desc(models3d.updatedAt), limit: 500 });
+  const models = await ctx.db.find(models3d, ne(models3d.status, 'archived'), { orderBy: desc(models3d.updatedAt), limit: 500 }); // T46: deleted models are archived
   if (!models.length) return [];
   const ids = models.map((m) => m.id);
   const versions = await ctx.db.find(modelVersions, inArray(modelVersions.modelId, ids), { orderBy: desc(modelVersions.version), limit: 5000 });
@@ -85,4 +86,55 @@ export async function publishVersion(ctx: TenantContext, versionId: string): Pro
     return model.productId;
   });
   if (productId) await keepLive(ctx.tenantId, productId); // P1.15: a live button shows the new version
+}
+
+/**
+ * T46 — delete one version that is not live: its files' bytes are deleted and the storage they held
+ * is freed (`bytes_deleted_at`); the version stays as an `archived` row, so numbering and the audit
+ * trail keep their history. The live version cannot go on its own — publish another, or delete the
+ * whole model.
+ */
+export async function deleteVersion(ctx: TenantContext, versionId: string): Promise<void> {
+  ctx.require('models:write');
+  const keys = await withTenant(ctx.tenantId, async (db) => {
+    const version = await db.findById(modelVersions, versionId);
+    if (!version || version.status === 'archived') throw errors.notFound('model version');
+    const model = await db.lockById(models3d, version.modelId);
+    if (model.currentVersionId === versionId) throw errors.conflict('this is the live version — publish another version first, or delete the whole model');
+    if (version.status === 'processing') throw errors.conflict('this version is still being prepared — delete it once it is ready or has failed');
+    return archiveVersions(ctx, db, [version.id], { action: 'delete', resourceType: 'model_version', resourceId: version.id, before: { version: version.version, status: version.status } });
+  });
+  for (const key of keys) await retireFile(ctx.tenantId, null, key); // not live: nothing names it
+}
+
+/**
+ * T46 — delete a whole model: every version archived and its bytes deleted; the product's published
+ * config is rebuilt without it (the watch's try-on stays, or the button is withdrawn). A file a live
+ * config named is deleted after the grace period (T36), for shoppers still holding that config.
+ */
+export async function deleteModel(ctx: TenantContext, modelId: string): Promise<void> {
+  ctx.require('models:write');
+  ctx.require('models:publish'); // it changes what shoppers see
+  const { keys, productId } = await withTenant(ctx.tenantId, async (db) => {
+    const model = await db.lockById(models3d, modelId);
+    if (model.status === 'archived') throw errors.notFound('model');
+    const versions = await db.find(modelVersions, and(eq(modelVersions.modelId, modelId), ne(modelVersions.status, 'archived')), { limit: 1000 });
+    await db.updateById(models3d, modelId, { status: 'archived', currentVersionId: null, updatedAt: new Date() });
+    const keys = await archiveVersions(ctx, db, versions.map((v) => v.id), {
+      action: 'delete', resourceType: 'model', resourceId: modelId, before: { name: model.name, currentVersionId: model.currentVersionId, versions: versions.length },
+    });
+    return { keys, productId: model.productId };
+  });
+  if (productId) await keepLive(ctx.tenantId, productId); // rebuilt before any file goes
+  for (const key of keys) await retireFile(ctx.tenantId, productId, key);
+}
+
+/** Archive versions and mark their files' bytes deleted, in the caller's transaction; returns the keys to delete. */
+async function archiveVersions(ctx: TenantContext, db: Parameters<Parameters<typeof withTenant>[1]>[0], versionIds: string[], audit: Parameters<typeof record>[1]): Promise<string[]> {
+  const now = new Date();
+  const files = versionIds.length ? await db.find(modelFiles, and(inArray(modelFiles.modelVersionId, versionIds), isNull(modelFiles.bytesDeletedAt)), { limit: 5000 }) : [];
+  for (const id of versionIds) await db.updateById(modelVersions, id, { status: 'archived', updatedAt: now });
+  for (const file of files) await db.updateById(modelFiles, file.id, { bytesDeletedAt: now });
+  await record(ctx, { ...audit, after: { archived: versionIds.length, bytesFreed: files.reduce((sum, f) => sum + f.fileSizeBytes, 0) } }, db);
+  return files.map((f) => f.storageKey);
 }

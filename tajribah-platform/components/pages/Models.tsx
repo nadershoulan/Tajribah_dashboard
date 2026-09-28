@@ -280,6 +280,24 @@ function Versions({ model, onPublished }: { model: ModelRow; onPublished: () => 
   const held = model.source === 'ai_generated' && model.qaStatus !== 'approved';
   const [busy, setBusy] = useState<string | null>(null);
   const [failure, setFailure] = useState<Error | null>(null);
+  // T46: which delete is being confirmed — a version's id, or 'model'.
+  const [confirming, setConfirming] = useState<string | null>(null);
+
+  const remove = async (what: string) => {
+    setBusy(what);
+    setFailure(null);
+    try {
+      if (what === 'model') await source.deleteModel(modelId);
+      else await source.deleteModelVersion(what);
+      setConfirming(null);
+      setVersion((v) => v + 1);
+      onPublished();
+    } catch (e) {
+      setFailure(e as Error);
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const publish = async (row: ModelVersionRow) => {
     setBusy(row.id);
@@ -322,6 +340,13 @@ function Versions({ model, onPublished }: { model: ModelRow; onPublished: () => 
                   : live && live.version > row.version ? t('ارجع إلى هذا الإصدار', 'Roll back to this') : t('انشر', 'Publish')}
               </button>
             )}
+            {!row.isCurrent && row.status !== 'processing' && (confirming === row.id
+              ? <span className="confirm-inline" role="alertdialog" aria-label={t(`حذف الإصدار ${row.version}`, `Delete version ${row.version}`)}>
+                  {t(`حذف v${row.version} وملفاته؟`, `Delete v${row.version} and its files?`)}{' '}
+                  <button type="button" className="btn btn-danger btn-sm" onClick={() => remove(row.id)} disabled={busy !== null}>{busy === row.id ? t('جارٍ الحذف…', 'Deleting…') : t('نعم، احذف', 'Yes, delete')}</button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirming(null)} disabled={busy !== null}>{t('إلغاء', 'Cancel')}</button>
+                </span>
+              : <button type="button" className="btn btn-quiet btn-sm" onClick={() => setConfirming(row.id)} disabled={busy !== null}>{t('احذف', 'Delete')}</button>)}
           </li>
         ))}
       </ul>
@@ -336,8 +361,20 @@ function Versions({ model, onPublished }: { model: ModelRow; onPublished: () => 
         </p>
       )}
       <p className="hint" style={{ margin: '8px 0 0' }}>
-        {t('النشر يجعل هذا الإصدار هو ما يراه المتسوقون. الرفع وحده لا ينشر شيئًا.', 'Publishing makes this version what shoppers see. Uploading alone never publishes anything.')}
+        {t('النشر يجعل هذا الإصدار هو ما يراه المتسوقون. الرفع وحده لا ينشر شيئًا. حذف إصدار غير منشور يحرّر مساحته.', 'Publishing makes this version what shoppers see. Uploading alone never publishes anything. Deleting a version that is not live frees its storage.')}
       </p>
+      {confirming === 'model'
+        ? <div className="confirm" role="alertdialog" aria-labelledby={`delete-${modelId}`} style={{ marginTop: 10 }}>
+            <p id={`delete-${modelId}`} style={{ margin: 0 }}>
+              <strong>{t('حذف هذا النموذج بكل إصداراته؟', 'Delete this model and every version?')}</strong>{' '}
+              {t('تُحذف ملفاته وتتحرّر مساحتها. إن كان المنتج منشورًا في متجرك يُزال عرضه ثلاثي الأبعاد خلال دقيقة تقريبًا، وتبقى تجربة الساعة إن وُجدت.', 'Its files are deleted and their storage freed. If the product is published on your shop, its 3D view is taken off within about a minute; a watch keeps its try-on.')}
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <button type="button" className="btn btn-danger btn-sm" onClick={() => remove('model')} disabled={busy !== null}>{busy === 'model' ? t('جارٍ الحذف…', 'Deleting…') : t('نعم، احذف النموذج', 'Yes, delete the model')}</button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirming(null)} disabled={busy !== null}>{t('إلغاء', 'Cancel')}</button>
+            </div>
+          </div>
+        : <button type="button" className="btn btn-quiet btn-sm" style={{ marginTop: 8 }} onClick={() => setConfirming('model')} disabled={busy !== null}>{t('احذف النموذج كله', 'Delete the whole model')}</button>}
     </div>
   );
 }

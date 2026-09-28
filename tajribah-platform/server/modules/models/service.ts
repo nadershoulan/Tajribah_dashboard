@@ -14,7 +14,7 @@
  * get 1 and 2, not a unique-key error. The live version is `models_3d.current_version_id`
  * only (see db/schema/ar.ts) — an upload never changes it; publishing does.
  */
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import { modelFiles, models3d, modelVersions, products } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import type { ModelVersionRow } from '@/lib/view-models';
@@ -65,11 +65,11 @@ export async function startUpload(ctx: TenantContext, input: StartUploadInput): 
   const store = forTenant(ctx.tenantId);
   const started = await withTenant(ctx.tenantId, async (db) => {
     let model = input.modelId ? await db.findById(models3d, input.modelId) : null;
-    if (input.modelId && !model) throw errors.notFound('model');
+    if (input.modelId && (!model || model.status === 'archived')) throw errors.notFound('model'); // T46: a deleted model takes no uploads
     if (!model && input.productId) {
       const product = await db.findById(products, input.productId);
       if (!product || product.deletedAt) throw errors.notFound('product');
-      model = await db.findOne(models3d, eq(models3d.productId, product.id));
+      model = await db.findOne(models3d, and(eq(models3d.productId, product.id), ne(models3d.status, 'archived'))); // T46: a deleted one starts afresh
       if (!model) {
         model = await db.insert(models3d, { id: uuidv7(), tenantId: ctx.tenantId, productId: product.id, name: product.name, source: 'uploaded', createdBy: ctx.actor.userId });
         await record(ctx, { action: 'create', resourceType: 'model', resourceId: model.id, after: model }, db);
@@ -142,7 +142,7 @@ export async function modelVersionsOf(ctx: TenantContext, modelId: string): Prom
   ctx.require('models:read');
   const model = await ctx.db.findById(models3d, modelId);
   if (!model) throw errors.notFound('model');
-  const versions = await ctx.db.find(modelVersions, eq(modelVersions.modelId, modelId), { orderBy: desc(modelVersions.version), limit: 100 });
+  const versions = await ctx.db.find(modelVersions, and(eq(modelVersions.modelId, modelId), ne(modelVersions.status, 'archived')), { orderBy: desc(modelVersions.version), limit: 100 }); // T46: deleted versions are archived
   const files = versions.length
     ? await ctx.db.find(modelFiles, inArray(modelFiles.modelVersionId, versions.map((v) => v.id)), { limit: 1000 })
     : [];

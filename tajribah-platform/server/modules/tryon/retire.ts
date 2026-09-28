@@ -13,6 +13,10 @@ import { forTenant } from '@/server/core/storage/storage';
 import { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { LIVE_GRACE_MS, isLive } from '@/server/modules/edge/publish';
 
+/** T46: any public file a live config may name — a cut-out, or a model file being deleted. */
+export const retireFile = (tenantId: string, productId: string | null, key: string, now = new Date()) =>
+  productId ? retireCutout(tenantId, productId, key, now) : forTenant(tenantId).delete(key).catch(() => undefined).then(() => 'now' as const);
+
 export async function retireCutout(tenantId: string, productId: string, key: string, now = new Date()): Promise<'now' | 'later'> {
   if (await isLive(tenantId, productId)) {
     await enqueue({ queue: 'storage.delete-later', tenantId, payload: { productId, key }, runAfter: new Date(now.getTime() + LIVE_GRACE_MS), dedupeKey: `retire:${key}` });

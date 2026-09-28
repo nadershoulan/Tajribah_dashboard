@@ -6,7 +6,7 @@ import { editModel, modelFileFor } from './edit';
 import { route } from '@/server/core/observability/request';
 import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@/server/core/http/api';
 import { errors } from '@/server/core/errors/problem';
-import { listModels, publishVersion } from './library';
+import { deleteModel, deleteVersion, listModels, publishVersion } from './library';
 import { confirmUpload, modelVersionsOf, startUpload } from './service';
 
 const StartUpload = z.object({
@@ -84,4 +84,22 @@ export const editModelHandler = route(async (request) => {
   assertSameOrigin(request, config);
   const ctx = await tenantContextFor(request, config);
   return json(await editModel(ctx, idAt(request, 1, 'model'), await readJson(request, MODEL_EDIT)), { status: 201 });
+});
+
+/** API-057 — DELETE /api/models/versions/[id] (T46): a version that is not live. */
+export const deleteVersionHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  await deleteVersion(ctx, idAt(request, 0, 'model version'));
+  return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+});
+
+/** API-058 — DELETE /api/models/[id] (T46): the whole model, off the shop too. */
+export const deleteModelHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  await deleteModel(ctx, idAt(request, 0, 'model'));
+  return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
 });

@@ -511,6 +511,8 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 /* Only the running sync stacks: its text over its meter. */
 .sync-progress { display: grid; gap: 4px; }
 .confirm { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--bad); border-radius: 12px; background: var(--bad-bg, #fff5f5); font-size: 13.5px; }
+/* T46: a one-line confirmation inside a list row (delete a model version). */
+.confirm-inline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--bad); }
 .btn-danger { background: var(--bad); color: #fff; border: 1px solid var(--bad); }
 .btn-danger:hover:not(:disabled) { filter: brightness(.94); }
 
@@ -521,6 +523,9 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .upload-failed { border-color: var(--bad); color: var(--bad); background: var(--bad-bg); }
 .upload-done { border-color: var(--aqua); }
 .versions-row > td { background: var(--bg, #f6f8fa); }
+/* T46: the versions sit in the table's scroll area; pinned to its visible start and no wider than the
+   screen, so on a phone their buttons and notes wrap into view instead of scrolling away. */
+.versions { position: sticky; inset-inline-start: 0; max-width: min(100%, calc(100vw - 72px)); }
 .versions ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .versions li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13.5px; }
 .versions-size { color: var(--text-2); margin-inline-end: auto; }

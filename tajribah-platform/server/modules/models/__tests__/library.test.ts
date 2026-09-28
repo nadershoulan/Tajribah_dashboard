@@ -3,13 +3,17 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq } from 'drizzle-orm';
 import { Document, WebIO } from '@gltf-transform/core';
-import { auditLogs, models3d, products, tenantMemberships, users } from '@/db/schema';
+import { auditLogs, jobs, modelFiles, models3d, products, tenantMemberships, users } from '@/db/schema';
+import { storageBytesHeld } from '@/server/core/billing/entitlements';
+import { MemoryConfigStore, setConfigStore } from '@/server/core/edge/configs';
+import { publishProduct } from '@/server/modules/edge/publish';
+import { handleDeleteLater } from '@/server/modules/tryon/retire';
 import { uuidv7 } from '@/lib/ids';
 import { setLogLevel } from '@/server/core/observability/log';
 import { MemoryStorage, setStorage, storage } from '@/server/core/storage/storage';
-import { buildTenantContext } from '@/server/core/tenancy/context';
+import { buildTenantContext, systemContext } from '@/server/core/tenancy/context';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
-import { listModels, publishVersion } from '@/server/modules/models/library';
+import { deleteModel, deleteVersion, listModels, publishVersion } from '@/server/modules/models/library';
 import { processVersion } from '@/server/modules/models/process';
 import { confirmUpload, modelVersionsOf, startUpload } from '@/server/modules/models/service';
 
@@ -116,5 +120,92 @@ test('publishing needs models:publish; another store sees nothing and can publis
     assert.deepEqual(await listModels(b.ctx), []);
     await assert.rejects(() => publishVersion(b.ctx, made.versionId), (e: any) => code(e) === 'not_found');
     await assert.rejects(() => modelVersionsOf(b.ctx, made.modelId), (e: any) => code(e) === 'not_found');
+  } finally { await harness.close(); }
+});
+
+test('T46: a version that is not live can be deleted — its files go and its storage is freed; the live one cannot', async () => {
+  const harness = await createTestDb();
+  setStorage(new MemoryStorage());
+  try {
+    const { ctx, tenantId } = await merchant(harness, 'alpha');
+    const v1 = await version(ctx, tenantId, {});
+    const v2 = await version(ctx, tenantId, { modelId: v1.modelId });
+    await publishVersion(ctx, v2.versionId);
+    const before = await storageBytesHeld(ctx);
+    const keysOf = async (versionId: string) => (await admin(harness, () => harness.db.select().from(modelFiles).where(eq(modelFiles.modelVersionId, versionId))) as any[]).map((f) => f.storageKey);
+    const v1Keys = await keysOf(v1.versionId);
+    assert.ok(v1Keys.length >= 2, 'the upload and its optimised file');
+
+    await assert.rejects(deleteVersion(ctx, v2.versionId), (e: any) => code(e) === 'conflict' && /live version/.test(e.message));
+    await deleteVersion(ctx, v1.versionId);
+    assert.deepEqual((await modelVersionsOf(ctx, v1.modelId)).map((v) => v.version), [2], 'gone from the list');
+    for (const key of v1Keys) assert.equal(await storage().head(key), null, `${key}: bytes deleted`);
+    assert.ok((await storageBytesHeld(ctx)) < before, 'the storage it held is freed');
+    await assert.rejects(deleteVersion(ctx, v1.versionId), (e: any) => code(e) === 'not_found', 'deleting twice');
+    await assert.rejects(publishVersion(ctx, v1.versionId), (e: any) => code(e) === 'conflict', 'a deleted version cannot go live');
+    const trail = (await admin(harness, () => harness.db.select().from(auditLogs).where(eq(auditLogs.resourceType, 'model_version'))) as any[]).filter((r) => r.action === 'delete');
+    assert.deepEqual(trail.map((r) => [r.resourceId, r.changes.after.archived]), [[v1.versionId, 1]], 'one delete, recorded with what it freed');
+    const v3 = await version(ctx, tenantId, { modelId: v1.modelId });
+    assert.deepEqual((await modelVersionsOf(ctx, v1.modelId)).map((v) => v.version), [3, 2], 'numbering carries on — v1 is never reused');
+
+    void v3;
+  } finally { await harness.close(); }
+});
+
+test('T46: deleting a model takes it off the shop first, keeps its files for shoppers holding the old config, then deletes them', async () => {
+  const harness = await createTestDb();
+  setStorage(new (class extends MemoryStorage { publicUrl(k: string) { return `https://cdn.example.test/${k}`; } })());
+  const kv = new MemoryConfigStore();
+  setConfigStore(kv);
+  try {
+    const { ctx, tenantId } = await merchant(harness, 'alpha');
+    const [product] = await admin(harness, () => harness.db.insert(products).values({ tenantId, name: 'Vase', externalId: 'v-1', arEnabled: true, dimensions: { widthMm: 100, heightMm: 200 } } as any).returning()) as any[];
+    const v1 = await version(ctx, tenantId, { productId: product.id });
+    await publishVersion(ctx, v1.versionId);
+    await publishProduct(ctx, product.id);
+    assert.ok(kv.entries.get('alpha/v-1.json'));
+    const keys = (await admin(harness, () => harness.db.select().from(modelFiles)) as any[]).map((f) => f.storageKey);
+    const before = await storageBytesHeld(ctx);
+
+    await deleteModel(ctx, v1.modelId);
+    assert.deepEqual(await listModels(ctx), [], 'gone from the library');
+    assert.equal(kv.entries.get('alpha/v-1.json'), undefined, 'nothing left to open → the button is withdrawn');
+    for (const key of keys) assert.ok(await storage().head(key), `${key}: kept for shoppers still holding the old config`);
+    assert.ok((await storageBytesHeld(ctx)) < before, 'the storage is freed at once');
+    const later = await admin(harness, () => harness.db.select().from(jobs).where(eq(jobs.queue, 'storage.delete-later'))) as any[];
+    assert.equal(later.length, keys.length);
+    for (const job of later) await handleDeleteLater(job);
+    for (const key of keys) assert.equal(await storage().head(key), null, `${key}: deleted after the grace period`);
+
+    await assert.rejects(deleteModel(ctx, v1.modelId), (e: any) => code(e) === 'not_found');
+    await assert.rejects(startUpload(ctx, { filename: 'm.glb', sizeBytes: 100, modelId: v1.modelId }), (e: any) => code(e) === 'not_found', 'a deleted model takes no uploads');
+    const fresh = await startUpload(ctx, { filename: 'm.glb', sizeBytes: 100, productId: product.id });
+    assert.notEqual(fresh.modelId, v1.modelId, 'a new upload for the product starts a new model');
+  } finally { await harness.close(); }
+});
+
+test('T46: a version still being prepared cannot be deleted; an analyst can delete nothing', async () => {
+  const harness = await createTestDb();
+  setStorage(new MemoryStorage());
+  try {
+    const { ctx, tenantId } = await merchant(harness, 'alpha');
+    const file = await glb();
+    const started = await startUpload(ctx, { filename: 'm.glb', sizeBytes: file.byteLength });
+    await storage().put(started.uploadUrl.replace('memory://upload/', ''), file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer);
+    await confirmUpload(ctx, started.versionId); // processing, not yet optimised
+    await assert.rejects(deleteVersion(ctx, started.versionId), (e: any) => code(e) === 'conflict' && /still being prepared/.test(e.message));
+    await processVersion(tenantId, started.versionId, 'r');
+    const reader = await (async () => {
+      const userId = uuidv7();
+      await admin(harness, async () => {
+        await harness.db.insert(users).values({ id: userId, email: 'reader@example.test', passwordHash: 'x', fullName: 'r' } as any);
+        await harness.db.insert(tenantMemberships).values({ id: uuidv7(), tenantId, userId, role: 'analyst', status: 'active' } as any);
+      });
+      return buildTenantContext({ actor: { userId, email: 'reader@example.test', isStaff: false }, tenantId, requestId: 'r' });
+    })();
+    await assert.rejects(deleteVersion(reader, started.versionId), (e: any) => code(e) === 'forbidden');
+    await assert.rejects(deleteModel(reader, started.modelId), (e: any) => code(e) === 'forbidden');
+    const writeOnly = await systemContext({ tenantId, requestId: 'r', permissions: ['models:read', 'models:write'] });
+    await assert.rejects(deleteModel(writeOnly, started.modelId), (e: any) => code(e) === 'forbidden', 'taking a model off the shop is a publish right too');
   } finally { await harness.close(); }
 });

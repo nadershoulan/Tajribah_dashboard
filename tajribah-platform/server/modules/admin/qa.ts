@@ -14,7 +14,7 @@
  *  - **Looking at it**: the web file streams from here, same-origin, to staff only — the store's
  *    files are private until published, and the CDN is not the place to check a draft.
  */
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
 import { modelFiles, models3d, modelVersions, products, tenants } from '@/db/schema';
 import { errors } from '@/server/core/errors/problem';
@@ -54,7 +54,7 @@ export async function qaQueue(status: QaStatus = 'pending', limit = 50): Promise
   const found = await db.select({ model: models3d, tenant: tenants, product: products }).from(models3d)
     .innerJoin(tenants, eq(tenants.id, models3d.tenantId))
     .leftJoin(products, eq(products.id, models3d.productId))
-    .where(and(eq(models3d.source, 'ai_generated'), eq(models3d.qaStatus, status)))
+    .where(and(eq(models3d.source, 'ai_generated'), eq(models3d.qaStatus, status), ne(models3d.status, 'archived'))) // T46: a deleted model needs no review
     .orderBy(status === 'pending' ? models3d.updatedAt : desc(models3d.updatedAt))
     .limit(Math.min(limit, 100));
 

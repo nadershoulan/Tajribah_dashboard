@@ -61,6 +61,9 @@ export interface DataSource {
   /** P1.14. Newest first; `isCurrent` marks the live one. */
   modelVersions(modelId: string): Promise<ModelVersionRow[]>;
   publishVersion(versionId: string): Promise<void>;
+  /** T46 — a version that is not live; the whole model (off the shop too). */
+  deleteModelVersion(versionId: string): Promise<void>;
+  deleteModel(modelId: string): Promise<void>;
   /** P1.12 uploader: presigned PUT straight to storage, then the server checks the bytes. */
   uploadModel(file: File, target?: { productId?: string; modelId?: string }): Promise<{ modelId: string; status: 'processing' | 'failed'; error: string | null }>;
   /** P3.3/P3.7: a product's photos for 3D generation, and whether a generation could start. */
@@ -168,6 +171,12 @@ export function apiSource(client: ApiClient): DataSource {
     },
     async modelVersions(modelId) {
       return (await client.call<{ versions: ModelVersionRow[] }>(`/api/models/${encodeURIComponent(modelId)}/versions`)).versions;
+    },
+    async deleteModelVersion(versionId) {
+      await client.call(`/api/models/versions/${encodeURIComponent(versionId)}`, { method: 'DELETE' });
+    },
+    async deleteModel(modelId) {
+      await client.call(`/api/models/${encodeURIComponent(modelId)}`, { method: 'DELETE' });
     },
     async publishVersion(versionId) {
       await client.call<void>(`/api/models/versions/${encodeURIComponent(versionId)}/publish`, { method: 'POST' });
@@ -385,6 +394,8 @@ function demoTryOnView(p: ProductRow): TryOnWatchView {
 /** Which version is live per demo model, when it is not the newest. */
 const demoLive = new Map<string, number>();
 /** Versions 1…n of a demo model; older ready versions stand in for rollbacks. */
+/** T46: the preview's deleted versions, for this page load only. */
+const demoDeletedVersions = new Set<string>();
 function demoVersionsOf(model: ModelRow): ModelVersionRow[] {
   // T25: a generated model is never live before review, in the preview as on the server.
   const held = model.source === 'ai_generated' && model.qaStatus !== 'approved';
@@ -495,7 +506,21 @@ export const demoSource: DataSource = {
   async modelVersions(modelId) {
     const model = demoModels.find((m) => m.id === modelId);
     if (!model) throw new ApiError(404, 'not_found', 'model not found');
-    return demoVersionsOf(model);
+    return demoVersionsOf(model).filter((r) => !demoDeletedVersions.has(r.id));
+  },
+  async deleteModelVersion(versionId) {
+    const [modelId, n] = versionId.split('@');
+    const model = demoModels.find((m) => m.id === modelId);
+    const version = model && demoVersionsOf(model).find((v) => v.id === versionId);
+    if (!model || !version) throw new ApiError(404, 'not_found', 'model version not found');
+    if (version.isCurrent) throw new ApiError(409, 'conflict', 'this is the live version — publish another version first, or delete the whole model');
+    if (version.status === 'processing') throw new ApiError(409, 'conflict', 'this version is still being prepared — delete it once it is ready or has failed');
+    demoDeletedVersions.add(`${model.id}@${n}`);
+  },
+  async deleteModel(modelId) {
+    const at = demoModels.findIndex((m) => m.id === modelId);
+    if (at < 0) throw new ApiError(404, 'not_found', 'model not found');
+    demoModels.splice(at, 1);
   },
   async publishVersion(versionId) {
     const [modelId, n] = versionId.split('@');

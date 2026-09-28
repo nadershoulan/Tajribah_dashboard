@@ -43,3 +43,28 @@ export function inspectHtml(html: string, storeKey: string): InstallStatus {
   if (!product.trim() || product.includes('{{') || product === PRODUCT_PLACEHOLDER) return { status: 'template_not_rendered', detail: product };
   return { status: 'installed', productRef: product };
 }
+
+/**
+ * P7.7 — DNS rebinding: a public-looking name can resolve to a private or reserved address, which
+ * `safeTarget` cannot see. The service resolves each hop's host first and refuses these ranges.
+ * (Rebinding *between* that lookup and the fetch remains; a Worker cannot reach private networks
+ * anyway, so this closes the remaining practical case: a name that simply points inward.)
+ */
+export function isPrivateAddress(ip: string): boolean {
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    return a === 0 || a === 10 || a === 127 || a >= 224 // this network, private, loopback, multicast + reserved
+      || (a === 100 && b >= 64 && b <= 127) // carrier-grade NAT
+      || (a === 169 && b === 254) // link-local (cloud metadata lives here)
+      || (a === 172 && b >= 16 && b <= 31)
+      || (a === 192 && b === 168)
+      || (a === 192 && b === 0 && Number(v4[3]) === 0)
+      || (a === 198 && (b === 18 || b === 19)); // benchmarking
+  }
+  const v6 = ip.toLowerCase();
+  if (!v6.includes(':')) return true; // not an address at all: refuse
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(v6);
+  if (mapped) return isPrivateAddress(mapped[1]!);
+  return v6 === '::' || v6 === '::1' || /^f[cd]/.test(v6) || /^fe[89ab]/.test(v6) || /^ff/.test(v6);
+}

@@ -8,11 +8,19 @@ import { buildTenantContext } from '@/server/core/tenancy/context';
 import { createTestDb, seedTenant } from '@/server/testing/harness';
 import { ATTR, WIDGET_SRC } from '@/widget/src/main';
 import { embedSnippet, PRODUCT_PLACEHOLDER } from '@/widget/src/snippet';
-import { inspectHtml, safeTarget } from '@/server/modules/embed/check';
-import { checkInstall, CHECK_MAX_BYTES, snippetFor } from '@/server/modules/embed/service';
+import { inspectHtml, isPrivateAddress, safeTarget } from '@/server/modules/embed/check';
+import { checkInstall, CHECK_MAX_BYTES, DOH_URL, snippetFor } from '@/server/modules/embed/service';
 
 setLogLevel('error');
 const code = (e: any) => e.code;
+/** A DNS-over-HTTPS answer: `name` → `ip` (A) — public unless a test says otherwise. */
+const dns = (url: string, table: Record<string, string> = {}) => {
+  const q = new URL(url).searchParams;
+  const ip = table[q.get('name')!] ?? '93.184.216.34';
+  const v6 = ip.includes(':');
+  const answer = (q.get('type') === 'AAAA') === v6 ? [{ type: v6 ? 28 : 1, data: ip }] : [];
+  return Response.json({ Status: 0, Answer: answer });
+};
 
 test('the snippet is built from the attributes the widget reads, and the checker accepts it', () => {
   const snippet = embedSnippet('failet');
@@ -54,6 +62,7 @@ test('checking a live page: installed, redirects re-checked, errors reported, si
     const page = (ref: string) => `<html>${embedSnippet(slug, ref)}</html>`;
     const site = (routes: Record<string, () => Response>): typeof fetch => async (input) => {
       const url = String(input);
+      if (url.startsWith(DOH_URL)) return dns(url); // T45: every host resolves to a public address here
       return (routes[url] ?? (() => new Response('not found', { status: 404 })))();
     };
 
@@ -100,7 +109,7 @@ test('T37: installed right — and whether this product’s button is live, not 
   try {
     const seeded = await seedTenant(harness, 'beta');
     const ctx = await buildTenantContext({ actor: { userId: seeded.userId, email: seeded.email, isStaff: false }, tenantId: seeded.tenantId, requestId: 'r' });
-    const page = (ref: string): typeof fetch => async () => new Response(`<html>${embedSnippet('beta', ref)}</html>`);
+    const page = (ref: string): typeof fetch => async (input) => (String(input).startsWith(DOH_URL) ? dns(String(input)) : new Response(`<html>${embedSnippet('beta', ref)}</html>`));
     const own = uuidv7();
     const [synced, made, gone] = await harness.asAdmin(() => harness.db.insert(products).values([
       { tenantId: seeded.tenantId, name: 'Synced watch', nameAr: 'ساعة مزامنة', externalId: 'sa-9' },
@@ -119,5 +128,35 @@ test('T37: installed right — and whether this product’s button is live, not 
     assert.equal((await at('sa-404')).product, null, 'no product has this id');
     assert.equal((await at('sa-11')).product, null, 'a deleted product is not in the catalogue');
     assert.equal((await at(synced.id)).product, null, 'a synced product is addressed by its platform id, not ours — as the config key is');
+  } finally { await harness.close(); }
+});
+
+test('T45 (P7.7): a public-looking name that points inward is refused; so is one we cannot look up', async () => {
+  const privateOnes = ['10.0.0.5', '127.0.0.1', '169.254.169.254', '172.16.3.4', '172.31.255.255', '192.168.1.1', '100.64.0.1', '0.0.0.0', '224.0.0.1', '198.18.0.1',
+    '::1', '::', 'fd00::1', 'fc12::1', 'fe80::1', '::ffff:10.0.0.1', 'not-an-ip'];
+  for (const ip of privateOnes) assert.equal(isPrivateAddress(ip), true, ip);
+  for (const ip of ['93.184.216.34', '172.32.0.1', '100.128.0.1', '2606:4700::1111', '::ffff:93.184.216.34', '8.8.8.8']) assert.equal(isPrivateAddress(ip), false, ip);
+
+  const harness = await createTestDb();
+  try {
+    const seeded = await seedTenant(harness, 'gamma');
+    const ctx = await buildTenantContext({ actor: { userId: seeded.userId, email: seeded.email, isStaff: false }, tenantId: seeded.tenantId, requestId: 'r' });
+    const html = new Response(`<html>${embedSnippet('gamma', '1')}</html>`);
+    const fetched: string[] = [];
+    const net = (table: Record<string, string>, doh: 'ok' | 'down' = 'ok'): typeof fetch => async (input) => {
+      const url = String(input);
+      if (url.startsWith(DOH_URL)) return doh === 'down' ? new Response('', { status: 503 }) : dns(url, table);
+      fetched.push(url);
+      if (url === 'https://shop.example.sa/go') return new Response(null, { status: 302, headers: { location: 'https://inside.example.sa/admin' } });
+      return html.clone();
+    };
+    const inward = await checkInstall(ctx, 'https://sneaky.example.sa/p', net({ 'sneaky.example.sa': '169.254.169.254' }));
+    assert.deepEqual([inward.status, (inward as any).detail], ['unreachable', 'the address points to a private network, which we will not open']);
+    assert.equal((await checkInstall(ctx, 'https://v6.example.sa/p', net({ 'v6.example.sa': 'fd00::5' }))).status, 'unreachable');
+    const hop = await checkInstall(ctx, 'https://shop.example.sa/go', net({ 'inside.example.sa': '10.1.2.3' }));
+    assert.equal(hop.status, 'unreachable', 'a redirect to a name that points inward is not followed');
+    assert.equal((await checkInstall(ctx, 'https://shop.example.sa/p', net({}, 'down'))).status, 'unreachable', 'no lookup, no fetch');
+    assert.deepEqual(fetched, ['https://shop.example.sa/go'], 'nothing inward, and nothing unlooked-up, was ever fetched');
+    assert.equal((await checkInstall(ctx, 'https://shop.example.sa/p', net({}))).status, 'installed', 'a public address is checked as before');
   } finally { await harness.close(); }
 });

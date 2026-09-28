@@ -4,6 +4,10 @@
  * The page is fetched by our server under `safeTarget`'s rules: redirects are followed by
  * hand (at most 3) and every hop is checked again — a store page that redirects to an
  * internal address is refused, not followed. 8 seconds, 1 MB, no cookies.
+ *
+ * P7.7 (T45): before each hop the host is resolved over DNS-over-HTTPS and a name that points at
+ * a private or reserved address is refused (`isPrivateAddress`). A failed lookup refuses too — the
+ * checker never fetches a page it could not place.
  */
 import { storeConnections } from '@/db/schema';
 import { errors } from '@/server/core/errors/problem';
@@ -11,10 +15,32 @@ import type { TenantContext } from '@/server/core/tenancy/context';
 import { embedSnippet } from '@/widget/src/snippet';
 import type { InstallCheck } from '@/lib/view-models';
 import { publicationOf } from '@/server/modules/edge/publish';
-import { inspectHtml, safeTarget } from './check';
+import { inspectHtml, isPrivateAddress, safeTarget } from './check';
 
 export const CHECK_TIMEOUT_MS = 8000;
 export const CHECK_MAX_BYTES = 1024 * 1024;
+export const DOH_URL = 'https://cloudflare-dns.com/dns-query';
+
+export type Resolver = (host: string) => Promise<string[] | null>;
+
+/** A and AAAA answers for `host` from a DNS-over-HTTPS JSON endpoint; null when the lookup fails. */
+export function dohResolver(fetchImpl: typeof fetch): Resolver {
+  return async (host) => {
+    try {
+      const answers: string[] = [];
+      for (const type of ['A', 'AAAA']) {
+        const response = await fetchImpl(`${DOH_URL}?name=${encodeURIComponent(host)}&type=${type}`, { headers: { accept: 'application/dns-json' }, signal: AbortSignal.timeout(3000) });
+        if (!response.ok) return null;
+        const body = await response.json() as { Status?: number; Answer?: { type: number; data: string }[] };
+        if (body.Status !== 0 && body.Status !== 3) return null; // 3 = no such name: no answers, not a failure
+        for (const a of body.Answer ?? []) if (a.type === 1 || a.type === 28) answers.push(a.data);
+      }
+      return answers;
+    } catch {
+      return null;
+    }
+  };
+}
 
 /** The store key merchants paste: the store's slug — already public in its URLs. */
 export async function snippetFor(ctx: TenantContext): Promise<{ storeKey: string; snippet: string; storeHost: string | null }> {
@@ -22,13 +48,17 @@ export async function snippetFor(ctx: TenantContext): Promise<{ storeKey: string
   return { storeKey: ctx.tenant.slug, snippet: embedSnippet(ctx.tenant.slug), storeHost: await storeHost(ctx) };
 }
 
-export async function checkInstall(ctx: TenantContext, url: string, fetchImpl: typeof fetch = fetch): Promise<InstallCheck> {
+export async function checkInstall(ctx: TenantContext, url: string, fetchImpl: typeof fetch = fetch, resolve: Resolver = dohResolver(fetchImpl)): Promise<InstallCheck> {
   ctx.require('ar:read');
   const host = await storeHost(ctx);
   let target = safeTarget(url, host);
   if (!target.ok) throw errors.validation({ url: [target.reason] });
 
   for (let hop = 0; hop <= 3; hop++) {
+    const addresses = await resolve(target.url.hostname);
+    if (addresses === null) return { status: 'unreachable', detail: 'we could not look up the address', url: target.url.href };
+    if (addresses.length === 0) return { status: 'unreachable', detail: 'the address does not exist', url: target.url.href };
+    if (addresses.some(isPrivateAddress)) return { status: 'unreachable', detail: 'the address points to a private network, which we will not open', url: target.url.href };
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), CHECK_TIMEOUT_MS);
     let response: Response;

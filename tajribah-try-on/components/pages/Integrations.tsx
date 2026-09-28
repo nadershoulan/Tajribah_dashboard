@@ -19,7 +19,7 @@ export default function Integrations() {
   const syncs = [
     t('المنتجات والصور والأوصاف', 'Products, images and descriptions'),
     t('الخيارات: المقاسات والألوان والخامات', 'Variants: sizes, colours and materials'),
-    t('الأسعار والمخزون', 'Prices and stock'),
+    t('الأسعار', 'Prices'),
   ];
 
   // The same two lines the dashboard's install page gives (tajribah-platform `widget/src/snippet.ts`).

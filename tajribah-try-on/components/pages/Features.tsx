@@ -45,7 +45,7 @@ export default function Features() {
   ];
 
   const merchant = [
-    { icon: RefreshCw, h: t('مزامنة الكتالوج', 'Catalogue sync'), p: t('المنتجات والأسعار والمخزون تُستورد من منصة متجرك وتبقى محدّثة.', 'Products, prices and stock import from your store platform and stay current.') },
+    { icon: RefreshCw, h: t('مزامنة الكتالوج', 'Catalogue sync'), p: t('المنتجات والصور والأسعار تُستورد من منصة متجرك وتبقى محدّثة.', 'Products, images and prices import from your store platform and stay current.') },
     { icon: Box, h: t('نماذج ثلاثية الأبعاد من الصور', '3D from photos'), p: t('ارفع صورًا من الأمام والجانب والخلف، ونولّد نموذجًا للعرض ثلاثي الأبعاد والواقع المعزز.', 'Upload front, side and back photos and we generate a model for 3D and AR viewing.') },
     { icon: BarChart3, h: t('تحليلات الأثر', 'Impact analytics'), p: t('الجلسات والتجارب ونسبة التحويل والمنتجات الأكثر تجربة، في لوحة واحدة.', 'Sessions, try-ons, conversion and most-tried products, in one dashboard.') },
     { icon: Code2, h: t('زر يناسب متجرك', 'A button that fits your store'), p: t('لون الزر ونصه وموضعه قابلة للتعديل ليطابق هوية متجرك.', 'Button colour, text and position adjust to match your store’s identity.') },

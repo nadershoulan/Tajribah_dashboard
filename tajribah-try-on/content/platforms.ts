@@ -50,15 +50,14 @@ export const PLATFORM_PAGES: Record<'salla' | 'zid', PlatformPage> = {
     },
     steps: [
       { title: { ar: 'ثبّت تطبيق تجربة', en: 'Install the Tajribah app' }, body: { ar: 'من متجر تطبيقات سلة، ووافق على الصلاحيات المطلوبة بضغطة واحدة: قراءة المنتجات وإضافة الزر إلى صفحة المنتج.', en: 'From the Salla App Store, approve the permissions in one step: reading products and adding the button to the product page.' } },
-      { title: { ar: 'تُستورد منتجاتك', en: 'Your products import' }, body: { ar: 'نسحب منتجاتك وخياراتها وأسعارها ومخزونها، وتبقى محدّثة كلما غيّرتها في سلة.', en: 'We bring in your products, variants, prices and stock, and keep them current whenever you change them in Salla.' } },
+      { title: { ar: 'تُستورد منتجاتك', en: 'Your products import' }, body: { ar: 'نسحب منتجاتك وخياراتها وأسعارها، وتبقى محدّثة كلما غيّرتها في سلة.', en: 'We bring in your products, variants and prices, and keep them current whenever you change them in Salla.' } },
       { title: { ar: 'اختر المنتجات وأضف المقاسات', en: 'Pick products and add sizes' }, body: { ar: 'فعّل التجربة على المنتجات التي تريدها، وأدخل مقاسها بالمليمتر — هذا ما يجعل الحجم حقيقيًا.', en: 'Turn try-on on for the products you choose and enter their size in millimetres — that is what makes the size real.' } },
       { title: { ar: 'يظهر الزر في متجرك', en: 'The button appears in your store' }, body: { ar: 'زر «جرّبها» بلون متجرك ونصّه، في صفحة كل منتج فعّلته.', en: 'A “Try it on” button in your store’s colour and wording, on every product you turned on.' } },
     ],
     syncs: [
       { ar: 'المنتجات والصور والأوصاف من سلة', en: 'Products, images and descriptions from Salla' },
       { ar: 'الخيارات: المقاسات والألوان والخامات', en: 'Variants: sizes, colours and materials' },
-      { ar: 'الأسعار والمخزون، محدّثة تلقائيًا', en: 'Prices and stock, kept up to date' },
-      { ar: 'الإضافة إلى سلة المتجر من داخل الاستوديو', en: 'Add to the store’s cart from inside the studio' },
+      { ar: 'الأسعار، محدّثة تلقائيًا', en: 'Prices, kept up to date' },
     ],
     fit: SHARED_FIT,
     faq: [
@@ -84,13 +83,12 @@ export const PLATFORM_PAGES: Record<'salla' | 'zid', PlatformPage> = {
       { title: { ar: 'فعّل تطبيق تجربة', en: 'Enable the Tajribah app' }, body: { ar: 'من سوق تطبيقات زد، ووافق على الصلاحيات: قراءة المنتجات وإضافة الزر إلى صفحة المنتج.', en: 'From the Zid app market, approve the permissions: reading products and adding the button to the product page.' } },
       { title: { ar: 'مزامنة الكتالوج', en: 'Catalogue sync' }, body: { ar: 'تنتقل منتجاتك وخياراتها وأسعارها من زد تلقائيًا، وأي تعديل لاحق يصلنا دون أن تكرره.', en: 'Your products, variants and prices come across from Zid automatically, and later edits reach us without you repeating them.' } },
       { title: { ar: 'أدخل المقاس الحقيقي', en: 'Enter the real size' }, body: { ar: 'لكل منتج مفعّل: عرضه وارتفاعه بالمليمتر. من دونها لا نعرض مقارنة الحجم، حتى لا نعطي عميلك رقمًا غير دقيق.', en: 'For each enabled product: its width and height in millimetres. Without them we do not show size comparison, so your shopper never gets a wrong number.' } },
-      { title: { ar: 'جرّب قبل النشر', en: 'Preview before it goes live' }, body: { ar: 'شاهد الزر والاستوديو على منتجك من لوحة التحكم، ثم انشره حين تكون راضيًا.', en: 'See the button and the studio on your product from the dashboard, then publish when you are happy.' } },
+      { title: { ar: 'جرّب قبل النشر', en: 'Preview before it goes live' }, body: { ar: 'شاهد الزر بلون متجرك ونصّه في لوحة التحكم، ثم انشره حين تكون راضيًا.', en: 'See the button in your store’s colour and wording in the dashboard, then publish when you are happy.' } },
     ],
     syncs: [
       { ar: 'المنتجات والصور والأوصاف من زد', en: 'Products, images and descriptions from Zid' },
       { ar: 'الخيارات والمقاسات المتاحة', en: 'Variants and available sizes' },
-      { ar: 'الأسعار والمخزون', en: 'Prices and stock' },
-      { ar: 'الإضافة إلى سلة المتجر من داخل الاستوديو', en: 'Add to the store’s cart from inside the studio' },
+      { ar: 'الأسعار', en: 'Prices' },
     ],
     fit: SHARED_FIT,
     faq: [

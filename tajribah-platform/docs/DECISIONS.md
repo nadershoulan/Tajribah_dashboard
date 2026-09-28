@@ -668,3 +668,11 @@ the live config was rewritten; a shopper holding the previous config could meet 
 Now a live product's replaced picture is deleted 10 minutes later.
 
 **Rollback path.** Remove the Publish handler; configs already in KV stay until deleted by key.
+
+## T39 · 2026-09-29 · Unplanned features are removed from the website, not marked "coming"
+
+Applying T34 (nothing unbuilt is sold as included) to three claims that are also **not in the
+plan** — stock sync, add-to-cart inside the studio, a studio preview in the dashboard. T34 marked
+"AI product comparison" as *coming soon* because Nader chose that for a planned feature; for an
+unplanned one, "coming" would invent a roadmap, so the claim is removed. If Nader wants either
+feature, it goes into the plan first and the website can then say it is coming.

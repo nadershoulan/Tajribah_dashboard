@@ -62,3 +62,16 @@ test('T34: a feature the dashboard does not have is never sold as included', () 
   const growth = SITE_PLANS.find((p) => p.id === 'growth')!;
   assert.ok(growth.features.some((f) => f.en === 'AI product comparison (coming soon)'), 'the Growth card says it is coming');
 });
+
+test('T39: the website says the catalogue sync brings what the connector contract carries — no stock, no cart inside the studio', () => {
+  // server/connectors/types.ts ExternalProduct: ids, names, description, price, images, status. Stock is not in it.
+  const connector = readFileSync(join(process.cwd(), 'server/connectors/types.ts'), 'utf8');
+  const external = connector.slice(connector.indexOf('export type ExternalProduct'), connector.indexOf('};', connector.indexOf('export type ExternalProduct')));
+  assert.ok(!/stock|inventory/i.test(external), 'if the connector gains stock, this test and the pages may change together');
+  for (const file of ['content/platforms.ts', 'components/pages/Features.tsx', 'components/pages/HowItWorks.tsx', 'components/pages/Integrations.tsx']) {
+    const text = site(file);
+    assert.ok(!/stock|مخزون/i.test(text), `${file}: no stock claim`);
+    assert.ok(!/inside the studio|من داخل الاستوديو/.test(text), `${file}: no add-to-cart inside the studio`);
+    assert.ok(!/button and the studio on your product/.test(text), `${file}: the dashboard previews the button, not the studio`);
+  }
+});

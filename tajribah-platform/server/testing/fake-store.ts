@@ -5,10 +5,14 @@
  * Keyset-paged by external id, so a page boundary never moves when a product changes. It
  * can fail on demand (`failListCalls`) and counts what it was asked, so a test can prove a
  * resumed sync did not re-fetch pages it had already stored.
+ *
+ * P6.9: it is also the **reference** the connector conformance suite is proven against
+ * (`server/connectors/conformance.ts`): it can be down (every call fails as an upstream outage)
+ * and can refuse a refresh token for good.
  */
 import type { Provider } from '@/db/schema';
 import { errors } from '@/server/core/errors/problem';
-import type { Connector, ExternalProduct, Page, TokenSet } from '@/server/connectors/types';
+import { TokenRevokedError, type Connector, type ExternalProduct, type Page, type TokenSet } from '@/server/connectors/types';
 
 export class FakeStore implements Connector {
   readonly products = new Map<string, ExternalProduct>();
@@ -16,6 +20,10 @@ export class FakeStore implements Connector {
   readonly listCalls: (string | null)[] = [];
   /** The next N `listProducts` calls throw `upstream_unavailable`. */
   failListCalls = 0;
+  /** Every call fails as an upstream outage while set. */
+  down = false;
+  /** Refresh tokens the store refuses for good (the merchant uninstalled the app). */
+  readonly revoked = new Set<string>();
 
   constructor(readonly provider: Provider = 'salla', private readonly pageSize = 100) {}
 
@@ -39,11 +47,14 @@ export class FakeStore implements Connector {
   }
 
   async refresh(tokens: TokenSet): Promise<TokenSet> {
+    if (this.down) throw errors.upstream(this.provider, new Error('fake store is down'));
+    if (tokens.refreshToken && this.revoked.has(tokens.refreshToken)) throw new TokenRevokedError('the store revoked access');
     return tokens;
   }
 
   async listProducts(_accessToken: string, cursor: string | null, since?: Date | null): Promise<Page<ExternalProduct>> {
     this.listCalls.push(cursor);
+    if (this.down) throw errors.upstream(this.provider, new Error('fake store is down'));
     if (this.failListCalls > 0) {
       this.failListCalls -= 1;
       throw errors.upstream(this.provider, new Error('fake store is down'));
@@ -58,6 +69,7 @@ export class FakeStore implements Connector {
   }
 
   async getProduct(_accessToken: string, externalId: string): Promise<ExternalProduct | null> {
+    if (this.down) throw errors.upstream(this.provider, new Error('fake store is down'));
     return this.products.get(externalId) ?? null;
   }
 }

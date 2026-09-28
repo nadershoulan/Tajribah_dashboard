@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { NextRequest } from 'next/server';
 import nextConfig from '../../../../next.config';
+import { matchHeaders } from 'vinext/config/config-matchers';
 import { config as proxyConfig, proxy } from '../../../../proxy';
 import { API_CSP, SECURITY_HEADERS, newNonce, pageCsp } from '@/server/core/http/security-headers';
 
@@ -58,3 +59,21 @@ test('the proxy runs on pages, not on the API or static files', () => {
   for (const page of ['/', '/login', '/dashboard', '/dashboard/security', '/admin/stores']) assert.ok(runs(page), page);
   for (const other of ['/api/auth/me', '/brand/favicon.ico', '/assets/index.js']) assert.ok(!runs(other), other);
 });
+
+test('as vinext serves them: first matching rule wins per header, and the home page `/` is covered too', async () => {
+  const rules = await nextConfig.headers!();
+  // vinext keeps the first value of each header (Next.js keeps the last), and reads `/:path*` as
+  // one segment or more — so `/` needs its own rule (found on the try-on site's build, P5.12).
+  const served = (path: string) => {
+    const out = new Map<string, string>();
+    for (const h of matchHeaders(path, rules as never, { headers: new Headers(), cookies: {}, query: new URLSearchParams(), host: 'app.tajribah.com' } as never)) if (!out.has(h.key.toLowerCase())) out.set(h.key.toLowerCase(), h.value);
+    return out;
+  };
+  for (const path of ['/', '/dashboard', '/dashboard/tryon', '/admin', '/brand/logo.png', '/api/tryon']) {
+    const got = served(path);
+    for (const { key, value } of SECURITY_HEADERS) assert.equal(got.get(key.toLowerCase()), value, `${path}: ${key}`);
+  }
+  assert.equal(served('/api/tryon').get('content-security-policy'), API_CSP, 'the API keeps its own policy');
+  assert.equal(served('/dashboard').get('content-security-policy'), undefined, 'pages take theirs from the proxy, with a nonce');
+});
+

@@ -11,7 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { authErrorMessage } from './auth-errors';
 import { safeNext } from '@/lib/safe-next';
 import { slugify } from '@/lib/slug';
-import { TRIAL_DAYS } from '@/lib/plans';
+import { TRIAL_DAYS, planByCode, type PlanCode } from '@/lib/plans';
 
 export default function Register() {
   const { t, lang } = useLang();
@@ -22,6 +22,11 @@ export default function Register() {
   const [pending, setPending] = useState(false);
 
   const slug = slugify(storeName);
+  // T32: a plan chosen on the website's pricing page. The trial itself runs on Starter's features
+  // (`entitlementsOf`: no subscription = the Starter trial), so the page says so plainly.
+  const asked = new URLSearchParams(env.search).get('plan');
+  const chosen = asked === 'starter' || asked === 'growth' || asked === 'pro' ? planByCode(asked as PlanCode) : null;
+  const starter = planByCode('starter').name;
   // §13.6: never derive a slug from an Arabic name without showing the merchant the result.
   const needsConfirmation = storeName.trim().length > 2 && slug === null;
 
@@ -75,6 +80,14 @@ export default function Register() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 18 }}><LangToggle /></div>
           <h1>{t('أنشئ متجرك على تجربة', 'Create your store on Tajribah')}</h1>
           <p>{t('دقيقتان، ثم نربط متجرك.', 'Two minutes, then we connect your store.')}</p>
+          {chosen && (
+            <p className="auth-plan-note" role="note">
+              {chosen.code === 'starter'
+                ? t(`اخترت باقة ${chosen.name.ar}. تبدأ تجربتك المجانية لمدة ${TRIAL_DAYS} يومًا عليها الآن.`, `You chose ${chosen.name.en}. Your ${TRIAL_DAYS}-day free trial starts on it now.`)
+                : t(`اخترت باقة ${chosen.name.ar}. تبدأ التجربة المجانية لمدة ${TRIAL_DAYS} يومًا بمزايا باقة ${starter.ar}، وتنتقل إلى ${chosen.name.ar} من صفحة الفوترة متى شئت.`,
+                  `You chose ${chosen.name.en}. The ${TRIAL_DAYS}-day free trial runs on the ${starter.en} plan’s features; move to ${chosen.name.en} from Billing whenever you like.`)}
+            </p>
+          )}
 
           <form onSubmit={onSubmit} noValidate>
             <div className="field">

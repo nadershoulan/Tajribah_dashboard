@@ -20,12 +20,11 @@ export default function Integrations() {
     t('المنتجات والصور والأوصاف', 'Products, images and descriptions'),
     t('الخيارات: المقاسات والألوان والخامات', 'Variants: sizes, colours and materials'),
     t('الأسعار والمخزون', 'Prices and stock'),
-    t('إضافة إلى السلة من داخل الاستوديو', 'Add to cart from inside the studio'),
   ];
 
-  const snippet = `<script src="https://${COMPANY.cdnHost}/v1/widget.js" defer></script>
-<div data-tajribah-product="SKU-123"
-     data-lang="ar"></div>`;
+  // The same two lines the dashboard's install page gives (tajribah-platform `widget/src/snippet.ts`).
+  const snippet = `<div data-tajribah-product="{{ product.id }}"></div>
+<script src="${COMPANY.widgetSrc}" data-tajribah-store="your-store-key" async></script>`;
 
   return (
     <Shell current="/integrations">
@@ -59,10 +58,10 @@ export default function Integrations() {
           </div>
           <div className="panel-card">
             <h3><Code2 size={18} aria-hidden /> {t('أي متجر آخر', 'Any other store')}</h3>
-            <p>{t('متجر مخصص أو منصة غير مدرجة؟ أضف هذين السطرين إلى قالب صفحة المنتج، وضع رمز المنتج مكان SKU-123.',
-              'A custom store or an unlisted platform? Add these two lines to your product-page template and put the product code in place of SKU-123.')}</p>
+            <p>{t('متجر مخصص أو منصة غير مدرجة؟ أضف هذين السطرين إلى قالب صفحة المنتج: رمز المنتج مكان {{ product.id }}، ومفتاح متجرك مكان your-store-key.',
+              'A custom store or an unlisted platform? Add these two lines to your product-page template: the product’s code in place of {{ product.id }}, and your store key in place of your-store-key.')}</p>
             <pre className="code" dir="ltr"><code>{snippet}</code></pre>
-            <p className="fine">{t('يصلك الرابط النهائي للسكربت من لوحة التحكم عند تفعيل حسابك.', 'Your final script URL is issued from the dashboard when your account is activated.')}</p>
+            <p className="fine">{t('تجد مفتاح متجرك والسطرين جاهزين في صفحة «التثبيت» في لوحة التحكم.', 'Your store key, and these two lines ready to copy, are on the dashboard’s Install page.')}</p>
           </div>
         </div>
       </section>

@@ -38,7 +38,7 @@ export const UNLIMITED = -1;
 export const PLANS: PlanDefinition[] = [
   {
     code: 'starter',
-    name: { ar: 'المبتدئة', en: 'Starter' },
+    name: { ar: 'البداية', en: 'Starter' }, // T32: the website's name, one name everywhere
     tagline: { ar: 'لمتجر يجرّب العرض ثلاثي الأبعاد لأول مرة', en: 'For a store trying 3D for the first time' },
     priceMonthlyMinor: 9900,
     priceAnnualMinor: 99000,

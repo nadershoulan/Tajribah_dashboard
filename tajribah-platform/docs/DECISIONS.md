@@ -583,3 +583,19 @@ one, no change — there the wait is the page's code starting on the phone.
 
 **Rollback path.** The image effect and the `assetsReady` line in `Studio.tsx`, and
 `studioImages` in `lib/tryon-config.ts`.
+
+## T32 · 2026-09-28 · The website leads to self-service sign-up at app.tajribah.sa
+
+**Decision (Nader's, 2026-09-28).** "Start with this plan" on the website's pricing page opens the
+dashboard's sign-up with the plan (`https://app.tajribah.sa/register?plan=…`); Enterprise keeps
+"Talk to sales". The merchant dashboard lives on **app.tajribah.sa**. The Starter plan's Arabic
+name is **«البداية»** in both apps.
+
+Because the free trial runs on Starter's features, the sign-up page says so when another plan
+was chosen, and points to Billing for the move — it never implies the trial is on that plan.
+
+The website and the dashboard are separate projects, so a dashboard test imports the website's
+settings and reads its pages: the install lines, the script address, the sign-up link and the
+plans' names must match, or the test fails.
+
+**Rollback path.** Pricing's link back to `/contact`; `NEXT_PUBLIC_APP_URL` for another address.

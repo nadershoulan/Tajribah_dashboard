@@ -431,6 +431,7 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .auth-card { width: 100%; max-width: 400px; }
 .auth-card h1 { font-size: 24px; margin: 0 0 6px; }
 .auth-card > p { margin: 0 0 22px; color: var(--text-2); }
+.auth-card > p.auth-plan-note { margin: -10px 0 22px; padding: 10px 12px; border-radius: 10px; background: var(--bg, #f6f8fa); border: 1px solid var(--line); color: var(--text); font-size: 13.5px; line-height: 1.5; }
 
 .field { display: grid; gap: 6px; margin-bottom: 14px; }
 .field label { font-size: 13.5px; font-weight: 500; }

@@ -84,7 +84,8 @@ export function rollbackStatements(): { file: string; statements: string[] }[] {
       .map((line) => line.replace(/^--\s?/, '').trim())
       // CREATE / INSERT / GRANT too: undoing a table rebuild (0002) has to build the old one back.
       // DELETE: undoing a seed (0006, the plan catalogue) removes its rows.
-      .filter((line) => /^(DROP|ALTER|REVOKE|CREATE|INSERT|GRANT|DELETE)\b/i.test(line));
+      // UPDATE: undoing a data change (0019, the Starter plan's Arabic name) sets it back.
+      .filter((line) => /^(DROP|ALTER|REVOKE|CREATE|INSERT|GRANT|DELETE|UPDATE)\b/i.test(line));
     return { file, statements };
   });
 }

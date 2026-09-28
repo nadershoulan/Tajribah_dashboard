@@ -27,8 +27,16 @@ export const COMPANY = {
    */
   // `typeof` guard: the static preview's browser bundle has no `process`.
   siteUrl: ((typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SITE_URL) || 'https://tajribah.sa').replace(/\/$/, ''),
-  /** Where the storefront script is served from once the CDN is live. */
-  cdnHost: 'cdn.tajribah.sa',
+  /**
+   * The merchant dashboard — sign-up and sign-in (T32: app.tajribah.sa). Override with
+   * NEXT_PUBLIC_APP_URL at deploy, like the site's own address.
+   */
+  appUrl: ((typeof process !== 'undefined' && process.env.NEXT_PUBLIC_APP_URL) || 'https://app.tajribah.sa').replace(/\/$/, ''),
+  /**
+   * The storefront script, exactly as the dashboard's install page gives it (`widget/src/main.ts`
+   * WIDGET_SRC in tajribah-platform — its test checks this line). Services stay on tajribah.com (T29).
+   */
+  widgetSrc: 'https://cdn.tajribah.com/w/v1/widget.js',
   legalUpdated: { ar: '22 سبتمبر 2026', en: '22 September 2026' } as Bi,
 };
 

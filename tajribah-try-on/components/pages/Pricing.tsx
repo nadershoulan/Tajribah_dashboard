@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Check, Minus } from 'lucide-react';
 import { useLang, pick } from '@/lib/i18n';
 import { SiteLink } from '@/lib/site-env';
+import { COMPANY } from '@/lib/site';
 import { ANNUAL_MONTHS, MATRIX, PLANS, num, type Cycle } from '@/lib/plans';
 import { Forward, Shell } from '@/components/site/chrome';
 import { CycleSwitch, RoiPanel } from '@/components/site/roi';
@@ -49,7 +50,8 @@ export default function Pricing() {
                 )}
                 <p className="plan-products">{pick(p.products, lang)}</p>
                 <ul>{p.features.map((f) => <li key={f.en}><Check size={16} aria-hidden />{pick(f, lang)}</li>)}</ul>
-                <SiteLink href="/contact" className={'btn ' + (p.featured ? 'btn-primary' : 'btn-ghost')}>
+                {/* T32: a priced plan starts the free trial in the dashboard; Enterprise talks to sales. */}
+                <SiteLink href={p.price ? `${COMPANY.appUrl}/register?plan=${p.id}` : '/contact'} className={'btn ' + (p.featured ? 'btn-primary' : 'btn-ghost')}>
                   {p.price ? t('ابدأ بهذه الباقة', 'Start with this plan') : t('تواصل مع المبيعات', 'Talk to sales')}
                 </SiteLink>
               </article>

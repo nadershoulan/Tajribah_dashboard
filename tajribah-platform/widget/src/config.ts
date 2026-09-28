@@ -28,6 +28,12 @@ export type ViewerConfig = {
   scale: number;
   autoRotate: boolean;
   shadow: number;
+  /**
+   * P5 (T26): the watch try-on — the cut-out photos and case width the owner's studio needs.
+   * Optional and added without a version bump (like `glbNative`); a malformed block only turns
+   * try-on off, the AR button still works.
+   */
+  tryon: { worn: string; flat: string; caseMm: number; sku: string | null } | null;
 };
 
 const PLACEMENTS: readonly string[] = ['floor', 'wall', 'table', 'face', 'wrist'];
@@ -40,6 +46,13 @@ const httpsUrl = (v: unknown): v is string => {
   if (!str(v, 2048)) return false;
   try { return new URL(v).protocol === 'https:'; } catch { return false; }
 };
+
+/** The try-on block, or null when it is absent or anything about it is wrong. */
+function tryOnOf(v: unknown): ViewerConfig['tryon'] {
+  if (!isObj(v) || !httpsUrl(v.worn) || !httpsUrl(v.flat) || !num(v.caseMm, 5, 80)) return null;
+  if (!(v.sku === null || v.sku === undefined || str(v.sku, 64))) return null;
+  return { worn: v.worn, flat: v.flat, caseMm: v.caseMm, sku: (v.sku as string | null | undefined) ?? null };
+}
 
 /** The config, or null when anything about it is wrong. Never throws. */
 export function parseConfig(input: unknown): ViewerConfig | null {
@@ -68,6 +81,7 @@ export function parseConfig(input: unknown): ViewerConfig | null {
       scale: input.scale,
       autoRotate: input.autoRotate,
       shadow: input.shadow,
+      tryon: tryOnOf(input.tryon),
     };
   } catch {
     return null;

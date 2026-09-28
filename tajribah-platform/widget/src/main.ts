@@ -22,6 +22,7 @@ import { parseConfig, type ViewerConfig } from './config';
 import { arPath, detectDevice, VIEWER_AR_MODES } from './ar';
 import { LIMITS, type TrackInput } from './events';
 import { createTracker, privacySignal, randomToken, sessionToken, type Consent, type Tracker } from './track';
+import { DEFAULT_TRYON, openTryOn, tryOnUrl } from './tryon';
 
 export const WIDGET_VERSION = '1.0.0';
 export const CONFIG_TIMEOUT_MS = 3000;
@@ -35,11 +36,13 @@ export const ATTR = {
   store: 'data-tajribah-store', product: 'data-tajribah-product', config: 'data-tajribah-config', viewer: 'data-tajribah-viewer',
   /** P4.1: where events go, and whether the shop gathers consent before they may be sent. */
   events: 'data-tajribah-events', consent: 'data-tajribah-consent',
+  /** P5: where the try-on frame lives (the owner's studio, on Tajribah's domain). */
+  tryon: 'data-tajribah-tryon',
 } as const;
 /** Where the widget is served, versioned; the snippet and the install checker both use it. */
 export const WIDGET_SRC = 'https://cdn.tajribah.com/w/v1/widget.js';
 
-type Settings = { store: string; configBase: string; viewer: string; events: string; consent: Consent };
+type Settings = { store: string; configBase: string; viewer: string; events: string; consent: Consent; tryon: string };
 
 /** Run `fn`; swallow and report anything it throws or rejects with. Never rethrows. */
 export function guard<T>(fn: () => T | Promise<T>): Promise<T | undefined> {
@@ -91,6 +94,9 @@ svg{width:18px;height:18px;flex:none}
 .note{margin:0;padding:64px 24px;font:500 16px/1.6 system-ui,sans-serif;color:#222;text-align:center}
 .close{position:absolute;top:10px;inset-inline-end:10px;z-index:1;background:#fff;color:#111;border-radius:999px;padding:6px 12px;min-height:0;font-size:14px}
 model-viewer{width:100%;height:100%}
+.tryon{position:fixed;inset:0;z-index:2147483647;background:#fff}
+.tryon iframe{border:0;width:100%;height:100%;display:block}
+.tryon-close{position:absolute;bottom:14px;inset-inline-start:14px;background:#111;color:#fff;border-radius:999px;padding:8px 14px;min-height:0;font-size:14px}
 `;
 const ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg>';
 
@@ -262,6 +268,7 @@ function settingsOf(doc: Document): Settings | null {
     events: script!.getAttribute(ATTR.events) ?? DEFAULT_EVENTS,
     // A shop that runs a consent banner says so here; until it grants consent, nothing is sent.
     consent: script!.getAttribute(ATTR.consent) === 'required' ? 'required' : 'granted',
+    tryon: script!.getAttribute(ATTR.tryon) ?? DEFAULT_TRYON,
   };
 }
 
@@ -308,6 +315,12 @@ export async function mount(doc: Document, settings: Settings, fetchImpl: typeof
     const config = product ? await loadConfig(configUrl(settings.configBase, settings.store, product), fetchImpl) : null;
     if (!config) { host.setAttribute(READY, 'none'); return; } // fail closed: nothing drawn
     renderButton(host, config, lang, () => {
+      // P5 (T26): a watch with try-on set up opens the owner's studio, in a frame.
+      if (config.placement === 'wrist' && config.tryon) {
+        tracker?.track({ type: 'tryon_start', productId: product });
+        openTryOn(host.shadowRoot!, tryOnUrl(settings.tryon, settings.store, product, lang), lang, lang === 'ar' ? config.product.nameAr ?? config.product.name : config.product.name);
+        return;
+      }
       // The tap is the event; what it opens depends on the device (P1.18).
       tracker?.track({ type: 'ar_open', productId: product, arSupported: hasNativeAr() });
       return openAr(host, config, lang, settings);

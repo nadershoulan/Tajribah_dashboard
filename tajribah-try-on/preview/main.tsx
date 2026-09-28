@@ -16,6 +16,7 @@ import { pick } from '@/lib/lang';
 import { TITLES } from '@/lib/site';
 import Home from '@/components/pages/Home';
 import Demo from '@/components/pages/Demo';
+import EmbedTryOn from '@/components/pages/EmbedTryOn';
 import Features from '@/components/pages/Features';
 import HowItWorks from '@/components/pages/HowItWorks';
 import Integrations from '@/components/pages/Integrations';
@@ -37,6 +38,7 @@ import { helpArticle } from '@/content/help';
 const ROUTES: Record<string, ComponentType> = {
   '/': Home,
   '/demo': Demo,
+  '/embed/try-on': EmbedTryOn, // P5: the frame the storefront opens
   '/features': Features,
   '/industries': IndustriesIndex,
   '/how-it-works': HowItWorks,

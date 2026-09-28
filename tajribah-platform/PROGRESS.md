@@ -3,23 +3,23 @@
 _Last updated: 2026-09-28 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-09-28):** the **3D editor** — open any model, turn it until it stands and faces right, check its real size in millimetres, fit it to the product's measurements, and save it as a new version (baked into the file, so iPhone and Android AR see it too) · before that: **AI operations** for the Tajribah team — every AI job across stores, what the providers charged us beside the credits merchants were charged, the latest failures in the provider's own words, and jobs that went quiet (with a cancel) · before that: the **model review queue** — every model made by generation is looked at by a person on the Tajribah team (in 3D, with the product's measurements beside it) before a shopper can see it; approved, or sent back with a note the merchant reads. The merchant's own uploads are never held · before that: 3D models under 2 MB for real (8.97 MB → 509 KB), and the storefront viewer fixed.
-> **Next:** the P3 work left needs you (a provider account, a price per generation, spending caps). Next without you: **P5 — try-on**, lifting the engine you already built in tajribah-try-on into the platform, starting with glasses as the plan orders it.
+> **Just finished (2026-09-28):** **your try-on studio now opens from a shop's product page** — unchanged (proven byte-identical), in a frame over the page, with the merchant's own watch: "Try it on your wrist" → your studio → close. Watches first, as you decided (T26) · before that: the **3D editor** — open any model, turn it until it stands and faces right, check its real size in millimetres, fit it to the product's measurements, and save it as a new version (baked into the file, so iPhone and Android AR see it too) · before that: **AI operations** for the Tajribah team — every AI job across stores, what the providers charged us beside the credits merchants were charged, the latest failures in the provider's own words, and jobs that went quiet (with a cancel) · before that: the **model review queue** — every model made by generation is looked at by a person on the Tajribah team (in 3D, with the product's measurements beside it) before a shopper can see it; approved, or sent back with a note the merchant reads. The merchant's own uploads are never held · before that: 3D models under 2 MB for real (8.97 MB → 509 KB), and the storefront viewer fixed.
+> **Next:** the try-on settings screen — where a merchant uploads the watch's cut-out photos and its case width, so their watch appears in your studio. **One question for you below** about the watch's size in "On model" mode.
 > **Waiting on you:** **how many AI credits one 3D generation costs** (no number exists anywhere yet), the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
 
 ```
 P0 Foundation     ████████████████████████████░░░░  19 / 22   (+ P0.20 mostly done, 2 blocked)
 P1 Core loop      █████████████████████████░░░░░░░  20 / 26   ← first sellable product · the rest needs Salla / Cloudflare / domain
 P2 Billing        █████████████░░░░░░░░░░░░░░░░░░░   6 / 15   (+ 3 partly) · the rest needs Moyasar / ZATCA
-P3 3D pipeline    ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ P3.7 photo screen, P3.8 editor) ← NOW · the rest needs a provider, prices or caps
+P3 3D pipeline    ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ P3.7 photo screen, P3.8 editor) · the rest needs a provider, prices or caps
 P4 Analytics      ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ CSV export partly) · shared with the other session
-P5 Try-on         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 14   (engine already exists in tajribah-try-on)
+P5 Try-on         ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   1 / 14   (+ watch partly) ← NOW · your studio opens from a shop page
 P6 AI+connectors  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 16
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ P7.7 security: all code-level work done)
 P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
-                                            overall  75 / 169
+                                            overall  76 / 169
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -179,6 +179,15 @@ The public site that sells Tajribah, Arabic first.
 
 ---
 
+## P5 — try-on (started 2026-09-28, watches first — your decision)
+
+| | Package | In plain words |
+|---|---|---|
+| ✅ | P5.1 Try-on engine core ⭐ | **Your studio, as it is**, now opens from a shop's product page: the shopper taps "Try it on your wrist", your studio opens full-screen in a frame over the page with that shop's watch, and closes back to the page. The only change to your code is an optional `product` input (without it, it is the Failet demo exactly as before — checked byte for byte, Arabic and English, model and compare modes). Your modes, poses, calibration, hand tracking, compare grid, QR pairing: untouched |
+| ◐ | P5.3 Watches | Works end to end in a real browser with a test watch. Needs: the settings screen for the merchant's cut-out photos (next), and your answer on the watch size in "On model" mode |
+
+---
+
 ## Waiting on you
 
 **External accounts** (these are the real critical path — each takes days to approve):
@@ -210,6 +219,10 @@ Zid app names, Saudi trademark search).
 **Received 2026-09-27:** SRO Company's VAT certificate and national address — on every invoice now.
 
 **Needed from you:** **how many AI credits one 3D generation costs.** The plans give 5 / 40 / 200 credits a month, but nothing says what a generation uses — so the Generate button can't be priced yet. (Tell me a number, e.g. 1 credit per model, or per product.)
+
+**Question (P5, your studio):** in "On model" mode the watch is drawn at the size your wrist pose fixes (`width: 139`), tuned to the 29.3 mm Failet watch. A merchant's 38 mm watch therefore looks the same size, while its label says 38 mm. Scaling the pose width by the case width (38 ÷ 29.3 ≈ 1.3 larger) would fix it and leaves the Failet demo exactly as it is — but your rule 1 says the poses are yours to change. May I?
+
+**Decided 2026-09-28 (T26):** P5 ships **watches first**, with your studio **loaded unchanged** in a frame (one added, optional `product` input).
 
 **Decided 2026-09-27 (T24):** cancelling a 3D generation that is already running **keeps its charge**; before it starts, the credits come back.
 
@@ -294,3 +307,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-28 | Model review: generated models are checked by a person before going live — staff see them in 3D, approve or send back with a note; merchants see the status and the note | 486 pass / 0 fail; the review screen driven in a real browser with a real model, under the live security policy |
 | 2026-09-28 | AI operations for the team: every AI job, its cost to us against the credits charged, failures, quiet jobs — with a cancel | 487 pass / 0 fail; the screen driven in a real browser, English and Arabic |
 | 2026-09-28 | The 3D editor: turn a model so it stands right, see and fit its real size, save as a new version | 493 pass / 0 fail; turned a real model in the browser and the viewer's own measurement matched the page's |
+| 2026-09-28 | Your try-on studio opens from a shop's product page, unchanged, with the shop's own watch | 496 pass / 0 fail; your studio proven byte-identical; tap → studio → close tested in a real browser on a real shop page |

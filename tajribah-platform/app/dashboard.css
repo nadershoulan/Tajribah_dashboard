@@ -891,3 +891,12 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .tryon-stats span:first-child { font-weight: 600; }
 .tryon-foot { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 .field input + input { margin-top: 6px; }
+
+/* P6.8 — the AI jobs list. */
+.job-list { list-style: none; margin: 0; padding: 0; }
+.job-list > li { padding: 14px 18px; border-top: 1px solid var(--line); }
+.job-list > li:first-child { border-top: 0; }
+.job-main { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.job-product { color: var(--text-2); font-size: 13.5px; margin-inline-end: auto; }
+.job-progress { display: grid; gap: 4px; margin-top: 8px; max-width: 420px; }
+.job-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 8px 0 0; }

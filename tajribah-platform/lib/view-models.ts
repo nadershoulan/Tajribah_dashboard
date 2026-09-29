@@ -273,6 +273,8 @@ export type AiJobView = {
   startedAt: string | null;
   finishedAt: string | null;
   canCancel: boolean;
+  /** P6.8: the product the work is for, when it names one. */
+  product: { id: string; name: string; nameAr: string | null } | null;
 };
 
 /** P3.3 — one product photo for 3D generation, as the merchant sees it after the check. */

@@ -15,6 +15,16 @@ export const AI_JOB_STAGE_LABELS: Record<AiJobStage, Bi> = {
   checking: { ar: 'فحص الجودة', en: 'Checking quality' },
 };
 
+/** P6.8 — what each kind of AI work is called on the merchant's screens. */
+export const AI_JOB_TYPE_LABELS: Record<'generate_3d' | 'enhance_texture' | 'embed_product' | 'enrich_content' | 'quality_check' | 'convert_format', Bi> = {
+  generate_3d: { ar: 'توليد نموذج ثلاثي الأبعاد', en: '3D model from photos' },
+  enhance_texture: { ar: 'تحسين الخامات', en: 'Texture enhancement' },
+  embed_product: { ar: 'تجهيز المقارنة والتوصيات', en: 'Preparing comparison and recommendations' },
+  enrich_content: { ar: 'إثراء الوصف بالعربية', en: 'Arabic description enrichment' },
+  quality_check: { ar: 'فحص الجودة', en: 'Quality check' },
+  convert_format: { ar: 'تحويل الصيغة', en: 'Format conversion' },
+};
+
 export type AiJobErrorCode = 'insufficient_credits' | 'not_available' | 'bad_input' | 'provider_failed' | 'timed_out';
 
 export const AI_JOB_ERRORS: Record<AiJobErrorCode, Bi> = {

@@ -100,7 +100,8 @@ export default function Billing() {
                   {t(
                     `الرصيد المتبقي ${formatNumber(data.aiCredits.balance, lang)}. كل توليد نموذج ثلاثي الأبعاد يستهلك ${formatNumber(CREDITS_PER_3D_GENERATION, lang)} أرصدة.`,
                     `${formatNumber(data.aiCredits.balance, lang)} credits left. One 3D generation uses ${CREDITS_PER_3D_GENERATION} credits.`,
-                  )}
+                  )}{' '}
+                  <AppLink href="/dashboard/ai-jobs" style={{ color: 'var(--aqua)' }}>{t('أين ذهبت الأرصدة', 'Where they went')}</AppLink>
                 </p>
               </div>
             </div>

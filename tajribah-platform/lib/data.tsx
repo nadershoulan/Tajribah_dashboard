@@ -10,10 +10,10 @@
  */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
-  DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
+  DEMO_AI_JOBS, DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
 } from './demo-data';
 import type {
-  AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AiJobView, AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
@@ -60,6 +60,9 @@ export interface DataSource {
   models(): Promise<ModelRow[]>;
   /** P1.14. Newest first; `isCurrent` marks the live one. */
   modelVersions(modelId: string): Promise<ModelVersionRow[]>;
+  /** P6.8 — the store's AI work, newest first; cancel one that has not ended. */
+  aiJobs(active?: boolean): Promise<AiJobView[]>;
+  cancelAiJob(jobId: string): Promise<AiJobView>;
   publishVersion(versionId: string): Promise<void>;
   /** T46 — a version that is not live; the whole model (off the shop too). */
   deleteModelVersion(versionId: string): Promise<void>;
@@ -169,6 +172,8 @@ export function apiSource(client: ApiClient): DataSource {
     async models() {
       return (await client.call<{ models: ModelRow[] }>('/api/models')).models;
     },
+    async aiJobs(active) { return (await client.call<{ jobs: AiJobView[] }>(`/api/ai-jobs?limit=50${active ? '&active=1' : ''}`)).jobs; },
+    async cancelAiJob(jobId) { return client.call<AiJobView>(`/api/ai-jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' }); },
     async modelVersions(modelId) {
       return (await client.call<{ versions: ModelVersionRow[] }>(`/api/models/${encodeURIComponent(modelId)}/versions`)).versions;
     },
@@ -339,6 +344,7 @@ const demoSettings: StoreSettings = {
   nationalAddress: null, city: null, brandColor: null, buttonRadius: DEFAULT_BUTTON_RADIUS, consentTextAr: null, consentTextEn: null,
 };
 const demoModels: ModelRow[] = DEMO_MODELS.map((m) => ({ ...m }));
+const demoAiJobs: AiJobView[] = DEMO_AI_JOBS.map((j) => ({ ...j }));
 /**
  * P3.7 — the preview's product photos, for this page load. The preview has no storage, so the
  * check runs here, in the browser: the same `checkPhoto` the server runs, on the file you picked.
@@ -503,6 +509,14 @@ export const demoSource: DataSource = {
     demoConnectionState.status = 'revoked';
   },
   async models() { return demoModels.map((m) => ({ ...m })); },
+  async aiJobs(active) { return demoAiJobs.filter((j) => !active || j.canCancel).map((j) => ({ ...j })); },
+  async cancelAiJob(jobId) {
+    const job = demoAiJobs.find((j) => j.id === jobId);
+    if (!job) throw new ApiError(404, 'not_found', 'ai_job not found');
+    if (!job.canCancel) throw new ApiError(409, 'conflict', 'this job has already ended');
+    Object.assign(job, { status: 'cancelled', canCancel: false, stage: null, finishedAt: new Date().toISOString(), refunded: job.status === 'queued' });
+    return { ...job };
+  },
   async modelVersions(modelId) {
     const model = demoModels.find((m) => m.id === modelId);
     if (!model) throw new ApiError(404, 'not_found', 'model not found');

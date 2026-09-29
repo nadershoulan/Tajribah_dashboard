@@ -23,7 +23,7 @@
  *    the merchant gets the code's own wording (`lib/ai-jobs.ts`).
  */
 import { and, desc, eq, inArray } from 'drizzle-orm';
-import { aiJobEvents, aiJobs, AI_JOB_TYPE } from '@/db/schema';
+import { aiJobEvents, aiJobs, AI_JOB_TYPE, products } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { AI_JOB_ERRORS, AI_JOB_STAGES, type AiJobErrorCode, type AiJobStage } from '@/lib/ai-jobs';
 import type { AiJobView } from '@/lib/view-models';
@@ -328,7 +328,7 @@ async function latestProgress(db: TenantDb, jobId: string): Promise<{ percent: n
 
 type Extras = { percent: number; stage: AiJobStage | null; refunded: boolean };
 
-function view(job: AiJob, extras: Extras = { percent: 0, stage: null, refunded: false }): AiJobView {
+function view(job: AiJob, extras: Extras = { percent: 0, stage: null, refunded: false }, product: AiJobView['product'] = null): AiJobView {
   const code = job.errorCode as AiJobErrorCode | null;
   return {
     id: job.id,
@@ -343,8 +343,17 @@ function view(job: AiJob, extras: Extras = { percent: 0, stage: null, refunded: 
     startedAt: job.startedAt?.toISOString() ?? null,
     finishedAt: job.finishedAt?.toISOString() ?? null,
     canCancel: job.status === 'queued' || job.status === 'processing',
+    product,
   };
 }
+
+/** P6.8: the products the jobs name (`input.productId`), in one read. */
+async function productsOf(db: TenantDb, jobs: AiJob[]): Promise<Map<string, NonNullable<AiJobView['product']>>> {
+  const ids = [...new Set(jobs.map((j) => (j.input as { productId?: unknown } | null)?.productId).filter((id): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)))];
+  const rows = ids.length ? await db.find(products, inArray(products.id, ids), { limit: ids.length }) : [];
+  return new Map(rows.map((p) => [p.id, { id: p.id, name: p.name, nameAr: p.nameAr }]));
+}
+const productIdOf = (job: AiJob) => ((job.input as { productId?: unknown } | null)?.productId as string | undefined) ?? '';
 
 async function extrasOf(db: TenantDb, job: AiJob): Promise<Extras> {
   const progress = await latestProgress(db, job.id);
@@ -358,7 +367,8 @@ export async function aiJobView(ctx: TenantContext, jobId: string): Promise<AiJo
   return withTenant(ctx.tenantId, async (db) => {
     const job = await db.findById(aiJobs, jobId);
     if (!job) throw errors.notFound('ai_job');
-    return view(job, await extrasOf(db, job));
+    const named = await productsOf(db, [job]);
+    return view(job, await extrasOf(db, job), named.get(productIdOf(job)) ?? null);
   });
 }
 
@@ -368,8 +378,9 @@ export async function listAiJobs(ctx: TenantContext, options: { active?: boolean
   const limit = Math.min(Math.max(options.limit ?? 20, 1), 100);
   return withTenant(ctx.tenantId, async (db) => {
     const jobs = await db.find(aiJobs, options.active ? inArray(aiJobs.status, ['queued', 'processing']) : undefined, { limit, orderBy: desc(aiJobs.id) });
+    const named = await productsOf(db, jobs);
     const out: AiJobView[] = [];
-    for (const job of jobs) out.push(view(job, await extrasOf(db, job)));
+    for (const job of jobs) out.push(view(job, await extrasOf(db, job), named.get(productIdOf(job)) ?? null));
     return out;
   });
 }

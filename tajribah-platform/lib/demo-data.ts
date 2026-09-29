@@ -10,7 +10,7 @@
  * The demo store is Failet, the same illustrative Saudi watch store the marketing site
  * uses. It is an example, not a customer.
  */
-import type {
+import type { AiJobView,
   ActivityItem, AnalyticsView, BillingSummary, ConnectionSummary, DashboardSummary,
   MetricPoint, ModelRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, WebhookHealth,
 } from './view-models';
@@ -280,3 +280,23 @@ export const DEMO_ANALYTICS: AnalyticsView = {
     { step: { ar: 'شراء', en: 'Purchase' }, value: TOTALS.purchases },
   ],
 };
+
+/**
+ * P6.8 — the preview's AI work, matching its generated models: two done, one still being made,
+ * one that failed (its credits returned). Seeded data, like everything in the preview.
+ */
+const productRef = (id: string) => {
+  const p = DEMO_PRODUCTS.find((x) => x.id === id)!;
+  return { id: p.id, name: p.name, nameAr: p.nameAr };
+};
+export const DEMO_AI_JOBS: AiJobView[] = [
+  { id: 'j-4', type: 'generate_3d', status: 'processing', percent: 60, stage: 'post_processing', creditsCost: 10, refunded: false, error: null,
+    queuedAt: iso(0, 13), startedAt: iso(0, 13), finishedAt: null, canCancel: true, product: productRef('p-730119') },
+  { id: 'j-3', type: 'generate_3d', status: 'done', percent: 100, stage: null, creditsCost: 10, refunded: false, error: null,
+    queuedAt: iso(2, 9), startedAt: iso(2, 9), finishedAt: iso(2), canCancel: false, product: productRef('p-730118') },
+  { id: 'j-5', type: 'generate_3d', status: 'failed', percent: 0, stage: null, creditsCost: 10, refunded: true,
+    error: { code: 'bad_input', message: { ar: 'تعذّر استخدام الصور المرفوعة. جرّب صورًا أوضح. أُعيد إليك رصيدك.', en: 'The uploaded photos could not be used. Try clearer ones. Your credits were returned.' } },
+    queuedAt: iso(6, 9), startedAt: iso(6, 9), finishedAt: iso(6), canCancel: false, product: productRef('p-990046') },
+  { id: 'j-2', type: 'generate_3d', status: 'done', percent: 100, stage: null, creditsCost: 10, refunded: false, error: null,
+    queuedAt: iso(1, 8), startedAt: iso(1, 8), finishedAt: iso(1), canCancel: false, product: productRef('p-820241411') },
+];

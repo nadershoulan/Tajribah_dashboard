@@ -107,6 +107,7 @@ export default function Models() {
             <button type="button" className="btn btn-ghost" disabled title={t('يصل مع مرحلة التوليد بالذكاء الاصطناعي', 'Arrives with the AI generation phase')}>
               <Wand2 size={16} aria-hidden />{t('ولّد من صور', 'Generate from photos')}
             </button>
+            <AppLink href="/dashboard/ai-jobs" className="btn btn-quiet">{t('أعمال الذكاء الاصطناعي', 'AI jobs')}</AppLink>
           </>
         }
       />

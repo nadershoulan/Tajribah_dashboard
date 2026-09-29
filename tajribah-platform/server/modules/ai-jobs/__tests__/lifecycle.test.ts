@@ -7,7 +7,7 @@ import { CREDITS_PER_3D_GENERATION } from '@/lib/ai-credits';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, asc, eq } from 'drizzle-orm';
-import { aiJobEvents, aiJobs, auditLogs, creditLedger, jobs, planLimits, tenantMemberships, users } from '@/db/schema';
+import { aiJobEvents, aiJobs, auditLogs, creditLedger, jobs, planLimits, products, tenantMemberships, users } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { AI_JOB_ERRORS } from '@/lib/ai-jobs';
 import { loadEnv, resetEnv } from '@/server/core/config/env';
@@ -325,5 +325,19 @@ test('T55: a 3D generation costs exactly 10 credits — any other price is refus
     const job = await createAiJob(ctx, { type: 'generate_3d', input: {}, creditsCost: CREDITS_PER_3D_GENERATION });
     assert.equal(job.creditsCost, 10);
     assert.equal((await creditSummary(ctx)).balance, 20);
+  } finally { await harness.close(); }
+});
+
+test('P6.8: each job names its product, for the jobs screen — none when the input names no real product', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, tenantId } = await store(harness, 'alpha');
+    const [ring] = await harness.asAdmin(() => harness.db.insert(products).values({ tenantId, name: 'Emerald ring', nameAr: 'خاتم زمرد' } as any).returning()) as any[];
+    const named = await createAiJob(ctx, { type: 'quality_check', input: { productId: ring.id }, creditsCost: 1 });
+    await createAiJob(ctx, { type: 'quality_check', input: { productId: 'not-a-uuid' }, creditsCost: 1 });
+    await createAiJob(ctx, { type: 'quality_check', input: {}, creditsCost: 1 });
+    const list = await listAiJobs(ctx);
+    assert.deepEqual(list.map((j) => j.product), [null, null, { id: ring.id, name: 'Emerald ring', nameAr: 'خاتم زمرد' }], 'newest first');
+    assert.deepEqual((await aiJobView(ctx, named.id)).product?.name, 'Emerald ring', 'one job too');
   } finally { await harness.close(); }
 });

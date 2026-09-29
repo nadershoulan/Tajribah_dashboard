@@ -21,6 +21,10 @@ import type { TenantContext } from '@/server/core/tenancy/context';
 import { assertFeature, entitlementsOf } from '@/server/core/billing/entitlements';
 import { errors } from '@/server/core/errors/problem';
 import { LIMITS, rateLimiter } from '@/server/core/ratelimit/limiter';
+import { cachedFor } from '@/server/core/cache/cache';
+
+/** P7 (plan D5): the charts read rollups, and a rollup answer may be a minute old. */
+export const ANALYTICS_CACHE_SECONDS = 60;
 
 const DAY = 86_400_000;
 export type Range = '7d' | '30d' | '90d';
@@ -65,10 +69,12 @@ const addConversion = (a: ConversionTotals, r: ConversionTotals): ConversionTota
 });
 const ZERO: ConversionTotals = { sessionsWithAr: 0, purchasesWithAr: 0, sessionsWithoutAr: 0, purchasesWithoutAr: 0 };
 
-/** The store's conversion totals over some days — for the home screen's uplift too. */
+/** The store's conversion totals over some days — for the home screen's uplift too (cached a minute). */
 export async function conversionTotals(ctx: TenantContext, from: string, to: string): Promise<ConversionTotals> {
-  const rows = await ctx.db.find(conversionDaily, and(gte(conversionDaily.day, from), lte(conversionDaily.day, to)), { limit: 100_000 });
-  return rows.reduce(addConversion, ZERO);
+  return cachedFor(ctx, 'analytics', `conversion:${from}:${to}`, ANALYTICS_CACHE_SECONDS, async () => {
+    const rows = await ctx.db.find(conversionDaily, and(gte(conversionDaily.day, from), lte(conversionDaily.day, to)), { limit: 100_000 });
+    return rows.reduce(addConversion, ZERO);
+  });
 }
 
 /**
@@ -80,6 +86,12 @@ export async function analyticsView(ctx: TenantContext, range: Range, now = new 
   ctx.require('analytics:read');
   const full = (await entitlementsOf(ctx)).has('full_analytics');
   const days = daysOf(range, now);
+  // P7: after the permission and plan checks — the key carries what the answer depends on.
+  return cachedFor(ctx, 'analytics', `view:${range}:${full ? 'full' : 'basic'}:${days[days.length - 1]}`, ANALYTICS_CACHE_SECONDS,
+    () => computeView(ctx, range, full, days));
+}
+
+async function computeView(ctx: TenantContext, range: Range, full: boolean, days: string[]): Promise<AnalyticsView> {
   const from = days[0]!;
   const to = days[days.length - 1]!;
   const [tenantRows, productRows, conversionRows, deviceRows] = await Promise.all([

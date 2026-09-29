@@ -58,8 +58,8 @@ type TokenBody = { accessToken: string; expiresIn: number };
 export type TwoFactorStatus = { enabled: boolean; backupCodesLeft: number };
 
 export type RegisterBody = {
-  email: string; password: string; fullName: string; storeName: string; locale?: 'ar' | 'en'; phone?: string;
-};
+  email: string; password: string; fullName: string; locale?: 'ar' | 'en'; phone?: string;
+} & ({ storeName: string; invitation?: undefined } | { invitation: string; storeName?: undefined }); // T49: joining by invitation makes no store
 
 type Listener = (signedIn: boolean) => void;
 

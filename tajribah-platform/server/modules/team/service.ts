@@ -143,17 +143,31 @@ export async function removeMember(ctx: TenantContext, membershipId: string): Pr
  */
 export async function acceptInvitation(input: { token: string; userId: string; authSecret: string }): Promise<{ tenantId: string }> {
   const db = unsafeAdminDb(); // the invitee is not a member yet: there is no tenant scope to act in
-  const tokenHash = await keyedHash(input.authSecret, 'invitation', input.token ?? '');
-  const [invitation] = await db.select().from(invitations)
-    .where(and(eq(invitations.tokenHash, tokenHash), isNull(invitations.acceptedAt), gt(invitations.expiresAt, new Date())))
-    .limit(1);
+  const invitation = await openInvitation(input.token, input.authSecret);
   const [user] = await db.select().from(users).where(eq(users.id, input.userId)).limit(1);
   if (!invitation || !user || normaliseEmail(user.email) !== invitation.email) {
     throw errors.notFound('invitation');
   }
-  const [tenant] = await db.select().from(tenants).where(eq(tenants.id, invitation.tenantId)).limit(1);
-  if (!tenant || tenant.deletedAt) throw errors.notFound('invitation');
+  await joinTeam(invitation, user);
+  return { tenantId: invitation.tenantId };
+}
 
+type Invitation = typeof invitations.$inferSelect;
+
+/** An open invitation (not used, not expired, its store not deleted) for `token`, or null. */
+export async function openInvitation(token: string, authSecret: string): Promise<Invitation | null> {
+  const db = unsafeAdminDb();
+  const tokenHash = await keyedHash(authSecret, 'invitation', token ?? '');
+  const [invitation] = await db.select().from(invitations)
+    .where(and(eq(invitations.tokenHash, tokenHash), isNull(invitations.acceptedAt), gt(invitations.expiresAt, new Date())))
+    .limit(1);
+  if (!invitation) return null;
+  const [tenant] = await db.select().from(tenants).where(eq(tenants.id, invitation.tenantId)).limit(1);
+  return tenant && !tenant.deletedAt ? invitation : null;
+}
+
+/** The invitee joins in the invited role; the invitation is used up; the inviter is told. */
+export async function joinTeam(invitation: Invitation, user: { id: string; email: string }): Promise<void> {
   await withTenant(invitation.tenantId, async (tdb) => {
     // Re-checked under the transaction: two clicks on one link make one membership.
     const still = await tdb.lockById(invitations, invitation.id);
@@ -172,7 +186,6 @@ export async function acceptInvitation(input: { token: string; userId: string; a
       title: { ar: `انضم ${user.email} إلى الفريق`, en: `${user.email} joined the team` }, body: null,
     });
   });
-  return { tenantId: invitation.tenantId };
 }
 
 function assertCanGrant(ctx: TenantContext, role: MemberRole): void {

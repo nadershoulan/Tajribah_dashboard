@@ -25,7 +25,7 @@ import { EMAIL, sendEmail } from '@/server/core/notify/messages';
 import { recordSessionEvent } from '@/server/core/audit/audit';
 import { log } from '@/server/core/observability/log';
 import { currentScope } from '@/server/core/observability/scope';
-import { addStore, login, register, requestPasswordReset, resendEmailVerification, resetPassword, verifyEmail } from './service';
+import { addStore, login, register, registerByInvitation, requestPasswordReset, resendEmailVerification, resetPassword, verifyEmail } from './service';
 import {
   completeTwoFactorLogin, disableTwoFactor, enableTwoFactor, regenerateBackupCodes, startTwoFactorSetup, twoFactorStatus,
 } from './two-factor';
@@ -55,12 +55,23 @@ export const registerHandler = route(async (request) => {
     email: EMAIL_FIELD,
     password: PASSWORD,
     fullName: z.string().trim().min(1).max(120),
-    storeName: z.string().trim().min(1).max(120),
+    // T49: no store name when joining a team by invitation.
+    storeName: z.string().trim().min(1).max(120).optional(),
+    invitation: z.string().min(1).max(200).optional(),
     locale: z.enum(['ar', 'en']).default('ar'),
     phone: z.string().max(32).optional(),
-  }));
+  }).refine((b) => !!b.invitation || !!b.storeName, { path: ['storeName'], message: 'the store needs a name' }));
 
-  const result = await register({ ...body, userAgent: userAgent(request), ip: clientIp(request) }, config);
+  if (body.invitation) {
+    const joined = await registerByInvitation({ ...body, invitation: body.invitation, userAgent: userAgent(request), ip: clientIp(request) }, config);
+    return sessionResponse(joined.session, {
+      user: { id: joined.user.id, email: joined.user.email, fullName: joined.user.fullName },
+      tenant: { id: joined.tenant.id, slug: joined.tenant.slug, name: joined.tenant.name },
+      slugNeedsConfirmation: false,
+    }, 201);
+  }
+
+  const result = await register({ ...body, storeName: body.storeName!, userAgent: userAgent(request), ip: clientIp(request) }, config);
   await sendEmail(result.user.email, EMAIL.verifyEmail, {
     link: `${config.appUrl}/verify-email?token=${encodeURIComponent(result.emailVerificationToken)}`,
   }, body.locale);

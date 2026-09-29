@@ -21,6 +21,9 @@ export default function Register() {
   const [note, setNote] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  // T49: arriving from a team invitation (`?next=/invite/<token>`): an account only, no store of its own.
+  const next = new URLSearchParams(env.search).get('next');
+  const invitation = next?.startsWith('/invite/') ? decodeURIComponent(next.slice('/invite/'.length)) : null;
   const slug = slugify(storeName);
   // T32: a plan chosen on the website's pricing page. The trial itself runs on Growth's features
   // (T35: `implicitPlan`), so the page says so plainly when another plan was chosen.
@@ -41,17 +44,23 @@ export default function Register() {
     setPending(true);
     setNote(null);
     try {
-      await auth.register({
+      const person = {
         fullName: String(form.get('fullName') ?? ''),
-        storeName,
         email: String(form.get('email') ?? ''),
         password: String(form.get('password') ?? ''),
         locale: lang,
         ...(phone ? { phone } : {}),
-      });
-      // Back to where the visitor was sent from (an invitation), through the same allow-list as
-      // sign-in; otherwise straight into the setup guide (P1.2).
-      env.navigate(safeNext(new URLSearchParams(env.search).get('next'), '/dashboard/onboarding'));
+      };
+      if (invitation) {
+        // Joined already: straight into the team's store.
+        await auth.register({ ...person, invitation });
+        env.navigate('/dashboard');
+        return;
+      }
+      await auth.register({ ...person, storeName });
+      // Back to where the visitor was sent from, through the same allow-list as sign-in;
+      // otherwise straight into the setup guide (P1.2).
+      env.navigate(safeNext(next, '/dashboard/onboarding'));
     } catch (error) {
       setNote(authErrorMessage(error, t));
     } finally {
@@ -63,8 +72,8 @@ export default function Register() {
     <div className="auth-wrap">
       <aside className="auth-side">
         <img src={env.asset('/brand/tajribah-wordmark-light.png')} alt="Tajribah تجربة" />
-        <h2>{t(`ابدأ بتجربة مجانية ${TRIAL_DAYS} يومًا.`, `Start with a ${TRIAL_DAYS}-day free trial.`)}</h2>
-        <ul>
+        <h2>{invitation ? t('انضم إلى فريقك على تجربة.', 'Join your team on Tajribah.') : t(`ابدأ بتجربة مجانية ${TRIAL_DAYS} يومًا.`, `Start with a ${TRIAL_DAYS}-day free trial.`)}</h2>
+        {!invitation && <ul>
           {[
             t('بدون بطاقة بنكية', 'No card required'),
             t('اربط سلة أو زد واستورد منتجاتك في دقائق', 'Connect Salla or Zid and import your catalogue in minutes'),
@@ -72,15 +81,17 @@ export default function Register() {
           ].map((line) => (
             <li key={line}><Check size={16} aria-hidden />{line}</li>
           ))}
-        </ul>
+        </ul>}
       </aside>
 
       <main className="auth-main">
         <div className="auth-card">
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 18 }}><LangToggle /></div>
-          <h1>{t('أنشئ متجرك على تجربة', 'Create your store on Tajribah')}</h1>
-          <p>{t('دقيقتان، ثم نربط متجرك.', 'Two minutes, then we connect your store.')}</p>
-          {chosen && (
+          <h1>{invitation ? t('أنشئ حسابك للانضمام إلى الفريق', 'Create your account to join the team') : t('أنشئ متجرك على تجربة', 'Create your store on Tajribah')}</h1>
+          <p>{invitation
+            ? t('استخدم البريد الذي وصلته الدعوة. تنضم إلى الفريق مباشرة، دون متجر خاص بك.', 'Use the email address the invitation was sent to. You join the team straight away, with no store of your own.')
+            : t('دقيقتان، ثم نربط متجرك.', 'Two minutes, then we connect your store.')}</p>
+          {chosen && !invitation && (
             <p className="auth-plan-note" role="note">
               {chosen.code === TRIAL_PLAN
                 ? t(`اخترت باقة ${chosen.name.ar}. تبدأ تجربتك المجانية لمدة ${TRIAL_DAYS} يومًا عليها الآن.`, `You chose ${chosen.name.en}. Your ${TRIAL_DAYS}-day free trial starts on it now.`)
@@ -95,7 +106,7 @@ export default function Register() {
               <input id="fullName" name="fullName" autoComplete="name" required />
             </div>
 
-            <div className="field">
+            {!invitation && <div className="field">
               <label htmlFor="storeName">{t('اسم المتجر', 'Store name')}</label>
               <input id="storeName" value={storeName} onChange={(e) => setStoreName(e.target.value)} required />
               {slug && (
@@ -111,7 +122,7 @@ export default function Register() {
                   )}
                 </span>
               )}
-            </div>
+            </div>}
 
             <div className="field">
               <label htmlFor="email">{t('البريد الإلكتروني', 'Email')}</label>
@@ -133,7 +144,9 @@ export default function Register() {
             {note && <p className="field-hint" role="alert" style={{ color: 'var(--warn)', marginBottom: 12 }}>{note}</p>}
 
             <button type="submit" className="btn btn-accent" style={{ width: '100%', justifyContent: 'center' }} disabled={pending}>
-              {pending ? t('جارٍ إنشاء المتجر…', 'Creating your store…') : t('ابدأ التجربة', 'Start the trial')}
+              {invitation
+                ? (pending ? t('جارٍ الانضمام…', 'Joining…') : t('أنشئ الحساب وانضم', 'Create the account and join'))
+                : (pending ? t('جارٍ إنشاء المتجر…', 'Creating your store…') : t('ابدأ التجربة', 'Start the trial'))}
             </button>
           </form>
 
@@ -145,7 +158,7 @@ export default function Register() {
           </p>
           <p style={{ marginTop: 10, fontSize: 14, color: 'var(--text-2)' }}>
             {t('لديك حساب؟', 'Already have an account?')}{' '}
-            <AppLink href="/login" style={{ color: 'var(--aqua)' }}>{t('سجّل الدخول', 'Sign in')}</AppLink>
+            <AppLink href={invitation ? `/login?next=${encodeURIComponent(next!)}` : '/login'} style={{ color: 'var(--aqua)' }}>{t('سجّل الدخول', 'Sign in')}</AppLink>
           </p>
         </div>
       </main>

@@ -27,6 +27,7 @@ import {
 import { errors } from '@/server/core/errors/problem';
 import { log } from '@/server/core/observability/log';
 import { LIMITS, rateLimiter } from '@/server/core/ratelimit/limiter';
+import { joinTeam, openInvitation } from '@/server/modules/team/service';
 
 const MAX_FAILED_LOGINS = 10;
 const LOCKOUT_MINUTES = 15;
@@ -41,6 +42,34 @@ export type RegisterInput = {
   userAgent?: string | null;
   ip?: string | null;
 };
+
+/**
+ * T49 — sign-up from a team invitation: the account joins the inviting store in the invited role and
+ * gets **no store of its own** (before, every sign-up made a store, so an invitee started with an
+ * empty one). The invitation must be open and for this very address; the email counts as confirmed,
+ * since the link reached that inbox. Wrong, used, expired or someone else's are one answer.
+ */
+export async function registerByInvitation(input: Omit<RegisterInput, 'storeName'> & { invitation: string }, config: SessionSecrets): Promise<Omit<RegisterResult, 'emailVerificationToken' | 'slugNeedsConfirmation'>> {
+  const db = unsafeAdminDb();
+  const email = normaliseEmail(input.email);
+  const limit = await rateLimiter().hit(`register:${input.ip ?? 'unknown'}`, LIMITS.register.limit, LIMITS.register.windowSeconds);
+  if (!limit.allowed) throw errors.rateLimited(limit.retryAfter);
+  const invitation = await openInvitation(input.invitation, config.authSecret);
+  if (!invitation || invitation.email !== email) throw errors.notFound('invitation');
+  const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  if (existing) throw errors.conflict('this email already has an account — sign in instead');
+
+  const [user] = await db.insert(users).values({
+    id: uuidv7(), email, fullName: input.fullName, passwordHash: await hashPassword(input.password),
+    locale: input.locale ?? 'ar', phone: input.phone ? normalisePhone(input.phone) : null,
+    emailVerifiedAt: new Date(), // the invitation link reached this inbox
+  }).returning();
+  await joinTeam(invitation, user!);
+  const [tenant] = await db.select().from(tenants).where(eq(tenants.id, invitation.tenantId)).limit(1);
+  const session = await issueSession({ userId: user!.id, tenantId: invitation.tenantId, userAgent: input.userAgent, ip: input.ip, config });
+  log.info('joined by invitation', { tenantId: invitation.tenantId, userId: user!.id });
+  return { user: user!, tenant: tenant!, session };
+}
 
 export type RegisterResult = {
   user: User;

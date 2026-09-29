@@ -10,6 +10,8 @@ import { MemoryRateLimiter, setRateLimiter } from '@/server/core/ratelimit/limit
 import { setLogLevel } from '@/server/core/observability/log';
 import { REFRESH_COOKIE } from '@/server/core/auth/session';
 import { createTestDb, type TestDb } from '@/server/testing/harness';
+import { buildTenantContext } from '@/server/core/tenancy/context';
+import { invite } from '@/server/modules/team/service';
 import {
   addStoreHandler, confirmResetHandler, loginHandler, logoutHandler, meHandler, refreshHandler, registerHandler,
   requestResetHandler, resendVerificationHandler, switchTenantHandler, verifyEmailHandler,
@@ -91,6 +93,37 @@ test('register refuses a weak password with a field error', async () => {
     assert.equal(response.status, 422);
     const body = await response.json() as any;
     assert.deepEqual(Object.keys(body.errors), ['password']);
+  } finally { await harness.close(); }
+});
+
+test('T49: signing up from an invitation joins the team — no store of its own, the address confirmed', async () => {
+  setup();
+  const harness = await createTestDb();
+  try {
+    const owner = await signUp(harness);
+    const ctx = await buildTenantContext({ actor: { userId: owner.body.user.id, email: 'owner@example.test', isStaff: false }, tenantId: owner.body.tenant.id, requestId: 'r' });
+    const mail = await printed(() => invite(ctx, { email: 'sara@example.test', role: 'editor' }, { authSecret: 's'.repeat(40), appUrl: APP }));
+    const token = /\/invite\/([A-Za-z0-9_-]+)/.exec(mail)?.[1];
+    assert.ok(token, 'the invitation email carries the link');
+    const SARA = { email: 'sara@example.test', password: 'a-long-enough-password', fullName: 'سارة' };
+
+    assert.equal((await registerHandler(req('/api/auth/register', { body: { ...SARA } }))).status, 422, 'no invitation: a store name is needed');
+    assert.equal((await registerHandler(req('/api/auth/register', { body: { ...SARA, email: 'mallory@example.test', invitation: token } }))).status, 404, 'the link alone is not enough');
+    let response!: Response;
+    const sent = await printed(async () => { response = await registerHandler(req('/api/auth/register', { body: { ...SARA, invitation: token } })); });
+    assert.equal(response.status, 201);
+    const body = await response.json() as any;
+    assert.equal(body.tenant.id, owner.body.tenant.id, 'the session acts for the team’s store');
+    const who = await (await meHandler(req('/api/auth/me', { method: 'GET', token: body.accessToken }))).json() as any;
+    assert.deepEqual([who.currentTenantId, who.tenants.map((t: any) => t.role)], [owner.body.tenant.id, ['editor']], 'the session itself, not only the answer');
+    assert.ok(!/verify-email/.test(sent), 'no confirmation email: the invitation already reached this inbox');
+    const all = await harness.asAdmin(() => harness.db.select().from(tenants));
+    assert.equal(all.length, 1, 'no store of its own');
+    const [sara] = await harness.asAdmin(() => harness.db.select().from(users).where(eq(users.email, 'sara@example.test'))) as any[];
+    assert.ok(sara.emailVerifiedAt);
+    const memberships = await harness.asAdmin(() => harness.db.select().from(tenantMemberships).where(eq(tenantMemberships.userId, sara.id))) as any[];
+    assert.deepEqual(memberships.map((m) => [m.tenantId, m.role]), [[owner.body.tenant.id, 'editor']]);
+    assert.equal((await registerHandler(req('/api/auth/register', { body: { ...SARA, invitation: token } }))).status, 404, 'single use');
   } finally { await harness.close(); }
 });
 

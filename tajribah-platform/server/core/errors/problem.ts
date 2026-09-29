@@ -13,7 +13,7 @@ export type ErrorCode =
   | 'validation_failed' | 'invalid_credentials' | 'unauthenticated' | 'forbidden'
   | 'not_found' | 'conflict' | 'idempotency_conflict' | 'rate_limited'
   | 'quota_exceeded' | 'plan_required' | 'store_read_only' | 'upstream_unavailable' | 'upstream_timeout'
-  | 'not_implemented' | 'internal';
+  | 'ai_paused' | 'not_implemented' | 'internal';
 
 type Def = { status: number; title: { ar: string; en: string } };
 
@@ -31,6 +31,7 @@ const CATALOGUE: Record<ErrorCode, Def> = {
   store_read_only:      { status: 402, title: { ar: 'المتجر للقراءة فقط', en: 'This store is read-only' } },
   upstream_unavailable: { status: 502, title: { ar: 'خدمة خارجية غير متاحة', en: 'Upstream unavailable' } },
   upstream_timeout:     { status: 504, title: { ar: 'انتهت مهلة الخدمة الخارجية', en: 'Upstream timed out' } },
+  ai_paused:            { status: 503, title: { ar: 'أعمال الذكاء الاصطناعي متوقفة مؤقتًا', en: 'AI work is paused for now' } },
   not_implemented:      { status: 501, title: { ar: 'غير متاح بعد', en: 'Not implemented' } },
   internal:             { status: 500, title: { ar: 'خطأ غير متوقع', en: 'Unexpected error' } },
 };

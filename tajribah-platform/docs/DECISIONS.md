@@ -708,3 +708,13 @@ closed store's buttons are taken down (P1.15).
 waits on the accounts, packages from later phases (P6, P7, P8) that need no account, provider or
 setup may be built, as T18 allowed for Track A. The gates themselves are unchanged: none is marked
 passed, and P7's load tests and DR drill still need staging.
+
+## P6.7 · 2026-09-29 · AI spend guardrails start with no limit
+
+The guardrails (pause a kind of AI work, a platform daily spend cap, a per-store daily job cap) are
+built with **every limit unset**: a cap is a business number — what Tajribah is willing to spend on
+providers in a day, how much AI one store may use — and none has been given. Staff set them on the
+admin console's AI page; each change needs a reason and is written to the staff trail with its
+before and after. Two behaviours are deliberate: **zero is a cap** (it stops all new AI work — the
+"off" switch), and the spend cap stops *new* work only — cost is recorded as attempts end, so work
+already sent can carry a day past the cap.

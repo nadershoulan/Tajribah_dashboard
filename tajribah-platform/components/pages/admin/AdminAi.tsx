@@ -1,10 +1,11 @@
 'use client';
 
 // A9 — AI operations: jobs by type, what the work cost us beside the credits charged, failures, quiet jobs
+// P6.7 — and the guardrails: kinds of work paused, the platform's daily spend cap, each store's daily job cap
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Cpu } from 'lucide-react';
-import { useAuth, type AdminAiJob, type AdminAiOperations } from '@/lib/auth';
+import { useAuth, type AdminAiGuardrails, type AdminAiJob, type AdminAiOperations } from '@/lib/auth';
 import { formatDateTime, formatNumber, formatPercent } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
 import { useLang } from '@/lib/i18n';
@@ -65,6 +66,8 @@ function Operations() {
         <Stat label={t('أرصدة خُصمت من التجار', 'Credits charged to merchants')} value={formatNumber(data.totals.creditsCharged, lang)}
           sub={t('بعد الاسترداد. الهامش يظهر حين يكون للرصيد سعر.', 'After refunds. The margin appears once a credit has a price.')} />
       </div>
+
+      <Guardrails value={data.guardrails} type={type} onSaved={() => setVersion((v) => v + 1)} />
 
       <Panel title={t('حسب النوع', 'By type')} flush>
         {data.byType.length === 0
@@ -176,5 +179,79 @@ function Cancel({ run, onDone }: { run: (reason: string) => Promise<void>; onDon
       <span className="hint" style={{ margin: 0 }}>{t('بدأ المزوّد العمل، فيبقى الرصيد مخصومًا (T24).', 'The provider had started, so the charge stays (T24).')}</span>
       {problem && <span className="field-error">{problem}</span>}
     </form>
+  );
+}
+
+/**
+ * P6.7 — the brakes. Empty means no limit; nothing is limited until staff set it here. Every change
+ * needs a reason and is written to the staff trail with what it was before.
+ */
+function Guardrails({ value, type, onSaved }: { value: AdminAiGuardrails & { spentTodayCents: number }; type: (key: string) => string; onSaved: () => void }) {
+  const { t, lang } = useLang();
+  const auth = useAuth();
+  const [paused, setPaused] = useState<string[]>(value.pausedTypes);
+  const [spendCap, setSpendCap] = useState(value.dailySpendCapCents === null ? '' : String(value.dailySpendCapCents / 100));
+  const [jobsCap, setJobsCap] = useState(value.storeDailyJobsCap === null ? '' : String(value.storeDailyJobsCap));
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const usd = (cents: number) => formatMoney(cents, 'USD', lang);
+  const capReached = value.dailySpendCapCents !== null && value.spentTodayCents >= value.dailySpendCapCents;
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    const dollars = spendCap.trim() === '' ? null : Number(spendCap);
+    const jobs = jobsCap.trim() === '' ? null : Number(jobsCap);
+    if (dollars !== null && !(Number.isFinite(dollars) && dollars >= 0)) { setProblem(t('حد الإنفاق مبلغ بالدولار، صفر أو أكثر.', 'The spend cap is an amount in dollars, 0 or more.')); return; }
+    if (jobs !== null && !(Number.isInteger(jobs) && jobs >= 0)) { setProblem(t('حد المهام عدد صحيح، صفر أو أكثر.', 'The job cap is a whole number, 0 or more.')); return; }
+    setBusy(true); setProblem(null);
+    try {
+      await auth.admin.setAiGuardrails({ pausedTypes: paused, dailySpendCapCents: dollars === null ? null : Math.round(dollars * 100), storeDailyJobsCap: jobs, reason: reason.trim() });
+      setReason('');
+      onSaved();
+    } catch (err) { setProblem((err as Error).message); } finally { setBusy(false); }
+  };
+
+  return (
+    <Panel title={t('حدود الإنفاق', 'Spend guardrails')}
+      sub={t('توقف العمل الجديد قبل أي خصم. الحقل الفارغ يعني بلا حد — ولا حد حتى تضعه هنا.', 'They stop new work before anything is charged. An empty field means no limit — nothing is limited until you set it here.')}>
+      <div className="grid grid-3">
+        <Stat label={t('تكلفة اليوم', 'Spent today')} value={usd(value.spentTodayCents)}
+          sub={value.dailySpendCapCents === null ? t('لا حد يومي', 'No daily cap') : t(`من ${usd(value.dailySpendCapCents)} — بتوقيت الرياض`, `of ${usd(value.dailySpendCapCents)} — Riyadh day`)} />
+        <Stat label={t('الحالة', 'State')} value={capReached ? t('متوقف حتى الغد', 'Paused until tomorrow') : value.pausedTypes.length ? t('متوقف جزئيًا', 'Partly paused') : t('يعمل', 'Running')}
+          sub={value.pausedTypes.length ? value.pausedTypes.map(type).join('، ') : t('لا نوع متوقف', 'Nothing paused')} />
+        <Stat label={t('حد المتجر اليومي', 'Per-store daily cap')} value={value.storeDailyJobsCap === null ? t('بلا حد', 'None') : formatNumber(value.storeDailyJobsCap, lang)}
+          sub={t('مهام يبدؤها متجر واحد في اليوم', 'AI jobs one store may start a day')} />
+      </div>
+      {capReached && <p className="field-error" role="status" style={{ margin: '14px 0 0' }}>{t('بلغت تكلفة اليوم الحد: كل عمل جديد مرفوض حتى منتصف الليل. العمل الجاري يكمل.', 'Today’s cost has reached the cap: all new work is refused until midnight. Work already running finishes.')}</p>}
+      <form className="guardrails-form" onSubmit={save}>
+        <fieldset>
+          <legend>{t('أوقف هذه الأنواع', 'Pause these kinds of work')}</legend>
+          {Object.keys(TYPES).map((key) => (
+            <label key={key} className="toggle">
+              <input type="checkbox" checked={paused.includes(key)} onChange={(e) => setPaused((p) => (e.target.checked ? [...p, key] : p.filter((k) => k !== key)))} />
+              <span>{type(key)}</span>
+            </label>
+          ))}
+        </fieldset>
+        <label className="field">
+          <span>{t('حد الإنفاق اليومي (دولار)', 'Daily spend cap (US dollars)')}</span>
+          <input inputMode="decimal" dir="ltr" value={spendCap} onChange={(e) => setSpendCap(e.target.value)} placeholder={t('بلا حد', 'No cap')} />
+        </label>
+        <label className="field">
+          <span>{t('حد مهام المتجر في اليوم', 'AI jobs per store per day')}</span>
+          <input inputMode="numeric" dir="ltr" value={jobsCap} onChange={(e) => setJobsCap(e.target.value)} placeholder={t('بلا حد', 'No cap')} />
+        </label>
+        <label className="field">
+          <span>{t('السبب', 'Reason')}</span>
+          <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder={t('مثلًا: المزوّد رفع سعره', 'e.g. the provider raised its price')} />
+        </label>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={busy || reason.trim().length < 5}>{busy ? t('جارٍ الحفظ…', 'Saving…') : t('احفظ الحدود', 'Save the guardrails')}</button>
+          {value.updatedAt && <span className="hint" style={{ margin: 0 }}>{t('آخر تغيير', 'Last changed')} {formatDateTime(value.updatedAt, lang)}</span>}
+        </div>
+        {problem && <p className="field-error" role="alert">{problem}</p>}
+      </form>
+    </Panel>
   );
 }

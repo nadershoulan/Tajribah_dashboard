@@ -38,6 +38,7 @@ import { withTenant } from '@/server/core/tenancy/rls';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { consumeCredits, refundCredits } from '@/server/modules/billing/credits';
 import { CREDITS_PER_3D_GENERATION } from '@/lib/ai-credits';
+import { assertWithinGuardrails } from './guardrails';
 
 export type AiJobType = (typeof AI_JOB_TYPE)[number];
 export type AiJob = typeof aiJobs.$inferSelect;
@@ -139,6 +140,7 @@ export async function createAiJob(ctx: TenantContext, request: CreateAiJob): Pro
   if (request.type === 'generate_3d' && request.creditsCost !== CREDITS_PER_3D_GENERATION) throw errors.validation({ creditsCost: [`a 3D generation costs ${CREDITS_PER_3D_GENERATION} credits`] });
 
   const now = new Date();
+  await assertWithinGuardrails(ctx.tenantId, request.type, now); // P6.7: before the row and the charge
   const job = await withTenant(ctx.tenantId, async (db) => {
     const row = await db.insert(aiJobs, {
       id: uuidv7(now.getTime()), type: request.type, status: 'queued', priority: request.priority ?? 100,

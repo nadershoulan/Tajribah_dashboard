@@ -214,8 +214,12 @@ export type AdminAiOperations = {
   byType: { type: string; total: number; done: number; failed: number; cancelled: number; open: number; medianSeconds: number | null; costCents: number; gpuSeconds: number; creditsCharged: number }[];
   failures: AdminAiJob[]; quiet: AdminAiJob[];
   topStores: { id: string; name: string; nameAr: string | null; jobs: number; costCents: number; creditsCharged: number }[];
+  guardrails: AdminAiGuardrails & { spentTodayCents: number };
   asOf: string;
 };
+
+/** P6.7 — the brakes on AI spend; null caps mean no limit. */
+export type AdminAiGuardrails = { pausedTypes: string[]; dailySpendCapCents: number | null; storeDailyJobsCap: number | null; updatedAt: string | null };
 
 export type AdminApi = {
   whoami(): Promise<{ email: string; fullName: string }>;
@@ -259,6 +263,7 @@ export type AdminApi = {
   qaModel(versionId: string): Promise<Blob>;
   aiOperations(days: 7 | 30 | 90): Promise<AdminAiOperations>;
   cancelAiJob(id: string, reason: string): Promise<void>;
+  setAiGuardrails(input: Omit<AdminAiGuardrails, 'updatedAt'> & { reason: string }): Promise<AdminAiGuardrails>;
 };
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -347,6 +352,7 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       qaModel: (versionId) => client.callBlob(`/api/admin/qa/versions/${encodeURIComponent(versionId)}/model`),
       aiOperations: (days) => client.call(`/api/admin/ai?days=${days}`),
       cancelAiJob: async (id, reason) => { await client.call(`/api/admin/ai/jobs/${encodeURIComponent(id)}/cancel`, { body: { reason } }); },
+      setAiGuardrails: (input) => client.call('/api/admin/ai/guardrails', { method: 'PUT', body: input }),
     },
     twoFactor: {
       status: () => client.twoFactorStatus(),
@@ -413,7 +419,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound, announcements: notFound, createAnnouncement: notFound, updateAnnouncement: notFound, qaQueue: notFound, decideQa: notFound, qaModel: notFound, aiOperations: notFound, cancelAiJob: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound, announcements: notFound, createAnnouncement: notFound, updateAnnouncement: notFound, qaQueue: notFound, decideQa: notFound, qaModel: notFound, aiOperations: notFound, cancelAiJob: notFound, setAiGuardrails: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

@@ -20,7 +20,7 @@ import { RESPONSE_DAYS, exportDocument, fulfilErasure, fulfilExport, listPrivacy
 import { retentionState } from './retention';
 import { createAnnouncement, listAnnouncements, updateAnnouncement } from './announcements';
 import { decideQa, qaModelFile, qaQueue } from './qa';
-import { aiOperations, cancelJobForStore } from './ai-ops';
+import { aiOperations, cancelJobForStore, setGuardrails } from './ai-ops';
 import { currentScope } from '@/server/core/observability/scope';
 import { errors } from '@/server/core/errors/problem';
 
@@ -421,4 +421,20 @@ export const cancelAiJobForStoreHandler = route(async (request) => {
   const staff = await staffContextFor(request, config);
   await cancelJobForStore(staff, uuidAt(request, 1, 'ai_job'), (await readJson(request, REASON)).reason);
   return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+});
+
+const CAP = z.number().int().min(0).max(1_000_000_000).nullable();
+const GUARDRAILS = z.object({
+  pausedTypes: z.array(z.string().max(40)).max(20),
+  dailySpendCapCents: CAP,
+  storeDailyJobsCap: CAP,
+  reason: z.string().max(500),
+});
+
+/** API-A39 — PUT /api/admin/ai/guardrails { pausedTypes, dailySpendCapCents, storeDailyJobsCap, reason } (P6.7). */
+export const setGuardrailsHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  return json(await setGuardrails(staff, await readJson(request, GUARDRAILS)));
 });

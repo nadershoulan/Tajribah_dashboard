@@ -3,8 +3,8 @@
 _Last updated: 2026-09-29 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-09-29):** **the AI jobs screen** (P6.8, the plan's "AI jobs UI") — everything AI works on for your store in one list: what kind of work, for which product (a link to it), where it is (a progress bar and the step it is on while it runs), what it cost in credits and whether they came back, and a Cancel with an honest warning (not started yet: credits come back; already started: they are kept). It refreshes itself while something runs. Reached from the 3D models page and from Billing ("where your credits went") · before that: **your answers are in** — buttons stay after a trial or subscription ends; 10 credits per 3D generation
-> **Next:** more later-phase packages that need no account or setup: AI cost guardrails (P6), then P7's code-level parts (rate limits, caching, database indexes, monitoring) and P8's API keys.
+> **Just finished (2026-09-29):** **brakes on AI spending** (P6.7, the plan's "AI cost guardrails") — on the staff console's AI page you can now **pause a kind of AI work** (say, 3D generation while a provider overcharges), set **a daily spending limit for the whole platform** (in dollars, what the providers charge us) and **a daily limit of AI jobs per store** (so one store — a script in a loop — cannot run up a bill). Each is refused *before* the merchant is charged anything, and says so. **No number is set**: all three start empty (no limit) until you or staff choose one, and every change needs a reason and goes in the staff log · before that: **the AI jobs screen** for merchants (P6.8)
+> **Next:** more later-phase packages that need no account or setup: P7's code-level parts (rate limits, caching, database indexes, monitoring), then P8's API keys.
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
 > **Waiting on you:** the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
 
@@ -15,12 +15,12 @@ P2 Billing        █████████████░░░░░░░�
 P3 3D pipeline    ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ P3.7 photo screen, P3.8 editor) · the rest needs a provider, prices or caps
 P4 Analytics      ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ CSV export partly) · shared with the other session
 P5 Try-on         ████████████████░░░░░░░░░░░░░░░░   7 / 14   (+ watch partly) · the rest touches your studio or needs new photography
-P6 AI+connectors  ████████░░░░░░░░░░░░░░░░░░░░░░░░   4 / 16   · the rest needs AI providers or store accounts
+P6 AI+connectors  ██████████░░░░░░░░░░░░░░░░░░░░░░   5 / 16   · the rest needs AI providers or store accounts
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ P7.7 security, safe updates: the code-level parts done)
 P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
-                                            overall  86 / 169
+                                            overall  87 / 169
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -186,6 +186,7 @@ The public site that sells Tajribah, Arabic first.
 
 | | Package | In plain words |
 |---|---|---|
+| ✅ | P6.7 Brakes on AI spending | On the staff console's AI page: **pause a kind of AI work**, a **daily spending limit for the platform**, a **daily AI-job limit per store**. Refused before any charge, with a clear message; nothing limited until someone sets a number; every change logged with its reason |
 | ✅ | P6.8 AI jobs screen | **Every piece of AI work for your store in one list** — the product it is for, a progress bar while it runs, what it cost in credits and whether they came back, and Cancel with an honest warning about the credits. Opened from the 3D models page and from Billing |
 | ✅ | P6 Multi-store support | One sign-in, several stores. The **store name at the top of the dashboard** (it did nothing before) opens a list of your stores — your role and plan in each, read-only or suspended ones marked — and picking one opens that store with a fresh load. **Add a store** there too: a name, and it opens on **its own 14-day free trial** (your decision, T30), with you as owner, at its setup; your email must be confirmed first, 5 a day at most. Checked in a real browser, Arabic and English |
 | ✅ | P6.16 Connection health | Each store connection gets a **real health score** (it always said 100 before). Signals the platform already records: access lost (score 0 — "reconnect"), the store not answering, syncs failing one after another, no good sync for three of its own sync intervals, live updates failing (10% or more, at least 3 in a day) or waiting over 15 minutes. **Healthy**, **needs attention** or **failing** — shown on the connections screen with the reasons in plain Arabic and English. Every minute the score is updated, and when a connection **gets worse** the store's people are notified once — not again while it stays the same, and not on recovery |
@@ -390,3 +391,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-29 | A withdrawn button is announced in the bell | 590 pass / 0 fail; seen to fail 3 ways |
 | 2026-09-29 | 10 credits per 3D generation, stated everywhere; buttons stay after a trial or subscription ends | 592 pass / 0 fail; seen to fail 2 ways |
 | 2026-09-29 | The AI jobs screen: progress, cost, credits returned, cancel | 593 pass / 0 fail; seen to fail; checked in a real browser at phone width |
+| 2026-09-29 | Brakes on AI spending: pause a kind of work, a platform daily spend limit, a per-store daily job limit | 599 pass / 0 fail; seen to fail 10 ways; checked in a real browser (en 1440, ar 390) |

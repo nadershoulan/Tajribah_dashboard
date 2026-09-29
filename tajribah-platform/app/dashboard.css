@@ -793,6 +793,11 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 @media (max-width: 860px) { .ops-list li { grid-template-columns: minmax(0, 1fr); } }
 .ops-error { margin: 0; text-align: start; font-family: var(--f-mono, ui-monospace, monospace); font-size: 12.5px; color: var(--bad); overflow-wrap: anywhere; }
 .ops-retry { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+/* P6.7 — the AI spend guardrails form */
+.guardrails-form { display: grid; gap: 4px; margin-top: 16px; max-width: 560px; }
+.guardrails-form fieldset { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px 12px; margin: 0 0 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 16px; }
+.guardrails-form legend { font-size: 13.5px; font-weight: 600; padding: 0 6px; }
+.guardrails-form .field > span { font-size: 13.5px; font-weight: 500; }
 .ops-retry input { min-width: 0; width: 180px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 9px; font: inherit; background: var(--surface, #fff); color: var(--text); }
 
 /* A6 — plans editor */

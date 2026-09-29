@@ -13,12 +13,15 @@
  *    Staff can cancel one, with a reason, through the store's own cancel (T24 applies: a job the
  *    provider was working on keeps its charge).
  *  - **Top stores by cost**: where the money goes.
+ *  - **Guardrails** (P6.7): what is paused and the daily caps, beside today's spend — and staff
+ *    set them here, each change logged with its reason (`ai-jobs/guardrails.ts`).
  */
 import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
-import { unsafeAdminDb } from '@/db/client';
-import { aiJobEvents, aiJobs, creditLedger, tenants } from '@/db/schema';
+import { unsafeAdminDb, type Db } from '@/db/client';
+import { aiGuardrails, aiJobEvents, aiJobs, AI_JOB_TYPE, creditLedger, tenants } from '@/db/schema';
 import { errors } from '@/server/core/errors/problem';
 import { cancelAiJob } from '@/server/modules/ai-jobs/lifecycle';
+import { GUARDRAILS_ID, currentGuardrails, spentTodayCents, type Guardrails } from '@/server/modules/ai-jobs/guardrails';
 import { staffLog, type StaffContext } from './access';
 import { staffActingContext } from './stores';
 
@@ -43,6 +46,8 @@ export type AiOperations = {
   failures: AiJobRow[];
   quiet: AiJobRow[];
   topStores: (StoreRef & { jobs: number; costCents: number; creditsCharged: number })[];
+  /** P6.7: the limits in force, and what today has cost so far (Riyadh day). */
+  guardrails: Guardrails & { spentTodayCents: number };
   asOf: string;
 };
 
@@ -101,6 +106,7 @@ export async function aiOperations(days: 7 | 30 | 90 = 30, now = new Date()): Pr
     failures: failures.map(({ job, tenant }) => rowOf(job, tenant, charged, heard)),
     quiet: quiet.map(({ job, tenant }) => rowOf(job, tenant, charged, heard)),
     topStores: [...stores.values()].sort((a, b) => b.costCents - a.costCents || b.jobs - a.jobs).slice(0, 10),
+    guardrails: { ...(await currentGuardrails()), spentTodayCents: await spentTodayCents(now) },
     asOf: now.toISOString(),
   };
 }
@@ -140,4 +146,47 @@ export async function cancelJobForStore(staff: StaffContext, jobId: string, reas
   if (!found) throw errors.notFound('ai_job');
   await cancelAiJob(staffActingContext(found.tenant, staff, ['models:read', 'models:write', 'products:write']), jobId);
   await staffLog(staff, { action: 'ai_job.cancel', targetType: 'ai_job', targetId: jobId, storeId: found.tenant.id, reason: why, detail: { type: found.job.type, was: found.job.status } });
+}
+
+export type GuardrailsInput = {
+  pausedTypes: string[];
+  dailySpendCapCents: number | null;
+  storeDailyJobsCap: number | null;
+  reason: string;
+};
+
+/** Largest cap accepted: a typo of a few zeros should not read as "no limit" by overflow. */
+const CAP_MAX = 1_000_000_000;
+
+/** P6.7 — set the guardrails, with a reason; logged with what they were and what they became. */
+export async function setGuardrails(staff: StaffContext, input: GuardrailsInput): Promise<Guardrails> {
+  const why = input.reason.trim();
+  const fields: Record<string, string[]> = {};
+  if (why.length < 5) fields.reason = ['say why, in a few words'];
+  const known = AI_JOB_TYPE as readonly string[];
+  if (input.pausedTypes.some((t) => !known.includes(t))) fields.pausedTypes = ['not a kind of AI work'];
+  const cap = (value: number | null) => value === null || (Number.isInteger(value) && value >= 0 && value <= CAP_MAX);
+  if (!cap(input.dailySpendCapCents)) fields.dailySpendCapCents = ['whole US cents, 0 or more — or empty for no cap'];
+  if (!cap(input.storeDailyJobsCap)) fields.storeDailyJobsCap = ['a whole number of jobs, 0 or more — or empty for no cap'];
+  if (Object.keys(fields).length) throw errors.validation(fields);
+
+  const before = await currentGuardrails();
+  const values = {
+    pausedTypes: known.filter((t) => input.pausedTypes.includes(t)),
+    dailySpendCapCents: input.dailySpendCapCents, storeDailyJobsCap: input.storeDailyJobsCap,
+    updatedBy: staff.userId, updatedAt: new Date(),
+  };
+  const db = unsafeAdminDb();
+  await db.transaction(async (tx) => {
+    await tx.insert(aiGuardrails).values({ id: GUARDRAILS_ID, ...values })
+      .onConflictDoUpdate({ target: aiGuardrails.id, set: values });
+    await staffLog(staff, {
+      action: 'ai.guardrails', targetType: 'ai_guardrails', targetId: GUARDRAILS_ID, reason: why,
+      detail: {
+        before: { pausedTypes: before.pausedTypes, dailySpendCapCents: before.dailySpendCapCents, storeDailyJobsCap: before.storeDailyJobsCap },
+        after: { pausedTypes: values.pausedTypes, dailySpendCapCents: values.dailySpendCapCents, storeDailyJobsCap: values.storeDailyJobsCap },
+      },
+    }, tx as unknown as Db);
+  });
+  return currentGuardrails();
 }

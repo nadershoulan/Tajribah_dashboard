@@ -79,6 +79,7 @@ export const aiJobs = pgTable('ai_jobs', {
 }, (t) => [
   index('ai_jobs_tenant_idx').on(t.tenantId, t.status, t.createdAt),
   index('ai_jobs_type_idx').on(t.type, t.status),
+  index('ai_jobs_created_idx').on(t.createdAt), // P6.7: today's spend, across stores
 ]);
 
 export const aiJobEvents = pgTable('ai_job_events', {
@@ -105,6 +106,20 @@ export const modelRegistry = pgTable('model_registry', {
   rolledBackAt: ts('rolled_back_at'),
   ...timestamps(),
 }, (t) => [uniqueIndex('model_registry_name_version_unq').on(t.name, t.version)]);
+
+/**
+ * P6.7 — the brakes staff can pull on AI spend: kinds of work paused, a platform daily spend cap
+ * (US cents, what providers charge us) and a per-store daily job cap. One row, id `platform`; no
+ * row, or a null, means no limit. Written only by the admin console, read only by the admin role.
+ */
+export const aiGuardrails = pgTable('ai_guardrails', {
+  id: text('id').primaryKey(),
+  pausedTypes: json<string[]>('paused_types').notNull().default([]),
+  dailySpendCapCents: integer('daily_spend_cap_cents'),
+  storeDailyJobsCap: integer('store_daily_jobs_cap'),
+  updatedBy: uuid('updated_by'),
+  ...timestamps(),
+});
 
 export const generationInputs = pgTable('generation_inputs', {
   id: pk(),

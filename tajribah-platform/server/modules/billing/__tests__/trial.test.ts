@@ -45,7 +45,8 @@ test('the rule: a trial that ended, or a subscription that did, is read-only; pa
     assert.equal(writeStateOf({ subscriptionStatus: status, trialEndsAt, now }).readOnly, readOnly, `${status} / ${trialEndsAt?.toISOString()}`);
   }
   const stillAllowed = PERMISSIONS.filter((p) => !p.endsWith(':read') && allowedWhileReadOnly(p));
-  assert.deepEqual(stillAllowed.sort(), ['analytics:export', 'billing:write', 'settings:write'], 'only the way out stays open');
+  // P8: api_keys:manage too — seeing and revoking a key (a leaked one cannot wait for a plan); making one is refused in createApiKey.
+  assert.deepEqual(stillAllowed.sort(), ['analytics:export', 'api_keys:manage', 'billing:write', 'settings:write'], 'only the way out stays open');
 });
 
 async function owner(harness: TestDb, name: string) {

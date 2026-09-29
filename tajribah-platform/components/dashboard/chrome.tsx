@@ -8,7 +8,7 @@
  */
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
-  BarChart3, Box, CreditCard, Code2, Home, Link2, Lock, Menu, Package, QrCode,
+  BarChart3, Box, CreditCard, Code2, Home, KeyRound, Link2, Lock, Menu, Package, QrCode,
   Scan, Settings, ShieldAlert, ShieldCheck, SlidersHorizontal, Users, ChevronDown, X, LogOut, Eye, Megaphone, Check, Plus,
 } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
@@ -28,7 +28,7 @@ import { formatDate, formatDateTime, formatRelative } from '@/lib/format';
 const ICONS: Record<string, typeof Home> = {
   home: Home, package: Package, box: Box, scan: Scan, sliders: SlidersHorizontal,
   code: Code2, qr: QrCode, chart: BarChart3, link: Link2, users: Users,
-  card: CreditCard, gear: Settings,
+  card: CreditCard, gear: Settings, key: KeyRound,
 };
 
 export function Logo({ light = false }: { light?: boolean }) {

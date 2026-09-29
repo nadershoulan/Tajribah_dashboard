@@ -37,8 +37,12 @@ export function writeStateOf(input: {
   }
 }
 
-/** What a read-only store may still do. Every other non-read permission is refused. */
-const WHILE_READ_ONLY: ReadonlySet<Permission> = new Set<Permission>(['billing:write', 'settings:write', 'analytics:export']);
+/**
+ * What a read-only store may still do. Every other non-read permission is refused. `api_keys:manage`
+ * (P8): seeing and revoking keys — stopping a leaked key cannot wait for a plan; making one is
+ * refused by `createApiKey` itself, and a read-only store's keys cannot write anyway.
+ */
+const WHILE_READ_ONLY: ReadonlySet<Permission> = new Set<Permission>(['billing:write', 'settings:write', 'analytics:export', 'api_keys:manage']);
 
 export function allowedWhileReadOnly(permission: Permission): boolean {
   return permission.endsWith(':read') || WHILE_READ_ONLY.has(permission);

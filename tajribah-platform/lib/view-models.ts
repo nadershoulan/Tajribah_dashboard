@@ -195,6 +195,21 @@ export type ModelVersionRow = {
   createdAt: string;
 };
 
+/** P8 — one API key as the keys screen shows it. The key itself is never here: it is shown once, at creation. */
+export type ApiKeyView = {
+  id: string;
+  name: string;
+  /** The first characters (`tjr_` and 8 more), to tell keys apart. */
+  prefix: string;
+  scopes: string[];
+  createdAt: string;
+  createdBy: string | null;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  state: 'live' | 'expired' | 'revoked';
+};
+
 export type TeamMemberRow = {
   id: string;
   fullName: string;

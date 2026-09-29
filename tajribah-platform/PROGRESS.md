@@ -3,8 +3,8 @@
 _Last updated: 2026-09-29 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-09-29):** **screens that stay fast as stores grow** (P7, database performance — the code-level part). Five lists had no index that could serve them, so with enough data each would have read everything and then sorted it: **your product list**, **the AI jobs list**, **the notifications bell**, and **a store connection's sync and webhook history** (webhooks arrive on every product change in Salla — the fastest-growing table). Each now has one, and a test asks the database how it would run every one of those screens' queries — the code's own, exactly as sent — and fails if any would read a whole table or sort it · before that: **limits that hold once we are live** (P7 rate limits)
-> **Next:** more later-phase packages that need no account or setup: P7's code-level parts (rate limits, caching, database indexes, monitoring), then P8's API keys.
+> **Just finished (2026-09-29):** **API keys** (P8, Enterprise) — a store can make keys for its other systems (a warehouse, a product system, a reporting board): each has a name, **only the permissions you tick** (never billing, the team, settings, other keys or deleting the store), and a lifetime. The key is shown **once**; only a fingerprint of it is kept. A key works **as the person who made it**: if they leave the store it stops, if their role is lowered it loses what they lost, and in a store that is read-only it can only read. Revoking is instant — and stays possible even when the store is read-only, so a leaked key never waits for a payment. On plans without the Public API the page shows it is an Enterprise feature · before that: **screens that stay fast as stores grow** (P7 database speed)
+> **Next:** the Public API itself (P8) — the first endpoints these keys open (products, models, analytics), with its public documentation; then P7's monitoring.
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
 > **Waiting on you:** the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
 
@@ -17,10 +17,10 @@ P4 Analytics      ███████████░░░░░░░░░�
 P5 Try-on         ████████████████░░░░░░░░░░░░░░░░   7 / 14   (+ watch partly) · the rest touches your studio or needs new photography
 P6 AI+connectors  ██████████░░░░░░░░░░░░░░░░░░░░░░   5 / 16   · the rest needs AI providers or store accounts
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ P7.7 security, safe updates, rate limits, database speed: the code-level parts done)
-P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
+P8 Enterprise     ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   1 / 12
 M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
-                                            overall  87 / 169
+                                            overall  88 / 169
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -172,6 +172,14 @@ The public site that sells Tajribah, Arabic first.
 | ✅ | P3.6 Model review | Every generated model waits for a person at Tajribah before it can go live: staff see it in 3D next to the product's measurements (any mismatch highlighted), then approve it or send it back with a note. The merchant sees "waiting for review", "approved" or "needs changes" with the reviewer's note, and is notified. A new version is reviewed again. Your own uploads are never held (decision T25) |
 | ◐ | P3.8 3D editor | Open a model from the model list ("Edit"): see it in 3D, turn it in quarter turns until it stands and faces the right way, see its real size in millimetres before and after, and optionally make it exactly the product's size. Saving makes a new version — the turn is baked into the file, so iPhone and Android AR show it the same — and the live version stays until you publish the new one. A generated model goes back to review. **Not yet:** choosing the picture shown in the model list (needs the public file server, Cloudflare) |
 | ◐ | P3.7 Photo screen | On each product's page: a box per angle — front (required), side, back and up to three close-ups. Pick or drop a photo and it is uploaded and checked at once: accepted with its size and a file-quality score, or refused with the reason and a "choose another" button. Remove any photo. The page says when the product is ready to generate. **The Generate button is there but off** — it needs the 3D provider and the price per generation (below) |
+
+## P8 — enterprise (started 2026-09-29)
+
+| | Package | In plain words |
+|---|---|---|
+| ✅ | P8 API keys and scopes | **Keys for your other systems** (Enterprise): named, only the permissions you tick, a lifetime; shown once, kept only as a fingerprint. A key works as the person who made it — it stops when they leave and loses what they lose — and a read-only store's keys can only read. Revoke at once, even while read-only |
+
+---
 
 ## P7 — hardening
 
@@ -396,3 +404,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-29 | Brakes on AI spending: pause a kind of work, a platform daily spend limit, a per-store daily job limit | 599 pass / 0 fail; seen to fail 10 ways; checked in a real browser (en 1440, ar 390) |
 | 2026-09-29 | Rate limits that hold across server copies; invitations, install checks and exports limited; refusals in plain words | 604 pass / 0 fail; seen to fail 11 ways |
 | 2026-09-29 | Five screen lists given the index they lacked; a test checks every hot query's plan | 606 pass / 0 fail; seen to fail 8 ways |
+| 2026-09-29 | API keys: scoped, shown once, acting as their maker, revocable even while read-only | 610 pass / 0 fail; seen to fail 16 ways; checked in a real browser (Enterprise en 1440 / ar 390, Growth locked) |

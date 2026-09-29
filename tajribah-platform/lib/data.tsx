@@ -13,7 +13,7 @@ import {
   DEMO_AI_JOBS, DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
 } from './demo-data';
 import type {
-  AiJobView, AnalyticsView, BillingSummary, ConnectionDetail, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, ConnectionDetail, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
@@ -62,6 +62,10 @@ export interface DataSource {
   modelVersions(modelId: string): Promise<ModelVersionRow[]>;
   /** P6.8 — the store's AI work, newest first; cancel one that has not ended. */
   aiJobs(active?: boolean): Promise<AiJobView[]>;
+  /** P8 — the store's API keys; a new key comes back once, with its secret. */
+  apiKeys(): Promise<ApiKeyView[]>;
+  createApiKey(input: { name: string; scopes: string[]; expiresInDays: number | null }): Promise<{ key: string; apiKey: ApiKeyView }>;
+  revokeApiKey(id: string): Promise<ApiKeyView>;
   cancelAiJob(jobId: string): Promise<AiJobView>;
   publishVersion(versionId: string): Promise<void>;
   /** T46 — a version that is not live; the whole model (off the shop too). */
@@ -172,6 +176,9 @@ export function apiSource(client: ApiClient): DataSource {
     async models() {
       return (await client.call<{ models: ModelRow[] }>('/api/models')).models;
     },
+    async apiKeys() { return (await client.call<{ keys: ApiKeyView[] }>('/api/api-keys')).keys; },
+    async createApiKey(input) { return client.call<{ key: string; apiKey: ApiKeyView }>('/api/api-keys', { body: input }); },
+    async revokeApiKey(id) { return client.call<ApiKeyView>(`/api/api-keys/${encodeURIComponent(id)}/revoke`, { method: 'POST' }); },
     async aiJobs(active) { return (await client.call<{ jobs: AiJobView[] }>(`/api/ai-jobs?limit=50${active ? '&active=1' : ''}`)).jobs; },
     async cancelAiJob(jobId) { return client.call<AiJobView>(`/api/ai-jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' }); },
     async modelVersions(modelId) {
@@ -509,6 +516,10 @@ export const demoSource: DataSource = {
     demoConnectionState.status = 'revoked';
   },
   async models() { return demoModels.map((m) => ({ ...m })); },
+  // P8: the preview's store is on Growth — keys are Enterprise, so the server would refuse, and so does the preview.
+  async apiKeys() { return []; },
+  async createApiKey() { throw new ApiError(402, 'plan_required', 'public_api is not included in this plan'); },
+  async revokeApiKey() { throw new ApiError(404, 'not_found', 'api_key not found'); },
   async aiJobs(active) { return demoAiJobs.filter((j) => !active || j.canCancel).map((j) => ({ ...j })); },
   async cancelAiJob(jobId) {
     const job = demoAiJobs.find((j) => j.id === jobId);

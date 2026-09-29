@@ -43,6 +43,18 @@ const INVITABLE: MemberRole[] = ['admin', 'editor', 'analyst', 'viewer'];
 /** `lang`: the email's language, chosen by the inviter — we know nothing of the invitee yet. */
 export type InviteInput = { email: string; role: MemberRole; lang?: Lang };
 
+/** P8: the names of this store's members among `userIds` — someone who left the store is not named. */
+export async function memberNames(ctx: TenantContext, userIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!userIds.length) return out;
+  const members = await ctx.db.find(tenantMemberships, inArray(tenantMemberships.userId, userIds), { limit: userIds.length });
+  if (!members.length) return out;
+  const people = await unsafeAdminDb().select({ id: users.id, email: users.email, fullName: users.fullName })
+    .from(users).where(inArray(users.id, members.map((m) => m.userId)));
+  for (const person of people) out.set(person.id, person.fullName || person.email);
+  return out;
+}
+
 export async function listTeam(ctx: TenantContext): Promise<TeamMemberRow[]> {
   ctx.require('team:read');
   const members = await ctx.db.find(tenantMemberships, undefined, { limit: 500 });

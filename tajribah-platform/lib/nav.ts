@@ -53,6 +53,7 @@ export const DASHBOARD_NAV: NavGroup[] = [
       { id: 'MD-150', href: '/dashboard/team', label: { ar: 'الفريق', en: 'Team' }, icon: 'users', permission: 'team:read' },
       { id: 'MD-160', href: '/dashboard/billing', label: { ar: 'الاشتراك والفواتير', en: 'Billing' }, icon: 'card', permission: 'billing:read' },
       { id: 'MD-170', href: '/dashboard/settings', label: { ar: 'الإعدادات', en: 'Settings' }, icon: 'gear', permission: 'settings:read' },
+      { id: 'MD-180', href: '/dashboard/api-keys', label: { ar: 'مفاتيح الواجهة البرمجية', en: 'API keys' }, icon: 'key', permission: 'api_keys:manage', feature: 'public_api' }, // P8
     ],
   },
 ];

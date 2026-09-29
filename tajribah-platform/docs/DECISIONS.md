@@ -718,3 +718,16 @@ admin console's AI page; each change needs a reason and is written to the staff 
 before and after. Two behaviours are deliberate: **zero is a cap** (it stops all new AI work — the
 "off" switch), and the spend cap stops *new* work only — cost is recorded as attempts end, so work
 already sent can carry a day past the cap.
+
+## P8 · 2026-09-29 · An API key acts as its maker, narrowed to its scopes
+
+A key belongs to the store but **acts as the person who made it**, within the scopes ticked: the
+request context is built for the maker (membership, role, suspension, read-only state — every
+rule a person meets) and then narrowed. So a key never outlives its maker's place in the store,
+never exceeds their current role, and cannot write in a read-only store. The alternative — keys
+as independent store identities — would need its own role, its own suspension rules and a way to
+outlive the people who made it; for a store's own integrations that is more power than asked.
+Two consequences, deliberate: **revoking stays possible while a store is read-only** (a leaked key
+cannot wait for a payment; making a new one can), and keys hold **only** product, model, AR,
+try-on and analytics scopes — money, people, settings, other keys and deleting the store stay
+with a person signed in.

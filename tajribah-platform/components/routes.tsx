@@ -19,6 +19,7 @@ import SettingsPage from '@/components/pages/Settings';
 import Embed from '@/components/pages/Embed';
 import Qr from '@/components/pages/Qr';
 import AiJobs from '@/components/pages/AiJobs';
+import ApiKeys from '@/components/pages/ApiKeys';
 import Login from '@/components/pages/Login';
 import Register from '@/components/pages/Register';
 import VerifyEmail from '@/components/pages/VerifyEmail';
@@ -60,6 +61,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/dashboard/settings': SettingsPage,
   '/dashboard/embed': Embed,
   '/dashboard/ai-jobs': AiJobs, // P6.8
+  '/dashboard/api-keys': ApiKeys, // P8
   '/dashboard/qr': Qr, // T52: was "page not found" from the sidebar
   '/dashboard/ar-settings': ArSettings,
   '/login': Login,

@@ -386,7 +386,7 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
   width: 46px; height: 46px; border-radius: 14px; background: var(--aqua-50); color: var(--aqua);
   display: grid; place-items: center; margin: 0 auto 14px;
 }
-.empty h3 { margin: 0 0 6px; font-size: 17px; }
+.empty h3, .empty h1 { margin: 0 0 6px; font-size: 17px; }
 .empty p { margin: 0 auto 16px; color: var(--text-2); max-width: 48ch; }
 
 .skeleton { background: linear-gradient(90deg, var(--tint), #f7fbfc, var(--tint)); background-size: 200% 100%;

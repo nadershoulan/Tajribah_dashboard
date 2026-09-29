@@ -12,6 +12,7 @@ export default function NotFound() {
   return (
     <Shell tenant={null} crumbs={[{ label: t('غير موجود', 'Not found') }]}>
       <Empty
+        heading="h1"
         title={t('هذه الصفحة غير موجودة', 'That page does not exist')}
         body={t(
           'ربما تغيّر الرابط، أو أن هذه الشاشة لم تُبنَ بعد. كل ما هو مبني يظهر في القائمة الجانبية.',

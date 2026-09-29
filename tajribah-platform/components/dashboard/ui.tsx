@@ -110,13 +110,16 @@ export function Badge({ tone = 'neutral', children, dot }: { tone?: BadgeTone; c
   return <span className={cls}>{dot && <i className="badge-dot" aria-hidden />}{children}</span>;
 }
 
-export function Empty({ title, body, action, icon }: {
+export function Empty({ title, body, action, icon, heading = 'h3' }: {
   title: string; body: string; action?: ReactNode; icon?: ReactNode;
+  /** T52: a page made of nothing but this (not found) needs its title as the page's h1. */
+  heading?: 'h1' | 'h3';
 }) {
+  const Heading = heading;
   return (
     <div className="empty">
       <div className="empty-icon">{icon ?? <Inbox size={22} aria-hidden />}</div>
-      <h3>{title}</h3>
+      <Heading>{title}</Heading>
       <p>{body}</p>
       {action}
     </div>

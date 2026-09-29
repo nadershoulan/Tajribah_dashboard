@@ -70,6 +70,7 @@ export const FOOTER: { title: Bi; links: NavItem[] }[] = [
       { href: '/help', label: { ar: 'مركز المساعدة', en: 'Help centre' } },
       { href: '/blog', label: { ar: 'المدونة', en: 'Blog' } },
       { href: '/customers', label: { ar: 'قصص الاستخدام', en: 'Customer stories' } },
+      { href: '/developers', label: { ar: 'للمطوّرين', en: 'Developers' } },
     ],
   },
   {
@@ -104,6 +105,7 @@ export const TITLES: Record<string, Bi> = {
   '/about': { ar: 'من نحن', en: 'About' },
   '/contact': { ar: 'تواصل معنا', en: 'Contact' },
   '/faq': { ar: 'الأسئلة الشائعة', en: 'FAQ' },
+  '/developers': { ar: 'للمطوّرين — الواجهة البرمجية والإشعارات البرمجية', en: 'For developers — the API and webhooks' },
   '/privacy': { ar: 'سياسة الخصوصية', en: 'Privacy policy' },
   '/try-on-privacy': { ar: 'خصوصية الكاميرا والصور', en: 'Camera & photo privacy' },
   '/terms': { ar: 'الشروط والأحكام', en: 'Terms of service' },

@@ -443,6 +443,12 @@ h3 .tag { margin-inline-start: 8px; font-size: 11.5px; }
   background: var(--navy-900); color: #cfe6f1; font-family: var(--f-mono); font-size: 13.5px; line-height: 1.75;
 }
 
+/* ---------- developers (P8) ----------------------------------------------- */
+.dev-table { min-width: 620px; }
+.dev-table th, .dev-table td { text-align: start; vertical-align: top; }
+.dev-table code, .dev-events code, .sec p code { font-family: var(--f-mono); font-size: 13.5px; color: var(--navy-800); }
+.dev-events { margin: 18px 0; padding-inline-start: 20px; display: grid; gap: 8px; color: var(--text-2); }
+
 /* ---------- about --------------------------------------------------------- */
 .about-split { align-items: start; }
 .about-logo { background: var(--surface); border-radius: 22px; display: grid; place-items: center; padding: 48px; }

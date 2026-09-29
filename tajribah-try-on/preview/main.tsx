@@ -24,6 +24,7 @@ import Pricing from '@/components/pages/Pricing';
 import About from '@/components/pages/About';
 import Contact from '@/components/pages/Contact';
 import FaqPage from '@/components/pages/Faq';
+import DevelopersPage from '@/components/pages/Developers';
 import NotFound from '@/components/pages/NotFound';
 import { CookiesPage, PrivacyPage, RefundPage, TermsPage, TryOnPrivacyPage } from '@/components/pages/Legal';
 import { SallaPage, ZidPage } from '@/components/pages/PlatformLanding';
@@ -47,6 +48,7 @@ const ROUTES: Record<string, ComponentType> = {
   '/about': About,
   '/contact': Contact,
   '/faq': FaqPage,
+  '/developers': DevelopersPage,
   '/privacy': PrivacyPage,
   '/try-on-privacy': TryOnPrivacyPage,
   '/terms': TermsPage,

@@ -67,6 +67,7 @@ test('the SLO budgets are the plan\'s, and a request over its budget is logged a
   assert.equal(budgetMs('HEAD', '/api/products'), 300);
   assert.equal(budgetMs('POST', '/api/products'), 800);
   assert.equal(budgetMs('POST', '/api/analytics/collect'), SLO.eventIngestP99Ms);
+  assert.equal(budgetMs('POST', '/v1/e'), SLO.eventIngestP99Ms, 'the collector on ev.tajribah.com');
 
   const lines: any[] = [];
   const saved = { log: console.log, warn: console.warn };

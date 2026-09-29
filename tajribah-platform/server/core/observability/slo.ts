@@ -17,9 +17,14 @@ export const SLO = {
   uptimeDashboardPct: 99.9,
 } as const;
 
-/** The paths that are not dashboard API calls, with their own objective. */
+/**
+ * The paths that are not dashboard API calls, with their own objective. The event collector is
+ * served at `ev.tajribah.com/v1/e` (GO-LIVE §5, the widget's `DEFAULT_EVENTS`); in this app it is
+ * `/api/analytics/collect` — both carry the ingest budget, whichever serves it.
+ */
 const PATH_BUDGETS: Record<string, number> = {
   '/api/analytics/collect': SLO.eventIngestP99Ms,
+  '/v1/e': SLO.eventIngestP99Ms,
 };
 
 /** The time budget of one request: event ingest has its own; otherwise reads 300 ms, writes 800 ms. */

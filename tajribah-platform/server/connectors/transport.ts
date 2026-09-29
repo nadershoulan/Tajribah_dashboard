@@ -72,9 +72,10 @@ export class Transport {
   /**
    * Send `request` for connection `key`. Returns the response for any status the caller
    * should see (2xx, 4xx other than 429); throws `upstream_*` when the store could not
-   * answer usefully after the retries allowed.
+   * answer usefully after the retries allowed. `idempotent` marks a POST that only reads (a
+   * GraphQL query, P6 Shopify) as safe to repeat, like a GET.
    */
-  async send(key: string, url: string, init: RequestInit = {}): Promise<Response> {
+  async send(key: string, url: string, init: RequestInit = {}, options: { idempotent?: boolean } = {}): Promise<Response> {
     const method = (init.method ?? 'GET').toUpperCase();
     this.enterCircuit(key);
     try {
@@ -107,7 +108,7 @@ export class Transport {
         return response;
       }
 
-      const retryable = IDEMPOTENT.has(method) || !reached;
+      const retryable = IDEMPOTENT.has(method) || options.idempotent === true || !reached;
       if (!retryable || attempt === this.options.maxAttempts) {
         this.fail(key);
         if (response) return response;

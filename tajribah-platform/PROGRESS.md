@@ -3,8 +3,8 @@
 _Last updated: 2026-09-29 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-09-29):** **connect a WooCommerce store** (P6) — the one store platform that needs no partner account from us. On **Store connections**, a Pro store types its address and presses **Connect with WooCommerce**: it goes to its own WordPress site, approves read-only access there, and comes back — no plugin, no keys to copy. We check the approval really came from a connection started here (and within 15 minutes), that the person may still connect stores, and that the keys open that very site; then the products sync in, and every hour after. Also fixed on that page: the Shopify and WooCommerce **Connect buttons did nothing** when pressed, and it claimed we read **stock** — we don't · before that: **backups you can trust** (P7)
-> **Next:** try the WooCommerce connection against a real WooCommerce site (a local WordPress), then more account-free work. White-label waits on your answer below.
+> **Just finished (2026-09-29):** **WooCommerce, tried on the real thing** (P6). A real WordPress with the real WooCommerce plugin, run on this machine, with 125 products — Arabic names, a price of 1,250.50, a free one, a draft, a hidden one, one without a price. The connection read every one of them exactly as the store holds them, in two pages, none twice; found only what changed when asked; and treated a wrong key as "reconnect", not an outage. WooCommerce's own approval page accepted our Connect link as built. The last step — WooCommerce handing the keys back to us — needs the dashboard live on https, so it gets its first real run on go-live day (it is on the checklist) · before that: **connect a WooCommerce store** (P6)
+> **Next:** more account-free work. White-label waits on your answer below.
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
 > **Waiting on you:** **new question — white-label (Enterprise): what should shoppers see instead of Tajribah's name?** Today they see it in two places: the logo on the phone page a QR code opens, and the try-on page's title. The store's own logo and name there? Anything in the store owner's dashboard too? Also: the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
 
@@ -15,12 +15,12 @@ P2 Billing        █████████████░░░░░░░�
 P3 3D pipeline    ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ P3.7 photo screen, P3.8 editor) · the rest needs a provider, prices or caps
 P4 Analytics      ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ CSV export partly) · shared with the other session
 P5 Try-on         ████████████████░░░░░░░░░░░░░░░░   7 / 14   (+ watch partly) · the rest touches your studio or needs new photography
-P6 AI+connectors  ██████████░░░░░░░░░░░░░░░░░░░░░░   5 / 16   · the rest needs AI providers or store accounts
+P6 AI+connectors  ████████████░░░░░░░░░░░░░░░░░░░░   6 / 16   · the rest needs AI providers or store accounts
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ security, safe updates, rate limits, database speed, monitoring, load tests, backups: the code-level parts done)
 P8 Enterprise     █████████████░░░░░░░░░░░░░░░░░░░   5 / 12
 M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
-                                            overall  92 / 169
+                                            overall  93 / 169
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -204,7 +204,7 @@ The public site that sells Tajribah, Arabic first.
 | | Package | In plain words |
 |---|---|---|
 | ✅ | P6.7 Brakes on AI spending | On the staff console's AI page: **pause a kind of AI work**, a **daily spending limit for the platform**, a **daily AI-job limit per store**. Refused before any charge, with a clear message; nothing limited until someone sets a number; every change logged with its reason |
-| ◐ | P6 WooCommerce connection | **Connect a WooCommerce store from Store connections** (Pro): approve read-only access on your own WordPress site, come back, and your products sync in — then every hour. Passes the same twelve checks every store connection must pass; Arabic names, prices exact to the halala (the fils for Kuwait, Bahrain, Oman), drafts and hidden products as they are. If the store takes the keys back, it asks you to reconnect. Not yet tried against a real WooCommerce site — only a faithful stand-in |
+| ✅ | P6 WooCommerce connection | **Connect a WooCommerce store from Store connections** (Pro): approve read-only access on your own WordPress site, come back, and your products sync in — then every hour. Passes the same twelve checks every store connection must pass, **and was tried on a real WooCommerce** (every product exactly as held; Arabic, halalas, drafts, hidden). If the store takes the keys back, it asks you to reconnect. The approval's last step (keys handed back to us) first runs on go-live day, over https |
 | ✅ | P6.8 AI jobs screen | **Every piece of AI work for your store in one list** — the product it is for, a progress bar while it runs, what it cost in credits and whether they came back, and Cancel with an honest warning about the credits. Opened from the 3D models page and from Billing |
 | ✅ | P6 Multi-store support | One sign-in, several stores. The **store name at the top of the dashboard** (it did nothing before) opens a list of your stores — your role and plan in each, read-only or suspended ones marked — and picking one opens that store with a fresh load. **Add a store** there too: a name, and it opens on **its own 14-day free trial** (your decision, T30), with you as owner, at its setup; your email must be confirmed first, 5 a day at most. Checked in a real browser, Arabic and English |
 | ✅ | P6.16 Connection health | Each store connection gets a **real health score** (it always said 100 before). Signals the platform already records: access lost (score 0 — "reconnect"), the store not answering, syncs failing one after another, no good sync for three of its own sync intervals, live updates failing (10% or more, at least 3 in a day) or waiting over 15 minutes. **Healthy**, **needs attention** or **failing** — shown on the connections screen with the reasons in plain Arabic and English. Every minute the score is updated, and when a connection **gets worse** the store's people are notified once — not again while it stays the same, and not on recovery |
@@ -422,3 +422,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-29 | Backups proven to restore whole (the restore drill), on a real Postgres; all 27 database changes applied there too | 647 pass / 0 fail / 0 cancelled; the drill caught 6 kinds of damage |
 | 2026-09-29 | WooCommerce: the connector passes the connector test suite and syncs end to end; a store revoking its keys now asks for a reconnect (any platform) | 666 pass / 0 fail / 0 cancelled; seen to fail 10 ways |
 | 2026-09-29 | Connect WooCommerce from Store connections (its own approval screen); dead Connect buttons and a false "stock" claim fixed | 670 pass / 0 fail / 0 cancelled; seen to fail 6 ways; checked in a real browser (Growth locked / Pro form, ar 390, en 1440) |
+| 2026-09-29 | WooCommerce tried on a real WordPress + WooCommerce (local): passed first time | 670 pass + 1 live (skipped without a store) / 0 fail |

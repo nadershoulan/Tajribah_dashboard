@@ -1,0 +1,12 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "preferredVersions": { "php": "8.3", "wp": "latest" },
+  "steps": [
+    { "step": "installPlugin", "pluginData": { "resource": "wordpress.org/plugins", "slug": "woocommerce" }, "options": { "activate": true } },
+    { "step": "writeFile", "path": "/wordpress/wp-content/mu-plugins/local-https.php", "data": "<?php\n// Local test only: WooCommerce accepts Basic auth only over HTTPS; this server is plain HTTP.\n$_SERVER['HTTPS'] = 'on';\n" },
+    {
+      "step": "runPHP",
+      "code": "<?php\nrequire '/wordpress/wp-load.php';\nupdate_option('woocommerce_currency', 'SAR');\nupdate_option('permalink_structure', '/%postname%/');\n$make = function ($name, $price, $status, $sku, $description) {\n  $p = new WC_Product_Simple();\n  $p->set_name($name);\n  if ($price !== null) $p->set_regular_price($price);\n  $p->set_status($status);\n  if ($sku !== '') $p->set_sku($sku);\n  $p->set_description($description);\n  return $p->save();\n};\n$ids = [];\n$ids[] = $make('ساعة ذهبية ✨', '1250.50', 'publish', 'W-1', \"مقاومة للماء — 50 م.\\nالعلبة 38 مم.\\n\\nفقرة ثانية & رمز\");\n$ids[] = $make('Gold ring', '0', 'publish', '', '');\n$ids[] = $make('مسودة', '99.99', 'draft', 'D-1', '');\n$ids[] = $make('مخفي', '10', 'private', 'P-1', '');\n$ids[] = $make('No price', null, 'publish', 'N-1', '');\nfor ($i = 1; $i <= 120; $i++) { $ids[] = $make('منتج ' . $i, (string) (100 + $i) . '.25', 'publish', 'S-' . $i, ''); }\nglobal $wpdb;\n$key = 'ck_' . str_repeat('a1', 20);\n$secret = 'cs_' . str_repeat('b2', 20);\n$wpdb->insert($wpdb->prefix . 'woocommerce_api_keys', ['user_id' => 1, 'description' => 'Tajribah local test', 'permissions' => 'read', 'consumer_key' => wc_api_hash($key), 'consumer_secret' => $secret, 'truncated_key' => substr($key, -7)]);\nfile_put_contents('/wordpress/tajribah-test.json', json_encode(['key' => $key, 'secret' => $secret, 'ids' => $ids]));\necho 'seeded ' . count($ids);\n"
+    }
+  ]
+}

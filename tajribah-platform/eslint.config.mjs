@@ -16,6 +16,9 @@ const eslintConfig = defineConfig([
     "widget/dist/**",
     // Vendored third-party viewer files, served as they were published (public/vendor/README.md).
     "public/vendor/**",
+    // Local tool output, never committed: wrangler's dev bundles and the test runner's build.
+    ".wrangler/**",
+    ".tests/**",
   ]),
   {
     files: ["components/ui/**/*.{ts,tsx}", "hooks/use-mobile.ts"],

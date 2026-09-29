@@ -19,6 +19,8 @@ import { riyadhDay } from '@/lib/format';
 import type { AnalyticsView, MetricPoint } from '@/lib/view-models';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { assertFeature, entitlementsOf } from '@/server/core/billing/entitlements';
+import { errors } from '@/server/core/errors/problem';
+import { LIMITS, rateLimiter } from '@/server/core/ratelimit/limiter';
 
 const DAY = 86_400_000;
 export type Range = '7d' | '30d' | '90d';
@@ -159,6 +161,8 @@ export async function analyticsView(ctx: TenantContext, range: Range, now = new 
 export async function analyticsCsv(ctx: TenantContext, range: Range, now = new Date()): Promise<string> {
   ctx.require('analytics:export');
   assertFeature(await entitlementsOf(ctx), 'full_analytics'); // T35: reports are full analytics
+  const limit = await rateLimiter().hit(`analytics-export:${ctx.tenantId}`, LIMITS.analyticsExport.limit, LIMITS.analyticsExport.windowSeconds); // P7
+  if (!limit.allowed) throw errors.rateLimited(limit.retryAfter);
   const days = daysOf(range, now);
   const rows = await ctx.db.find(dailyTenantStats, and(gte(dailyTenantStats.day, days[0]!), lte(dailyTenantStats.day, days[days.length - 1]!)), { limit: 200 });
   const byDay = new Map(rows.map((r) => [String(r.day), r]));

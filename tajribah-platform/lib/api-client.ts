@@ -101,9 +101,10 @@ export class ApiClient {
   }
 
   private static async fail(response: Response): Promise<never> {
-    let problem: { code?: string; detail?: string; errors?: FieldErrors; requestId?: string } = {};
+    let problem: { code?: string; title?: string; detail?: string; errors?: FieldErrors; requestId?: string } = {};
     try { problem = await response.json(); } catch { /* not a problem document */ }
-    throw new ApiError(response.status, problem.code ?? 'http_error', problem.detail, problem.errors, problem.requestId);
+    // No detail (a 429, say): the title, which the server wrote in the viewer's language — never the bare code.
+    throw new ApiError(response.status, problem.code ?? 'http_error', problem.detail ?? problem.title, problem.errors, problem.requestId);
   }
 
   /** An authenticated call: one refresh-and-retry on 401, then the error stands. */

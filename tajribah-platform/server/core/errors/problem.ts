@@ -121,8 +121,9 @@ export function toProblem(
     title: def.title[lang],
     status: def.status,
     code: app.code,
-    // An unexpected error never explains itself to the caller; the log keeps the detail.
-    detail: app.code === 'internal' ? undefined : app.message || undefined,
+    // An unexpected error never explains itself to the caller; the log keeps the detail. An error
+    // made without a detail carries its code as its message — that is not a detail either (P7).
+    detail: app.code === 'internal' || app.message === app.code ? undefined : app.message || undefined,
     instance: ctx.instance,
     requestId: ctx.requestId,
     errors: app.errors,

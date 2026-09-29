@@ -51,30 +51,49 @@ export class MemoryRateLimiter implements RateLimiter {
   }
 }
 
+/** The part of Workers' `KVNamespace` the limiter uses — structural, so tests need no runtime. */
+export type RateLimitKv = {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+  delete(key: string): Promise<void>;
+};
+
 /**
- * Workers KV. Eventually consistent, so the count can lag by a second or two across
- * colos — acceptable for abuse control, never for anything that must be exact (a quota
- * that costs money goes through `assertWithinQuota` against the database instead).
+ * Workers KV, shared by every isolate (P7: wired by `configureRateLimiter`). Eventually
+ * consistent, so the count can lag by a second or two across colos — acceptable for abuse
+ * control, never for anything that must be exact (a quota that costs money goes through
+ * `assertWithinQuota` against the database instead).
+ *
+ *  - **A blocked hit writes nothing.** Once a key is over its limit the answer is read, not
+ *    counted: a script hammering a blocked endpoint costs one KV read per request, not a write
+ *    (writes are the metered, rate-limited half of KV).
+ *  - **`retryAfter` is what is left of the window**, not its whole length.
+ *  - `reset` clears the current window of every length the platform uses (LIMITS) — it once
+ *    reached only minute and hour windows, so a login's 15-minute count survived it.
  */
 export class KvRateLimiter implements RateLimiter {
-  constructor(private readonly kv: KVNamespace) {}
+  constructor(private readonly kv: RateLimitKv, private readonly now: () => number = Date.now) {}
 
-  async hit(key: string, limit: number, windowSeconds: number): Promise<RateLimitResult> {
-    const window = Math.floor(Date.now() / (windowSeconds * 1000));
-    const slot = `rl:${key}:${window}`;
-    const current = Number((await this.kv.get(slot)) ?? '0') + 1;
-    await this.kv.put(slot, String(current), { expirationTtl: Math.max(60, windowSeconds * 2) });
-    return {
-      allowed: current <= limit,
-      remaining: Math.max(0, limit - current),
-      retryAfter: windowSeconds,
-    };
+  private slot(key: string, windowSeconds: number, at: number): { slot: string; retryAfter: number } {
+    const ms = windowSeconds * 1000;
+    const window = Math.floor(at / ms);
+    return { slot: `rl:${key}:${windowSeconds}:${window}`, retryAfter: Math.max(1, Math.ceil(((window + 1) * ms - at) / 1000)) };
   }
 
+  async hit(key: string, limit: number, windowSeconds: number): Promise<RateLimitResult> {
+    const { slot, retryAfter } = this.slot(key, windowSeconds, this.now());
+    const seen = Number((await this.kv.get(slot)) ?? '0') || 0;
+    if (seen >= limit) return { allowed: false, remaining: 0, retryAfter };
+    const current = seen + 1;
+    await this.kv.put(slot, String(current), { expirationTtl: Math.max(60, windowSeconds * 2) });
+    return { allowed: true, remaining: Math.max(0, limit - current), retryAfter };
+  }
+
+  /** Clears the current window of `key` for every window length the platform uses (LIMITS). */
   async reset(key: string): Promise<void> {
-    // Windowed keys expire on their own; an explicit reset only clears the current window.
-    const windows = [Math.floor(Date.now() / 60_000), Math.floor(Date.now() / 3_600_000)];
-    await Promise.all(windows.map((w) => this.kv.delete(`rl:${key}:${w}`)));
+    const at = this.now();
+    const lengths = new Set(Object.values(LIMITS).map((rule) => rule.windowSeconds));
+    await Promise.all([...lengths].map((seconds) => this.kv.delete(this.slot(key, seconds, at).slot)));
   }
 }
 
@@ -94,6 +113,12 @@ export const LIMITS = {
   register: { limit: 5, windowSeconds: 60 * 60 },
   /** Per person (P6, T30): every new store starts a free trial. */
   addStore: { limit: 5, windowSeconds: 24 * 60 * 60 },
+  /** Per store (P7): each invitation is an email to someone's inbox — revoke-and-invite must not become a mailer. */
+  invite: { limit: 20, windowSeconds: 60 * 60 },
+  /** Per store (P7): each install check fetches a page from the shop (and asks DNS) — not a free crawler. */
+  installCheck: { limit: 30, windowSeconds: 60 * 60 },
+  /** Per store (P7): each export reads every day of the range; a report is not a polling target. */
+  analyticsExport: { limit: 30, windowSeconds: 60 * 60 },
 } as const;
 
 let limiter: RateLimiter = new MemoryRateLimiter();
@@ -104,4 +129,14 @@ export function setRateLimiter(next: RateLimiter): void {
 
 export function rateLimiter(): RateLimiter {
   return limiter;
+}
+
+/**
+ * Install the limiter the environment names (P7). `memory` is per isolate — local only, and
+ * refused in production by the env check; `kv` needs the `RATE_LIMITS` KV namespace bound.
+ */
+export function configureRateLimiter(config: { RATE_LIMITER?: 'memory' | 'kv' }, kv?: RateLimitKv): void {
+  if (config.RATE_LIMITER !== 'kv') { limiter = new MemoryRateLimiter(); return; }
+  if (!kv) throw new Error('RATE_LIMITER=kv but no KV namespace binding (RATE_LIMITS) is bound to this Worker');
+  limiter = new KvRateLimiter(kv);
 }

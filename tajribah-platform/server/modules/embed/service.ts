@@ -11,6 +11,7 @@
  */
 import { storeConnections } from '@/db/schema';
 import { errors } from '@/server/core/errors/problem';
+import { LIMITS, rateLimiter } from '@/server/core/ratelimit/limiter';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { embedSnippet } from '@/widget/src/snippet';
 import type { InstallCheck } from '@/lib/view-models';
@@ -53,6 +54,8 @@ export async function checkInstall(ctx: TenantContext, url: string, fetchImpl: t
   const host = await storeHost(ctx);
   let target = safeTarget(url, host);
   if (!target.ok) throw errors.validation({ url: [target.reason] });
+  const limit = await rateLimiter().hit(`install-check:${ctx.tenantId}`, LIMITS.installCheck.limit, LIMITS.installCheck.windowSeconds); // P7
+  if (!limit.allowed) throw errors.rateLimited(limit.retryAfter);
 
   for (let hop = 0; hop <= 3; hop++) {
     const addresses = await resolve(target.url.hostname);

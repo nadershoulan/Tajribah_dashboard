@@ -176,3 +176,12 @@ test('refusals arrive as typed errors the forms can explain', async () => {
     assert.equal(await apiSource(client).product('01a0cb1d-0000-7000-8000-000000000000'), null, 'an unknown product is null, not an error');
   } finally { await harness.close(); resetEnv(); }
 });
+
+test('P7: a refusal with no detail (a 429) reads as its title in the viewer’s language, never the bare code', async () => {
+  const { errors, problemResponse } = await import('@/server/core/errors/problem');
+  for (const [lang, title] of [['ar', 'محاولات كثيرة'], ['en', 'Too many requests']] as const) {
+    const client = new ApiClient((async () => problemResponse(errors.rateLimited(30), { lang })) as unknown as typeof fetch);
+    await assert.rejects(() => client.call('/api/team/invitations', { body: {} }),
+      (e: any) => e instanceof ApiError && e.code === 'rate_limited' && e.status === 429 && e.message === title);
+  }
+});

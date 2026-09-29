@@ -43,8 +43,12 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
 - [ ] **`JOBS_MODE=cf-queue`** with its queue and consumer — inline jobs are refused in production.
       The consumer runs the handlers in `server/worker/handlers.ts`, including `edge.publish-config`
       (keeps live buttons true) and `storage.delete-later` (T36).
+- [ ] Rate limits (P7): create a second KV namespace, bind it as **`RATE_LIMITS`**, and set
+      **`RATE_LIMITER=kv`** — per-isolate memory counters are refused in production, since no limit
+      would hold across isolates (`server/core/ratelimit/limiter.ts`).
 - [ ] The database: still an open decision (DECISIONS T9) — nothing registers one yet.
-- **Check:** sign in; the setup guide loads; `/api/auth/me` answers.
+- **Check:** sign in; the setup guide loads; `/api/auth/me` answers; eleven wrong passwords for one
+  email in a row → the eleventh answers 429 with a `retry-after` header.
 
 ## 4. The website and try-on (`tajribah.sa`, `tajribah-try-on`)
 

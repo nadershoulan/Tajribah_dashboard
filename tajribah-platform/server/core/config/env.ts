@@ -122,6 +122,10 @@ export const REGISTRY = {
     schema: z.enum(['memory', 'kv']).default('memory'),
     scope: 'runtime', doc: 'Where published viewer configs live (P1.15). memory is local only; kv uses the CONFIGS KV binding the config host reads.',
   }),
+  RATE_LIMITER: entry({
+    schema: z.enum(['memory', 'kv']).default('memory'),
+    scope: 'runtime', doc: 'Where rate-limit counters live (P7). memory counts per isolate (local only); kv uses the RATE_LIMITS KV binding, shared by every isolate.',
+  }),
   JOBS_MODE: entry({
     schema: z.enum(['inline', 'cf-queue']).default('inline'),
     scope: 'runtime', doc: 'inline runs jobs in-process (local only). cf-queue needs the Cloudflare account (T6).',
@@ -161,6 +165,10 @@ const envSchema = z.object(shape).superRefine((value, ctx) => {
   if (v.NODE_ENV === 'production' && v.CONFIG_STORE === 'memory') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['CONFIG_STORE'],
       message: 'memory configs are not allowed in production — a published button would never reach a shop' });
+  }
+  if (v.NODE_ENV === 'production' && v.RATE_LIMITER === 'memory') {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['RATE_LIMITER'],
+      message: 'memory rate limits are not allowed in production — each isolate would count alone, so no limit would hold' });
   }
   if (v.NODE_ENV === 'production' && v.JOBS_MODE === 'inline') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['JOBS_MODE'],

@@ -27,6 +27,7 @@ import { auditedDelete, auditedUpdate, record } from '@/server/core/audit/audit'
 import { keyedHash } from '@/server/core/auth/crypto';
 import { entitlementsOf } from '@/server/core/billing/entitlements';
 import { errors } from '@/server/core/errors/problem';
+import { LIMITS, rateLimiter } from '@/server/core/ratelimit/limiter';
 import { EMAIL, sendEmail } from '@/server/core/notify/messages';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
@@ -80,6 +81,8 @@ export async function invite(ctx: TenantContext, input: InviteInput, config: { a
   if (existing && await ctx.db.exists(tenantMemberships, eq(tenantMemberships.userId, existing.id))) {
     throw errors.conflict('this person is already on the team');
   }
+  const limit = await rateLimiter().hit(`invite:${ctx.tenantId}`, LIMITS.invite.limit, LIMITS.invite.windowSeconds); // P7
+  if (!limit.allowed) throw errors.rateLimited(limit.retryAfter);
 
   const token = secret(32);
   const tokenHash = await keyedHash(config.authSecret, 'invitation', token);

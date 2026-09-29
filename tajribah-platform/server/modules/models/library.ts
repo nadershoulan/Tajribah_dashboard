@@ -40,7 +40,8 @@ export async function listModels(ctx: TenantContext): Promise<ModelRow[]> {
     return {
       id: model.id,
       productId: model.productId,
-      productName: product ? (product.nameAr ?? product.name) : null,
+      productName: product?.name ?? null,
+      productNameAr: product?.nameAr ?? null,
       name: model.name,
       source: model.source,
       status: model.status,

@@ -19,7 +19,7 @@ import { Badge, Empty, ErrorNote, Loading, PageHead, Panel } from '@/components/
 type Loaded = { model: ModelRow; version: ModelVersionRow | null; product: ProductRow | null };
 
 export default function ModelEditor() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { path } = useEnv();
   const id = decodeURIComponent(path.split('/').filter(Boolean).pop() ?? '');
   const [reload, setReload] = useState(0);
@@ -36,7 +36,7 @@ export default function ModelEditor() {
   const crumbs = [
     { label: t('الرئيسية', 'Home'), href: '/dashboard' },
     { label: t('النماذج ثلاثية الأبعاد', '3D models'), href: '/dashboard/models' },
-    { label: data?.model.productName ?? data?.model.name ?? t('النموذج', 'Model') },
+    { label: (data ? productLabel(data.model, lang) : null) ?? data?.model.name ?? t('النموذج', 'Model') },
   ];
   return (
     <Shell tenant={null} crumbs={crumbs}>
@@ -52,7 +52,7 @@ export default function ModelEditor() {
 }
 
 function Editor({ loaded, onSaved }: { loaded: Loaded; onSaved: () => void }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const source = useData();
   const auth = useAuth();
   const role = currentStore(auth.me)?.role;
@@ -110,7 +110,7 @@ function Editor({ loaded, onSaved }: { loaded: Loaded; onSaved: () => void }) {
   return (
     <>
       <PageHead
-        title={model.productName ?? model.name}
+        title={productLabel(model, lang) ?? model.name}
         lead={version ? t(`يعمل على الإصدار ${version.version}${version.isCurrent ? ' (المنشور)' : ''}`, `Working from version ${version.version}${version.isCurrent ? ' (live)' : ''}`) : undefined}
         actions={<AppLink href="/dashboard/models" className="btn btn-ghost">{t('كل النماذج', 'All models')}</AppLink>}
       />
@@ -121,7 +121,7 @@ function Editor({ loaded, onSaved }: { loaded: Loaded; onSaved: () => void }) {
             {src
               ? createElement('model-viewer', {
                 src, orientation: viewerOrientation(turns), 'camera-controls': '', 'shadow-intensity': '1', 'interaction-prompt': 'none',
-                'camera-orbit': '30deg 75deg auto', alt: model.productName ?? model.name, style: { width: '100%', height: '100%' },
+                'camera-orbit': '30deg 75deg auto', alt: productLabel(model, lang) ?? model.name, style: { width: '100%', height: '100%' },
               })
               : viewError ? <p className="hint" style={{ padding: 16, textAlign: 'center' }}>{viewError}</p> : <Loading rows={2} />}
           </div>
@@ -176,4 +176,9 @@ function Editor({ loaded, onSaved }: { loaded: Loaded; onSaved: () => void }) {
       )}
     </>
   );
+}
+
+/** T51: the product's name in the viewer's language. */
+function productLabel(model: { productName: string | null; productNameAr: string | null }, lang: string): string | null {
+  return lang === 'ar' ? model.productNameAr ?? model.productName : model.productName;
 }

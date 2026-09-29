@@ -536,7 +536,7 @@ export const demoSource: DataSource = {
     const ext = file.name.toLowerCase().split('.').pop();
     if (ext !== 'glb' && ext !== 'usdz') throw new ApiError(422, 'validation_failed', 'Validation failed', { filename: ['only .glb and .usdz files can be uploaded'] });
     const model: ModelRow = {
-      id: `m-upload-${demoModels.length + 1}`, productId: null, productName: null, name: file.name.replace(/\.[^.]+$/, ''),
+      id: `m-upload-${demoModels.length + 1}`, productId: null, productName: null, productNameAr: null, name: file.name.replace(/\.[^.]+$/, ''),
       source: 'uploaded', status: 'processing', qaStatus: 'pending', qaNotes: null, version: 1, sizeBytes: 0, polyCount: null,
       formats: [], thumbnailUrl: null, updatedAt: new Date().toISOString(),
     };

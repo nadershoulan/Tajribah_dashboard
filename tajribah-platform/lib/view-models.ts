@@ -158,7 +158,9 @@ export type ProductRow = {
 export type ModelRow = {
   id: string;
   productId: string | null;
+  /** T51: the product's name and its Arabic name — the screen picks by the viewer's language. */
   productName: string | null;
+  productNameAr: string | null;
   name: string;
   source: 'uploaded' | 'ai_generated' | 'professional_service';
   status: 'draft' | 'processing' | 'ready' | 'failed' | 'archived';

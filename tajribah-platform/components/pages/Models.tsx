@@ -185,7 +185,7 @@ export default function Models() {
                       <div className="cell-main">
                         <span className="thumb" aria-hidden><Box size={17} /></span>
                         <span className="lines">
-                          <strong>{model.productName ?? model.name}</strong>
+                          <strong>{(lang === 'ar' ? model.productNameAr ?? model.productName : model.productName) ?? model.name}</strong>
                           <span>{model.name} · v{model.version}</span>
                         </span>
                       </div>

@@ -10,10 +10,15 @@ import { ATTR, WIDGET_SRC } from './main';
 
 export const PRODUCT_PLACEHOLDER = '{{ product.id }}';
 
-export function embedSnippet(storeKey: string, productRef = PRODUCT_PLACEHOLDER): string {
+/**
+ * `consent` (T48): the shop asks shoppers for consent first — nothing is measured until its banner
+ * grants it (`CONSENT_LINE` in main.ts).
+ */
+export function embedSnippet(storeKey: string, productRef = PRODUCT_PLACEHOLDER, options: { consent?: boolean } = {}): string {
   const safe = storeKey.replace(/[^a-z0-9-]/gi, '');
+  const consent = options.consent ? ` ${ATTR.consent}="required"` : '';
   return [
     `<div ${ATTR.product}="${productRef}"></div>`,
-    `<script src="${WIDGET_SRC}" ${ATTR.store}="${safe}" async></script>`,
+    `<script src="${WIDGET_SRC}" ${ATTR.store}="${safe}"${consent} async></script>`,
   ].join('\n');
 }

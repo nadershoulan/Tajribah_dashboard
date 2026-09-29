@@ -347,12 +347,26 @@ declare global {
   }
 }
 
+/**
+ * T48 — the consent a page starts with. A shop that asks for consent says so on the script tag;
+ * its banner may answer *before* this async script has loaded, when `window.Tajribah` does not exist
+ * yet — so it may also set `window.tajribahConsent = 'granted'`, which is read here. Anything but
+ * exactly 'granted' leaves a required consent missing.
+ */
+export function initialConsent(attribute: Consent, preset: unknown): Consent {
+  return attribute === 'required' && preset === 'granted' ? 'granted' : attribute;
+}
+
+/** The one line a shop's consent banner runs when accepted — before or after this script loads. */
+export const CONSENT_LINE = "window.tajribahConsent = 'granted'; window.Tajribah && window.Tajribah.consent('granted');";
+
 /** Entry point: once per page, after load, when idle. */
 export function boot(win: Window & typeof globalThis = window): void {
   void guard(() => {
     if (win.Tajribah) return; // included twice: the first one serves
-    const settings = settingsOf(win.document);
-    if (!settings) return;
+    const found = settingsOf(win.document);
+    if (!found) return;
+    const settings = { ...found, consent: initialConsent(found.consent, (win as { tajribahConsent?: unknown }).tajribahConsent) };
     const tracker = startTracking(win, settings);
     const run = () => guard(() => mount(win.document, settings, fetch, tracker));
     win.Tajribah = {

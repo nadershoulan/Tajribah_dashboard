@@ -10,6 +10,8 @@ import { useData, useResource } from '@/lib/data';
 import { useLang } from '@/lib/i18n';
 import type { Bi } from '@/lib/lang';
 import type { InstallCheck } from '@/lib/view-models';
+import { CONSENT_LINE } from '@/widget/src/main';
+import { embedSnippet } from '@/widget/src/snippet';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
 
@@ -54,6 +56,9 @@ export default function Embed() {
   const source = useData();
   const { data, loading, error } = useResource((s) => s.embed());
   const [copied, setCopied] = useState(false);
+  // T48: a shop that asks shoppers for consent gets the gated snippet and its banner's one line.
+  const [asksConsent, setAsksConsent] = useState(false);
+  const snippet = data ? (asksConsent ? embedSnippet(data.storeKey, undefined, { consent: true }) : data.snippet) : '';
   const [url, setUrl] = useState('');
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<InstallCheck | null>(null);
@@ -68,7 +73,7 @@ export default function Embed() {
   const copy = async () => {
     if (!data) return;
     try {
-      await navigator.clipboard.writeText(data.snippet);
+      await navigator.clipboard.writeText(snippet);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch { /* clipboard blocked; the merchant can still select the text */ }
@@ -123,7 +128,20 @@ export default function Embed() {
             )}
           >
             {loading && !data && <Loading rows={2} />}
-            {data && <pre className="code-block" dir="ltr">{data.snippet}</pre>}
+            {data && <pre className="code-block" dir="ltr">{snippet}</pre>}
+            <label className="toggle" style={{ marginTop: 12 }}>
+              <input type="checkbox" checked={asksConsent} onChange={(e) => setAsksConsent(e.target.checked)} />
+              <span>{t('متجري يطلب موافقة الزائر على ملفات تعريف الارتباط', 'My store asks shoppers for cookie consent')}</span>
+            </label>
+            {asksConsent && (
+              <>
+                <p className="hint" style={{ marginBottom: 6 }}>{t(
+                  'لن نقيس أي شيء قبل الموافقة. أضف هذا السطر إلى ما يحدث عند ضغط الزائر «موافق» في نافذة الموافقة (يعمل قبل تحميل الزر وبعده):',
+                  'Nothing is measured before consent. Add this line to what runs when a shopper presses “Accept” in your consent banner (it works before and after the button loads):',
+                )}</p>
+                <pre className="code-block" dir="ltr">{CONSENT_LINE}</pre>
+              </>
+            )}
             <p className="hint">
               {t(
                 '{{ product.id }} يملؤه قالب متجرك برقم المنتج المعروض. صيغة القالب في سلة وزد تُؤكَّد عند اعتماد تطبيقنا لدى كل منهما.',

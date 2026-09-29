@@ -39,6 +39,8 @@ import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { consumeCredits, refundCredits } from '@/server/modules/billing/credits';
 import { CREDITS_PER_3D_GENERATION } from '@/lib/ai-credits';
 import { assertWithinGuardrails } from './guardrails';
+import { emitEvent } from '@/server/modules/outgoing-webhooks/emit';
+import { aiJobV1 } from '@/server/modules/public-api/v1';
 
 export type AiJobType = (typeof AI_JOB_TYPE)[number];
 export type AiJob = typeof aiJobs.$inferSelect;
@@ -207,7 +209,17 @@ export async function cancelAiJob(ctx: TenantContext, jobId: string): Promise<Ai
     throw errors.conflict(`the job has already ended: ${now.status}`);
   }
   if (was === 'queued') await giveBack(ctx, jobId);
+  await announceEnded(ctx, jobId);
   return aiJobView(ctx, jobId);
+}
+
+/** P8: the store's webhook endpoints hear that a job ended — done, failed or cancelled (after any refund). */
+async function announceEnded(ctx: TenantContext, jobId: string): Promise<void> {
+  await emitEvent(ctx, 'ai_job.finished', () => withTenant(ctx.tenantId, async (db) => {
+    const job = await db.requireById(aiJobs, jobId);
+    const named = await productsOf(db, [job]);
+    return aiJobV1(view(job, await extrasOf(db, job), named.get(productIdOf(job)) ?? null));
+  }));
 }
 
 /** Refund what the job took, once (the ledger's reference makes a second refund impossible). */
@@ -261,11 +273,13 @@ export async function runAiJob(input: { tenantId: string; aiJobId: string; attem
     return;
   }
 
-  await withTenant(tenantId, async (db) => {
+  const done = await withTenant(tenantId, async (db) => {
     await addCost(db, started, result.cost);
-    const done = await transition(db, aiJobId, ['processing'], { status: 'done', output: result.output, finishedAt: new Date() });
-    await event(db, aiJobId, done ? 'done' : 'result_discarded', done ? null : { reason: 'the job was no longer running' });
+    const row = await transition(db, aiJobId, ['processing'], { status: 'done', output: result.output, finishedAt: new Date() });
+    await event(db, aiJobId, row ? 'done' : 'result_discarded', row ? null : { reason: 'the job was no longer running' });
+    return row;
   });
+  if (done) await announceEnded(await systemContext({ tenantId, requestId: input.requestId, permissions: WORKER_PERMISSIONS }), aiJobId);
 }
 
 /** Progress from the executor: never backwards, never 100 before done. Answers whether to stop. */
@@ -294,6 +308,7 @@ async function endFailed(input: { tenantId: string; requestId: string }, job: Ai
   log.warn('ai job failed', { jobId: job.id, type: job.type, code: error.code });
   const ctx = await systemContext({ tenantId: input.tenantId, requestId: input.requestId, permissions: WORKER_PERMISSIONS });
   await giveBack(ctx, job.id);
+  await announceEnded(ctx, job.id);
 }
 
 /**

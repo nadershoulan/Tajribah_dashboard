@@ -798,6 +798,11 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .guardrails-form fieldset, .key-form fieldset { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px 12px; margin: 0 0 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 16px; }
 .guardrails-form legend, .key-form legend { font-size: 13.5px; font-weight: 600; padding: 0 6px; }
 .guardrails-form .field > span, .key-form .field > span { font-size: 13.5px; font-weight: 500; }
+/* P8 — an endpoint's recent messages */
+.hook-deliveries { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
+.hook-deliveries ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.hook-deliveries li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13.5px; }
+.hook-deliveries .hint { margin: 0; }
 .ops-retry input { min-width: 0; width: 180px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 9px; font: inherit; background: var(--surface, #fff); color: var(--text); }
 
 /* A6 — plans editor */

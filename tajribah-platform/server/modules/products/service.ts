@@ -23,6 +23,8 @@ import { auditedInsert, auditedUpdate } from '@/server/core/audit/audit';
 import { assertWithinQuota } from '@/server/core/billing/entitlements';
 import { errors, fieldErrorsFrom } from '@/server/core/errors/problem';
 import { keepLive } from '@/server/modules/edge/publish';
+import { emitEvent } from '@/server/modules/outgoing-webhooks/emit';
+import { productV1 } from '@/server/modules/public-api/v1';
 import type { TenantContext } from '@/server/core/tenancy/context';
 
 const SIZED = and(
@@ -77,7 +79,9 @@ export async function createProduct(ctx: TenantContext, input: unknown): Promise
   const data = parse(ProductCreate, input);
   await assertWithinQuota(ctx, 'products');
   const created = await auditedInsert(ctx, products, { ...data, dimensions: data.dimensions ?? null }, { resourceType: 'product' });
-  return getProduct(ctx, String(created.id));
+  const row = await getProduct(ctx, String(created.id));
+  await emitEvent(ctx, 'product.created', productV1(row)); // P8
+  return row;
 }
 
 export async function updateProduct(ctx: TenantContext, id: string, input: unknown): Promise<ProductRow> {
@@ -101,7 +105,9 @@ export async function updateProduct(ctx: TenantContext, id: string, input: unkno
 
   await auditedUpdate(ctx, products, id, patch as Record<string, unknown>, { resourceType: 'product' });
   await keepLive(ctx.tenantId, id); // P1.15: name, sizes and AR on/off are in the published config
-  return getProduct(ctx, id);
+  const row = await getProduct(ctx, id);
+  await emitEvent(ctx, 'product.updated', productV1(row)); // P8
+  return row;
 }
 
 export async function deleteProduct(ctx: TenantContext, id: string): Promise<void> {
@@ -111,6 +117,7 @@ export async function deleteProduct(ctx: TenantContext, id: string): Promise<voi
   await auditedUpdate(ctx, products, id, { deletedAt: new Date(), status: 'archived', arEnabled: false },
     { resourceType: 'product', action: 'delete' });
   await keepLive(ctx.tenantId, id); // P1.15: a deleted product's button goes too
+  await emitEvent(ctx, 'product.deleted', { id }); // P8
 }
 
 // ------------------------------------------------------------------ view mapping

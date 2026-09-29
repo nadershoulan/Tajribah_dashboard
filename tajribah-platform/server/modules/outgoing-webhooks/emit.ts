@@ -20,7 +20,8 @@ import { scheduleDelivery } from './deliver';
 
 export type EmittedEvent = (typeof WEBHOOK_EVENTS)[number];
 
-export async function emitEvent(ctx: TenantContext, type: EmittedEvent, data: Record<string, unknown>, now = new Date()): Promise<number> {
+/** `data` may be a function: it runs only when some endpoint wants the event (usually none does). */
+export async function emitEvent(ctx: TenantContext, type: EmittedEvent, data: Record<string, unknown> | (() => Promise<Record<string, unknown>>), now = new Date()): Promise<number> {
   try {
     const endpoints = await withTenant(ctx.tenantId, (db) => db.find(webhookEndpoints, eq(webhookEndpoints.active, true), { limit: MAX_ENDPOINTS * 2 }));
     const wanting = endpoints.filter((endpoint) => endpoint.events.includes(type));
@@ -28,7 +29,7 @@ export async function emitEvent(ctx: TenantContext, type: EmittedEvent, data: Re
     if (!(await entitlementsOf(ctx)).has('public_api')) return 0;
 
     const eventId = `evt_${uuidv7(now.getTime())}`;
-    const payload = { id: eventId, type, createdAt: now.toISOString(), store: ctx.tenant.slug, data };
+    const payload = { id: eventId, type, createdAt: now.toISOString(), store: ctx.tenant.slug, data: typeof data === 'function' ? await data() : data };
     const values = wanting.map((endpoint) => ({
       id: uuidv7(now.getTime()), tenantId: ctx.tenantId, endpointId: endpoint.id, eventId, event: type, payload, nextAttemptAt: now,
     })) satisfies (typeof webhookDeliveries.$inferInsert)[];

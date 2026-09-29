@@ -65,6 +65,20 @@ export const AnalyticsV1 = z.strictObject({
   daily: z.array(DayV1),
 }).register(V1, { id: 'Analytics', description: 'The store\'s figures over a range.' });
 
+export const AiJobV1 = z.strictObject({
+  id: z.string(),
+  type: z.enum(['generate_3d', 'enhance_texture', 'embed_product', 'enrich_content', 'quality_check', 'convert_format']),
+  status: z.enum(['queued', 'processing', 'done', 'failed', 'cancelled']),
+  productId: z.string().nullable(),
+  creditsCost: z.number().int(),
+  refunded: z.boolean().describe('The credits came back (failed, or cancelled before it started).'),
+  errorCode: z.string().nullable(),
+  queuedAt: z.string().nullable(),
+  finishedAt: z.string().nullable(),
+}).register(V1, { id: 'AiJob', description: 'A piece of AI work for the store.' });
+
+export const DeletedV1 = z.strictObject({ id: z.string() }).register(V1, { id: 'Deleted', description: 'What is left of a deleted thing: its id.' });
+
 export const ProductPageV1 = z.strictObject({
   data: z.array(ProductV1),
   nextCursor: z.string().nullable().describe('Pass as `cursor` for the next page; null on the last.'),
@@ -76,6 +90,12 @@ export const ProblemV1 = z.object({
   type: z.string(), title: z.string(), status: z.number().int(), code: z.string(),
   detail: z.string().optional(), requestId: z.string().optional(), retryAfter: z.number().int().optional(),
 }).register(V1, { id: 'Problem', description: 'Every error, as application/problem+json (RFC 9457).' });
+
+/** P8 — each outgoing webhook event and the v1 shape its `data` carries. */
+export const WEBHOOK_DATA = {
+  'product.created': 'Product', 'product.updated': 'Product', 'product.deleted': 'Deleted',
+  'model.published': 'Model', 'ai_job.finished': 'AiJob',
+} as const;
 
 /** Requests one key may make per minute. Answers carry `X-RateLimit-Limit` / `-Remaining`. */
 export const V1_RATE = { limit: 600, windowSeconds: 60 } as const;
@@ -125,5 +145,24 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
     servers: [{ url: serverUrl }],
     components: { schemas, securitySchemes: { apiKey: { type: 'http', scheme: 'bearer', description: 'An API key: tjr_…' } } },
     paths,
+    webhooks: Object.fromEntries(Object.entries(WEBHOOK_DATA).map(([event, data]) => [event, {
+      post: {
+        summary: event,
+        description: 'Sent to your endpoint (Settings → Webhooks). Check `tajribah-signature: t=<unix>,v1=<hex>` — HMAC-SHA256 of `<t>.<raw body>` under the endpoint’s secret — and refuse an old `t`. `id` is the same for every endpoint and every retry: drop a repeat. Answer 2xx within 10 seconds; anything else is retried for about 21 hours. Redirects are not followed.',
+        parameters: [
+          { name: 'tajribah-signature', in: 'header', required: true, schema: { type: 'string' } },
+          { name: 'tajribah-event', in: 'header', required: true, schema: { type: 'string', const: event } },
+          { name: 'tajribah-delivery', in: 'header', required: true, schema: { type: 'string' } },
+        ],
+        requestBody: { required: true, content: { 'application/json': { schema: {
+          type: 'object', additionalProperties: false, required: ['id', 'type', 'createdAt', 'store', 'data'],
+          properties: {
+            id: { type: 'string' }, type: { type: 'string', const: event }, createdAt: { type: 'string' },
+            store: { type: 'string', description: 'The store key.' }, data: { $ref: `#/components/schemas/${data}` },
+          },
+        } } } },
+        responses: { '2XX': { description: 'Received' } },
+      },
+    }])),
   };
 }

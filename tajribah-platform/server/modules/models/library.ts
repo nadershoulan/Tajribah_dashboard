@@ -19,6 +19,8 @@ import { withTenant } from '@/server/core/tenancy/rls';
 import { keepLive } from '@/server/modules/edge/publish';
 import { retireFile } from '@/server/modules/tryon/retire';
 import { fileFor } from './files';
+import { emitEvent } from '@/server/modules/outgoing-webhooks/emit';
+import { modelV1 } from '@/server/modules/public-api/v1';
 
 export async function listModels(ctx: TenantContext): Promise<ModelRow[]> {
   ctx.require('models:read');
@@ -64,7 +66,7 @@ export async function listModels(ctx: TenantContext): Promise<ModelRow[]> {
  */
 export async function publishVersion(ctx: TenantContext, versionId: string): Promise<void> {
   ctx.require('models:publish');
-  const productId = await withTenant(ctx.tenantId, async (db) => {
+  const published = await withTenant(ctx.tenantId, async (db) => {
     const version = await db.findById(modelVersions, versionId);
     if (!version) throw errors.notFound('model version');
     const model = await db.lockById(models3d, version.modelId);
@@ -84,9 +86,15 @@ export async function publishVersion(ctx: TenantContext, versionId: string): Pro
       action: 'publish', resourceType: 'model', resourceId: model.id,
       before: { currentVersionId: model.currentVersionId }, after: { currentVersionId: after.currentVersionId, version: version.version },
     }, db);
-    return model.productId;
+    return { modelId: model.id, productId: model.productId };
   });
-  if (productId) await keepLive(ctx.tenantId, productId); // P1.15: a live button shows the new version
+  if (!published) return;
+  if (published.productId) await keepLive(ctx.tenantId, published.productId); // P1.15: a live button shows the new version
+  await emitEvent(ctx, 'model.published', async () => { // P8: built only if an endpoint wants it
+    const row = (await listModels(ctx)).find((m) => m.id === published.modelId);
+    if (!row) throw new Error('the published model is not in the library');
+    return modelV1(row);
+  });
 }
 
 /**

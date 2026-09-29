@@ -3,8 +3,8 @@
  * mapping is the seam: a screen may change its rows; v1 changes only here, and only by adding.
  */
 import type { z } from 'zod/v4';
-import type { AnalyticsV1, ModelV1, ProductV1 } from '@/lib/public-api/v1';
-import type { AnalyticsView, ModelRow, ProductRow } from '@/lib/view-models';
+import type { AiJobV1, AnalyticsV1, ModelV1, ProductV1 } from '@/lib/public-api/v1';
+import type { AiJobView, AnalyticsView, ModelRow, ProductRow } from '@/lib/view-models';
 
 export function productV1(row: ProductRow): z.infer<typeof ProductV1> {
   return {
@@ -38,5 +38,12 @@ export function analyticsV1(view: AnalyticsView): z.infer<typeof AnalyticsV1> {
       addToCart: t.addToCart, purchases: t.purchases, revenueMinor: t.revenueMinor, upliftPct: t.upliftPct,
     },
     daily: view.series.map((p) => ({ day: p.day, views: p.views, arSessions: p.arSessions, tryonSessions: p.tryonSessions, purchases: p.purchases })),
+  };
+}
+
+export function aiJobV1(job: AiJobView): z.infer<typeof AiJobV1> {
+  return {
+    id: job.id, type: job.type, status: job.status, productId: job.product?.id ?? null, creditsCost: job.creditsCost,
+    refunded: job.refunded, errorCode: job.error?.code ?? null, queuedAt: job.queuedAt, finishedAt: job.finishedAt,
   };
 }

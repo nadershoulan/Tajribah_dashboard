@@ -13,7 +13,7 @@ import {
   DEMO_AI_JOBS, DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
 } from './demo-data';
 import type {
-  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, ConnectionDetail, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
@@ -66,6 +66,15 @@ export interface DataSource {
   apiKeys(): Promise<ApiKeyView[]>;
   createApiKey(input: { name: string; scopes: string[]; expiresInDays: number | null }): Promise<{ key: string; apiKey: ApiKeyView }>;
   revokeApiKey(id: string): Promise<ApiKeyView>;
+  /** P8 — outgoing webhooks: endpoints (a new or rotated secret comes back once) and what was sent. */
+  webhookEndpoints(): Promise<WebhookEndpointView[]>;
+  createWebhookEndpoint(input: { url: string; events: string[]; description?: string | null }): Promise<{ endpoint: WebhookEndpointView; secret: string }>;
+  updateWebhookEndpoint(id: string, patch: { url?: string; events?: string[]; description?: string | null; active?: boolean }): Promise<WebhookEndpointView>;
+  deleteWebhookEndpoint(id: string): Promise<void>;
+  rotateWebhookSecret(id: string): Promise<{ secret: string }>;
+  testWebhookEndpoint(id: string): Promise<WebhookDeliveryView>;
+  webhookDeliveries(endpointId: string): Promise<WebhookDeliveryView[]>;
+  redeliverWebhook(deliveryId: string): Promise<WebhookDeliveryView>;
   cancelAiJob(jobId: string): Promise<AiJobView>;
   publishVersion(versionId: string): Promise<void>;
   /** T46 — a version that is not live; the whole model (off the shop too). */
@@ -179,6 +188,14 @@ export function apiSource(client: ApiClient): DataSource {
     async apiKeys() { return (await client.call<{ keys: ApiKeyView[] }>('/api/api-keys')).keys; },
     async createApiKey(input) { return client.call<{ key: string; apiKey: ApiKeyView }>('/api/api-keys', { body: input }); },
     async revokeApiKey(id) { return client.call<ApiKeyView>(`/api/api-keys/${encodeURIComponent(id)}/revoke`, { method: 'POST' }); },
+    async webhookEndpoints() { return (await client.call<{ endpoints: WebhookEndpointView[] }>('/api/webhook-endpoints')).endpoints; },
+    async createWebhookEndpoint(input) { return client.call<{ endpoint: WebhookEndpointView; secret: string }>('/api/webhook-endpoints', { body: input }); },
+    async updateWebhookEndpoint(id, patch) { return client.call<WebhookEndpointView>(`/api/webhook-endpoints/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch }); },
+    async deleteWebhookEndpoint(id) { await client.call(`/api/webhook-endpoints/${encodeURIComponent(id)}`, { method: 'DELETE' }); },
+    async rotateWebhookSecret(id) { return client.call<{ secret: string }>(`/api/webhook-endpoints/${encodeURIComponent(id)}/rotate`, { method: 'POST' }); },
+    async testWebhookEndpoint(id) { return client.call<WebhookDeliveryView>(`/api/webhook-endpoints/${encodeURIComponent(id)}/test`, { method: 'POST' }); },
+    async webhookDeliveries(endpointId) { return (await client.call<{ deliveries: WebhookDeliveryView[] }>(`/api/webhook-endpoints/${encodeURIComponent(endpointId)}/deliveries`)).deliveries; },
+    async redeliverWebhook(deliveryId) { return client.call<WebhookDeliveryView>(`/api/webhook-deliveries/${encodeURIComponent(deliveryId)}/redeliver`, { method: 'POST' }); },
     async aiJobs(active) { return (await client.call<{ jobs: AiJobView[] }>(`/api/ai-jobs?limit=50${active ? '&active=1' : ''}`)).jobs; },
     async cancelAiJob(jobId) { return client.call<AiJobView>(`/api/ai-jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' }); },
     async modelVersions(modelId) {
@@ -520,6 +537,15 @@ export const demoSource: DataSource = {
   async apiKeys() { return []; },
   async createApiKey() { throw new ApiError(402, 'plan_required', 'public_api is not included in this plan'); },
   async revokeApiKey() { throw new ApiError(404, 'not_found', 'api_key not found'); },
+  // P8: webhooks are Enterprise too — the preview's Growth store has none and cannot add one.
+  async webhookEndpoints() { return []; },
+  async createWebhookEndpoint() { throw new ApiError(402, 'plan_required', 'public_api is not included in this plan'); },
+  async updateWebhookEndpoint() { throw new ApiError(404, 'not_found', 'webhook_endpoint not found'); },
+  async deleteWebhookEndpoint() { throw new ApiError(404, 'not_found', 'webhook_endpoint not found'); },
+  async rotateWebhookSecret() { throw new ApiError(404, 'not_found', 'webhook_endpoint not found'); },
+  async testWebhookEndpoint() { throw new ApiError(404, 'not_found', 'webhook_endpoint not found'); },
+  async webhookDeliveries() { return []; },
+  async redeliverWebhook() { throw new ApiError(404, 'not_found', 'webhook_delivery not found'); },
   async aiJobs(active) { return demoAiJobs.filter((j) => !active || j.canCancel).map((j) => ({ ...j })); },
   async cancelAiJob(jobId) {
     const job = demoAiJobs.find((j) => j.id === jobId);

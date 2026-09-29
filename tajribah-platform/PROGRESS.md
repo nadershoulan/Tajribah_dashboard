@@ -2,9 +2,9 @@
 
 _Last updated: 2026-09-29 · updated after every package_
 
-> **Now:** outgoing webhooks (P8) — the sending side is built and tested (below); next the screen and the events wired to the places they happen. Building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-09-29):** **knowing when something is wrong** (P7, monitoring — the code-level part). Two addresses an uptime monitor (the plan names Better Stack, which also drives the public status page) can call every minute: **`/api/health`** — is the dashboard answering — and **`/api/health/ready`** — can it do its work (the database answers, checked for real). The speed targets from the plan (a screen's data in under 0.3 s, a change in under 0.8 s) are now in the code: every request's log line carries its target, and any request slower than that is logged as **slow**, so a log service can count and alert on them. Seen answering in the real server runtime · before that: **the Public API** (P8)
-> **Next:** more P8: outgoing webhooks (your systems told when something changes), then custom roles.
+> **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
+> **Just finished (2026-09-29):** **webhooks — your systems told when something changes** (P8, Enterprise). A new **Webhooks** page: add an address (https, public only), tick what it should hear about — a product added, changed or deleted in Tajribah, a 3D model published, an AI job finished — and copy its signing secret (shown once). Every message is **signed**, so your system can check it came from us; each carries the same fields the Public API answers with; it is retried for about 21 hours; an address that keeps failing is turned off and you are told. You can send a test message, see each address's recent messages and send one again. Changes that arrive from your store platform's sync are not announced — your platform already reports those · before that: **knowing when something is wrong** (P7 monitoring)
+> **Next:** more P8 that needs no account: custom roles (Enterprise), then the developer documentation page.
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
 > **Waiting on you:** the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
 
@@ -17,10 +17,10 @@ P4 Analytics      ███████████░░░░░░░░░�
 P5 Try-on         ████████████████░░░░░░░░░░░░░░░░   7 / 14   (+ watch partly) · the rest touches your studio or needs new photography
 P6 AI+connectors  ██████████░░░░░░░░░░░░░░░░░░░░░░   5 / 16   · the rest needs AI providers or store accounts
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ P7.7 security, safe updates, rate limits, database speed, monitoring: the code-level parts done)
-P8 Enterprise     █████░░░░░░░░░░░░░░░░░░░░░░░░░░░   2 / 12
+P8 Enterprise     ████████░░░░░░░░░░░░░░░░░░░░░░░░   3 / 12
 M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
-                                            overall  89 / 169
+                                            overall  90 / 169
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -177,7 +177,7 @@ The public site that sells Tajribah, Arabic first.
 
 | | Package | In plain words |
 |---|---|---|
-| ◐ | P8 Outgoing webhooks | **Your systems told when something changes.** Built: add an address (https, public only), choose the events, a signing secret shown once; every message signed so your system can check it came from us; retried for about 21 hours; an address that keeps failing is turned off and you are told; a test message; send one again. Next: the screen, and the events wired in |
+| ✅ | P8 Outgoing webhooks | **Your systems told when something changes** (Enterprise): products added, changed or deleted in Tajribah, a 3D model published, an AI job finished. Https public addresses only; a signing secret shown once; every message signed; retried for about 21 hours; an address that keeps failing is turned off and you are told; test message, recent messages, send again |
 | ✅ | P8 Public API v1 | **Your other systems can read your store**: products (page by page), one product, 3D models, figures. Fixed, documented answers that only grow; 600 requests a minute per key, with the count left on every answer; a technical reference generated from the same definitions the answers are checked against |
 | ✅ | P8 API keys and scopes | **Keys for your other systems** (Enterprise): named, only the permissions you tick, a lifetime; shown once, kept only as a fingerprint. A key works as the person who made it — it stops when they leave and loses what they lose — and a read-only store's keys can only read. Revoke at once, even while read-only |
 
@@ -410,3 +410,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-29 | API keys: scoped, shown once, acting as their maker, revocable even while read-only | 610 pass / 0 fail; seen to fail 16 ways; checked in a real browser (Enterprise en 1440 / ar 390, Growth locked) |
 | 2026-09-29 | Public API v1: products, models, figures — documented shapes, per-key limit, a reference that cannot drift | 614 pass / 0 fail; seen to fail 9 ways; the reference and a keyless request seen in workerd |
 | 2026-09-29 | Health endpoints for an uptime monitor; every request measured against the plan's speed targets | 618 pass / 0 fail / 0 cancelled; seen to fail 8 ways; both endpoints seen in workerd |
+| 2026-09-29 | Webhooks: the page, and products, models and AI jobs announcing themselves | 634 pass / 0 fail / 0 cancelled; seen to fail 27 ways (both halves); checked in a real browser (Enterprise en 1440 / ar 390) |

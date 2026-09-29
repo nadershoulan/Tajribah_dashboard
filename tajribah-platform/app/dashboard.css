@@ -798,6 +798,10 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .guardrails-form fieldset, .key-form fieldset { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px 12px; margin: 0 0 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 16px; }
 .guardrails-form legend, .key-form legend { font-size: 13.5px; font-weight: 600; padding: 0 6px; }
 .guardrails-form .field > span, .key-form .field > span { font-size: 13.5px; font-weight: 500; }
+/* P8 — the store's custom roles */
+.role-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.role-list li { padding: 12px 0; border-top: 1px solid var(--line); }
+.role-list li:first-child { border-top: 0; }
 /* P8 — an endpoint's recent messages */
 .hook-deliveries { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
 .hook-deliveries ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }

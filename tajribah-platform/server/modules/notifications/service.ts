@@ -10,7 +10,7 @@
  * already on the screen that caused it. A bell that rings for everything is ignored.
  */
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
-import { notifications, tenantMemberships } from '@/db/schema';
+import { customRoles, notifications, tenantMemberships } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import type { Bi } from '@/lib/lang';
 import type { NotificationItem } from '@/lib/view-models';
@@ -39,7 +39,11 @@ export async function notifyIn(db: TenantDb, input: NotifyInput): Promise<number
   let userIds = input.userIds ?? [];
   if (input.permission) {
     const members = await db.find(tenantMemberships, eq(tenantMemberships.status, 'active'), { limit: 500 });
-    userIds = members.filter((m) => permissionsFor(m.role).has(input.permission!)).map((m) => m.userId);
+    // P8: a member with a custom role hears what that role can act on.
+    const roleIds = [...new Set(members.map((m) => m.customRoleId).filter((id): id is string => !!id))];
+    const roles = roleIds.length ? await db.find(customRoles, inArray(customRoles.id, roleIds), { limit: roleIds.length }) : [];
+    const custom = new Map(roles.map((r) => [r.id, r.permissions]));
+    userIds = members.filter((m) => permissionsFor(m.role, m.customRoleId ? custom.get(m.customRoleId) ?? null : null).has(input.permission!)).map((m) => m.userId);
   }
   if (!userIds.length) return 0;
   await db.insert(notifications, userIds.map((userId) => ({

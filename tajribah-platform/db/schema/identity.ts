@@ -99,11 +99,27 @@ export const users = pgTable('users', {
   deletedAt: deletedAt(),
 }, (t) => [uniqueIndex('users_email_unq').on(t.email)]);
 
+/**
+ * P8 — a store's own role (Enterprise): a name and a set of permissions from
+ * `CUSTOM_ROLE_PERMISSIONS`. A member holding one keeps `role` = viewer underneath, so a store that
+ * leaves the plan falls back to the least, never to more.
+ */
+export const customRoles = pgTable('custom_roles', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  permissions: json<string[]>('permissions').notNull(),
+  createdBy: uuid('created_by'),
+  ...timestamps(),
+}, (t) => [index('custom_roles_tenant_idx').on(t.tenantId)]);
+
 export const tenantMemberships = pgTable('tenant_memberships', {
   id: pk(),
   tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   role: memberRole('role').notNull().default('viewer'),
+  /** P8: a custom role; when set (and the plan has `custom_roles`) it decides the permissions. */
+  customRoleId: uuid('custom_role_id').references(() => customRoles.id),
   status: membershipStatus('status').notNull().default('active'),
   invitedBy: uuid('invited_by'),
   ...timestamps(),

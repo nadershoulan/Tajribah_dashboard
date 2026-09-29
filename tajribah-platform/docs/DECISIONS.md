@@ -731,3 +731,13 @@ Two consequences, deliberate: **revoking stays possible while a store is read-on
 cannot wait for a payment; making a new one can), and keys hold **only** product, model, AR,
 try-on and analytics scopes — money, people, settings, other keys and deleting the store stay
 with a person signed in.
+
+## P8 · 2026-09-29 · Custom roles cover the work, never the keys to the store
+
+A custom role (Enterprise) may combine product, model, AR, try-on and analytics permissions, and
+seeing connections, the team and settings. It may **not** hold inviting or managing people,
+changing settings, billing, API keys, store connections or deleting the store: those stay with the
+built-in owner and admin. With that line, a custom role can never be used to promote oneself or
+anyone else, and the ranking rules for built-in roles stay whole. Giving someone a custom role sets
+their built-in role to **viewer** underneath, so a store that leaves the plan falls back to the
+least access, never to whatever the person held before.

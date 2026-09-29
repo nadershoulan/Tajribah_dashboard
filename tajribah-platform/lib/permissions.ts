@@ -62,6 +62,45 @@ export const ROLE_PERMISSIONS: Record<MemberRole, readonly Permission[]> = {
   viewer: READ_ONLY,
 };
 
+/**
+ * P8 — what a custom role (Enterprise) may hold: the work — products, models, AR, try-on, analytics —
+ * and seeing connections, the team and settings. Never the keys to the store: inviting or managing
+ * people, changing settings, billing, API keys, store connections and deleting the store stay with
+ * the owner and admins, so a custom role can never be a way to promote oneself.
+ */
+export const CUSTOM_ROLE_PERMISSIONS = [
+  'products:read', 'products:write', 'products:delete',
+  'models:read', 'models:write', 'models:publish',
+  'ar:read', 'ar:write', 'ar:publish',
+  'tryon:read', 'tryon:write',
+  'analytics:read', 'analytics:export',
+  'connections:read', 'team:read', 'settings:read',
+] as const satisfies readonly Permission[];
+
+export type CustomRolePermission = (typeof CUSTOM_ROLE_PERMISSIONS)[number];
+
+export const PERMISSION_LABELS: Record<CustomRolePermission, { ar: string; en: string }> = {
+  'products:read': { ar: 'رؤية المنتجات', en: 'See products' },
+  'products:write': { ar: 'تعديل المنتجات', en: 'Edit products' },
+  'products:delete': { ar: 'حذف المنتجات', en: 'Delete products' },
+  'models:read': { ar: 'رؤية النماذج', en: 'See 3D models' },
+  'models:write': { ar: 'رفع النماذج وتعديلها', en: 'Upload and edit 3D models' },
+  'models:publish': { ar: 'نشر النماذج', en: 'Publish 3D models' },
+  'ar:read': { ar: 'رؤية إعدادات العرض', en: 'See AR settings' },
+  'ar:write': { ar: 'تعديل إعدادات العرض', en: 'Edit AR settings' },
+  'ar:publish': { ar: 'نشر أزرار العرض', en: 'Publish AR buttons' },
+  'tryon:read': { ar: 'رؤية التجربة الافتراضية', en: 'See virtual try-on' },
+  'tryon:write': { ar: 'تعديل التجربة الافتراضية', en: 'Edit virtual try-on' },
+  'analytics:read': { ar: 'رؤية التحليلات', en: 'See analytics' },
+  'analytics:export': { ar: 'تصدير التحليلات', en: 'Export analytics' },
+  'connections:read': { ar: 'رؤية ربط المتجر', en: 'See store connections' },
+  'team:read': { ar: 'رؤية الفريق', en: 'See the team' },
+  'settings:read': { ar: 'رؤية الإعدادات', en: 'See settings' },
+};
+
+/** Custom roles one store may define — a bound, not a price. */
+export const MAX_CUSTOM_ROLES = 20;
+
 export function permissionsFor(role: MemberRole, custom?: readonly string[] | null): Set<Permission> {
   if (custom?.length) {
     const known = new Set<string>(PERMISSIONS);

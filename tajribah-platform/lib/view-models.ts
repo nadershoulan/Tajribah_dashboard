@@ -238,11 +238,16 @@ export type ApiKeyView = {
   state: 'live' | 'expired' | 'revoked';
 };
 
+/** P8 — a store's own role (Enterprise), with how many members hold it. */
+export type CustomRoleView = { id: string; name: string; permissions: string[]; members: number };
+
 export type TeamMemberRow = {
   id: string;
   fullName: string;
   email: string;
   role: 'owner' | 'admin' | 'editor' | 'analyst' | 'viewer';
+  /** P8: the custom role this member holds, if any (then `role` is viewer underneath). */
+  customRole?: { id: string; name: string } | null;
   status: 'active' | 'invited' | 'suspended';
   lastLoginAt: string | null;
 };

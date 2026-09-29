@@ -10,11 +10,12 @@
  */
 import { and, eq } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
-import { subscriptions, tenantMemberships, tenants, type Tenant } from '@/db/schema';
+import { customRoles, subscriptions, tenantMemberships, tenants, type Tenant } from '@/db/schema';
 import type { MemberRole } from '@/lib/permissions';
 import { allowedWhileReadOnly, writeStateOf, type ReadOnlyReason } from '../billing/lifecycle';
+import { planHasFeature } from '../billing/entitlements';
 import { errors } from '../errors/problem';
-import { PERMISSIONS } from '@/lib/permissions';
+import { CUSTOM_ROLE_PERMISSIONS, PERMISSIONS } from '@/lib/permissions';
 import { permissionsFor, requirePermission, type Permission } from '../rbac/permissions';
 import { TenantDb } from './tenant-db';
 
@@ -75,7 +76,15 @@ export async function buildTenantContext(input: {
     throw errors.forbidden('this store is suspended — billing or compliance hold');
   }
 
-  const permissions = permissionsFor(membership.role);
+  // P8: a custom role decides the permissions while the plan has custom roles; otherwise the
+  // member's `role` (viewer, for anyone given a custom role) — least, never more.
+  let custom: readonly string[] | null = null;
+  if (membership.customRoleId && await planHasFeature(tenant, 'custom_roles')) {
+    const [role] = await db.select({ permissions: customRoles.permissions }).from(customRoles)
+      .where(and(eq(customRoles.id, membership.customRoleId), eq(customRoles.tenantId, tenant.id))).limit(1);
+    if (role) custom = role.permissions.filter((p) => (CUSTOM_ROLE_PERMISSIONS as readonly string[]).includes(p));
+  }
+  const permissions = permissionsFor(membership.role, custom);
   const scoped = TenantDb.for(tenant.id);
   // P2.11: one small read per request — every write in the product passes `require`, so this
   // is where a lapsed store becomes read-only, not in each feature that remembers to check.

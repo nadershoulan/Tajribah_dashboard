@@ -8,7 +8,7 @@ import { errors } from '@/server/core/errors/problem';
 import { apiConfig, assertSameOrigin, authenticate, json, readJson, tenantContextFor } from '@/server/core/http/api';
 import { loadEnv } from '@/server/core/config/env';
 import { route } from '@/server/core/observability/request';
-import { acceptInvitation, changeRole, invite, listTeam, removeMember, revokeInvitation } from './service';
+import { acceptInvitation, assignCustomRole, changeRole, createCustomRole, deleteCustomRole, invite, listCustomRoles, listTeam, removeMember, revokeInvitation, updateCustomRole } from './service';
 
 function lastId(request: Request, what: string): string {
   const id = new URL(request.url).pathname.split('/').filter(Boolean).pop() ?? '';
@@ -72,4 +72,52 @@ export const acceptInvitationHandler = route(async (request) => {
   const { tenantId } = await acceptInvitation({ token, userId: caller.userId, authSecret: config.authSecret });
   const accessToken = await setSessionTenant(caller.sessionId, tenantId, config);
   return json({ accessToken, expiresIn: config.accessTtlMinutes * 60, tenantId });
+});
+
+const PERMISSION_LIST = z.array(z.string().max(40)).max(40);
+
+/** API-076 — GET /api/team/roles (P8: custom roles) */
+export const listCustomRolesHandler = route(async (request) => {
+  const ctx = await tenantContextFor(request);
+  return json({ roles: await listCustomRoles(ctx) });
+});
+
+/** API-077 — POST /api/team/roles { name, permissions } */
+export const createCustomRoleHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  const body = await readJson(request, z.object({ name: z.string().max(200), permissions: PERMISSION_LIST }));
+  return json(await createCustomRole(ctx, body), { status: 201 });
+});
+
+/** API-078 — PATCH /api/team/roles/[id] { name?, permissions? } */
+export const updateCustomRoleHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  const body = await readJson(request, z.object({ name: z.string().max(200).optional(), permissions: PERMISSION_LIST.optional() }));
+  return json(await updateCustomRole(ctx, lastId(request, 'custom role'), body));
+});
+
+/** API-079 — DELETE /api/team/roles/[id] */
+export const deleteCustomRoleHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  await deleteCustomRole(ctx, lastId(request, 'custom role'));
+  return noContent();
+});
+
+/** API-080 — PUT /api/team/members/[id]/custom-role { customRoleId: uuid | null } */
+export const assignCustomRoleHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  const segments = new URL(request.url).pathname.split('/').filter(Boolean);
+  const memberId = segments[segments.length - 2] ?? '';
+  if (!z.string().uuid().safeParse(memberId).success) throw errors.notFound('team member');
+  const { customRoleId } = await readJson(request, z.object({ customRoleId: z.string().uuid().nullable() }));
+  await assignCustomRole(ctx, memberId, customRoleId);
+  return noContent();
 });

@@ -13,7 +13,7 @@ import {
   DEMO_AI_JOBS, DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
 } from './demo-data';
 import type {
-  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
@@ -104,6 +104,12 @@ export interface DataSource {
   revokeInvitation(invitationId: string): Promise<void>;
   changeRole(membershipId: string, role: TeamMemberRow['role']): Promise<void>;
   removeMember(membershipId: string): Promise<void>;
+  /** P8 — custom roles (Enterprise): the store's own roles, and giving one to a member (null: back to viewer). */
+  customRoles(): Promise<CustomRoleView[]>;
+  createCustomRole(input: { name: string; permissions: string[] }): Promise<CustomRoleView>;
+  updateCustomRole(id: string, patch: { name?: string; permissions?: string[] }): Promise<CustomRoleView>;
+  deleteCustomRole(id: string): Promise<void>;
+  assignCustomRole(membershipId: string, customRoleId: string | null): Promise<void>;
   billing(): Promise<BillingSummary>;
   /** P1.25. Refusals: `ApiError` 422 with per-field messages. */
   settings(): Promise<StoreSettings>;
@@ -188,6 +194,11 @@ export function apiSource(client: ApiClient): DataSource {
     async apiKeys() { return (await client.call<{ keys: ApiKeyView[] }>('/api/api-keys')).keys; },
     async createApiKey(input) { return client.call<{ key: string; apiKey: ApiKeyView }>('/api/api-keys', { body: input }); },
     async revokeApiKey(id) { return client.call<ApiKeyView>(`/api/api-keys/${encodeURIComponent(id)}/revoke`, { method: 'POST' }); },
+    async customRoles() { return (await client.call<{ roles: CustomRoleView[] }>('/api/team/roles')).roles; },
+    async createCustomRole(input) { return client.call<CustomRoleView>('/api/team/roles', { body: input }); },
+    async updateCustomRole(id, patch) { return client.call<CustomRoleView>(`/api/team/roles/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch }); },
+    async deleteCustomRole(id) { await client.call(`/api/team/roles/${encodeURIComponent(id)}`, { method: 'DELETE' }); },
+    async assignCustomRole(membershipId, customRoleId) { await client.call(`/api/team/members/${encodeURIComponent(membershipId)}/custom-role`, { method: 'PUT', body: { customRoleId } }); },
     async webhookEndpoints() { return (await client.call<{ endpoints: WebhookEndpointView[] }>('/api/webhook-endpoints')).endpoints; },
     async createWebhookEndpoint(input) { return client.call<{ endpoint: WebhookEndpointView; secret: string }>('/api/webhook-endpoints', { body: input }); },
     async updateWebhookEndpoint(id, patch) { return client.call<WebhookEndpointView>(`/api/webhook-endpoints/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch }); },
@@ -537,6 +548,12 @@ export const demoSource: DataSource = {
   async apiKeys() { return []; },
   async createApiKey() { throw new ApiError(402, 'plan_required', 'public_api is not included in this plan'); },
   async revokeApiKey() { throw new ApiError(404, 'not_found', 'api_key not found'); },
+  // P8: custom roles are Enterprise — the preview's Growth store has none and cannot make one.
+  async customRoles() { return []; },
+  async createCustomRole() { throw new ApiError(402, 'plan_required', 'custom_roles is not included in this plan'); },
+  async updateCustomRole() { throw new ApiError(404, 'not_found', 'custom role not found'); },
+  async deleteCustomRole() { throw new ApiError(404, 'not_found', 'custom role not found'); },
+  async assignCustomRole() { throw new ApiError(402, 'plan_required', 'custom_roles is not included in this plan'); },
   // P8: webhooks are Enterprise too — the preview's Growth store has none and cannot add one.
   async webhookEndpoints() { return []; },
   async createWebhookEndpoint() { throw new ApiError(402, 'plan_required', 'public_api is not included in this plan'); },
@@ -688,6 +705,7 @@ export const demoSource: DataSource = {
     if (!member) throw new ApiError(404, 'not_found', 'team member not found');
     if (member.role === 'owner' || role === 'owner') throw new ApiError(403, 'forbidden', 'the owner’s role cannot be changed here');
     member.role = role;
+    member.customRole = null; // P8: a built-in role replaces a custom one, as on the server
   },
   async removeMember(id) {
     const at = demoTeam.findIndex((m) => m.id === id && m.status !== 'invited');

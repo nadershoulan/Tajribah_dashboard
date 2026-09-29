@@ -81,6 +81,22 @@ export async function entitlementsOf(ctx: TenantContext): Promise<Entitlements> 
 }
 
 /**
+ * P8 — whether a store's plan has `feature`, from the store row alone (the request context asks
+ * this before a context exists, and only for a member holding a custom role). Same rule as
+ * `entitlementsOf`: its subscription's plan, else the trial's while on trial, else Starter.
+ */
+export async function planHasFeature(tenant: { id: string; status: string }, feature: string): Promise<boolean> {
+  const db = unsafeAdminDb(); // platform billing state, for this one store
+  const [found] = await db.select({ planId: subscriptions.planId }).from(subscriptions).where(eq(subscriptions.tenantId, tenant.id)).limit(1);
+  const planId = found?.planId
+    ?? (await db.select({ id: plans.id }).from(plans).where(eq(plans.code, implicitPlan(tenant.status))).limit(1))[0]?.id;
+  if (!planId) return false;
+  const [row] = await db.select({ key: planFeatures.featureKey }).from(planFeatures)
+    .where(and(eq(planFeatures.planId, planId), eq(planFeatures.featureKey, feature), eq(planFeatures.enabled, true))).limit(1);
+  return !!row;
+}
+
+/**
  * The plan each tenant is on, for summaries (the store switcher, `/me`). Same rule as
  * `entitlementsOf`: no subscription row means the trial's plan while on trial, else Starter.
  */

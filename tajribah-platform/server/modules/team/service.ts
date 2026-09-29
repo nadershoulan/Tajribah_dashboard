@@ -16,16 +16,16 @@
  *
  * Every change is audited: `invite`, `role_change`, `delete`, and the acceptance as `create`.
  */
-import { and, eq, gt, inArray, isNull } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNotNull, isNull } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
-import { invitations, tenantMemberships, tenants, users } from '@/db/schema';
+import { customRoles, invitations, tenantMemberships, tenants, users } from '@/db/schema';
 import { secret, uuidv7 } from '@/lib/ids';
 import type { Lang } from '@/lib/lang';
-import type { MemberRole } from '@/lib/permissions';
-import type { TeamMemberRow } from '@/lib/view-models';
-import { auditedDelete, auditedUpdate, record } from '@/server/core/audit/audit';
+import { CUSTOM_ROLE_PERMISSIONS, MAX_CUSTOM_ROLES, MEMBER_ROLE, type MemberRole } from '@/lib/permissions';
+import type { CustomRoleView, TeamMemberRow } from '@/lib/view-models';
+import { auditedDelete, auditedInsert, auditedUpdate, record } from '@/server/core/audit/audit';
 import { keyedHash } from '@/server/core/auth/crypto';
-import { entitlementsOf } from '@/server/core/billing/entitlements';
+import { assertFeature, entitlementsOf } from '@/server/core/billing/entitlements';
 import { errors } from '@/server/core/errors/problem';
 import { LIMITS, rateLimiter } from '@/server/core/ratelimit/limiter';
 import { EMAIL, sendEmail } from '@/server/core/notify/messages';
@@ -64,11 +64,14 @@ export async function listTeam(ctx: TenantContext): Promise<TeamMemberRow[]> {
       .from(users).where(inArray(users.id, members.map((m) => m.userId)))
     : [];
   const open = await ctx.db.find(invitations, and(isNull(invitations.acceptedAt), gt(invitations.expiresAt, new Date())), { limit: 500 });
+  const roleIds = [...new Set(members.map((m) => m.customRoleId).filter((id): id is string => !!id))];
+  const roles = roleIds.length ? await ctx.db.find(customRoles, inArray(customRoles.id, roleIds), { limit: roleIds.length }) : [];
   const rows: TeamMemberRow[] = members.map((m) => {
     const person = people.find((p) => p.id === m.userId);
+    const custom = m.customRoleId ? roles.find((r) => r.id === m.customRoleId) : undefined;
     return {
       id: m.id, fullName: person?.fullName ?? '', email: person?.email ?? '', role: m.role, status: m.status,
-      lastLoginAt: person?.lastLoginAt?.toISOString() ?? null,
+      lastLoginAt: person?.lastLoginAt?.toISOString() ?? null, customRole: custom ? { id: custom.id, name: custom.name } : null,
     };
   });
   for (const invite of open) {
@@ -137,8 +140,96 @@ export async function changeRole(ctx: TenantContext, membershipId: string, role:
   if (!INVITABLE.includes(role)) throw errors.validation({ role: ['cannot be given here'] });
   assertCanGrant(ctx, role);
   assertCanGrant(ctx, member.role); // an admin cannot touch someone ranked above them
-  if (member.role === role) return;
-  await auditedUpdate(ctx, tenantMemberships, membershipId, { role }, { resourceType: 'team_member', action: 'role_change' });
+  if (member.role === role && !member.customRoleId) return;
+  // A built-in role replaces a custom one (P8).
+  await auditedUpdate(ctx, tenantMemberships, membershipId, { role, customRoleId: null }, { resourceType: 'team_member', action: 'role_change' });
+}
+
+// ------------------------------------------------------------------ P8: custom roles (Enterprise)
+
+function roleInput(input: { name?: string; permissions?: string[] }): { name?: string; permissions?: string[] } {
+  const fields: Record<string, string[]> = {};
+  const out: { name?: string; permissions?: string[] } = {};
+  if (input.name !== undefined) {
+    const name = input.name.trim();
+    if (name.length < 2 || name.length > 60) fields.name = ['a name of 2 to 60 characters'];
+    else if ((MEMBER_ROLE as readonly string[]).includes(name.toLowerCase())) fields.name = ['that is the name of a built-in role'];
+    out.name = name;
+  }
+  if (input.permissions !== undefined) {
+    const allowed = CUSTOM_ROLE_PERMISSIONS as readonly string[];
+    const chosen = [...new Set(input.permissions)];
+    if (!chosen.length) fields.permissions = ['at least one'];
+    else if (chosen.some((p) => !allowed.includes(p))) fields.permissions = ['a custom role cannot hold that: people, settings, billing, keys and connections stay with owners and admins'];
+    out.permissions = allowed.filter((p) => chosen.includes(p));
+  }
+  if (Object.keys(fields).length) throw errors.validation(fields);
+  return out;
+}
+
+async function roleOf(ctx: TenantContext, id: string) {
+  const role = await ctx.db.findById(customRoles, id);
+  if (!role) throw errors.notFound('custom role');
+  return role;
+}
+
+export async function listCustomRoles(ctx: TenantContext): Promise<CustomRoleView[]> {
+  ctx.require('team:read');
+  const roles = await ctx.db.find(customRoles, undefined, { limit: MAX_CUSTOM_ROLES * 2, orderBy: asc(customRoles.id) });
+  const holders = await ctx.db.find(tenantMemberships, isNotNull(tenantMemberships.customRoleId), { limit: 500 });
+  return roles.map((r) => ({ id: r.id, name: r.name, permissions: r.permissions, members: holders.filter((m) => m.customRoleId === r.id).length }));
+}
+
+export async function createCustomRole(ctx: TenantContext, input: { name: string; permissions: string[] }): Promise<CustomRoleView> {
+  ctx.require('team:manage');
+  assertFeature(await entitlementsOf(ctx), 'custom_roles');
+  const values = roleInput(input);
+  const existing = await ctx.db.find(customRoles, undefined, { limit: MAX_CUSTOM_ROLES * 2 });
+  if (existing.length >= MAX_CUSTOM_ROLES) throw errors.conflict(`a store keeps at most ${MAX_CUSTOM_ROLES} custom roles`);
+  if (existing.some((r) => r.name.toLowerCase() === values.name!.toLowerCase())) throw errors.validation({ name: ['a role with this name exists'] });
+  const row = await auditedInsert(ctx, customRoles, { id: uuidv7(), tenantId: ctx.tenantId, ...values, createdBy: ctx.actor.userId }, { resourceType: 'custom_role' }) as typeof customRoles.$inferSelect;
+  return { id: row.id, name: row.name, permissions: row.permissions, members: 0 };
+}
+
+/** Change a role's name or permissions; its members have the new permissions from their next request. */
+export async function updateCustomRole(ctx: TenantContext, id: string, input: { name?: string; permissions?: string[] }): Promise<CustomRoleView> {
+  ctx.require('team:manage');
+  assertFeature(await entitlementsOf(ctx), 'custom_roles');
+  await roleOf(ctx, id);
+  const values = roleInput(input);
+  if (values.name) {
+    const clash = (await ctx.db.find(customRoles, undefined, { limit: MAX_CUSTOM_ROLES * 2 })).some((r) => r.id !== id && r.name.toLowerCase() === values.name!.toLowerCase());
+    if (clash) throw errors.validation({ name: ['a role with this name exists'] });
+  }
+  await auditedUpdate(ctx, customRoles, id, values, { resourceType: 'custom_role' });
+  return (await listCustomRoles(ctx)).find((r) => r.id === id)!;
+}
+
+/** Delete a role nobody holds. One still held is a 409 naming how many: give them another role first. */
+export async function deleteCustomRole(ctx: TenantContext, id: string): Promise<void> {
+  ctx.require('team:manage');
+  await roleOf(ctx, id);
+  const holders = await ctx.db.count(tenantMemberships, eq(tenantMemberships.customRoleId, id));
+  if (holders) throw errors.conflict(`${holders} member${holders === 1 ? ' still holds' : 's still hold'} this role: give them another role first`);
+  await auditedDelete(ctx, customRoles, id, { resourceType: 'custom_role' });
+}
+
+/**
+ * Give a member a custom role (or `null` to leave it at viewer). Not the owner, not yourself, not
+ * someone ranked above you. Their built-in role becomes viewer underneath: if the store leaves the
+ * plan, they fall back to the least.
+ */
+export async function assignCustomRole(ctx: TenantContext, membershipId: string, customRoleId: string | null): Promise<void> {
+  ctx.require('team:manage');
+  if (customRoleId) assertFeature(await entitlementsOf(ctx), 'custom_roles');
+  const member = await ctx.db.findById(tenantMemberships, membershipId);
+  if (!member) throw errors.notFound('team member');
+  if (member.userId === ctx.actor.userId) throw errors.forbidden('you cannot change your own role');
+  if (member.role === 'owner') throw errors.forbidden('the owner’s role cannot be changed here');
+  assertCanGrant(ctx, member.role);
+  if (customRoleId) await roleOf(ctx, customRoleId); // this store's role, or 404
+  if (member.customRoleId === customRoleId && member.role === 'viewer') return;
+  await auditedUpdate(ctx, tenantMemberships, membershipId, { customRoleId, role: 'viewer' }, { resourceType: 'team_member', action: 'role_change' });
 }
 
 export async function removeMember(ctx: TenantContext, membershipId: string): Promise<void> {

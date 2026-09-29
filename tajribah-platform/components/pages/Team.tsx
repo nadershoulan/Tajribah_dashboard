@@ -9,11 +9,13 @@ import { useAuth } from '@/lib/auth';
 import { useLang } from '@/lib/i18n';
 import { useData, useResource } from '@/lib/data';
 import { formatRelative } from '@/lib/format';
-import { ROLE_LABEL, ROLE_PERMISSIONS } from '@/lib/permissions';
+import { CUSTOM_ROLE_PERMISSIONS, PERMISSION_LABELS, ROLE_LABEL, ROLE_PERMISSIONS, type CustomRolePermission } from '@/lib/permissions';
+import { currentStore } from '@/lib/api-client';
+import { planByCode } from '@/lib/plans';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
 import type { Bi, Lang } from '@/lib/lang';
-import type { TeamMemberRow } from '@/lib/view-models';
+import type { CustomRoleView, TeamMemberRow } from '@/lib/view-models';
 
 export { ROLE_LABEL }; // lives in lib/permissions so the shell can use it too (P6)
 
@@ -36,6 +38,9 @@ const TEAM_AR: [RegExp, string][] = [
   [/own role|remove yourself/, 'لا يمكنك تغيير عضويتك أنت'],
   [/owner/, 'لا يمكن تغيير المالك أو إزالته من هنا'],
   [/missing permission: team:/, 'دورك لا يسمح بإدارة الفريق'],
+  [/still holds? this role/, 'ما زال أعضاء يحملون هذا الدور — أعطهم دورًا آخر أولًا'],
+  [/name of a built-in role/, 'هذا اسم دور أساسي'],
+  [/role with this name exists/, 'يوجد دور بهذا الاسم'],
 ];
 
 export default function Team() {
@@ -54,6 +59,10 @@ export default function Team() {
   const [confirming, setConfirming] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const myEmail = auth.me?.user.email ?? null;
+  // P8: custom roles are Enterprise; the plan decides whether this store sees them at all.
+  const store = currentStore(auth.me);
+  const customOn = store ? planByCode(store.plan).features.includes('custom_roles') : false;
+  const roles = useResource((s) => (customOn ? s.customRoles() : Promise.resolve([] as CustomRoleView[])), [customOn, version]);
 
   /** Run one team action, then reload; the server's refusal is shown, in Arabic too. */
   const act = async (key: string, run: () => Promise<void>, done: string) => {
@@ -155,11 +164,22 @@ export default function Team() {
                     </td>
                     <td>
                       {member.role === 'owner' || member.status === 'invited' || member.email === myEmail
-                        ? pick(ROLE_LABEL[member.role])
+                        ? (member.customRole?.name ?? pick(ROLE_LABEL[member.role]))
                         : (
-                          <select aria-label={t(`دور ${member.fullName || member.email}`, `Role of ${member.fullName || member.email}`)} value={member.role} disabled={busy !== null}
-                            onChange={(e) => void act(member.id, () => source.changeRole(member.id, e.target.value as TeamMemberRow['role']), t('تغيّر الدور.', 'Role changed.'))}>
+                          <select aria-label={t(`دور ${member.fullName || member.email}`, `Role of ${member.fullName || member.email}`)}
+                            value={member.customRole ? `custom:${member.customRole.id}` : member.role} disabled={busy !== null || lock.locked} title={lock.title}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              void act(member.id, () => (value.startsWith('custom:')
+                                ? source.assignCustomRole(member.id, value.slice(7))
+                                : source.changeRole(member.id, value as TeamMemberRow['role'])), t('تغيّر الدور.', 'Role changed.'));
+                            }}>
                             {INVITABLE.map((r) => <option key={r} value={r}>{pick(ROLE_LABEL[r])}</option>)}
+                            {(roles.data?.length ?? 0) > 0 && (
+                              <optgroup label={t('أدوار متجرك', 'Your roles')}>
+                                {roles.data!.map((r) => <option key={r.id} value={`custom:${r.id}`}>{r.name}</option>)}
+                              </optgroup>
+                            )}
                           </select>
                         )}
                     </td>
@@ -200,6 +220,8 @@ export default function Team() {
         )}
       </Panel>
 
+      {customOn && <CustomRoles roles={roles.data ?? null} locked={lock.locked} lockTitle={lock.title} onChange={reload} />}
+
       <Panel title={t('ماذا يستطيع كل دور', 'What each role can do')} sub={t('الصلاحيات تُطبَّق في الخادم، لا في الواجهة فقط.', 'Permissions are enforced on the server, not only in the interface.')}>
         <div className="grid grid-2">
           {(Object.keys(ROLE_LABEL) as TeamMemberRow['role'][]).map((role) => (
@@ -220,5 +242,92 @@ export default function Team() {
         </div>
       </Panel>
     </Shell>
+  );
+}
+
+/**
+ * P8 — the store's own roles (Enterprise): a name and the work it covers. People, settings,
+ * billing, keys and connections are not on the list — those stay with owners and admins.
+ */
+function CustomRoles({ roles, locked, lockTitle, onChange }: { roles: CustomRoleView[] | null; locked: boolean; lockTitle: string | undefined; onChange: () => void }) {
+  const { t, pick, lang } = useLang();
+  const source = useData();
+  const [editing, setEditing] = useState<string | 'new' | null>(null);
+  const [name, setName] = useState('');
+  const [chosen, setChosen] = useState<CustomRolePermission[]>([]);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const say = (raw: string) => (lang === 'ar' ? TEAM_AR.find(([p]) => p.test(raw))?.[1] ?? raw : raw);
+
+  const open = (role: CustomRoleView | null) => {
+    setEditing(role ? role.id : 'new');
+    setName(role?.name ?? '');
+    setChosen((role?.permissions ?? ['products:read']) as CustomRolePermission[]);
+    setProblem(null);
+  };
+  const run = async (fn: () => Promise<unknown>) => {
+    setBusy(true); setProblem(null);
+    try { await fn(); setEditing(null); setConfirming(null); onChange(); } catch (failure) {
+      const fields = (failure as { fields?: Record<string, string[]> }).fields;
+      setProblem(say(fields ? Object.values(fields).flat().join(' · ') : (failure as Error).message));
+    } finally { setBusy(false); }
+  };
+  const save = (e: FormEvent) => {
+    e.preventDefault();
+    void run(() => (editing === 'new' ? source.createCustomRole({ name, permissions: chosen }) : source.updateCustomRole(editing!, { name, permissions: chosen })));
+  };
+
+  return (
+    <Panel title={t('أدوار متجرك', 'Your roles')}
+      sub={t('أدوار بأسمائك لما يحتاجه كل عمل — المنتجات، النماذج، العرض، التجربة، التحليلات. إدارة الفريق والإعدادات والفوترة والمفاتيح تبقى للمالك والمديرين.',
+        'Roles you name, for what each job needs — products, models, AR, try-on, analytics. The team, settings, billing and keys stay with owners and admins.')}
+      actions={editing === null ? <button type="button" className="btn btn-ghost btn-sm" onClick={() => open(null)} disabled={locked} title={lockTitle}>{t('دور جديد', 'New role')}</button> : undefined}>
+      {editing !== null && (
+        <form className="key-form" onSubmit={save} style={{ marginTop: 0 }}>
+          <label className="field">
+            <span>{t('اسم الدور', 'Role name')}</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder={t('مثلًا: مصوّر', 'e.g. Photographer')} autoFocus />
+          </label>
+          <fieldset>
+            <legend>{t('ما يستطيعه', 'What it can do')}</legend>
+            {CUSTOM_ROLE_PERMISSIONS.map((p) => (
+              <label key={p} className="toggle">
+                <input type="checkbox" checked={chosen.includes(p)} onChange={(e) => setChosen((c) => (e.target.checked ? [...c, p] : c.filter((x) => x !== p)))} />
+                <span>{pick(PERMISSION_LABELS[p])}</span>
+              </label>
+            ))}
+          </fieldset>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={busy || name.trim().length < 2 || !chosen.length}>{editing === 'new' ? t('أنشئ الدور', 'Create the role') : t('احفظ', 'Save')}</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(null)} disabled={busy}>{t('إلغاء', 'Cancel')}</button>
+          </div>
+        </form>
+      )}
+      {problem && <p className="field-error" role="alert">{problem}</p>}
+      {roles && roles.length === 0 && editing === null && <p className="hint" style={{ margin: 0 }}>{t('لا أدوار بعد.', 'No roles yet.')}</p>}
+      {roles && roles.length > 0 && (
+        <ul className="role-list">
+          {roles.map((role) => (
+            <li key={role.id}>
+              <div className="job-main">
+                <strong>{role.name}</strong>
+                <span className="hint" style={{ margin: 0 }}>{t(`${role.members} عضو`, `${role.members} ${role.members === 1 ? 'member' : 'members'}`)}</span>
+              </div>
+              <p className="hint" style={{ margin: '4px 0 0' }}>{role.permissions.map((p) => (p in PERMISSION_LABELS ? pick(PERMISSION_LABELS[p as CustomRolePermission]) : p)).join(t('، ', ', '))}</p>
+              <div className="job-meta hint">
+                <button type="button" className="btn btn-quiet btn-sm" onClick={() => open(role)} disabled={busy || locked} title={lockTitle}>{t('عدّل', 'Edit')}</button>
+                {confirming === role.id
+                  ? <span className="confirm-inline" role="alertdialog" aria-label={t('حذف الدور', 'Delete the role')}>
+                      <button type="button" className="btn btn-danger btn-sm" disabled={busy} onClick={() => void run(() => source.deleteCustomRole(role.id))}>{t('نعم، احذف', 'Yes, delete')}</button>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirming(null)} disabled={busy}>{t('تراجع', 'Keep it')}</button>
+                    </span>
+                  : <button type="button" className="btn btn-quiet btn-sm" onClick={() => setConfirming(role.id)} disabled={busy || locked} title={lockTitle}>{t('احذف', 'Delete')}</button>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
   );
 }

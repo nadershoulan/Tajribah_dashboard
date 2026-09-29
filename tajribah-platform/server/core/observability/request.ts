@@ -5,7 +5,8 @@
  *    kept, anything else is replaced) and returns it as `x-request-id`;
  *  - runs the handler inside the request scope, so every log line it produces — however
  *    deep, however async — carries that id;
- *  - writes one access line per request (method, path, status, duration);
+ *  - writes one access line per request (method, path, status, duration, its SLO budget), and a
+ *    `slow request` warning when it took longer than the budget (P7, `slo.ts`);
  *  - is the error hook: a thrown `AppError` becomes its problem+json, anything else
  *    becomes a 500 whose detail stays in the log, never in the response.
  */
@@ -14,6 +15,7 @@ import { langFromCookie } from '@/lib/lang';
 import { isAppError, problemResponse } from '../errors/problem';
 import { log } from './log';
 import { currentScope, runInScope } from './scope';
+import { budgetMs } from './slo';
 
 export const REQUEST_ID_HEADER = 'x-request-id';
 
@@ -50,10 +52,13 @@ export function route(handler: RouteHandler): RouteHandler {
       // Responses from fetch() have immutable headers; copy before stamping the id.
       const stamped = new Response(response.body, response);
       stamped.headers.set(REQUEST_ID_HEADER, requestId);
+      const ms = Date.now() - started;
+      const budget = budgetMs(request.method, path);
       log.info('request', {
-        method: request.method, path, status: stamped.status, ms: Date.now() - started,
+        method: request.method, path, status: stamped.status, ms, budgetMs: budget,
         tenantId: currentScope()?.tenantId,
       });
+      if (ms > budget) log.warn('slow request', { method: request.method, path, status: stamped.status, ms, budgetMs: budget });
       return stamped;
     });
   };

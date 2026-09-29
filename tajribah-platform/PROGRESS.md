@@ -3,8 +3,8 @@
 _Last updated: 2026-09-29 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-09-29):** **the Public API, version 1** (P8, Enterprise) — what the API keys open: a store's other systems can now **read its products** (page by page), **one product**, **its 3D models** and **its figures** (7, 30 or 90 days). Each answer has a fixed, documented shape that will only ever grow, never change under an integration; each key is limited to 600 requests a minute and every answer says how many are left. The **technical reference** (`/api/v1/openapi.json`, the standard format developers' tools read) is generated from the same definitions the answers are checked against, so it cannot drift. Seen answering in the real server runtime · before that: **API keys** (P8)
-> **Next:** P7's monitoring (health, error and speed signals the code can already give), then more P8: outgoing webhooks (your systems told when something changes).
+> **Just finished (2026-09-29):** **knowing when something is wrong** (P7, monitoring — the code-level part). Two addresses an uptime monitor (the plan names Better Stack, which also drives the public status page) can call every minute: **`/api/health`** — is the dashboard answering — and **`/api/health/ready`** — can it do its work (the database answers, checked for real). The speed targets from the plan (a screen's data in under 0.3 s, a change in under 0.8 s) are now in the code: every request's log line carries its target, and any request slower than that is logged as **slow**, so a log service can count and alert on them. Seen answering in the real server runtime · before that: **the Public API** (P8)
+> **Next:** more P8: outgoing webhooks (your systems told when something changes), then custom roles.
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
 > **Waiting on you:** the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
 
@@ -16,7 +16,7 @@ P3 3D pipeline    ███████████░░░░░░░░░�
 P4 Analytics      ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ CSV export partly) · shared with the other session
 P5 Try-on         ████████████████░░░░░░░░░░░░░░░░   7 / 14   (+ watch partly) · the rest touches your studio or needs new photography
 P6 AI+connectors  ██████████░░░░░░░░░░░░░░░░░░░░░░   5 / 16   · the rest needs AI providers or store accounts
-P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ P7.7 security, safe updates, rate limits, database speed: the code-level parts done)
+P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ P7.7 security, safe updates, rate limits, database speed, monitoring: the code-level parts done)
 P8 Enterprise     █████░░░░░░░░░░░░░░░░░░░░░░░░░░░   2 / 12
 M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
@@ -187,6 +187,7 @@ The public site that sells Tajribah, Arabic first.
 | | Package | In plain words |
 |---|---|---|
 | ◐ | P7 Zero-downtime updates | **Every database change is checked before it can ship** to be survivable by the version still running during an update: taking things away (a column, a table, a rename, a type change, making a field required) only with a written reason, once no running code uses them; never a new required field without a default; no index or check that locks a table while it builds, unless marked as a small table. Our 19 changes so far: the two it flags are from before launch. **Left:** the update runner itself, when the server exists |
+| ◐ | P7 Monitoring and speed targets | **`/api/health`** (answering) and **`/api/health/ready`** (able to work: the database checked for real, 503 when it cannot) for an uptime monitor and the status page. The plan's speed targets live in the code: each request is logged with its target, and a slower one as **slow**. Waits on: a log service and an uptime monitor account (Better Stack, Axiom/Grafana) |
 | ◐ | P7 Database speed | **Every list a screen reads has an index that can serve it** — five did not (products, AI jobs, the bell, a connection's syncs and webhooks); added. A test asks the database how it would run each screen's real queries and fails on any full read or sort. Waits on: real data sizes on staging to measure |
 | ◐ | P7 Rate limits and abuse | **Limits now hold across every server copy** (they counted per copy before — live, none would have held); production will not start without the shared store. Hourly per-store limits on team invitations (emails), the install checker (fetches the shop) and report exports. A refusal reads "Too many requests" in your language, not a code. Waits on: the Cloudflare KV namespace (`docs/GO-LIVE.md` §3) |
 | ◐ | P7.7 Security | The dashboard can no longer be shown inside another website, only runs the code we send with it (a script slipped into a page is refused by the browser), always uses a secure connection, and sign-in sessions can't be refreshed in a tight loop. A review of sign-in, store webhooks, uploads and the install checker found them already sound. Left: a check when payments arrive, and an outside security review before launch |
@@ -407,3 +408,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-29 | Five screen lists given the index they lacked; a test checks every hot query's plan | 606 pass / 0 fail; seen to fail 8 ways |
 | 2026-09-29 | API keys: scoped, shown once, acting as their maker, revocable even while read-only | 610 pass / 0 fail; seen to fail 16 ways; checked in a real browser (Enterprise en 1440 / ar 390, Growth locked) |
 | 2026-09-29 | Public API v1: products, models, figures — documented shapes, per-key limit, a reference that cannot drift | 614 pass / 0 fail; seen to fail 9 ways; the reference and a keyless request seen in workerd |
+| 2026-09-29 | Health endpoints for an uptime monitor; every request measured against the plan's speed targets | 618 pass / 0 fail / 0 cancelled; seen to fail 8 ways; both endpoints seen in workerd |

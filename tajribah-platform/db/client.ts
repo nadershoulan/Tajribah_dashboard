@@ -13,6 +13,7 @@
  *    so that every such call site is visible in review and in grep.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { sql } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import * as schema from './schema';
 
@@ -54,6 +55,23 @@ export function appDb(): Db {
  */
 export function unsafeAdminDb(): Db {
   return requireDb().admin;
+}
+
+/**
+ * P7 — can the database answer? `select 1` on the application handle, within `timeoutMs`. For the
+ * readiness check only: it reads no table, so no tenant is needed.
+ */
+export async function pingDb(timeoutMs = 2000): Promise<'ok' | 'not_registered' | 'error'> {
+  if (!handles) return 'not_registered';
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<'error'>((resolve) => { timer = setTimeout(() => resolve('error'), timeoutMs); });
+  try {
+    return await Promise.race([handles.app.execute(sql`select 1`).then(() => 'ok' as const), late]);
+  } catch {
+    return 'error';
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** Tests only. */

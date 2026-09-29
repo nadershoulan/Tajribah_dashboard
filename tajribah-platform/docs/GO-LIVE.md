@@ -46,6 +46,10 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
 - [ ] Rate limits (P7): create a second KV namespace, bind it as **`RATE_LIMITS`**, and set
       **`RATE_LIMITER=kv`** — per-isolate memory counters are refused in production, since no limit
       would hold across isolates (`server/core/ratelimit/limiter.ts`).
+- [ ] Uptime (P7): point the monitor (the plan names Better Stack, which also drives the status page) at
+      **`https://app.tajribah.sa/api/health`** (answering) and **`/api/health/ready`** (503 while the database
+      cannot answer). In the log service, alert on the share of `slow request` lines per path
+      (`server/core/observability/slo.ts` holds the plan's targets).
 - [ ] The database: still an open decision (DECISIONS T9) — nothing registers one yet.
 - **Check:** sign in; the setup guide loads; `/api/auth/me` answers; eleven wrong passwords for one
   email in a row → the eleventh answers 429 with a `retry-after` header.

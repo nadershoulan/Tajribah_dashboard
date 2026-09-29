@@ -4,6 +4,7 @@
  * Growth — the trial runs on Growth — Shopify and WooCommerce from Pro) for connecting and for every
  * sync, asked for or scheduled; AI 3D work from Pro, refused before anything is charged.
  */
+import { CREDITS_PER_3D_GENERATION } from '@/lib/ai-credits';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, sql } from 'drizzle-orm';
@@ -72,13 +73,13 @@ test('AI 3D work is Pro and up, refused before anything is charged', async () =>
   const harness = await createTestDb();
   try {
     const growth = await storeOn(harness, 'growth', 'growth');
-    await assert.rejects(() => createAiJob(growth.ctx, { type: 'generate_3d', input: { productId: 'p' }, creditsCost: 2 }), refused('ai_3d'));
+    await assert.rejects(() => createAiJob(growth.ctx, { type: 'generate_3d', input: { productId: 'p' }, creditsCost: CREDITS_PER_3D_GENERATION }), refused('ai_3d'));
     const spent = async (tenantId: string) => (await harness.asAdmin(() => harness.db.select().from(creditLedger).where(eq(creditLedger.tenantId, tenantId))))
       .filter((row) => row.delta < 0).reduce((sum, row) => sum - row.delta, 0);
     assert.equal(await spent(growth.tenantId), 0, 'nothing charged');
     const pro = await storeOn(harness, 'pro', 'pro');
-    const job = await createAiJob(pro.ctx, { type: 'generate_3d', input: { productId: 'p' }, creditsCost: 2 });
+    const job = await createAiJob(pro.ctx, { type: 'generate_3d', input: { productId: 'p' }, creditsCost: CREDITS_PER_3D_GENERATION });
     assert.notEqual(job.status, 'failed', 'Pro: the job is taken');
-    assert.equal(await spent(pro.tenantId), 2, 'and charged its 2 credits — the ledger is read right');
+    assert.equal(await spent(pro.tenantId), 10, 'and charged its 10 credits (T55) — the ledger is read right');
   } finally { await harness.close(); }
 });

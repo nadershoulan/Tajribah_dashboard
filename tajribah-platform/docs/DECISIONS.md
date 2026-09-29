@@ -688,3 +688,23 @@ Two ways a live button leaves a shop, kept apart on purpose:
 An app uninstall removes the buttons of that connection's products (the website's Salla FAQ says
 they disappear at once). A dashboard **Disconnect** does not: it stops syncing, and its confirmation
 says the products and their models stay.
+
+## T55 · 2026-09-29 · A 3D generation costs 10 credits; buttons stay after a trial or subscription ends
+
+**Credits (Nader: "make it").** One 3D generation from photos costs **10 AI credits**
+(`lib/ai-credits.ts`, enforced by `createAiJob`). It is the most expensive work credits pay for, so
+text work (Arabic content enrichment, available on every plan's credits) can later cost 1 without
+being priced like a model. On Pro's 200 monthly credits that is 20 new 3D models a month; the
+monthly allowances stay plan rows the admin console can change. The website states the same number,
+and a test keeps it equal.
+
+**Buttons (Nader: "they stay").** When a trial ends unpaid or a subscription is cancelled, the store
+goes read-only in the dashboard but its published buttons **stay on its shop**. Only a suspended or
+closed store's buttons are taken down (P1.15).
+
+## T56 · 2026-09-29 · Account-free packages of later phases may be built now
+
+**Decision (Nader: "continue build the plan — the ones that do not need setup").** While the P1 gate
+waits on the accounts, packages from later phases (P6, P7, P8) that need no account, provider or
+setup may be built, as T18 allowed for Track A. The gates themselves are unchanged: none is marked
+passed, and P7's load tests and DR drill still need staging.

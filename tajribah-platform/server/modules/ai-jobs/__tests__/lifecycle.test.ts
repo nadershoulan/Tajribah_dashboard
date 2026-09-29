@@ -3,10 +3,11 @@
  * P3.2 ⭐ — the AI job lifecycle: charged once, refunded once, every transition conditional, a
  * cancel that is immediate, a late result thrown away, and nothing left behind by a dead worker.
  */
+import { CREDITS_PER_3D_GENERATION } from '@/lib/ai-credits';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, asc, eq } from 'drizzle-orm';
-import { aiJobEvents, aiJobs, auditLogs, creditLedger, jobs, tenantMemberships, users } from '@/db/schema';
+import { aiJobEvents, aiJobs, auditLogs, creditLedger, jobs, planLimits, tenantMemberships, users } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { AI_JOB_ERRORS } from '@/lib/ai-jobs';
 import { loadEnv, resetEnv } from '@/server/core/config/env';
@@ -36,7 +37,7 @@ async function store(harness: TestDb, name: string) {
   return { ...seeded, ctx };
 }
 
-const GENERATE = { type: 'generate_3d' as const, input: { productId: 'p-1', photos: 4 }, creditsCost: 2 };
+const GENERATE = { type: 'quality_check' as const, input: { productId: 'p-1', photos: 4 }, creditsCost: 2 };
 
 async function eventsOf(harness: TestDb, jobId: string) {
   const rows = await harness.asAdmin(() => harness.db.select().from(aiJobEvents).where(eq(aiJobEvents.jobId, jobId)).orderBy(asc(aiJobEvents.id)));
@@ -65,7 +66,7 @@ test('the happy path through the real worker: charged once, progress never backw
   try {
     const { ctx, tenantId } = await store(harness, 'alpha');
     let calls = 0;
-    registerExecutor('generate_3d', async (job, report) => {
+    registerExecutor('quality_check', async (job, report) => {
       calls++;
       assert.equal((job.input as any).productId, 'p-1');
       await report({ percent: 10, stage: 'preparing' });
@@ -122,7 +123,7 @@ test('cancel before it starts: immediate, credits back once, the worker then doe
   try {
     const { ctx, tenantId } = await store(harness, 'alpha');
     let ran = false;
-    registerExecutor('generate_3d', async () => { ran = true; return { output: {} }; });
+    registerExecutor('quality_check', async () => { ran = true; return { output: {} }; });
     const job = await createAiJob(ctx, GENERATE);
 
     const cancelled = await cancelAiJob(ctx, job.id);
@@ -141,7 +142,7 @@ test('cancel mid-run: the next report says stop; a late result is thrown away, i
   try {
     const { ctx, tenantId } = await store(harness, 'alpha');
     let heard: boolean | null = null;
-    registerExecutor('generate_3d', async (job, report) => {
+    registerExecutor('quality_check', async (job, report) => {
       await report({ percent: 30, stage: 'generating' });
       assert.equal((await aiJobView(ctx, job.id)).canCancel, true);
       await cancelAiJob(ctx, job.id); // the merchant, while the provider works
@@ -168,7 +169,7 @@ test('a retryable failure goes back to the queue and succeeds; both attempts’ 
   try {
     const { ctx, tenantId } = await store(harness, 'alpha');
     let attempt = 0;
-    registerExecutor('generate_3d', async () => {
+    registerExecutor('quality_check', async () => {
       attempt++;
       if (attempt === 1) throw new AiJobError('provider_failed', 'upstream 503', { retryable: true, cost: { actualCostCents: 30 } });
       return { output: { ok: true }, cost: { actualCostCents: 20 } };
@@ -190,7 +191,7 @@ test('failures end the job with the merchant’s wording, never the provider’s
   const harness = await createTestDb();
   try {
     const { ctx, tenantId } = await store(harness, 'alpha');
-    registerExecutor('generate_3d', async () => { throw new AiJobError('bad_input', 'provider says: photo 3 has EXIF secret-internal-id'); });
+    registerExecutor('quality_check', async () => { throw new AiJobError('bad_input', 'provider says: photo 3 has EXIF secret-internal-id'); });
     registerExecutor('enhance_texture', async () => { throw new Error('socket hang up'); });
 
     const bad = await createAiJob(ctx, GENERATE);
@@ -222,9 +223,9 @@ test('the sweep: an undispatched job is dispatched once; an abandoned one fails 
     const old = new Date(now.getTime() - UNDISPATCHED_MS - 60_000);
     // A row whose process died before the charge: written straight, as createAiJob's first step would.
     const lost = uuidv7();
-    await harness.asAdmin(() => harness.db.insert(aiJobs).values({ id: lost, tenantId, type: 'generate_3d', status: 'queued', input: {}, creditsCost: 2, queuedAt: old } as any));
+    await harness.asAdmin(() => harness.db.insert(aiJobs).values({ id: lost, tenantId, type: 'quality_check', status: 'queued', input: {}, creditsCost: 2, queuedAt: old } as any));
 
-    registerExecutor('generate_3d', async (_job, report) => { await report({ percent: 5 }); return { output: {} }; });
+    registerExecutor('quality_check', async (_job, report) => { await report({ percent: 5 }); return { output: {} }; });
     const stuck = await createAiJob(ctx, GENERATE);
     const alive = await createAiJob(ctx, { ...GENERATE, creditsCost: 1 });
     for (const id of [stuck.id, alive.id]) {
@@ -313,3 +314,16 @@ test('over HTTP: list, one job, cancel — and the refusals', async () => {
 // Keep the executor type exercised at compile time for adapters written later.
 const _typed: AiExecutor = async (_job, report) => { await report({ percent: 1 }); return { output: {} }; };
 void _typed;
+
+test('T55: a 3D generation costs exactly 10 credits — any other price is refused before a charge', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx } = await store(harness, 'alpha');
+    await harness.asAdmin(() => harness.db.update(planLimits).set({ value: 30 } as any).where(eq(planLimits.key, 'ai_credits')));
+    await assert.rejects(() => createAiJob(ctx, { type: 'generate_3d', input: {}, creditsCost: 2 }), (e: any) => e.code === 'validation_failed' && /costs 10 credits/.test(JSON.stringify(e.errors)));
+    assert.equal((await creditSummary(ctx)).balance, 30, 'nothing charged');
+    const job = await createAiJob(ctx, { type: 'generate_3d', input: {}, creditsCost: CREDITS_PER_3D_GENERATION });
+    assert.equal(job.creditsCost, 10);
+    assert.equal((await creditSummary(ctx)).balance, 20);
+  } finally { await harness.close(); }
+});

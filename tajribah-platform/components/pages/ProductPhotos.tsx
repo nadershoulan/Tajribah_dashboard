@@ -2,6 +2,7 @@
 
 // P3.7 — the product's photos for 3D generation: add one per angle, see each checked, remove.
 
+import { CREDITS_PER_3D_GENERATION } from '@/lib/ai-credits';
 import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { Camera, ImageIcon, Lightbulb, Trash2, Wand2 } from 'lucide-react';
 import { ANGLE_LABELS, ANGLE_SLOTS, PHOTO_ISSUES, type GenerationAngle, type PhotoIssueCode } from '@/lib/ai-jobs';
@@ -145,7 +146,7 @@ export default function ProductPhotos({ product }: { product: ProductRow }) {
 
           <div className="photo-foot">
             <button type="button" className="btn btn-primary" disabled aria-describedby="generate-why">
-              <Wand2 size={16} aria-hidden />{t('ولّد النموذج', 'Generate the model')}
+              <Wand2 size={16} aria-hidden />{t(`ولّد النموذج · ${CREDITS_PER_3D_GENERATION} أرصدة`, `Generate the model · ${CREDITS_PER_3D_GENERATION} credits`)}
             </button>
             <span id="generate-why" className="hint" style={{ margin: 0 }}>
               {data.ready

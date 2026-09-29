@@ -170,11 +170,11 @@ export const HELP_ARTICLES: HelpArticle[] = [
     ],
   },
   {
-    slug: 'ai-credits', category: 'billing', updated: '2026-09-25',
+    slug: 'ai-credits', category: 'billing', updated: '2026-09-29',
     title: { ar: 'أرصدة الذكاء الاصطناعي', en: 'AI credits' },
     summary: { ar: 'ما الذي يستهلكها ومتى تتجدد.', en: 'What uses them and when they renew.' },
     body: [
-      { ar: 'توليد نموذج ثلاثي الأبعاد من الصور يستهلك أرصدة. كل باقة تمنح أرصدة شهرية تنتهي بنهاية الشهر، والأرصدة المشتراة لا تنتهي بنهايته. إذا فشل التوليد يعود الرصيد تلقائيًا.', en: 'Generating a 3D model from photos uses credits. Each plan grants monthly credits that expire at month end; purchased credits do not. If a generation fails, its credits come back automatically.' },
+      { ar: 'توليد نموذج ثلاثي الأبعاد من الصور يستهلك 10 أرصدة. كل باقة تمنح أرصدة شهرية تنتهي بنهاية الشهر، والأرصدة المشتراة لا تنتهي بنهايته. إذا فشل التوليد يعود الرصيد تلقائيًا.', en: 'Generating a 3D model from photos uses 10 credits. Each plan grants monthly credits that expire at month end; purchased credits do not. If a generation fails, its credits come back automatically.' },
     ],
   },
   {

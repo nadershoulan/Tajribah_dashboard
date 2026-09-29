@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { ATTR, WIDGET_SRC } from '../src/main';
 import { embedSnippet } from '../src/snippet';
 import { PLANS } from '@/lib/plans';
+import { CREDITS_PER_3D_GENERATION } from '@/lib/ai-credits';
 import { COMPANY } from '../../../tajribah-try-on/lib/site';
 import { MATRIX, PLANS as SITE_PLANS } from '../../../tajribah-try-on/lib/plans';
 
@@ -73,5 +74,13 @@ test('T39: the website says the catalogue sync brings what the connector contrac
     assert.ok(!/stock|مخزون/i.test(text), `${file}: no stock claim`);
     assert.ok(!/inside the studio|من داخل الاستوديو/.test(text), `${file}: no add-to-cart inside the studio`);
     assert.ok(!/button and the studio on your product/.test(text), `${file}: the dashboard previews the button, not the studio`);
+  }
+});
+
+test('T55: the website states the price of a 3D generation the dashboard charges', () => {
+  for (const file of ['content/help.ts', 'components/pages/Pricing.tsx']) {
+    const text = site(file);
+    assert.ok(text.includes(`${CREDITS_PER_3D_GENERATION} credits`) && text.includes(`${CREDITS_PER_3D_GENERATION} أرصدة`), `${file}: ${CREDITS_PER_3D_GENERATION} credits, in both languages`);
+    assert.ok(!/try-ons beyond your plan|لتجارب إضافية فوق حد باقتك/.test(text), `${file}: no credit-paid try-ons (not in the plan)`);
   }
 });

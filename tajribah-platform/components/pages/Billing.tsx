@@ -2,6 +2,7 @@
 
 // MD-160 — Subscription and invoices · P2.10: checkout up to the payment step
 
+import { CREDITS_PER_3D_GENERATION } from '@/lib/ai-credits';
 import { useState } from 'react';
 import { CheckCircle2, CreditCard, FileText, Lock, Sparkles, X } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
@@ -97,8 +98,8 @@ export default function Billing() {
                 />
                 <p className="hint" style={{ marginTop: 0 }}>
                   {t(
-                    `الرصيد المتبقي ${formatNumber(data.aiCredits.balance, lang)}. كل توليد نموذج يستهلك رصيدًا واحدًا.`,
-                    `${formatNumber(data.aiCredits.balance, lang)} credits left. One 3D generation uses one credit.`,
+                    `الرصيد المتبقي ${formatNumber(data.aiCredits.balance, lang)}. كل توليد نموذج ثلاثي الأبعاد يستهلك ${formatNumber(CREDITS_PER_3D_GENERATION, lang)} أرصدة.`,
+                    `${formatNumber(data.aiCredits.balance, lang)} credits left. One 3D generation uses ${CREDITS_PER_3D_GENERATION} credits.`,
                   )}
                 </p>
               </div>

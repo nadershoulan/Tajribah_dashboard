@@ -37,6 +37,7 @@ import { systemContext, type TenantContext } from '@/server/core/tenancy/context
 import { withTenant } from '@/server/core/tenancy/rls';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { consumeCredits, refundCredits } from '@/server/modules/billing/credits';
+import { CREDITS_PER_3D_GENERATION } from '@/lib/ai-credits';
 
 export type AiJobType = (typeof AI_JOB_TYPE)[number];
 export type AiJob = typeof aiJobs.$inferSelect;
@@ -134,6 +135,8 @@ export async function createAiJob(ctx: TenantContext, request: CreateAiJob): Pro
   ctx.require(route.permission);
   if (route.feature) assertFeature(await entitlementsOf(ctx), route.feature); // T35: before any charge
   if (!Number.isInteger(request.creditsCost) || request.creditsCost < 1) throw errors.validation({ creditsCost: ['a whole number of credits, at least 1'] });
+  // T55: a 3D generation has one price, the one every screen states.
+  if (request.type === 'generate_3d' && request.creditsCost !== CREDITS_PER_3D_GENERATION) throw errors.validation({ creditsCost: [`a 3D generation costs ${CREDITS_PER_3D_GENERATION} credits`] });
 
   const now = new Date();
   const job = await withTenant(ctx.tenantId, async (db) => {

@@ -38,22 +38,22 @@ test('what ran, what it cost, what was charged, what failed and what went quiet 
     await harness.asAdmin(() => harness.db.insert(users).values({ id: staffId, email: 'staff@tajribah.test', passwordHash: 'x', fullName: 'Staff', isStaff: true, totpEnabled: true } as any));
     const staff: StaffContext = { userId: staffId, email: 'staff@tajribah.test', fullName: 'Staff', requestId: 'staff-req' };
 
-    registerExecutor('generate_3d', async (job) => {
+    registerExecutor('quality_check', async (job) => {
       if ((job.input as any).fail) throw new AiJobError('provider_failed', 'meshy: 500 upstream timeout on task tsk_91', { retryable: false, cost: { actualCostCents: 12 } });
       return { output: {}, cost: { actualCostCents: 40, gpuSeconds: 30 } };
     });
     registerExecutor('embed_product', async () => ({ output: {}, cost: { actualCostCents: 1 } }));
 
-    const done = await createAiJob(a.ctx, { type: 'generate_3d', input: {}, creditsCost: 2 });
+    const done = await createAiJob(a.ctx, { type: 'quality_check', input: {}, creditsCost: 2 });
     await run(a.tenantId, done.id);
-    const failed = await createAiJob(a.ctx, { type: 'generate_3d', input: { fail: true }, creditsCost: 2 });
+    const failed = await createAiJob(a.ctx, { type: 'quality_check', input: { fail: true }, creditsCost: 2 });
     await run(a.tenantId, failed.id); // refunded: nets to zero credits
     const embedded = await createAiJob(b.ctx, { type: 'embed_product', input: {}, creditsCost: 1 });
     await run(b.tenantId, embedded.id);
     const cancelled = await createAiJob(b.ctx, { type: 'embed_product', input: {}, creditsCost: 1 });
     await cancelAiJob(b.ctx, cancelled.id); // before it ran: refunded
     // A job the provider went silent on: processing, last heard long ago.
-    const quiet = await createAiJob(b.ctx, { type: 'generate_3d', input: {}, creditsCost: 2 });
+    const quiet = await createAiJob(b.ctx, { type: 'quality_check', input: {}, creditsCost: 2 });
     await harness.asAdmin(async () => {
       await harness.db.update(aiJobs).set({ status: 'processing', startedAt: new Date(Date.now() - QUIET_MS * 2) } as any).where(eq(aiJobs.id, quiet.id));
       await harness.db.update(aiJobEvents).set({ createdAt: new Date(Date.now() - QUIET_MS * 2) } as any).where(eq(aiJobEvents.jobId, quiet.id));
@@ -65,7 +65,7 @@ test('what ran, what it cost, what was charged, what failed and what went quiet 
     assert.equal(ops.totals.creditsCharged, 2 + 0 + 1 + 0 + 2, 'a refunded job nets to zero; the quiet one is still charged');
     assert.equal(ops.totals.failureRate, 1 / 3, 'failed over finished; a merchant’s cancel is not a failure');
 
-    const gen = ops.byType.find((t) => t.type === 'generate_3d')!;
+    const gen = ops.byType.find((t) => t.type === 'quality_check')!;
     assert.deepEqual([gen.total, gen.done, gen.failed, gen.open, gen.costCents, gen.gpuSeconds, gen.creditsCharged], [3, 1, 1, 1, 52, 30, 4]);
     assert.equal(typeof gen.medianSeconds, 'number');
     const emb = ops.byType.find((t) => t.type === 'embed_product')!;

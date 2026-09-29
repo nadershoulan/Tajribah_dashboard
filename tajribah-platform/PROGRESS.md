@@ -3,10 +3,10 @@
 _Last updated: 2026-09-29 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-09-29):** **a page for developers on the website** (P8, developer experience) — `/developers`, linked from the footer: how to get a key, the four API requests and what each returns, the limits and errors, the five webhook events, and a ready-to-copy function that checks a message really came from Tajribah. Every fact on it is held equal to the platform by a test, and that sample function is run in the test against a real signature — so a developer who follows the page and nothing else gets it right · before that: **your own team roles** (P8)
-> **Next:** white-label for Enterprise (the shop button and try-on without Tajribah's name), then what else in P6/P7 needs no account.
+> **Just finished (2026-09-29):** **the load tests the plan requires before launch** (P7) — and **one of them found a real fault**. When a single store queued a flood of AI work (10,000 jobs), every other store's jobs waited until the whole flood was done — the fair-share rule only looked at the oldest jobs, and the flood filled them. Fixed: each store now gets its share straight away; the test runs on every change. The other tests (5,000 product-page views a second, 3,000 analytics events a second, 500 merchants using the dashboard at once) are written with the plan's pass marks built in and proven to run — the page-view test against the real config server; running them at full size needs the staging server · before that: **the developer page** (P8)
+> **Next:** what else in P6/P7 needs no account (caching, backpressure). White-label waits on your answer below.
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
-> **Waiting on you:** the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
+> **Waiting on you:** **new question — white-label (Enterprise): what should shoppers see instead of Tajribah's name?** Today they see it in two places: the logo on the phone page a QR code opens, and the try-on page's title. The store's own logo and name there? Anything in the store owner's dashboard too? Also: the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
 
 ```
 P0 Foundation     ████████████████████████████░░░░  19 / 22   (+ P0.20 mostly done, 2 blocked)
@@ -16,7 +16,7 @@ P3 3D pipeline    ███████████░░░░░░░░░�
 P4 Analytics      ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ CSV export partly) · shared with the other session
 P5 Try-on         ████████████████░░░░░░░░░░░░░░░░   7 / 14   (+ watch partly) · the rest touches your studio or needs new photography
 P6 AI+connectors  ██████████░░░░░░░░░░░░░░░░░░░░░░   5 / 16   · the rest needs AI providers or store accounts
-P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ P7.7 security, safe updates, rate limits, database speed, monitoring: the code-level parts done)
+P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ security, safe updates, rate limits, database speed, monitoring, load tests: the code-level parts done)
 P8 Enterprise     █████████████░░░░░░░░░░░░░░░░░░░   5 / 12
 M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
@@ -190,6 +190,7 @@ The public site that sells Tajribah, Arabic first.
 | | Package | In plain words |
 |---|---|---|
 | ◐ | P7 Zero-downtime updates | **Every database change is checked before it can ship** to be survivable by the version still running during an update: taking things away (a column, a table, a rename, a type change, making a field required) only with a written reason, once no running code uses them; never a new required field without a default; no index or check that locks a table while it builds, unless marked as a small table. Our 19 changes so far: the two it flags are from before launch. **Left:** the update runner itself, when the server exists |
+| ◐ | P7 Load tests | The plan's five pre-launch load tests, each with its pass mark built in. **The queue flood runs on every change — and found a real fault** (one store's 10,000 AI jobs held every other store's back; fixed). Product pages at 5,000/s, analytics at 3,000 events/s and 500 dashboard users are written and proven to run; full size needs staging. The catalogue-sync storm waits on a real Salla connection |
 | ◐ | P7 Monitoring and speed targets | **`/api/health`** (answering) and **`/api/health/ready`** (able to work: the database checked for real, 503 when it cannot) for an uptime monitor and the status page. The plan's speed targets live in the code: each request is logged with its target, and a slower one as **slow**. Waits on: a log service and an uptime monitor account (Better Stack, Axiom/Grafana) |
 | ◐ | P7 Database speed | **Every list a screen reads has an index that can serve it** — five did not (products, AI jobs, the bell, a connection's syncs and webhooks); added. A test asks the database how it would run each screen's real queries and fails on any full read or sort. Waits on: real data sizes on staging to measure |
 | ◐ | P7 Rate limits and abuse | **Limits now hold across every server copy** (they counted per copy before — live, none would have held); production will not start without the shared store. Hourly per-store limits on team invitations (emails), the install checker (fetches the shop) and report exports. A refusal reads "Too many requests" in your language, not a code. Waits on: the Cloudflare KV namespace (`docs/GO-LIVE.md` §3) |
@@ -415,3 +416,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-29 | Webhooks: the page, and products, models and AI jobs announcing themselves | 634 pass / 0 fail / 0 cancelled; seen to fail 27 ways (both halves); checked in a real browser (Enterprise en 1440 / ar 390) |
 | 2026-09-29 | Custom roles on the Team page — the work only, applied at once, viewer if the plan lapses | 641 pass / 0 fail / 0 cancelled; seen to fail 10 ways; checked in a real browser (Enterprise en 1440 / ar 390) |
 | 2026-09-29 | The website's developer page — facts tested equal to the platform, its sample code run against a real signature | 641 + 3 pass; seen to fail 8 ways; checked in a real browser (en 1440 / ar 390) |
+| 2026-09-29 | The five load tests: queue flood in the suite (found and fixed a starvation fault); three k6 scripts written and proven to run | 645 pass / 0 fail / 0 cancelled; the flood test failed on the old code, and on 2 deliberate breakages |

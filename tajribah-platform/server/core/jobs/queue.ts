@@ -95,30 +95,32 @@ export async function claim(input: {
   const cap = Math.max(1, Math.floor(limit * FAIR_SHARE));
   const queues = input.queues?.length ? input.queues : null;
 
-  // Read wide, lock what is free, then trim per tenant. `coalesce(tenant_id, ...)` puts all
-  // platform jobs in one partition so they cannot crowd out tenants either.
+  // Rank every due job within its tenant first, keep each tenant's share, then lock what is free.
+  // Ranking a window of the oldest jobs instead (as this once did) let one tenant's backlog fill the
+  // window: a 10,000-job flood hid everyone else's jobs until it drained (load test 5, P7).
+  // `coalesce(tenant_id, ...)` puts all platform jobs in one partition so they cannot crowd out
+  // tenants either. Cost: a sort of the due queued jobs per claim — fine at stage-1 volumes; a
+  // backlog in the millions would want a per-tenant index scan instead (plan §8 stages).
   const claimed = await db.execute(sql`
-    with locked as (
-      select id, tenant_id, priority, run_after
+    with ranked as (
+      select id, priority, run_after,
+             row_number() over (
+               partition by coalesce(tenant_id::text, '~platform~')
+               order by priority asc, run_after asc, id asc
+             ) as rn
       from jobs
       where state = 'queued'
         and run_after <= ${now}
         ${queues ? sql`and queue = any(${sql.raw(`array[${queues.map((q) => `'${q}'`).join(',')}]`)})` : sql``}
-      order by priority asc, run_after asc, id asc
-      limit ${limit * 10}
-      for update skip locked
     ),
     fair as (
-      select id from (
-        select id,
-               row_number() over (
-                 partition by coalesce(tenant_id::text, '~platform~')
-                 order by priority asc, run_after asc, id asc
-               ) as rn
-        from locked
-      ) ranked
-      where rn <= ${cap}
-      limit ${limit}
+      select j.id
+        from jobs j
+        join ranked r on r.id = j.id
+       where r.rn <= ${cap} and j.state = 'queued'
+       order by r.priority asc, r.run_after asc, r.id asc
+       limit ${limit}
+       for update of j skip locked
     )
     update jobs
        set state = 'claimed',

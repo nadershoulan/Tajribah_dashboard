@@ -15,6 +15,7 @@ import { configureNotify } from '../notify/notify';
 import { configureStorage } from '../storage/storage';
 import { configureConfigStore, type KvBinding } from '../edge/configs';
 import { configureRateLimiter, type RateLimitKv } from '../ratelimit/limiter';
+import { configureJobs, type JobsQueue } from '../jobs/nudge';
 import { registerAllConnectors } from '../../connectors';
 import { setLogLevel } from '../observability/log';
 
@@ -29,6 +30,7 @@ export function bootstrap(bindings: Record<string, unknown>, fallback: Record<st
   configureStorage(env, bindings.BUCKET as R2Bucket | undefined);
   configureConfigStore(env, bindings.CONFIGS as KvBinding | undefined);
   configureRateLimiter(env, bindings.RATE_LIMITS as RateLimitKv | undefined);
+  configureJobs(env, bindings.JOBS as JobsQueue | undefined); // P7: the job queue's wake-up
   registerAllConnectors(); // P6: the store connectors (WooCommerce first)
   return env;
 }

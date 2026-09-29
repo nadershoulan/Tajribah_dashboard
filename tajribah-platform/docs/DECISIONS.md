@@ -741,3 +741,28 @@ built-in owner and admin. With that line, a custom role can never be used to pro
 anyone else, and the ranking rules for built-in roles stay whole. Giving someone a custom role sets
 their built-in role to **viewer** underneath, so a store that leaves the plan falls back to the
 least access, never to whatever the person held before.
+
+## T57 · 2026-09-30 · Background work: Cloudflare runs the queue; image and model work need Node
+
+**Found:** nothing ran background jobs in production — the dashboard Worker had only vinext's
+fetch handler; `server/worker/main.ts` was called by nothing, and `JOBS_MODE=cf-queue` named a
+consumer that did not exist. Every sync, publish, retry and sweep would have waited for ever.
+
+**Decision.** The dashboard Worker gets its own entry (`server/worker/entry.ts`, wrapping vinext as
+the website already does): an **every-minute cron** runs the sweeps and drains the queue, and a
+**Cloudflare Queue consumer** drains it when a new job's nudge arrives, so work starts in seconds
+and consumers are added as messages pile up, up to `max_concurrency` (the database's protection).
+Jobs stay rows (T6): a message carries no work, so a lost one costs at most a minute. Each pass
+drains within a **time budget** — no batch starts past it, none is cut short — and the rest waits
+for the next pass. Each sweep runs on its own, so one failure does not stop the others.
+
+**Consequence.** `sharp` (model optimisation, try-on picture checks) is native and cannot load in a
+Worker — one import and the whole Worker fails at start-up (seen in workerd). So the Worker
+registers only the Workers-safe handlers and claims only their queues; `ai.postprocess` and
+`tryon.quality` wait for a **Node worker** (`runForever`), which needs a Node host that reaches the
+database — naturally the database server (open with the Hetzner decision). A test walks the
+Worker's imports and fails on any path to `sharp`.
+
+**Rollback path.** Drop the queue binding and set nothing else: the cron alone still runs
+everything within a minute. Moving image work onto Workers later (a WASM decoder) needs only its
+handlers moved into `handlers-edge.ts` — the import test says whether they are safe.

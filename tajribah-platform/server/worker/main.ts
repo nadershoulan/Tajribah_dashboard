@@ -6,42 +6,22 @@
  * like working software. So this file exists now, with the first handler, and it is the
  * only place the loop lives.
  *
- * Two shapes, one body:
- *  - `runForever()` — a long-lived Node process (local, or a container).
- *  - `scheduled()`  — a Cloudflare Cron Trigger, which runs one tick and returns.
+ * Three shapes, one body (`passes.ts`):
+ *  - `runScheduledPass()` — the every-minute Cron Trigger: the sweeps, then drain the queue.
+ *  - `runQueuePass()`     — the `JOBS` queue consumer: a new job's nudge; drain the queue.
+ *  - `runForever()`       — a long-lived Node process (local, or a container).
+ * P7: on Cloudflare, `entry.ts` runs the first two with the Workers-safe handlers only. This file
+ * registers every handler, including the two that need Node (`sharp`): `ai.postprocess` and
+ * `tryon.quality` run only where this file runs.
  */
 import { tick } from '../core/jobs/runner';
 import { log } from '../core/observability/log';
 import { registerAllHandlers } from './handlers';
-import { dispatchPending } from '@/server/modules/webhooks/dispatch';
-import { scheduleSyncs } from '@/server/modules/sync/schedule';
-import { expireStaleDrafts } from '@/server/modules/models/cleanup';
-import { resealConnections } from '@/server/modules/connections/rotation';
-import { resealTwoFactorSecrets } from '@/server/modules/auth/two-factor';
-import { sweepRetentionHourly } from '@/server/modules/admin/retention';
-import { sweepAiJobs, sweepUnconfirmedPhotos } from '@/server/modules/ai-jobs/sweep';
-import { resealWebhookSecrets, sweepWebhookDeliveries } from '@/server/modules/outgoing-webhooks/sweep';
-import { sendTrialReminders } from '@/server/modules/billing/trial';
-import { refreshConnectionHealth } from '@/server/modules/connections/health';
+import { WORKER_ID, dispatchWebhooks, ensureHandlers, scheduled, chooseHandlers } from './passes';
 
-export const WORKER_ID = `worker-${Math.random().toString(36).slice(2, 8)}`;
+export * from './passes';
 
-let registered = false;
-
-function ensureHandlers(): void {
-  if (registered) return;
-  registerAllHandlers();
-  registered = true;
-}
-
-/** One pass. This is what a cron trigger calls. */
-export async function runOnce(limit = 10): Promise<void> {
-  ensureHandlers();
-  const result = await tick(WORKER_ID, limit);
-  if (result.claimed > 0) log.info('worker tick', { worker: WORKER_ID, ...result });
-  await dispatchWebhooks();
-  await scheduled();
-}
+chooseHandlers(registerAllHandlers);
 
 /** The long-lived loop. Sleeps when idle rather than spinning. */
 export async function runForever(options: { intervalMs?: number; limit?: number } = {}): Promise<void> {
@@ -62,29 +42,6 @@ export async function runForever(options: { intervalMs?: number; limit?: number 
       await sleep(interval * 5);
     }
   }
-}
-
-/** The database-driven sweeps: due syncs, abandoned draft uploads, tokens under an old key, retention. */
-async function scheduled(): Promise<void> {
-  await scheduleSyncs();
-  await expireStaleDrafts();
-  await resealConnections();
-  await resealTwoFactorSecrets();
-  await sendTrialReminders();
-  await sweepRetentionHourly(); // A14, T22: data past its retention period
-  await sweepAiJobs(); // P3.2: AI jobs never dispatched, or abandoned mid-run
-  await sweepUnconfirmedPhotos(); // P3.3: photo uploads never confirmed
-  await refreshConnectionHealth(); // P6.16: connection health scores, and a word to the store when one worsens
-  await sweepWebhookDeliveries(); // P8: outgoing deliveries whose queued try was lost
-  await resealWebhookSecrets(); // P8: signing secrets under an old ENCRYPTION_KEY (T16)
-}
-
-/** Stored webhook deliveries are handled on the same tick as queue jobs (P1.7). */
-async function dispatchWebhooks(): Promise<number> {
-  const counts = await dispatchPending();
-  const handled = counts.processed + counts.ignored + counts.retry + counts.failed;
-  if (handled > 0) log.info('webhooks dispatched', { worker: WORKER_ID, ...counts });
-  return handled;
 }
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));

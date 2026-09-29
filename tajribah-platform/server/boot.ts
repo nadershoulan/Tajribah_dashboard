@@ -13,12 +13,18 @@ import { log } from '@/server/core/observability/log';
 
 let booted = false;
 
+/** Validate the environment and install the adapters, once per isolate. Throws what is wrong. */
+export function bootOnce(): void {
+  if (booted) return;
+  bootstrap(env as unknown as Record<string, unknown>, typeof process !== 'undefined' ? process.env : {});
+  booted = true;
+}
+
 export function withBoot(handler: (request: Request) => Promise<Response>) {
   return async (request: Request): Promise<Response> => {
     if (!booted) {
       try {
-        bootstrap(env as unknown as Record<string, unknown>, typeof process !== 'undefined' ? process.env : {});
-        booted = true;
+        bootOnce();
       } catch (error) {
         log.error('boot failed', { error: error instanceof Error ? error.message : String(error) });
         return problemResponse(error);

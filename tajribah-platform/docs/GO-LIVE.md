@@ -40,9 +40,21 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
 - [ ] Deploy the dashboard Worker; point **`app.tajribah.sa`** at it; set **`APP_URL`**.
 - [ ] Every variable in **`.env.example`** (generated from `server/core/config/env.ts`; boot lists every
       problem at once). Secrets go in the secret store, never in a file.
-- [ ] **`JOBS_MODE=cf-queue`** with its queue and consumer — inline jobs are refused in production.
-      The consumer runs the handlers in `server/worker/handlers.ts`, including `edge.publish-config`
-      (keeps live buttons true) and `storage.delete-later` (T36).
+- [ ] Background work (P7, T57). The Worker's entry is `server/worker/entry.ts`: pages as before, plus
+      an **every-minute cron** (declared in `vite.config.ts`, deployed with the Worker) that runs the
+      sweeps and drains the job queue, and a **queue consumer**. Create one queue,
+      `wrangler queues create tajribah-jobs`; bind it to the dashboard Worker as a **producer named
+      `JOBS`**; add the Worker as its **consumer** with `max_batch_size` 100, `max_batch_timeout` 1,
+      `max_concurrency` 10 (the ceiling on parallel passes — each holds database connections; raise it
+      with the database, not before), no retries needed (a message only says "look now"). Set
+      **`JOBS_MODE=cf-queue`** — boot refuses it without the `JOBS` binding, and refuses `inline` in
+      production. **Check:** sync a store; the sync starts within seconds, not at the next minute. In
+      the logs, `queue behind` means the oldest due job waited over 2 minutes at the end of a full pass.
+- [ ] **A Node worker for image and model work** (T57): `ai.postprocess` (optimising an uploaded 3D
+      model) and `tryon.quality` (checking a try-on picture) use `sharp`, which cannot run on Workers;
+      the Worker leaves those jobs queued. Run `runForever()` from `server/worker/main.ts` on a Node
+      host that reaches the database (the database server is the natural place). Until it runs, those
+      two kinds of job wait. **Check:** upload a model; it leaves "processing".
 - [ ] Rate limits (P7): create a second KV namespace, bind it as **`RATE_LIMITS`**, and set
       **`RATE_LIMITER=kv`** — per-isolate memory counters are refused in production, since no limit
       would hold across isolates (`server/core/ratelimit/limiter.ts`).

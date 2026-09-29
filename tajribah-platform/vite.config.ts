@@ -14,7 +14,9 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const managedLinux = readExecutionProfile() === "managed-linux";
 
 const localBindingConfig = {
-  main: "vinext/server/fetch-handler",
+  // P7: vinext's fetch handler, wrapped to add the job queue's cron pass and queue consumer.
+  main: "./server/worker/entry.ts",
+  triggers: { crons: ["* * * * *"] },
   compatibility_flags: ["nodejs_compat"],
   d1_databases: d1
     ? [

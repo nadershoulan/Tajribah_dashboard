@@ -21,6 +21,7 @@ import { unsafeAdminDb } from '@/db/client';
 import { currentScope } from '../observability/scope';
 import { jobs, type Job, type JobState } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
+import { nudge } from './nudge';
 
 /** No tenant may occupy more than this fraction of a claim batch (§8). */
 export const FAIR_SHARE = 0.2;
@@ -65,12 +66,13 @@ export async function enqueue(input: EnqueueInput): Promise<Job> {
 
   if (!input.dedupeKey) {
     const [created] = await db.insert(jobs).values(row).returning();
+    await nudge(created); // P7: a consumer looks now, not at the next minute
     return created;
   }
   // The unique index decides, not a read first: two callers can both read "no job yet".
   // The loser inserts nothing and reads the winner's row, which has committed by then.
   const [created] = await db.insert(jobs).values(row).onConflictDoNothing({ target: jobs.dedupeKey }).returning();
-  if (created) return created;
+  if (created) { await nudge(created); return created; }
   const [existing] = await db.select().from(jobs).where(eq(jobs.dedupeKey, input.dedupeKey)).limit(1);
   return existing;
 }
@@ -178,6 +180,7 @@ export async function fail(jobId: string, error: unknown, now = new Date()): Pro
   const message = error instanceof Error ? error.message : String(error);
   const spent = job.attempts >= job.maxAttempts;
   const state: JobState = spent ? 'dead' : 'queued';
+  const runAfter = spent ? job.runAfter : new Date(now.getTime() + backoffMs(job.attempts));
 
   await db.update(jobs).set({
     state,
@@ -185,8 +188,9 @@ export async function fail(jobId: string, error: unknown, now = new Date()): Pro
     finishedAt: spent ? now : null,
     claimedBy: null,
     claimedAt: null,
-    runAfter: spent ? job.runAfter : new Date(now.getTime() + backoffMs(job.attempts)),
+    runAfter,
   }).where(eq(jobs.id, jobId));
+  if (!spent) await nudge({ id: jobId, queue: job.queue, runAfter }, now); // P7: the retry wakes a consumer when due
 
   return state;
 }

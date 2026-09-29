@@ -128,7 +128,7 @@ export const REGISTRY = {
   }),
   JOBS_MODE: entry({
     schema: z.enum(['inline', 'cf-queue']).default('inline'),
-    scope: 'runtime', doc: 'inline runs jobs in-process (local only). cf-queue needs the Cloudflare account (T6).',
+    scope: 'runtime', doc: 'How new jobs wake a worker (T6, P7). inline: they wait for the every-minute pass (local only). cf-queue: each also nudges the JOBS queue binding, whose consumer runs them within seconds.',
   }),
   LOG_LEVEL: entry({
     schema: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
@@ -172,7 +172,7 @@ const envSchema = z.object(shape).superRefine((value, ctx) => {
   }
   if (v.NODE_ENV === 'production' && v.JOBS_MODE === 'inline') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['JOBS_MODE'],
-      message: 'inline jobs are not allowed in production — a request would run the queue' });
+      message: 'inline jobs are not allowed in production — new work would wait up to a minute for the cron pass' });
   }
 });
 

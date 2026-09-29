@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq } from 'drizzle-orm';
-import { auditLogs, edgeConfigs, jobs, modelFiles, models3d, modelVersions, products, tenantMemberships, tenants, tryonConfigs, users } from '@/db/schema';
+import { auditLogs, edgeConfigs, jobs, modelFiles, notifications, models3d, modelVersions, products, tenantMemberships, tenants, tryonConfigs, users } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { MemoryConfigStore, configKey, setConfigStore } from '@/server/core/edge/configs';
 import { keyOf, serveConfig } from '@/server/core/edge/host';
@@ -356,6 +356,37 @@ test('T40: "Remove from the store" takes it down for good — no refresh brings 
     assert.ok(stored(kv, 'lambda/sa-1001.json'));
     const trail = await admin(harness, () => harness.db.select().from(auditLogs).where(eq(auditLogs.resourceType, 'edge_config'))) as any[];
     assert.deepEqual(trail.map((r) => [r.action, r.actorType]), [['publish', 'user'], ['unpublish', 'user'], ['publish', 'user']]);
+  } finally { await harness.close(); }
+});
+
+test('T54: the merchant hears when the system takes a button off — one notice per pass, not for a suspension', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, tenantId } = await setup(harness, 'mu', 'pro');
+    const notices = async () => (await admin(harness, () => harness.db.select().from(notifications)) as any[]).filter((n) => n.type === 'edge.withdrawn');
+    const a = await product(harness, tenantId, { externalId: 'a', name: 'Vase A', arEnabled: true });
+    const b = await product(harness, tenantId, { externalId: 'b', name: 'Vase B', arEnabled: true });
+    const c = await product(harness, tenantId, { externalId: 'c', name: 'Vase C', arEnabled: true });
+    for (const p of [a, b, c]) { await liveModel(harness, tenantId, p.id); await publishProduct(ctx, p.id); }
+
+    await updateProduct(ctx, a.id, { arEnabled: false });
+    let got = await notices();
+    assert.equal(got.length, 1);
+    assert.deepEqual([got[0].titleEn, got[0].level, got[0].href], ['The button for “Vase A” was taken off your shop', 'warning', '/dashboard/ar-settings']);
+    assert.match(got[0].bodyEn, /anything for the button to open/);
+
+    await admin(harness, () => harness.db.update(products).set({ status: 'archived' } as any).where(eq(products.id, b.id)));
+    await admin(harness, () => harness.db.update(products).set({ status: 'archived' } as any).where(eq(products.id, c.id)));
+    await refreshStore(tenantId, null, 'r-sync');
+    got = await notices();
+    assert.equal(got.length, 2, 'one more notice for the pass, not one per product');
+    assert.equal(got.at(-1).titleEn, '2 buttons were taken off your shop');
+
+    await admin(harness, () => harness.db.update(products).set({ status: 'active' } as any));
+    await updateProduct(ctx, a.id, { arEnabled: true }); // all three back
+    await admin(harness, () => harness.db.update(tenants).set({ status: 'suspended' } as any).where(eq(tenants.id, tenantId)));
+    await refreshStore(tenantId, null, 'r-suspend');
+    assert.equal((await notices()).length, 2, 'a suspension is staff’s act: no notice per product');
   } finally { await harness.close(); }
 });
 

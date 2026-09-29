@@ -35,6 +35,7 @@ import { log } from '@/server/core/observability/log';
 import { currentScope } from '@/server/core/observability/scope';
 import { systemContext, type TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
+import { notifyIn } from '@/server/modules/notifications/service';
 import { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { BLOCK_TEXT, buildEdgeConfig, type EdgeBlock, type EdgeBuild } from './build';
 
@@ -86,13 +87,14 @@ export async function takeDownConnection(tenantId: string, connectionId: string,
 export type RefreshOutcome = 'never_published' | 'unchanged' | 'rewritten' | 'withdrawn';
 
 /** Rebuild one published product's config and write, withdraw or leave it. Idempotent. */
-export async function refreshProduct(ctx: TenantContext, productId: string, entitlements: Entitlements): Promise<RefreshOutcome> {
+export async function refreshProduct(ctx: TenantContext, productId: string, entitlements: Entitlements, onWithdrawn?: (productId: string, reason: EdgeBlock) => void): Promise<RefreshOutcome> {
   const row = await rowOf(ctx, productId);
   if (!row?.key) return 'never_published';
   const build = await buildEdgeConfig(ctx, productId, entitlements);
   if (!build.ok) {
     if (row.withdrawnAt) return 'unchanged';
     await withdraw(ctx, row, build.reason);
+    onWithdrawn?.(productId, build.reason);
     return 'withdrawn';
   }
   if (!row.withdrawnAt && build.key === row.key && build.fingerprint === row.fingerprint) return 'unchanged';
@@ -155,7 +157,9 @@ export async function refreshStore(tenantId: string, productId: string | null, r
   // A suspended store's refresh can only withdraw: the builder refuses it before anything else.
   const ctx = await systemContext({ tenantId, requestId, permissions: REFRESH_PERMISSIONS, evenIfSuspended: true });
   const entitlements = await entitlementsOf(ctx);
-  for (const row of published) outcomes.set(row.productId, await refreshProduct(ctx, row.productId, entitlements));
+  const withdrawn = new Map<string, EdgeBlock>();
+  for (const row of published) outcomes.set(row.productId, await refreshProduct(ctx, row.productId, entitlements, (id, reason) => withdrawn.set(id, reason)));
+  await tellWithdrawn(ctx, withdrawn);
   return outcomes;
 }
 
@@ -241,5 +245,40 @@ async function takeDown(ctx: TenantContext, row: EdgeRow, actor: 'user' | 'syste
       action: 'unpublish', resourceType: 'edge_config', resourceId: row.productId, actorType: actor,
       before: { version: row.version, key: row.key }, after: { reason },
     }, db);
+  });
+}
+
+const WITHDRAWN_BECAUSE: Record<Exclude<EdgeBlock, 'store_closed'>, { ar: string; en: string }> = {
+  unavailable: { ar: 'المنتج أُرشف أو حُذف.', en: 'The product was archived or deleted.' },
+  nothing_to_show: { ar: 'لم يعد لدى المنتج ما يفتحه الزر (أُوقف العرض أو التجربة، أو حُذف النموذج).', en: 'The product no longer has anything for the button to open (AR or try-on switched off, or its model deleted).' },
+  invalid: { ar: 'إعداداته لم تعد تكوّن عرضًا صالحًا — تواصل مع الدعم.', en: 'Its settings no longer make a valid config — please contact support.' },
+};
+
+/**
+ * T54 — a button the system took off the shop is news to the merchant: one notification per refresh
+ * pass to everyone who may publish, naming the product and why (or a count when several went at
+ * once). Not for a suspended store (staff did that, and it would be one notice per product), and
+ * never for the merchant's own removals, which are not withdrawals.
+ */
+async function tellWithdrawn(ctx: TenantContext, withdrawn: Map<string, EdgeBlock>): Promise<void> {
+  const told = [...withdrawn].filter(([, reason]) => reason !== 'store_closed') as [string, Exclude<EdgeBlock, 'store_closed'>][];
+  if (told.length === 0) return;
+  await withTenant(ctx.tenantId, async (db) => {
+    if (told.length === 1) {
+      const [productId, reason] = told[0]!;
+      const product = await db.findById(products, productId);
+      const name = { ar: product?.nameAr ?? product?.name ?? '', en: product?.name ?? '' };
+      await notifyIn(db, {
+        type: 'edge.withdrawn', permission: 'ar:publish', level: 'warning', href: '/dashboard/ar-settings',
+        title: { ar: `أُزيل زر «${name.ar}» من متجرك`, en: `The button for “${name.en}” was taken off your shop` },
+        body: WITHDRAWN_BECAUSE[reason],
+      });
+      return;
+    }
+    await notifyIn(db, {
+      type: 'edge.withdrawn', permission: 'ar:publish', level: 'warning', href: '/dashboard/ar-settings',
+      title: { ar: `أُزيلت ${told.length} أزرار من متجرك`, en: `${told.length} buttons were taken off your shop` },
+      body: { ar: 'لم يعد لدى هذه المنتجات ما يفتحه الزر، أو أُرشفت. تعود تلقائيًا حين تكتمل من جديد.', en: 'These products no longer have anything for the button to open, or were archived. They come back by themselves once that is fixed.' },
+    });
   });
 }

@@ -25,14 +25,14 @@ import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { products, storeConnections, syncJobItems, syncJobs, type Product } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { UNLIMITED } from '@/lib/plans';
-import { connectorFor, type ExternalProduct, type Page } from '@/server/connectors/types';
+import { connectorFor, TokenRevokedError, type ExternalProduct, type Page } from '@/server/connectors/types';
 import { record } from '@/server/core/audit/audit';
 import { entitlementsOf } from '@/server/core/billing/entitlements';
 import { log } from '@/server/core/observability/log';
 import { systemContext, type TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
-import { accessTokenFor, ReconnectRequiredError } from '@/server/modules/connections/service';
+import { accessTokenFor, ReconnectRequiredError, revokeIn } from '@/server/modules/connections/service';
 import { notifyIn } from '@/server/modules/notifications/service';
 
 export type SyncJob = typeof syncJobs.$inferSelect;
@@ -84,7 +84,16 @@ export async function runSyncStep(input: {
       return { result: 'failed', job: await markSyncFailed(ctx, job.id, error.message, now()) };
     }
     const cursor = job.cursor;
-    const fetched = await connector.listProducts(token, cursor, since);
+    let fetched: Awaited<ReturnType<typeof connector.listProducts>>;
+    try {
+      fetched = await connector.listProducts(token, cursor, since);
+    } catch (error) {
+      if (!(error instanceof TokenRevokedError)) throw error;
+      // The store refused the token while listing (WooCommerce keys never refresh, so this is where
+      // a revoked key shows): the connection needs the merchant, not another retry every hour.
+      await withTenant(ctx.tenantId, (db) => revokeIn(ctx, db, connection.id, 'the store refused the keys — reconnect it'));
+      return { result: 'failed', job: await markSyncFailed(ctx, job.id, 'the store refused access — reconnect it', now()) };
+    }
     const applied = await applyPage(ctx, job.id, cursor, fetched, limit, now());
     if (!applied) return { result: 'skipped', job: null }; // another run got there first
     job = applied;

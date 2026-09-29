@@ -48,7 +48,18 @@ export type ConformanceSubject = {
   name: string;
   /** A fresh store holding exactly `catalogue`. It must page in pages of 100 or fewer. */
   start(catalogue: ExternalProduct[]): Promise<StoreDouble>;
+  /**
+   * What this provider's store can hold of `catalogue`, when it cannot hold all of it as given —
+   * one currency per store, one name field, numeric ids (WooCommerce). Every check then expects
+   * exactly this. Stated in code, so a limit is visible and reviewed, never a quietly skipped case.
+   * Absent: the store holds the catalogue as given.
+   */
+  holds?(catalogue: ExternalProduct[]): ExternalProduct[];
 };
+
+/** The catalogue as `subject`'s store holds it. */
+const heldBy = (subject: ConformanceSubject, catalogue: ExternalProduct[] = conformanceCatalogue()) =>
+  subject.holds ? subject.holds(catalogue) : catalogue;
 
 // ------------------------------------------------------------------ the catalogue
 
@@ -158,7 +169,7 @@ export const CONFORMANCE_CHECKS: ConformanceCheck[] = [
   {
     name: 'lists every product exactly once, over more than one page, and stops',
     run: (subject) => withStore(subject, conformanceCatalogue(), async (double) => {
-      const catalogue = conformanceCatalogue();
+      const catalogue = heldBy(subject);
       const { items, pages } = await listAll(double);
       assert.ok(pages >= 3, `the whole catalogue came in ${pages} page(s) — the store double must page in 100 or fewer, so paging is tested`);
       assert.deepEqual(dupes(ids(items)), [], 'listed more than once');
@@ -168,7 +179,7 @@ export const CONFORMANCE_CHECKS: ConformanceCheck[] = [
   {
     name: 'products come back exactly as the store holds them — minor units, Arabic, status, images, change time',
     run: (subject) => withStore(subject, conformanceCatalogue(), async (double) => {
-      sameAsCatalogue((await listAll(double)).items, conformanceCatalogue());
+      sameAsCatalogue((await listAll(double)).items, heldBy(subject));
     }),
   },
   {
@@ -205,7 +216,7 @@ export const CONFORMANCE_CHECKS: ConformanceCheck[] = [
       // A merchant edits a product already fetched and one still to come, while the sync runs.
       const later = new Date(Date.UTC(2026, 8, 2));
       double.change(first.items[0]!.externalId, { name: 'Edited during the sync' }, later);
-      const notYet = conformanceCatalogue().find((p) => !first.items.some((i) => i.externalId === p.externalId))!;
+      const notYet = heldBy(subject).find((p) => !first.items.some((i) => i.externalId === p.externalId))!;
       double.change(notYet.externalId, { name: 'Also edited' }, later);
       const rest: ExternalProduct[] = [];
       for (let cursor: string | null = first.next, n = 0; cursor !== null && n < MAX_PAGES; n++) {
@@ -215,14 +226,14 @@ export const CONFORMANCE_CHECKS: ConformanceCheck[] = [
       }
       const seen = [...ids(first.items), ...ids(rest)];
       assert.deepEqual(dupes(seen), [], 'listed twice after an edit');
-      assert.deepEqual(new Set(seen), new Set(ids(conformanceCatalogue())), 'missed after an edit');
+      assert.deepEqual(new Set(seen), new Set(ids(heldBy(subject))), 'missed after an edit');
     }),
   },
   {
     name: 'since returns everything changed at or after it',
     run: (subject) => withStore(subject, conformanceCatalogue(), async (double) => {
       const listed = new Set(ids((await listAll(double, TIE)).items));
-      const due = conformanceCatalogue().filter((p) => p.updatedAt.getTime() >= TIE.getTime()).map((p) => p.externalId);
+      const due = heldBy(subject).filter((p) => p.updatedAt.getTime() >= TIE.getTime()).map((p) => p.externalId);
       assert.deepEqual(due.filter((id) => !listed.has(id)), [], 'changed at or after since, but not listed');
     }),
   },
@@ -236,7 +247,7 @@ export const CONFORMANCE_CHECKS: ConformanceCheck[] = [
   {
     name: 'getProduct finds a product as listed, and answers null for one that does not exist',
     run: (subject) => withStore(subject, conformanceCatalogue(), async (double) => {
-      const catalogue = conformanceCatalogue();
+      const catalogue = heldBy(subject);
       for (const expected of [catalogue[0]!, catalogue[2]!, catalogue[5]!]) {
         const got = await double.connector.getProduct(double.accessToken, expected.externalId);
         assert.ok(got, `${expected.externalId} not found`);
@@ -260,7 +271,7 @@ export const CONFORMANCE_CHECKS: ConformanceCheck[] = [
     run: (subject) => withStore(subject, conformanceCatalogue(), async (double) => {
       double.setDown(true);
       await rejectsAsUpstream(() => double.connector.listProducts(double.accessToken, null, null), 'listProducts');
-      await rejectsAsUpstream(() => double.connector.getProduct(double.accessToken, 'c0001'), 'getProduct');
+      await rejectsAsUpstream(() => double.connector.getProduct(double.accessToken, heldBy(subject)[0]!.externalId), 'getProduct');
       double.setDown(false);
       const page = await double.connector.listProducts(double.accessToken, null, null);
       assert.ok(page.items.length > 0, 'back up: the first page has products');

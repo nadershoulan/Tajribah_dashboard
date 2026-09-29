@@ -171,6 +171,13 @@ P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
 - (P2.1) The pricing screens still read features from `lib/plans.ts` (display only — the API enforces from the rows). Since T43 no sidebar item is plan-locked, so the menu can no longer disagree; the billing screen's plan cards can, until `/api/auth/me` carries the plan's features.
 - (P2.1) `entitlementsOf` is 3–4 small queries per call; fine now, cache per request when P7
   load tests say so.
+- (P1.15) `edgeStatuses` (the AR settings list) rebuilds every *published* product's config to
+  compare fingerprints — about 7 small queries each. Fine for tens of live products; for hundreds,
+  batch the builder's reads (settings, try-on rows, models, files in one query each) when P7's load
+  tests say so, or compute "outdated" only for the product opened in the editor.
+- (T53) The shop's try-on dialog is `aria-modal` but does not trap Tab: after its close button, Tab
+  moves to the page behind. A trap needs the page made inert without touching the shop's DOM — the
+  widget's shadow host sits inside it; left for the P5 shopper-experience work.
 - (P1.2) `ad2d474` left `server/modules/models/__tests__/process.test.ts` failing the full
   typecheck on TypeScript 5.9 (`Float32Array` → `Float32Array<ArrayBuffer>`); annotation
   fixed, no behaviour change.

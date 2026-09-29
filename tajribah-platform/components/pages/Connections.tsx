@@ -2,6 +2,7 @@
 
 // MD-030 — Store connections
 
+import { useWriteLock } from '@/components/dashboard/write-lock';
 import { AlertTriangle, CheckCircle2, Link2, RefreshCw, ShoppingBag } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useLang } from '@/lib/i18n';
@@ -148,6 +149,7 @@ const STATUS: Record<ConnectionDetail['status'], { tone: 'ok' | 'bad' | 'warn'; 
 
 function ConnectionPanel({ connection, onChanged }: { connection: ConnectionDetail; onChanged: () => void }) {
   const { t, pick, lang } = useLang();
+  const lock = useWriteLock(); // T50: a read-only store or a staff view changes nothing
   const source = useData();
   const [busy, setBusy] = useState<'sync' | 'disconnect' | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -178,11 +180,11 @@ function ConnectionPanel({ connection, onChanged }: { connection: ConnectionDeta
       title={t('المتجر المتصل', 'Connected store')}
       actions={active && (
         <>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => act('sync')} disabled={running || busy !== null}>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => act('sync')} disabled={running || busy !== null || lock.locked} title={lock.title}>
             <RefreshCw size={14} aria-hidden />{running ? t('تجري المزامنة…', 'Syncing…') : t('مزامنة الآن', 'Sync now')}
           </button>
           {!confirming && (
-            <button type="button" className="btn btn-quiet btn-sm" onClick={() => setConfirming(true)} disabled={busy !== null}>{t('فصل', 'Disconnect')}</button>
+            <button type="button" className="btn btn-quiet btn-sm" onClick={() => setConfirming(true)} disabled={busy !== null || lock.locked} title={lock.title}>{t('فصل', 'Disconnect')}</button>
           )}
         </>
       )}

@@ -2,6 +2,7 @@
 
 // MD-090 — AR settings per product
 
+import { useWriteLock } from '@/components/dashboard/write-lock';
 import { useState } from 'react';
 import { Box, Rotate3D, Sparkles } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
@@ -109,6 +110,7 @@ function Editor({ config, name, brandColor, radius, onSaved }: {
   const [publishing, setPublishing] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [removing, setRemoving] = useState<'ask' | 'busy' | null>(null);
+  const lock = useWriteLock(); // T50: a read-only store or a staff view changes nothing
   const set = <K extends keyof ArConfigInput>(key: K) => (value: ArConfigInput[K]) => setForm((f) => ({ ...f, [key]: value }));
   const say = (m: string) => (lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(m))?.[1] ?? m : m);
   const err = (key: string) => errors[key]?.[0];
@@ -237,13 +239,13 @@ function Editor({ config, name, brandColor, radius, onSaved }: {
 
       {failure && <ErrorNote error={failure} />}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>{saving ? t('جارٍ الحفظ…', 'Saving…') : t('احفظ', 'Save')}</button>
-        <button type="button" className="btn btn-ghost" onClick={publish} disabled={publishing || saving || dirty}
-          title={dirty ? t('احفظ أولًا', 'Save first') : undefined}>
+        <button type="button" className="btn btn-primary" onClick={save} disabled={saving || lock.locked} title={lock.title}>{saving ? t('جارٍ الحفظ…', 'Saving…') : t('احفظ', 'Save')}</button>
+        <button type="button" className="btn btn-ghost" onClick={publish} disabled={publishing || saving || dirty || lock.locked}
+          title={lock.title ?? (dirty ? t('احفظ أولًا', 'Save first') : undefined)}>
           {publishing ? t('جارٍ النشر…', 'Publishing…') : t('انشر في المتجر', 'Publish to the store')}
         </button>
         {config.publishedVersion > 0 && !removing && (
-          <button type="button" className="btn btn-quiet" onClick={() => setRemoving('ask')} disabled={publishing || saving}>{t('أزِله من المتجر', 'Remove from the store')}</button>
+          <button type="button" className="btn btn-quiet" onClick={() => setRemoving('ask')} disabled={publishing || saving || lock.locked} title={lock.title}>{t('أزِله من المتجر', 'Remove from the store')}</button>
         )}
       </div>
       {removing && (

@@ -2,6 +2,7 @@
 
 // MD-170 — Store settings
 
+import { useWriteLock } from '@/components/dashboard/write-lock';
 import { useState, type FormEvent } from 'react';
 import { Building2, Globe, Palette, ShieldCheck } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
@@ -58,6 +59,7 @@ export default function SettingsPage() {
 /** Keyed by the saved values, so it starts fresh after every save without a reset effect. */
 function SettingsForm({ settings, onSaved, wasSaved }: { settings: StoreSettings; onSaved: (s: StoreSettings) => void; wasSaved: boolean }) {
   const { t, lang, setLang } = useLang();
+  const lock = useWriteLock(); // T50: a read-only store or a staff view changes nothing
   const source = useData();
   const [form, setForm] = useState<Form>(() => formOf(settings));
   const [errors, setErrors] = useState<Record<string, string[]>>({});
@@ -197,7 +199,7 @@ function SettingsForm({ settings, onSaved, wasSaved }: { settings: StoreSettings
         {failure && <ErrorNote error={failure} />}
         {Object.keys(errors).length > 0 && <span className="field-error" role="alert">{t('صحّح الحقول المعلّمة ثم احفظ.', 'Fix the marked fields, then save.')}</span>}
         {justSaved && <span role="status" className="hint" style={{ margin: 0 }}>{t('حُفظ', 'Saved')}</span>}
-        <button type="submit" className="btn btn-primary" disabled={saving}>
+        <button type="submit" className="btn btn-primary" disabled={saving || lock.locked} title={lock.title}>
           <Building2 size={16} aria-hidden />{saving ? t('جارٍ الحفظ…', 'Saving…') : t('احفظ الإعدادات', 'Save settings')}
         </button>
       </div>

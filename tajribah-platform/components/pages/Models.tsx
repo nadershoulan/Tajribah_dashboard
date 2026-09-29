@@ -2,6 +2,7 @@
 
 // MD-040 — 3D model library
 
+import { useWriteLock } from '@/components/dashboard/write-lock';
 import { Fragment, useRef, useState, type DragEvent } from 'react';
 import { Box, ChevronDown, CloudUpload, Wand2 } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
@@ -40,6 +41,7 @@ const sayProblem = (message: string, lang: string) =>
 
 export default function Models() {
   const { t, pick, lang } = useLang();
+  const lock = useWriteLock(); // T50: a read-only store or a staff view changes nothing
   const source = useData();
   const [version, setVersion] = useState(0);
   const { data, loading, error } = useResource((s) => s.models(), [version]);
@@ -99,7 +101,7 @@ export default function Models() {
         actions={
           <>
             <input ref={picker} type="file" accept=".glb,.usdz" hidden onChange={(e) => { void send(e.target.files?.[0]); e.target.value = ''; }} />
-            <button type="button" className="btn btn-primary" onClick={() => picker.current?.click()} disabled={upload?.state === 'busy'}>
+            <button type="button" className="btn btn-primary" onClick={() => picker.current?.click()} disabled={upload?.state === 'busy' || lock.locked} title={lock.title}>
               <CloudUpload size={16} aria-hidden />{t('ارفع ملفًا', 'Upload a file')}
             </button>
             <button type="button" className="btn btn-ghost" disabled title={t('يصل مع مرحلة التوليد بالذكاء الاصطناعي', 'Arrives with the AI generation phase')}>
@@ -155,7 +157,7 @@ export default function Models() {
               'ابدأ بمنتج واحد: ارفع ملفًا جاهزًا إن كان لديك، وإلا ولّد نموذجًا من ثلاث صور — أمامية وجانبية وخلفية.',
               'Start with one product: upload a file if you have one, or generate a model from three photos — front, side and back.',
             )}
-            action={<button type="button" className="btn btn-accent" onClick={() => picker.current?.click()}><CloudUpload size={16} aria-hidden />{t('ارفع أول نموذج', 'Upload your first model')}</button>}
+            action={<button type="button" className="btn btn-accent" onClick={() => picker.current?.click()} disabled={lock.locked} title={lock.title}><CloudUpload size={16} aria-hidden />{t('ارفع أول نموذج', 'Upload your first model')}</button>}
           />
         )}
 
@@ -272,6 +274,7 @@ function QaBadge({ model }: { model: ModelRow }) {
 /** A model's versions, newest first, with Publish on each ready one that is not live. */
 function Versions({ model, onPublished }: { model: ModelRow; onPublished: () => void }) {
   const { t, lang } = useLang();
+  const lock = useWriteLock(); // T50: a read-only store or a staff view changes nothing
   const source = useData();
   const modelId = model.id;
   const [version, setVersion] = useState(0);
@@ -334,7 +337,7 @@ function Versions({ model, onPublished }: { model: ModelRow; onPublished: () => 
             </span>
             {row.status === 'failed' && row.error && <span className="versions-error" dir="auto">{sayProblem(row.error, lang)}</span>}
             {row.status === 'ready' && !row.isCurrent && (
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => publish(row)} disabled={busy !== null || held}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => publish(row)} disabled={busy !== null || held || lock.locked}
                 title={held ? t('بانتظار مراجعة تجربة', 'Waiting for Tajribah’s review') : undefined}>
                 {busy === row.id ? t('جارٍ النشر…', 'Publishing…')
                   : live && live.version > row.version ? t('ارجع إلى هذا الإصدار', 'Roll back to this') : t('انشر', 'Publish')}
@@ -346,7 +349,7 @@ function Versions({ model, onPublished }: { model: ModelRow; onPublished: () => 
                   <button type="button" className="btn btn-danger btn-sm" onClick={() => remove(row.id)} disabled={busy !== null}>{busy === row.id ? t('جارٍ الحذف…', 'Deleting…') : t('نعم، احذف', 'Yes, delete')}</button>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirming(null)} disabled={busy !== null}>{t('إلغاء', 'Cancel')}</button>
                 </span>
-              : <button type="button" className="btn btn-quiet btn-sm" onClick={() => setConfirming(row.id)} disabled={busy !== null}>{t('احذف', 'Delete')}</button>)}
+              : <button type="button" className="btn btn-quiet btn-sm" onClick={() => setConfirming(row.id)} disabled={busy !== null || lock.locked} title={lock.title}>{t('احذف', 'Delete')}</button>)}
           </li>
         ))}
       </ul>
@@ -374,7 +377,7 @@ function Versions({ model, onPublished }: { model: ModelRow; onPublished: () => 
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirming(null)} disabled={busy !== null}>{t('إلغاء', 'Cancel')}</button>
             </div>
           </div>
-        : <button type="button" className="btn btn-quiet btn-sm" style={{ marginTop: 8 }} onClick={() => setConfirming('model')} disabled={busy !== null}>{t('احذف النموذج كله', 'Delete the whole model')}</button>}
+        : <button type="button" className="btn btn-quiet btn-sm" style={{ marginTop: 8 }} onClick={() => setConfirming('model')} disabled={busy !== null || lock.locked} title={lock.title}>{t('احذف النموذج كله', 'Delete the whole model')}</button>}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 // MD-070 / P5.10 — Virtual try-on: set up each watch for the try-on studio (the owner's studio, T26)
 
+import { useWriteLock } from '@/components/dashboard/write-lock';
 import { useEffect, useRef, useState } from 'react';
 import { Camera, Lock, Watch } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
@@ -19,6 +20,7 @@ import { Badge, Empty, ErrorNote, Loading, PageHead, Panel } from '@/components/
 
 export default function TryOn() {
   const { t } = useLang();
+  const lock = useWriteLock(); // T50: a read-only store or a staff view changes nothing
   const auth = useAuth();
   const role = currentStore(auth.me)?.role;
   const canEdit = !role || (ROLE_PERMISSIONS[role] as readonly string[]).includes('tryon:write');
@@ -48,7 +50,7 @@ export default function TryOn() {
           action={<AppLink href="/dashboard/products" className="btn btn-ghost">{t('المنتجات', 'Products')}</AppLink>} />
       )}
       <div style={{ display: 'grid', gap: 16 }}>
-        {data?.watches.map((w) => <WatchCard key={w.productId} initial={w} editable={canEdit} />)}
+        {data?.watches.map((w) => <WatchCard key={w.productId} initial={w} editable={canEdit && !lock.locked} />)}
       </div>
     </Shell>
   );

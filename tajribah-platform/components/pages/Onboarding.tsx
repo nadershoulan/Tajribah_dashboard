@@ -3,6 +3,7 @@
 // ONB-01 — Welcome / what to expect · ONB-02 — Business profile · ONB-21 — Finish later
 // AUTH-05 — Email verification: check your inbox (shown here until the address is confirmed)
 
+import { useWriteLock } from '@/components/dashboard/write-lock';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { CheckCircle2, Link2, Mail, Undo2 } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
@@ -160,13 +161,14 @@ function VerifyNotice() {
 /** One step: what it is, whether it is done, and the one action that moves it. */
 function StepPanel({ step, onMoved }: { step: StepState; onMoved: (view: OnboardingView) => void }) {
   const { t, pick } = useLang();
+  const lock = useWriteLock(); // T50: a read-only store or a staff view changes nothing
   const source = useData();
   const auth = useAuth();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Error | null>(null);
   const copy = COPY[step.key];
   const role = currentStore(auth.me)?.role as MemberRole | undefined;
-  const mayChange = role ? can(permissionsFor(role), 'settings:write') : true;
+  const mayChange = (role ? can(permissionsFor(role), 'settings:write') : true) && !lock.locked;
 
   const act = async (run: () => Promise<OnboardingView>) => {
     setBusy(true);

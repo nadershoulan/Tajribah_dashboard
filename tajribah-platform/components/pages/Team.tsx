@@ -2,6 +2,7 @@
 
 // MD-150 — Team management
 
+import { useWriteLock } from '@/components/dashboard/write-lock';
 import { useState, type FormEvent } from 'react';
 import { Mail, ShieldCheck, UserPlus } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
@@ -39,6 +40,7 @@ const TEAM_AR: [RegExp, string][] = [
 
 export default function Team() {
   const { t, pick, lang } = useLang();
+  const lock = useWriteLock(); // T50: a read-only store or a staff view changes nothing
   const source = useData();
   const auth = useAuth();
   const [version, setVersion] = useState(0);
@@ -90,7 +92,7 @@ export default function Team() {
           'Invite the people you work with, and give each one the smallest role that covers their job.',
         )}
         actions={
-          <button type="button" className="btn btn-primary" onClick={() => setInviting((v) => !v)} aria-expanded={inviting}>
+          <button type="button" className="btn btn-primary" onClick={() => setInviting((v) => !v)} aria-expanded={inviting} disabled={lock.locked} title={lock.title}>
             <UserPlus size={16} aria-hidden />{t('ادعُ عضوًا', 'Invite someone')}
           </button>
         }
@@ -171,7 +173,7 @@ export default function Team() {
                     </td>
                     <td style={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
                       {member.status === 'invited' && (
-                        <button type="button" className="btn btn-quiet btn-sm" disabled={busy !== null}
+                        <button type="button" className="btn btn-quiet btn-sm" disabled={busy !== null || lock.locked} title={lock.title}
                           onClick={() => void act(member.id, () => source.revokeInvitation(member.id), t('أُلغيت الدعوة.', 'Invitation cancelled.'))}>
                           {t('ألغِ الدعوة', 'Cancel invitation')}
                         </button>
@@ -187,7 +189,7 @@ export default function Team() {
                               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirming(null)}>{t('إلغاء', 'Cancel')}</button>
                             </span>
                           )
-                          : <button type="button" className="btn btn-quiet btn-sm" onClick={() => setConfirming(member.id)}>{t('إزالة', 'Remove')}</button>
+                          : <button type="button" className="btn btn-quiet btn-sm" onClick={() => setConfirming(member.id)} disabled={lock.locked} title={lock.title}>{t('إزالة', 'Remove')}</button>
                       )}
                     </td>
                   </tr>

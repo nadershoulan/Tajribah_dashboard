@@ -2,6 +2,7 @@
 
 // MD-011 — Product detail: sizes in millimetres, AR switch, 3D model; P3.7 — photos for 3D generation
 
+import { useWriteLock } from '@/components/dashboard/write-lock';
 import { useState } from 'react';
 import { Box, Package, Ruler } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
@@ -87,6 +88,7 @@ export default function ProductDetail() {
 /** Re-keyed after each save, so it starts from the saved values; `wasSaved` carries the confirmation across. */
 function Editor({ product, onSaved, wasSaved }: { product: ProductRow; onSaved: (row: ProductRow) => void; wasSaved: boolean }) {
   const { t, pick, lang } = useLang();
+  const lock = useWriteLock(); // T50: a read-only store or a staff view changes nothing
   const source = useData();
   const d = product.dimensions ?? {};
   const [width, setWidth] = useState(d.widthMm?.toString() ?? '');
@@ -182,7 +184,7 @@ function Editor({ product, onSaved, wasSaved }: { product: ProductRow; onSaved: 
       </div>
       {failure && <ErrorNote error={failure} />}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-        <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>
+        <button type="button" className="btn btn-primary" onClick={save} disabled={saving || lock.locked} title={lock.title}>
           {saving ? t('جارٍ الحفظ…', 'Saving…') : t('احفظ', 'Save')}
         </button>
         {justSaved && <span role="status" className="hint" style={{ margin: 0 }}>{t('حُفظ', 'Saved')}</span>}

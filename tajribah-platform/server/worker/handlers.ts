@@ -16,6 +16,7 @@ import { handleQualityJob } from '@/server/modules/tryon/quality';
 import { handleEdgeJob } from '@/server/modules/edge/publish';
 import { handleDeleteLater } from '@/server/modules/tryon/retire';
 import { handleWebhookDelivery } from '@/server/modules/outgoing-webhooks/deliver';
+import { registerAllConnectors } from '@/server/connectors';
 
 /** Read the tenant a job is for, refusing to run tenant work without one. */
 export function tenantOf(job: Job): TenantDb {
@@ -25,6 +26,7 @@ export function tenantOf(job: Job): TenantDb {
 }
 
 export function registerAllHandlers(): void {
+  registerAllConnectors(); // the sync jobs below read stores through them
   registerHandler('system.cleanup', async (job: Job) => {
     log.info('cleanup tick', { jobId: job.id });
   });

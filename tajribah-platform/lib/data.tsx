@@ -62,6 +62,8 @@ export interface DataSource {
   modelVersions(modelId: string): Promise<ModelVersionRow[]>;
   /** P6.8 — the store's AI work, newest first; cancel one that has not ended. */
   aiJobs(active?: boolean): Promise<AiJobView[]>;
+  /** P6 — start connecting a WooCommerce store: its own approval page to go to. */
+  startWooConnect(storeUrl: string): Promise<{ authorizeUrl: string }>;
   /** P8 — the store's API keys; a new key comes back once, with its secret. */
   apiKeys(): Promise<ApiKeyView[]>;
   createApiKey(input: { name: string; scopes: string[]; expiresInDays: number | null }): Promise<{ key: string; apiKey: ApiKeyView }>;
@@ -191,6 +193,7 @@ export function apiSource(client: ApiClient): DataSource {
     async models() {
       return (await client.call<{ models: ModelRow[] }>('/api/models')).models;
     },
+    async startWooConnect(storeUrl) { return client.call<{ authorizeUrl: string }>('/api/connections/woocommerce/start', { body: { storeUrl } }); },
     async apiKeys() { return (await client.call<{ keys: ApiKeyView[] }>('/api/api-keys')).keys; },
     async createApiKey(input) { return client.call<{ key: string; apiKey: ApiKeyView }>('/api/api-keys', { body: input }); },
     async revokeApiKey(id) { return client.call<ApiKeyView>(`/api/api-keys/${encodeURIComponent(id)}/revoke`, { method: 'POST' }); },
@@ -544,6 +547,8 @@ export const demoSource: DataSource = {
     demoConnectionState.status = 'revoked';
   },
   async models() { return demoModels.map((m) => ({ ...m })); },
+  // P6: WooCommerce is Pro and up; the preview's store is on Growth, as the server would say.
+  async startWooConnect() { throw new ApiError(402, 'plan_required', 'woocommerce is not included in this plan'); },
   // P8: the preview's store is on Growth — keys are Enterprise, so the server would refuse, and so does the preview.
   async apiKeys() { return []; },
   async createApiKey() { throw new ApiError(402, 'plan_required', 'public_api is not included in this plan'); },

@@ -4,7 +4,11 @@
 
 import { useWriteLock } from '@/components/dashboard/write-lock';
 import { AlertTriangle, CheckCircle2, Link2, RefreshCw, ShoppingBag } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { currentStore } from '@/lib/api-client';
+import { AppLink } from '@/lib/app-env';
+import { useAuth } from '@/lib/auth';
+import { planByCode } from '@/lib/plans';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useLang } from '@/lib/i18n';
 import { useData, useResource } from '@/lib/data';
 import type { ConnectionDetail, SyncProgress } from '@/lib/view-models';
@@ -27,7 +31,7 @@ const PROVIDERS: ProviderCard[] = [
   {
     id: 'salla',
     name: { ar: 'سلة', en: 'Salla' },
-    blurb: { ar: 'استيراد المنتجات والمخزون والطلبات، وتحديث تلقائي عند كل تغيير.', en: 'Products, stock and orders, kept up to date automatically on every change.' },
+    blurb: { ar: 'استيراد المنتجات وصورها وأسعارها، وتحديث تلقائي عند كل تغيير.', en: 'Your products, their images and prices, kept up to date automatically on every change.' },
     tier: 'first-class',
     blockedBy: { ar: 'بانتظار اعتماد حساب شريك سلة', en: 'Waiting on Salla partner account approval' },
   },
@@ -43,12 +47,12 @@ const PROVIDERS: ProviderCard[] = [
     name: { ar: 'Shopify', en: 'Shopify' },
     blurb: { ar: 'تطبيق يُضاف لمتجرك ويستورد الكتالوج.', en: 'An app you add to your store that imports the catalogue.' },
     tier: 'secondary',
-    blockedBy: null,
+    blockedBy: { ar: 'بانتظار تطبيق شريك Shopify', en: 'Waiting on a Shopify Partner app' },
   },
   {
     id: 'woocommerce',
     name: { ar: 'WooCommerce', en: 'WooCommerce' },
-    blurb: { ar: 'إضافة ووردبريس ومفتاح واجهة برمجية.', en: 'A WordPress plugin and an API key.' },
+    blurb: { ar: 'توافق على قراءة منتجاتك من لوحة ووردبريس نفسها — لا إضافة ولا مفاتيح تنسخها. نزامن كل ساعة.', en: 'You approve read access on your own WordPress site — no plugin, no keys to copy. Synced every hour.' },
     tier: 'secondary',
     blockedBy: null,
   },
@@ -71,6 +75,13 @@ export default function Connections() {
     { label: t('ربط المتجر', 'Store connections') },
   ];
   const linked = new Set((data ?? []).filter((c) => c.status === 'active').map((c) => c.provider));
+  // Back from WooCommerce's approval page: it adds success=1 (approved) or 0.
+  const [returned] = useState(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      return q.get('woocommerce') === 'returned' ? q.get('success') === '1' : null;
+    } catch { return null; }
+  });
 
   return (
     <Shell tenant={null} crumbs={crumbs}>
@@ -82,6 +93,13 @@ export default function Connections() {
         )}
       />
 
+      {returned !== null && (
+        <p role="status" className={`upload-note ${returned ? 'upload-done' : 'upload-failed'}`}>
+          {returned
+            ? t('وافق متجرك على الربط. أول مزامنة تجري الآن، وتظهر منتجاتك هنا تباعًا.', 'Your store approved the connection. The first sync is running; your products appear here as it goes.')
+            : t('لم يُوافَق على الربط في WooCommerce. يمكنك المحاولة مجددًا.', 'The connection was not approved in WooCommerce. You can try again.')}
+        </p>
+      )}
       {loading && !data && <Panel><Loading rows={4} /></Panel>}
       {error && <ErrorNote error={error} />}
       {(data ?? []).map((connection) => (
@@ -104,6 +122,8 @@ export default function Connections() {
 
               {connected ? (
                 <span className="badge badge-ok"><CheckCircle2 size={13} aria-hidden />{t('مربوط بمتجرك', 'Linked to your store')}</span>
+              ) : provider.id === 'woocommerce' ? (
+                <WooConnect />
               ) : provider.blockedBy ? (
                 <>
                   <button type="button" className="btn btn-ghost" disabled>
@@ -111,11 +131,7 @@ export default function Connections() {
                   </button>
                   <p className="hint" style={{ marginTop: 8 }}>{pick(provider.blockedBy)}</p>
                 </>
-              ) : (
-                <button type="button" className="btn btn-ghost">
-                  <Link2 size={16} aria-hidden />{t('اربط', 'Connect')}
-                </button>
-              )}
+              ) : null}
             </section>
           );
         })}
@@ -123,9 +139,9 @@ export default function Connections() {
 
       <Panel title={t('ماذا نقرأ من متجرك', 'What we read from your store')} >
         <ul style={{ margin: 0, paddingInlineStart: 18, color: 'var(--text-2)', fontSize: 14, lineHeight: 2 }}>
-          <li>{t('اسم المنتج ووصفه وسعره وصوره ومخزونه.', 'Product name, description, price, images and stock.')}</li>
+          <li>{t('اسم المنتج ووصفه وسعره وصوره وحالته.', 'Product name, description, price, images and status.')}</li>
           <li>{t('المقاسات إن كانت موجودة — وإلا نطلبها منك، فهي أساس الحجم الحقيقي.', 'Dimensions where they exist — otherwise we ask you for them, since true size depends on them.')}</li>
-          <li>{t('تحديثات فورية عبر الويب هوك عند أي تغيير في متجرك.', 'Live webhook updates whenever something changes in your store.')}</li>
+          <li>{t('تحديثات عند كل تغيير في متجرك: فورًا حيث تُرسل منصتك إشعارًا بالتغيير (سلة وزد)، وإلا بمزامنة كل ساعة.', 'Updates whenever your store changes: at once where your platform sends change notices (Salla, Zid), otherwise by a sync every hour.')}</li>
         </ul>
         <p className="hint">
           {t(
@@ -297,4 +313,52 @@ function SyncLine({ sync }: { sync: SyncProgress }) {
     );
   }
   return null;
+}
+
+/**
+ * P6 — connect a WooCommerce store: its address, then WooCommerce's own approval page on that site
+ * (read access only). WooCommerce sends the keys to our server and the merchant back here. Pro and up.
+ */
+function WooConnect() {
+  const { t } = useLang();
+  const source = useData();
+  const lock = useWriteLock();
+  const { me } = useAuth();
+  const store = currentStore(me);
+  const included = store ? planByCode(store.plan).features.includes('woocommerce') : false;
+  const [url, setUrl] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  if (!included) {
+    return (
+      <p className="hint" style={{ margin: 0 }}>
+        {t('ضمن باقة Pro وما فوقها.', 'Included from the Pro plan.')} <AppLink href="/dashboard/billing" style={{ color: 'var(--aqua)' }}>{t('الباقات', 'Plans')}</AppLink>
+      </p>
+    );
+  }
+  const go = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true); setProblem(null);
+    try {
+      const { authorizeUrl } = await source.startWooConnect(url.trim());
+      window.location.assign(authorizeUrl);
+    } catch (err) {
+      const fields = (err as { fields?: Record<string, string[]> }).fields;
+      setProblem(fields?.storeUrl ? t('عنوان متجرك يبدأ بـ https:// — مثل https://متجرك.com', 'Your store address starts with https:// — like https://yourstore.com') : (err as Error).message);
+      setBusy(false);
+    }
+  };
+  return (
+    <form onSubmit={go} style={{ display: 'grid', gap: 8 }}>
+      <label className="field" style={{ margin: 0 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 500 }}>{t('عنوان متجرك', 'Your store address')}</span>
+        <input value={url} onChange={(e) => setUrl(e.target.value)} dir="ltr" inputMode="url" placeholder="https://yourstore.com" maxLength={2048} />
+      </label>
+      <button type="submit" className="btn btn-ghost" disabled={busy || lock.locked || !url.trim()} title={lock.title}>
+        <Link2 size={16} aria-hidden />{busy ? t('جارٍ التحويل…', 'Opening…') : t('اربط عبر WooCommerce', 'Connect with WooCommerce')}
+      </button>
+      <p className="hint" style={{ margin: 0 }}>{t('ننقلك إلى متجرك لتوافق على قراءة المنتجات فقط، ثم نعيدك إلى هنا.', 'We take you to your store to approve reading products only, then bring you back here.')}</p>
+      {problem && <p className="field-error" role="alert" style={{ margin: 0 }}>{problem}</p>}
+    </form>
+  );
 }

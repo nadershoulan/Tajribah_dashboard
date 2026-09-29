@@ -51,6 +51,9 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
       cannot answer). In the log service, alert on the share of `slow request` lines per path
       (`server/core/observability/slo.ts` holds the plan's targets).
 - [ ] The database: still an open decision (DECISIONS T9) — nothing registers one yet.
+- [ ] WooCommerce (P6): nothing to set up — the approval screen calls back to
+      **`https://app.tajribah.sa/api/connections/woocommerce/callback`**, which only has to be reachable over https.
+      **Check:** connect a test WordPress store from Store connections; its products appear after the first sync.
 - [ ] Backups (P7): schedule `scripts/dr/drill.mjs backup`, keep the dumps off the database host and
       encrypted, and run `verify` on a spare server before launch — `docs/DR.md` is the runbook.
 - **Check:** sign in; the setup guide loads; `/api/auth/me` answers; eleven wrong passwords for one

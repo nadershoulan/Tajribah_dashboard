@@ -15,6 +15,7 @@ import { configureNotify } from '../notify/notify';
 import { configureStorage } from '../storage/storage';
 import { configureConfigStore, type KvBinding } from '../edge/configs';
 import { configureRateLimiter, type RateLimitKv } from '../ratelimit/limiter';
+import { registerAllConnectors } from '../../connectors';
 import { setLogLevel } from '../observability/log';
 
 export function bootstrap(bindings: Record<string, unknown>, fallback: Record<string, string | undefined> = {}): Env {
@@ -28,5 +29,6 @@ export function bootstrap(bindings: Record<string, unknown>, fallback: Record<st
   configureStorage(env, bindings.BUCKET as R2Bucket | undefined);
   configureConfigStore(env, bindings.CONFIGS as KvBinding | undefined);
   configureRateLimiter(env, bindings.RATE_LIMITS as RateLimitKv | undefined);
+  registerAllConnectors(); // P6: the store connectors (WooCommerce first)
   return env;
 }

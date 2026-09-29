@@ -51,6 +51,8 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
       cannot answer). In the log service, alert on the share of `slow request` lines per path
       (`server/core/observability/slo.ts` holds the plan's targets).
 - [ ] The database: still an open decision (DECISIONS T9) — nothing registers one yet.
+- [ ] Backups (P7): schedule `scripts/dr/drill.mjs backup`, keep the dumps off the database host and
+      encrypted, and run `verify` on a spare server before launch — `docs/DR.md` is the runbook.
 - **Check:** sign in; the setup guide loads; `/api/auth/me` answers; eleven wrong passwords for one
   email in a row → the eleventh answers 429 with a `retry-after` header.
 

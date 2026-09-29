@@ -39,6 +39,7 @@ import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { consumeCredits, refundCredits } from '@/server/modules/billing/credits';
 import { CREDITS_PER_3D_GENERATION } from '@/lib/ai-credits';
 import { assertWithinGuardrails } from './guardrails';
+import { chooseModel } from './models';
 import { emitEvent } from '@/server/modules/outgoing-webhooks/emit';
 import { aiJobV1 } from '@/server/modules/public-api/v1';
 
@@ -143,10 +144,13 @@ export async function createAiJob(ctx: TenantContext, request: CreateAiJob): Pro
 
   const now = new Date();
   await assertWithinGuardrails(ctx.tenantId, request.type, now); // P6.7: before the row and the charge
+  const jobId = uuidv7(now.getTime());
+  const modelRegistryId = await chooseModel(request.type, jobId); // P6: the A/B split, by the job's id
   const job = await withTenant(ctx.tenantId, async (db) => {
     const row = await db.insert(aiJobs, {
-      id: uuidv7(now.getTime()), type: request.type, status: 'queued', priority: request.priority ?? 100,
+      id: jobId, type: request.type, status: 'queued', priority: request.priority ?? 100,
       input: request.input, creditsCost: request.creditsCost, queuedAt: now, parentJobId: request.parentJobId ?? null,
+      modelRegistryId,
     } as never);
     await event(db, row.id, 'queued', { creditsCost: request.creditsCost }, now);
     await record(ctx, { action: 'create', resourceType: 'ai_job', resourceId: row.id, after: { type: row.type, creditsCost: row.creditsCost } as never }, db);

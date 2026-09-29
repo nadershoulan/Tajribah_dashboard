@@ -99,6 +99,8 @@ export const modelRegistry = pgTable('model_registry', {
   version: text('version').notNull(),
   provider: text('provider').notNull(),
   endpoint: text('endpoint'),
+  /** P6: the kind of AI work this model does; new jobs of that type are split among the active ones. */
+  jobType: aiJobType('job_type'),
   isActive: bool('is_active').notNull().default(false),
   abSplitPercent: integer('ab_split_percent').notNull().default(0),
   costPerCallCents: integer('cost_per_call_cents').notNull().default(0),

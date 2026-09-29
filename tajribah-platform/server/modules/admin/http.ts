@@ -21,6 +21,7 @@ import { retentionState } from './retention';
 import { createAnnouncement, listAnnouncements, updateAnnouncement } from './announcements';
 import { decideQa, qaModelFile, qaQueue } from './qa';
 import { aiOperations, cancelJobForStore, setGuardrails } from './ai-ops';
+import { listRegistry, registerModel, setModelActive, setSplits } from './models';
 import { currentScope } from '@/server/core/observability/scope';
 import { errors } from '@/server/core/errors/problem';
 
@@ -437,4 +438,61 @@ export const setGuardrailsHandler = route(async (request) => {
   assertSameOrigin(request, config);
   const staff = await staffContextFor(request, config);
   return json(await setGuardrails(staff, await readJson(request, GUARDRAILS)));
+});
+
+/** API-A40 — GET /api/admin/ai/models?days=7|30|90 (P6): the model registry, each model's share and how its jobs did. */
+export const listModelsHandler = route(async (request) => {
+  await staffContextFor(request);
+  const days = Number(new URL(request.url).searchParams.get('days'));
+  return json({ models: await listRegistry(days === 7 || days === 90 ? days : 30) });
+});
+
+const NEW_MODEL = z.object({
+  name: z.string().max(200), version: z.string().max(200), provider: z.string().max(200),
+  endpoint: z.string().max(2000).nullable(), jobType: z.string().max(40),
+  costPerCallCents: z.number().int(), reason: z.string().max(500),
+});
+
+/** API-A41 — POST /api/admin/ai/models (P6): add a model — it starts off, at 0%. */
+export const registerModelHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  return json(await registerModel(staff, await readJson(request, NEW_MODEL)), { status: 201 });
+});
+
+const SPLITS = z.object({
+  jobType: z.string().max(40),
+  splits: z.array(z.object({ id: z.string().uuid(), percent: z.number() })).max(50),
+  reason: z.string().max(500),
+});
+
+/** API-A42 — PUT /api/admin/ai/models/splits { jobType, splits, reason } (P6): the A/B shares, adding up to 100. */
+export const setSplitsHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  await setSplits(staff, await readJson(request, SPLITS));
+  return json({ models: await listRegistry() });
+});
+
+const ACTIVE = z.object({ active: z.boolean(), reason: z.string().max(500) });
+
+/** API-A43 — POST /api/admin/ai/models/[id]/active { active, reason } (P6): switch a model on or off. */
+export const setModelActiveHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const body = await readJson(request, ACTIVE);
+  await setModelActive(staff, uuidAt(request, 1, 'model'), body.active, body.reason);
+  return json({ models: await listRegistry() });
+});
+
+/** API-A44 — POST /api/admin/ai/models/[id]/rollback { reason } (P6): off now, its share to the others, and when recorded. */
+export const rollbackModelHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  await setModelActive(staff, uuidAt(request, 1, 'model'), false, (await readJson(request, REASON)).reason, true);
+  return json({ models: await listRegistry() });
 });

@@ -808,6 +808,10 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .hook-deliveries li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13.5px; }
 .hook-deliveries .hint { margin: 0; }
 .ops-retry input { min-width: 0; width: 180px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 9px; font: inherit; background: var(--surface, #fff); color: var(--text); }
+/* P6 — the model registry & A/B */
+.model-type + .model-type { margin-top: 22px; }
+.model-type h3 { font-size: 15px; margin: 0 0 8px; }
+.share-input { width: 64px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; text-align: end; background: var(--surface, #fff); color: var(--text); }
 
 /* A6 — plans editor */
 .plan-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }

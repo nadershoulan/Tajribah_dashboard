@@ -42,6 +42,8 @@ const ADMIN_ALLOWED: Record<string, string> = {
   'server/modules/connections/rotation.ts': 'the key-rotation sweep finds connections sealed under an old key (ids only), then re-seals each inside withTenant',
   'server/modules/outgoing-webhooks/sweep.ts': 'the delivery sweep finds stranded deliveries and the reseal sweep finds secrets under an old key across tenants (ids only); each row is written inside withTenant (P8)',
   'server/modules/api-keys/auth.ts': 'a request with an API key names its store only through the key: finding the key by its hash, and its maker, precede any tenant scope (P8)',
+  'server/modules/admin/models.ts': 'staff write the model registry, a platform catalogue the app role may only read (P6)',
+  'server/modules/ai-jobs/models.ts': 'the model registry is a platform catalogue (no tenant), and each model’s outcomes are counted across every store’s jobs (P6)',
   'server/modules/ai-jobs/guardrails.ts': 'the AI spend guardrails (P6.7): the platform limits are an admin-role-only row, and the daily spend cap sums every store’s cost; a store’s own count is filtered by tenant explicitly',
   'server/modules/connections/health.ts': 'the health sweep lists connections across tenants (ids only), then scores and notifies inside withTenant (P6.16)',
   'server/modules/admin/ai-ops.ts': 'AI operations read jobs, costs and credits across stores for staff (A9); a cancel goes through cancelAiJob inside the store',

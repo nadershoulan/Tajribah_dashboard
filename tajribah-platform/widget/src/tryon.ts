@@ -55,6 +55,9 @@ export function isCloseFrom(event: { origin: string; data: unknown; source: unkn
  * the frame's own close message remove it and give the page its scroll back.
  */
 export function openTryOn(root: ShadowRoot, src: string, lang: 'ar' | 'en', label: string): () => void {
+  // T53: closing gives focus back to the button that opened it — a keyboard or screen-reader user
+  // keeps their place on the page instead of starting again from the top.
+  const opener = (root.activeElement ?? document.activeElement) as HTMLElement | null;
   const overlay = document.createElement('div');
   overlay.className = 'tryon';
   overlay.setAttribute('role', 'dialog');
@@ -83,6 +86,7 @@ export function openTryOn(root: ShadowRoot, src: string, lang: 'ar' | 'en', labe
     document.removeEventListener('keydown', onKey);
     body.style.overflow = scroll;
     overlay.remove();
+    opener?.focus?.();
   }
   close.addEventListener('click', done);
   window.addEventListener('message', onMessage);

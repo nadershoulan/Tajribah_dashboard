@@ -205,6 +205,7 @@ async function openAr(host: HTMLElement, config: ModelConfig, lang: 'ar' | 'en',
 /** `<model-viewer>` in a modal: desktops, and phones without a native AR path. */
 async function openViewer(host: HTMLElement, config: ModelConfig, lang: 'ar' | 'en', settings: Settings): Promise<void> {
   const root = host.shadowRoot!;
+  const opener = root.activeElement as HTMLElement | null; // T53: focus goes back here on close
   let loaded = true;
   try { await loadViewer(settings.viewer); } catch { loaded = false; }
   const overlay = document.createElement('div');
@@ -227,7 +228,7 @@ async function openViewer(host: HTMLElement, config: ModelConfig, lang: 'ar' | '
     sheet.appendChild(note);
     overlay.appendChild(sheet);
     root.appendChild(overlay);
-    const dismissNote = () => { overlay.remove(); document.removeEventListener('keydown', onNoteKey); };
+    const dismissNote = () => { overlay.remove(); document.removeEventListener('keydown', onNoteKey); opener?.focus?.(); };
     const onNoteKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismissNote(); };
     close.addEventListener('click', dismissNote);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) dismissNote(); });
@@ -245,7 +246,7 @@ async function openViewer(host: HTMLElement, config: ModelConfig, lang: 'ar' | '
   viewer.setAttribute('shadow-intensity', String(config.shadow));
   viewer.setAttribute('scale', `${config.scale} ${config.scale} ${config.scale}`);
   if (config.autoRotate) viewer.setAttribute('auto-rotate', '');
-  const dismiss = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const dismiss = () => { overlay.remove(); document.removeEventListener('keydown', onKey); opener?.focus?.(); };
   const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismiss(); };
   close.addEventListener('click', dismiss);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) dismiss(); });

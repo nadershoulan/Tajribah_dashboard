@@ -23,9 +23,10 @@ import * as analyticsHttp from '@/server/modules/analytics/http';
 import * as aiJobsHttp from '@/server/modules/ai-jobs/http';
 import * as tryOnHttp from '@/server/modules/tryon/http';
 import * as apiKeysHttp from '@/server/modules/api-keys/http';
+import * as publicApiHttp from '@/server/modules/public-api/http';
 
 // Every module's handlers. A new module's http.ts is added here once.
-const MODULE_HANDLERS: Record<string, Record<string, unknown>> = { auth: authHttp, onboarding: onboardingHttp, products: productsHttp, webhooks: webhooksHttp, models: modelsHttp, connections: connectionsHttp, team: teamHttp, settings: settingsHttp, dashboard: dashboardHttp, ar: arHttp, notifications: notificationsHttp, embed: embedHttp, billing: billingHttp, admin: adminHttp, analytics: analyticsHttp, 'ai-jobs': aiJobsHttp, tryon: tryOnHttp, 'api-keys': apiKeysHttp };
+const MODULE_HANDLERS: Record<string, Record<string, unknown>> = { auth: authHttp, onboarding: onboardingHttp, products: productsHttp, webhooks: webhooksHttp, models: modelsHttp, connections: connectionsHttp, team: teamHttp, settings: settingsHttp, dashboard: dashboardHttp, ar: arHttp, notifications: notificationsHttp, embed: embedHttp, billing: billingHttp, admin: adminHttp, analytics: analyticsHttp, 'ai-jobs': aiJobsHttp, tryon: tryOnHttp, 'api-keys': apiKeysHttp, 'public-api': publicApiHttp };
 
 const BASE = { APP_URL: 'http://localhost:5173', AUTH_SECRET: 'a'.repeat(40), ENCRYPTION_KEY: 'b'.repeat(40) };
 

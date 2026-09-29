@@ -3,8 +3,8 @@
 _Last updated: 2026-09-29 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-09-29):** **API keys** (P8, Enterprise) — a store can make keys for its other systems (a warehouse, a product system, a reporting board): each has a name, **only the permissions you tick** (never billing, the team, settings, other keys or deleting the store), and a lifetime. The key is shown **once**; only a fingerprint of it is kept. A key works **as the person who made it**: if they leave the store it stops, if their role is lowered it loses what they lost, and in a store that is read-only it can only read. Revoking is instant — and stays possible even when the store is read-only, so a leaked key never waits for a payment. On plans without the Public API the page shows it is an Enterprise feature · before that: **screens that stay fast as stores grow** (P7 database speed)
-> **Next:** the Public API itself (P8) — the first endpoints these keys open (products, models, analytics), with its public documentation; then P7's monitoring.
+> **Just finished (2026-09-29):** **the Public API, version 1** (P8, Enterprise) — what the API keys open: a store's other systems can now **read its products** (page by page), **one product**, **its 3D models** and **its figures** (7, 30 or 90 days). Each answer has a fixed, documented shape that will only ever grow, never change under an integration; each key is limited to 600 requests a minute and every answer says how many are left. The **technical reference** (`/api/v1/openapi.json`, the standard format developers' tools read) is generated from the same definitions the answers are checked against, so it cannot drift. Seen answering in the real server runtime · before that: **API keys** (P8)
+> **Next:** P7's monitoring (health, error and speed signals the code can already give), then more P8: outgoing webhooks (your systems told when something changes).
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
 > **Waiting on you:** the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
 
@@ -17,10 +17,10 @@ P4 Analytics      ███████████░░░░░░░░░�
 P5 Try-on         ████████████████░░░░░░░░░░░░░░░░   7 / 14   (+ watch partly) · the rest touches your studio or needs new photography
 P6 AI+connectors  ██████████░░░░░░░░░░░░░░░░░░░░░░   5 / 16   · the rest needs AI providers or store accounts
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ P7.7 security, safe updates, rate limits, database speed: the code-level parts done)
-P8 Enterprise     ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   1 / 12
+P8 Enterprise     █████░░░░░░░░░░░░░░░░░░░░░░░░░░░   2 / 12
 M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
-                                            overall  88 / 169
+                                            overall  89 / 169
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -177,6 +177,7 @@ The public site that sells Tajribah, Arabic first.
 
 | | Package | In plain words |
 |---|---|---|
+| ✅ | P8 Public API v1 | **Your other systems can read your store**: products (page by page), one product, 3D models, figures. Fixed, documented answers that only grow; 600 requests a minute per key, with the count left on every answer; a technical reference generated from the same definitions the answers are checked against |
 | ✅ | P8 API keys and scopes | **Keys for your other systems** (Enterprise): named, only the permissions you tick, a lifetime; shown once, kept only as a fingerprint. A key works as the person who made it — it stops when they leave and loses what they lose — and a read-only store's keys can only read. Revoke at once, even while read-only |
 
 ---
@@ -405,3 +406,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-29 | Rate limits that hold across server copies; invitations, install checks and exports limited; refusals in plain words | 604 pass / 0 fail; seen to fail 11 ways |
 | 2026-09-29 | Five screen lists given the index they lacked; a test checks every hot query's plan | 606 pass / 0 fail; seen to fail 8 ways |
 | 2026-09-29 | API keys: scoped, shown once, acting as their maker, revocable even while read-only | 610 pass / 0 fail; seen to fail 16 ways; checked in a real browser (Enterprise en 1440 / ar 390, Growth locked) |
+| 2026-09-29 | Public API v1: products, models, figures — documented shapes, per-key limit, a reference that cannot drift | 614 pass / 0 fail; seen to fail 9 ways; the reference and a keyless request seen in workerd |

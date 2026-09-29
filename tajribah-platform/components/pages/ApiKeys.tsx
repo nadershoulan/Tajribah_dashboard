@@ -127,6 +127,7 @@ function Keys() {
             </select>
           </label>
           <p className="hint">{t('يعمل المفتاح باسمك وبصلاحياتك داخل ما اخترته: إن غادرت المتجر توقف.', 'The key works as you, within what you chose: if you leave the store, it stops.')}</p>
+          <p className="hint">{t('المرجع التقني للواجهة البرمجية:', 'The API reference:')} <a href="/api/v1/openapi.json" dir="ltr" style={{ color: 'var(--aqua)' }}>/api/v1/openapi.json</a></p>
           <button type="submit" className="btn btn-primary btn-sm" disabled={busy || lock.locked || !name.trim() || !scopes.length} title={lock.title}>
             <KeyRound size={14} aria-hidden />{busy ? t('جارٍ الإنشاء…', 'Making…') : t('أنشئ المفتاح', 'Make the key')}
           </button>

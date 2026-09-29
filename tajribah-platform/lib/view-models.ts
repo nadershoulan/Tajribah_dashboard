@@ -195,6 +195,34 @@ export type ModelVersionRow = {
   createdAt: string;
 };
 
+/** P8 — one outgoing webhook endpoint. Its secret is never here: it is shown once, when made or rotated. */
+export type WebhookEndpointView = {
+  id: string;
+  url: string;
+  description: string | null;
+  events: string[];
+  active: boolean;
+  /** Why the platform turned it off (deliveries kept failing); null otherwise. */
+  disabledReason: string | null;
+  lastDeliveryAt: string | null;
+  lastStatus: number | null;
+  createdAt: string;
+};
+
+/** P8 — one event sent to one endpoint. */
+export type WebhookDeliveryView = {
+  id: string;
+  eventId: string;
+  event: string;
+  status: 'pending' | 'delivered' | 'failed';
+  attempts: number;
+  responseStatus: number | null;
+  error: string | null;
+  nextAttemptAt: string | null;
+  deliveredAt: string | null;
+  createdAt: string;
+};
+
 /** P8 — one API key as the keys screen shows it. The key itself is never here: it is shown once, at creation. */
 export type ApiKeyView = {
   id: string;

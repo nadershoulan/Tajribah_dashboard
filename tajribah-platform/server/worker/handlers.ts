@@ -15,6 +15,7 @@ import { handleAiJob } from '@/server/modules/ai-jobs/job';
 import { handleQualityJob } from '@/server/modules/tryon/quality';
 import { handleEdgeJob } from '@/server/modules/edge/publish';
 import { handleDeleteLater } from '@/server/modules/tryon/retire';
+import { handleWebhookDelivery } from '@/server/modules/outgoing-webhooks/deliver';
 
 /** Read the tenant a job is for, refusing to run tenant work without one. */
 export function tenantOf(job: Job): TenantDb {
@@ -40,4 +41,6 @@ export function registerAllHandlers(): void {
   registerHandler('edge.publish-config', (job: Job) => handleEdgeJob(job));
   // T36: a replaced try-on picture a live config may still name, deleted after the grace period.
   registerHandler('storage.delete-later', (job: Job) => handleDeleteLater(job));
+  // P8: one try of one outgoing webhook delivery (it schedules its own retries).
+  registerHandler('webhooks.deliver', (job: Job) => handleWebhookDelivery(job));
 }

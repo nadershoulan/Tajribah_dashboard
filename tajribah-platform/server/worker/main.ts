@@ -20,6 +20,7 @@ import { resealConnections } from '@/server/modules/connections/rotation';
 import { resealTwoFactorSecrets } from '@/server/modules/auth/two-factor';
 import { sweepRetentionHourly } from '@/server/modules/admin/retention';
 import { sweepAiJobs, sweepUnconfirmedPhotos } from '@/server/modules/ai-jobs/sweep';
+import { resealWebhookSecrets, sweepWebhookDeliveries } from '@/server/modules/outgoing-webhooks/sweep';
 import { sendTrialReminders } from '@/server/modules/billing/trial';
 import { refreshConnectionHealth } from '@/server/modules/connections/health';
 
@@ -74,6 +75,8 @@ async function scheduled(): Promise<void> {
   await sweepAiJobs(); // P3.2: AI jobs never dispatched, or abandoned mid-run
   await sweepUnconfirmedPhotos(); // P3.3: photo uploads never confirmed
   await refreshConnectionHealth(); // P6.16: connection health scores, and a word to the store when one worsens
+  await sweepWebhookDeliveries(); // P8: outgoing deliveries whose queued try was lost
+  await resealWebhookSecrets(); // P8: signing secrets under an old ENCRYPTION_KEY (T16)
 }
 
 /** Stored webhook deliveries are handled on the same tick as queue jobs (P1.7). */

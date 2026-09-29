@@ -32,6 +32,7 @@ export type QueueName =
   | 'tryon.quality'
   | 'storage.delete-later'
   | 'notify.email' | 'notify.sms'
+  | 'webhooks.deliver'
   | 'analytics.rollup' | 'system.cleanup';
 
 export type EnqueueInput = {

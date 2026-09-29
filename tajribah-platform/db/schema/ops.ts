@@ -171,6 +171,48 @@ export const featureFlags = pgTable('feature_flags', {
   ...timestamps(),
 }, (t) => [uniqueIndex('feature_flags_key_tenant_unq').on(t.key, t.tenantId)]);
 
+export const webhookDeliveryStatus = pgEnum('webhook_delivery_status', ['pending', 'delivered', 'failed']);
+
+/** P8 — where a store's events are sent (outgoing; `webhook_events` holds the incoming ones). */
+export const webhookEndpoints = pgTable('webhook_endpoints', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  url: text('url').notNull(),
+  description: text('description'),
+  /** The signing secret, sealed under ENCRYPTION_KEY and bound to the endpoint id. Shown once. */
+  secretEncrypted: text('secret_encrypted').notNull(),
+  events: json<string[]>('events').notNull(),
+  active: bool('active').notNull().default(true),
+  /** Set when the platform turned it off (deliveries kept failing); null when on, or turned off by a person. */
+  disabledReason: text('disabled_reason'),
+  consecutiveFailures: integer('consecutive_failures').notNull().default(0),
+  lastDeliveryAt: ts('last_delivery_at'),
+  lastStatus: integer('last_status'),
+  createdBy: uuid('created_by'),
+  ...timestamps(),
+}, (t) => [index('webhook_endpoints_tenant_idx').on(t.tenantId)]);
+
+/** P8 — one event for one endpoint, and how its delivery went. */
+export const webhookDeliveries = pgTable('webhook_deliveries', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  endpointId: uuid('endpoint_id').notNull().references(() => webhookEndpoints.id, { onDelete: 'cascade' }),
+  /** The event's id — the same for every endpoint, so a receiver can drop a repeat. */
+  eventId: text('event_id').notNull(),
+  event: text('event').notNull(),
+  payload: json<Record<string, unknown>>('payload').notNull(),
+  status: webhookDeliveryStatus('status').notNull().default('pending'),
+  attempts: integer('attempts').notNull().default(0),
+  nextAttemptAt: ts('next_attempt_at'),
+  responseStatus: integer('response_status'),
+  error: text('error'),
+  deliveredAt: ts('delivered_at'),
+  ...timestamps(),
+}, (t) => [
+  index('webhook_deliveries_endpoint_idx').on(t.endpointId, t.id),
+  index('webhook_deliveries_pending_idx').on(t.status, t.nextAttemptAt),
+]);
+
 export const notifications = pgTable('notifications', {
   id: pk(),
   tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),

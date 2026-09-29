@@ -2,7 +2,7 @@
 
 _Last updated: 2026-09-29 · updated after every package_
 
-> **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
+> **Now:** outgoing webhooks (P8) — the sending side is built and tested (below); next the screen and the events wired to the places they happen. Building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
 > **Just finished (2026-09-29):** **knowing when something is wrong** (P7, monitoring — the code-level part). Two addresses an uptime monitor (the plan names Better Stack, which also drives the public status page) can call every minute: **`/api/health`** — is the dashboard answering — and **`/api/health/ready`** — can it do its work (the database answers, checked for real). The speed targets from the plan (a screen's data in under 0.3 s, a change in under 0.8 s) are now in the code: every request's log line carries its target, and any request slower than that is logged as **slow**, so a log service can count and alert on them. Seen answering in the real server runtime · before that: **the Public API** (P8)
 > **Next:** more P8: outgoing webhooks (your systems told when something changes), then custom roles.
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
@@ -177,6 +177,7 @@ The public site that sells Tajribah, Arabic first.
 
 | | Package | In plain words |
 |---|---|---|
+| ◐ | P8 Outgoing webhooks | **Your systems told when something changes.** Built: add an address (https, public only), choose the events, a signing secret shown once; every message signed so your system can check it came from us; retried for about 21 hours; an address that keeps failing is turned off and you are told; a test message; send one again. Next: the screen, and the events wired in |
 | ✅ | P8 Public API v1 | **Your other systems can read your store**: products (page by page), one product, 3D models, figures. Fixed, documented answers that only grow; 600 requests a minute per key, with the count left on every answer; a technical reference generated from the same definitions the answers are checked against |
 | ✅ | P8 API keys and scopes | **Keys for your other systems** (Enterprise): named, only the permissions you tick, a lifetime; shown once, kept only as a fingerprint. A key works as the person who made it — it stops when they leave and loses what they lose — and a read-only store's keys can only read. Revoke at once, even while read-only |
 

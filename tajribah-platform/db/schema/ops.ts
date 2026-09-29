@@ -80,6 +80,7 @@ export const aiJobs = pgTable('ai_jobs', {
   index('ai_jobs_tenant_idx').on(t.tenantId, t.status, t.createdAt),
   index('ai_jobs_type_idx').on(t.type, t.status),
   index('ai_jobs_created_idx').on(t.createdAt), // P6.7: today's spend, across stores
+  index('ai_jobs_tenant_id_idx').on(t.tenantId, t.id), // P7: the jobs screen, newest first
 ]);
 
 export const aiJobEvents = pgTable('ai_job_events', {
@@ -183,7 +184,10 @@ export const notifications = pgTable('notifications', {
   level: notificationLevel('level').notNull().default('info'),
   readAt: ts('read_at'),
   createdAt: createdAt(),
-}, (t) => [index('notifications_tenant_user_idx').on(t.tenantId, t.userId, t.readAt)]);
+}, (t) => [
+  index('notifications_tenant_user_idx').on(t.tenantId, t.userId, t.readAt),
+  index('notifications_tenant_user_time_idx').on(t.tenantId, t.userId, t.createdAt), // P7: the bell, newest first
+]);
 
 /**
  * PDPL: a data subject's export or erasure request (§7.9) — the register the admin console keeps

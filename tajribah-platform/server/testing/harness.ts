@@ -49,20 +49,34 @@ export function migrationStatements(): string[] {
  * `client`, with every statement run as `role` — or as the superuser while `asAdmin()` is on.
  * Drizzle's PGlite driver only calls `query` and `transaction`, so those are the two wrapped.
  */
-function asRole(client: PGlite, role: string, superuser: { on: boolean }): PGlite {
+/** Sees every statement the application sends, with its parameters (P7: the query-plan checks). */
+export type QueryObserver = (text: string, params: unknown[]) => void;
+
+function observed<T extends object>(target: T, observe: QueryObserver): T {
+  return new Proxy(target, {
+    get(t, prop) {
+      const value = (t as any)[prop];
+      if (prop === 'query') return (text: string, params: unknown[] = [], ...rest: unknown[]) => { observe(text, params); return value.call(t, text, params, ...rest); };
+      return typeof value === 'function' ? value.bind(t) : value;
+    },
+  });
+}
+
+function asRole(client: PGlite, role: string, superuser: { on: boolean }, observe?: QueryObserver): PGlite {
   const roleSql = (local: boolean) => (superuser.on ? 'RESET ROLE;' : `SET ${local ? 'LOCAL ' : ''}ROLE ${role};`);
   return new Proxy(client, {
     get(target, prop) {
       if (prop === 'query') {
         return async (...args: Parameters<PGlite['query']>) => {
           await target.exec(roleSql(false));
+          if (observe) observe(args[0], (args[1] as unknown[] | undefined) ?? []);
           return target.query(...args);
         };
       }
       if (prop === 'transaction') {
         return <T>(fn: (tx: any) => Promise<T>) => target.transaction(async (tx) => {
           await tx.exec(roleSql(true));
-          return fn(tx);
+          return fn(observe ? observed(tx, observe) : tx);
         });
       }
       const value = (target as any)[prop];
@@ -95,10 +109,12 @@ export type TestDb = {
   db: Db;
   /** Run `fn` as the superuser, bypassing RLS. Seeding another tenant's data, and nothing else. */
   asAdmin: <T>(fn: () => Promise<T>) => Promise<T>;
+  /** The planner's JSON plan for `text` with `params`, as the superuser, with `settings` applied first. */
+  explain: (text: string, params: unknown[], settings?: string) => Promise<any>;
   close: () => Promise<void>;
 };
 
-export async function createTestDb(): Promise<TestDb> {
+export async function createTestDb(options: { observe?: QueryObserver } = {}): Promise<TestDb> {
   const client = await PGlite.create();
   for (const statement of migrationStatements()) {
     try {
@@ -111,8 +127,8 @@ export async function createTestDb(): Promise<TestDb> {
   // From here on no statement runs as the superuser unless `asAdmin()` says so: the app
   // client is neither owner nor superuser, so `FORCE ROW LEVEL SECURITY` actually bites.
   const superuser = { on: false };
-  const db = drizzle(asRole(client, APP_ROLE, superuser), { schema }) as unknown as Db;
-  const admin = drizzle(asRole(client, ADMIN_ROLE, superuser), { schema }) as unknown as Db;
+  const db = drizzle(asRole(client, APP_ROLE, superuser, options.observe), { schema }) as unknown as Db;
+  const admin = drizzle(asRole(client, ADMIN_ROLE, superuser, options.observe), { schema }) as unknown as Db;
   registerDb(db, admin);
 
   const asAdmin = async <T>(fn: () => Promise<T>): Promise<T> => {
@@ -124,9 +140,18 @@ export async function createTestDb(): Promise<TestDb> {
     }
   };
 
+  const explain = async (text: string, params: unknown[], settings = '') => {
+    await client.exec(`RESET ROLE; ${settings}`);
+    const result = await client.query<Record<string, unknown>>(`EXPLAIN (FORMAT JSON) ${text}`, params)
+      .finally(() => client.exec('RESET ALL;')); // the settings must not outlive the question
+    const raw = result.rows[0]!['QUERY PLAN'];
+    return (typeof raw === 'string' ? JSON.parse(raw) : raw as any[])[0].Plan;
+  };
+
   return {
     db,
     asAdmin,
+    explain,
     close: async () => { await client.close(); clearDb(); },
   };
 }

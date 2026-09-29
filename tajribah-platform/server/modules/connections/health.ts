@@ -23,7 +23,7 @@ const RECENT_SYNCS = 5;
 const RANK: Record<HealthLevel, number> = { healthy: 0, attention: 1, failing: 2 };
 
 export async function healthFactsFor(db: TenantDb, row: StoreConnection, now: Date): Promise<HealthFacts> {
-  const recent = await db.find(syncJobs, and(eq(syncJobs.connectionId, row.id), inArray(syncJobs.status, ['done', 'failed'])), { limit: RECENT_SYNCS, orderBy: desc(syncJobs.finishedAt) });
+  const recent = await db.find(syncJobs, and(eq(syncJobs.connectionId, row.id), inArray(syncJobs.status, ['done', 'failed'])), { limit: RECENT_SYNCS, orderBy: desc(syncJobs.id) }); // one sync at a time per connection: newest started is newest finished, and (connection_id, id) serves it (P7)
   let failedSyncsInRow = 0;
   for (const job of recent) { if (job.status !== 'failed') break; failedSyncsInRow++; }
   const day = and(eq(webhookEvents.connectionId, row.id), gte(webhookEvents.createdAt, new Date(now.getTime() - DAY)));

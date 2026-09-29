@@ -75,7 +75,10 @@ export const syncJobs = pgTable('sync_jobs', {
   error: text('error'),
   triggeredBy: syncTrigger('triggered_by').notNull().default('schedule'),
   ...timestamps(),
-}, (t) => [index('sync_jobs_tenant_idx').on(t.tenantId, t.status, t.createdAt)]);
+}, (t) => [
+  index('sync_jobs_tenant_idx').on(t.tenantId, t.status, t.createdAt),
+  index('sync_jobs_connection_idx').on(t.connectionId, t.id), // P7: a connection's latest syncs
+]);
 
 export const syncJobItems = pgTable('sync_job_items', {
   id: pk(),
@@ -108,6 +111,7 @@ export const webhookEvents = pgTable('webhook_events', {
 }, (t) => [
   uniqueIndex('webhook_events_provider_event_unq').on(t.provider, t.providerEventId),
   index('webhook_events_status_idx').on(t.status, t.createdAt),
+  index('webhook_events_connection_idx').on(t.connectionId, t.createdAt), // P7: a connection's deliveries by time
 ]);
 
 export const fieldMappings = pgTable('field_mappings', {
@@ -168,6 +172,7 @@ export const products = pgTable('products', {
   index('products_tenant_status_idx').on(t.tenantId, t.status, t.createdAt),
   index('products_tenant_ar_idx').on(t.tenantId, t.arEnabled),
   index('products_tenant_name_idx').on(t.tenantId, t.name),
+  index('products_tenant_id_idx').on(t.tenantId, t.id), // P7: the catalogue, newest first, by cursor
 ]);
 
 export const productVariants = pgTable('product_variants', {

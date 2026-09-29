@@ -3,7 +3,7 @@
 _Last updated: 2026-09-29 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-09-29):** **limits that hold once we are live** (P7, rate limiting — the code-level part). Found: the "too many attempts" limits (sign-in, password reset, codes, coupons) counted in each server copy's own memory — live, with many copies running, **no limit would really have held**. Now they count in one shared place (a Cloudflare KV store — to create on go-live, listed in `docs/GO-LIVE.md`), and the server refuses to start in production without it. Also: **team invitations** (each one is an email — invite, cancel, invite again could have become a mailer), the **install checker** (each check fetches a page from the shop) and **report exports** now have hourly limits per store; and when a limit is hit, the screen says "Too many requests" in your language — before, it would have shown the raw code `rate_limited` · before that: **brakes on AI spending** (P6.7)
+> **Just finished (2026-09-29):** **screens that stay fast as stores grow** (P7, database performance — the code-level part). Five lists had no index that could serve them, so with enough data each would have read everything and then sorted it: **your product list**, **the AI jobs list**, **the notifications bell**, and **a store connection's sync and webhook history** (webhooks arrive on every product change in Salla — the fastest-growing table). Each now has one, and a test asks the database how it would run every one of those screens' queries — the code's own, exactly as sent — and fails if any would read a whole table or sort it · before that: **limits that hold once we are live** (P7 rate limits)
 > **Next:** more later-phase packages that need no account or setup: P7's code-level parts (rate limits, caching, database indexes, monitoring), then P8's API keys.
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
 > **Waiting on you:** the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
@@ -16,7 +16,7 @@ P3 3D pipeline    ███████████░░░░░░░░░�
 P4 Analytics      ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ CSV export partly) · shared with the other session
 P5 Try-on         ████████████████░░░░░░░░░░░░░░░░   7 / 14   (+ watch partly) · the rest touches your studio or needs new photography
 P6 AI+connectors  ██████████░░░░░░░░░░░░░░░░░░░░░░   5 / 16   · the rest needs AI providers or store accounts
-P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ P7.7 security, safe updates, rate limits: the code-level parts done)
+P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ P7.7 security, safe updates, rate limits, database speed: the code-level parts done)
 P8 Enterprise     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 12
 M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
@@ -178,6 +178,7 @@ The public site that sells Tajribah, Arabic first.
 | | Package | In plain words |
 |---|---|---|
 | ◐ | P7 Zero-downtime updates | **Every database change is checked before it can ship** to be survivable by the version still running during an update: taking things away (a column, a table, a rename, a type change, making a field required) only with a written reason, once no running code uses them; never a new required field without a default; no index or check that locks a table while it builds, unless marked as a small table. Our 19 changes so far: the two it flags are from before launch. **Left:** the update runner itself, when the server exists |
+| ◐ | P7 Database speed | **Every list a screen reads has an index that can serve it** — five did not (products, AI jobs, the bell, a connection's syncs and webhooks); added. A test asks the database how it would run each screen's real queries and fails on any full read or sort. Waits on: real data sizes on staging to measure |
 | ◐ | P7 Rate limits and abuse | **Limits now hold across every server copy** (they counted per copy before — live, none would have held); production will not start without the shared store. Hourly per-store limits on team invitations (emails), the install checker (fetches the shop) and report exports. A refusal reads "Too many requests" in your language, not a code. Waits on: the Cloudflare KV namespace (`docs/GO-LIVE.md` §3) |
 | ◐ | P7.7 Security | The dashboard can no longer be shown inside another website, only runs the code we send with it (a script slipped into a page is refused by the browser), always uses a secure connection, and sign-in sessions can't be refreshed in a tight loop. A review of sign-in, store webhooks, uploads and the install checker found them already sound. Left: a check when payments arrive, and an outside security review before launch |
 
@@ -394,3 +395,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-29 | The AI jobs screen: progress, cost, credits returned, cancel | 593 pass / 0 fail; seen to fail; checked in a real browser at phone width |
 | 2026-09-29 | Brakes on AI spending: pause a kind of work, a platform daily spend limit, a per-store daily job limit | 599 pass / 0 fail; seen to fail 10 ways; checked in a real browser (en 1440, ar 390) |
 | 2026-09-29 | Rate limits that hold across server copies; invitations, install checks and exports limited; refusals in plain words | 604 pass / 0 fail; seen to fail 11 ways |
+| 2026-09-29 | Five screen lists given the index they lacked; a test checks every hot query's plan | 606 pass / 0 fail; seen to fail 8 ways |

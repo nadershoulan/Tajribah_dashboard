@@ -766,3 +766,18 @@ Worker's imports and fails on any path to `sharp`.
 **Rollback path.** Drop the queue binding and set nothing else: the cron alone still runs
 everything within a minute. Moving image work onto Workers later (a WASM decoder) needs only its
 handlers moved into `handlers-edge.ts` — the import test says whether they are safe.
+
+## T58 · 2026-09-30 · A Shopify shop's erasure erases its access; its imported catalogue stays
+
+Shopify requires every listed app to answer three privacy webhooks. **Customers:** the app is only
+ever granted `read_products`, so Shopify never gives it customer data — a customer's request for
+their data, or for its erasure, finds nothing held, and is recorded as handled. **Shop erasure**
+(`shop/redact`, 48 hours after an uninstall): what Tajribah received from Shopify is the shop's
+access and its catalogue. The access (the stored token) is erased and the connection revoked; its
+buttons leave the shop. **The imported products stay**: they are now the merchant's own catalogue in
+their Tajribah account — with the 3D models and try-on settings built on them — which they keep
+using, and can delete, themselves.
+
+**Revisit (Nader):** if Shopify's review, or your reading of the rules, wants the imported products
+gone too, the handler (`privacy.shop_redact` in `server/modules/webhooks/dispatch.ts`) can archive or
+delete that connection's products — a small change.

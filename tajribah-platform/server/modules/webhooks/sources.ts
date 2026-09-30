@@ -31,8 +31,12 @@ export type Delivery = {
 export interface WebhookSource {
   readonly provider: Provider;
   verify(rawBody: string, headers: Headers): Promise<boolean>;
-  /** The delivery, or null when the body is not an envelope this source understands. */
-  parse(body: unknown): Delivery | null;
+  /**
+   * The delivery, or null when the body is not an envelope this source understands. `headers` are
+   * the request's when it arrives; a stored event is read again later without them (its topic,
+   * event id and store are on the row by then — only `subject` is read again).
+   */
+  parse(body: unknown, headers?: Headers): Delivery | null;
 }
 
 /**
@@ -64,6 +68,7 @@ export async function hmacSha256(secret: string, message: string): Promise<Uint8
   return new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(message)));
 }
 
+export const toBase64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 export const toHex = (bytes: Uint8Array) => [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
 const fromHex = (hex: string) => new Uint8Array(hex.match(/../g)!.map((h) => parseInt(h, 16)));
 

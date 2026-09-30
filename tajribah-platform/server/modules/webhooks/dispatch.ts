@@ -65,6 +65,19 @@ export const HANDLERS: Record<string, TopicHandler> = {
     return { outcome: 'processed', afterCommit: () => keepLive(ctx.tenantId, before.id) }; // P1.15: its button leaves the shop
   },
 
+  /**
+   * P6 — Shopify's privacy topics. The app is only ever granted `read_products`: Shopify never sends
+   * it customer data, so a customer's request finds nothing to hand over or erase. For a shop that
+   * asks to be erased (48 hours after an uninstall), what came from Shopify is the connection's
+   * access — erased (T58); the products imported stay the merchant's own catalogue in Tajribah.
+   */
+  'privacy.customer_data_request': async () => ({ outcome: 'processed' }),
+  'privacy.customer_redact': async () => ({ outcome: 'processed' }),
+  'privacy.shop_redact': async (event, _delivery, { ctx, db }) => {
+    await revokeIn(ctx, db, event.connectionId!, 'the shop asked Shopify for its data to be erased');
+    return { outcome: 'processed', afterCommit: async () => { await takeDownConnection(ctx.tenantId, event.connectionId!, ctx.requestId); } };
+  },
+
   'app.uninstalled': async (event, _delivery, { ctx, db }) => {
     await revokeIn(ctx, db, event.connectionId!, 'the app was uninstalled from the store');
     // T40: its buttons leave the shop at once, as the website promises.

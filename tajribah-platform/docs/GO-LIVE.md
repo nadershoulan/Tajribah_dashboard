@@ -69,8 +69,10 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
 - [ ] Shopify (P6), once a **Shopify Partner account** exists: create the Tajribah app; allowed redirect URL
       **`https://app.tajribah.sa/dashboard/connections`**; access scope **`read_products`** only; set
       **`SHOPIFY_CLIENT_ID`** and **`SHOPIFY_CLIENT_SECRET`** on the dashboard Worker — the Shopify card then
-      shows its Connect form by itself. Before listing the app publicly, Shopify also requires its
-      privacy webhooks (not built yet). **Check:** on a development store, connect from Store
+      shows its Connect form by itself. Webhooks, in the app's configuration, all to
+      **`https://app.tajribah.sa/api/webhooks/shopify`**: `products/create`, `products/update`,
+      `products/delete`, `app/uninstalled`, and the three privacy topics Shopify requires before a public
+      listing — `customers/data_request`, `customers/redact`, `shop/redact` (T58). **Check:** on a development store, connect from Store
       connections; the install screen asks for products only; back on Store connections the note says
       the app is installed and the first sync runs.
 - [ ] Backups (P7): schedule `scripts/dr/drill.mjs backup`, keep the dumps off the database host and

@@ -16,6 +16,8 @@ import { configureStorage } from '../storage/storage';
 import { configureConfigStore, type KvBinding } from '../edge/configs';
 import { configureRateLimiter, type RateLimitKv } from '../ratelimit/limiter';
 import { configureJobs, type JobsQueue } from '../jobs/nudge';
+import { registerWebhookSource } from '../../modules/webhooks/sources';
+import { shopifySource } from '../../modules/webhooks/shopify';
 import { registerAllConnectors } from '../../connectors';
 import { setLogLevel } from '../observability/log';
 
@@ -32,5 +34,6 @@ export function bootstrap(bindings: Record<string, unknown>, fallback: Record<st
   configureRateLimiter(env, bindings.RATE_LIMITS as RateLimitKv | undefined);
   configureJobs(env, bindings.JOBS as JobsQueue | undefined); // P7: the job queue's wake-up
   registerAllConnectors(); // P6: the store connectors (WooCommerce first)
+  if (env.SHOPIFY_CLIENT_SECRET) registerWebhookSource(shopifySource(env.SHOPIFY_CLIENT_SECRET)); // P6: Shopify's webhooks
   return env;
 }

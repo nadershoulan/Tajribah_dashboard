@@ -48,7 +48,7 @@ export async function ingest(provider: string, rawBody: string, headers: Headers
   } catch {
     throw errors.validation({ body: ['not JSON'] });
   }
-  const delivery = source.parse(body);
+  const delivery = source.parse(body, headers);
   if (!delivery?.eventId || !delivery.externalStoreId || !delivery.topic) {
     throw errors.validation({ body: ['not a webhook envelope this source understands'] });
   }

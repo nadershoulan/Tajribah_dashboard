@@ -442,3 +442,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-30 | Real-stack sweep: /api/models and /api/tryon were 500 on Workers (sharp on the request path) — fixed and guarded; smoke test kept | 731 pass + 2 live skipped / 0 fail / 0 cancelled; smoke 66/66 on workerd + PostgreSQL |
 | 2026-09-30 | Accessibility: every website and dashboard page passes axe-core (WCAG 2.1 AA); text contrast guarded by a test; the studio's three findings left for Nader | 728 pass + 2 skipped / 1 known PGlite crash (passes alone) |
 | 2026-09-30 | The Node worker (model and picture jobs) built and run end to end with the dashboard, PostgreSQL and a real S3 server: 8.97 MB → 509 KB in ~4 s | 734 pass + 3 live skipped / 0 fail / 0 cancelled; S3 live test passed; AWS signing example matched |
+| 2026-09-30 | Keyboard: every stop on 31 website and dashboard pages has a visible focus, nothing traps the keyboard — the website's claim holds | no change needed |

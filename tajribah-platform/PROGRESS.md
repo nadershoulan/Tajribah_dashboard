@@ -265,7 +265,8 @@ The public site that sells Tajribah, Arabic first.
 
 | | Account | Blocks |
 |---|---|---|
-| ⬜ | Salla Partner + app registration | All of P1 |
+| ⬜ | Salla Partner + app registration | P1's store link: the Salla connection is **built** (reading, linking, messages) and waits only for the app to be registered and tried on a demo store |
+| ⬜ | Zid Partner + app registration | The Zid connection is **built** (reading, connecting, messages); it waits for the app to be registered and tried on a demo store |
 | ⬜ | Cloudflare (R2, Workers, KV, DNS) | File storage, the live AR viewer |
 | ⬜ | Domains: **tajribah.sa** (the website and the try-on — your decision, T29) and **tajribah.com** (the dashboard's services: configs, files, events) + a short domain | AR pages, QR codes, email links |
 | ⬜ | Moyasar merchant account | Billing (P2) |

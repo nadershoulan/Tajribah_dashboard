@@ -17,7 +17,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
 import { staffAudit, users } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
-import { apiConfig, authenticate, type ApiConfig } from '@/server/core/http/api';
+import { apiConfig, authenticate, requireOwnSignIn, type ApiConfig } from '@/server/core/http/api';
 import { errors } from '@/server/core/errors/problem';
 import { log } from '@/server/core/observability/log';
 import { currentScope } from '@/server/core/observability/scope';
@@ -28,6 +28,7 @@ export type StaffContext = { userId: string; email: string; fullName: string; re
 /** The staff member behind this request, or a 404 (not staff) / 403 (no two-step sign-in). */
 export async function staffContextFor(request: Request, config: ApiConfig = apiConfig()): Promise<StaffContext> {
   const caller = await authenticate(request, config);
+  requireOwnSignIn(caller); // P8: the staff console never opens from a store's single sign-on
   const [user] = await unsafeAdminDb().select().from(users).where(eq(users.id, caller.userId)).limit(1);
   if (!user || user.deletedAt || !user.isStaff) throw errors.notFound('page');
   if (!user.totpEnabled) throw errors.forbidden('staff accounts must use two-step sign-in — turn it on in Sign-in security');

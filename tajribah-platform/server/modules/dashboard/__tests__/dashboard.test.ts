@@ -70,7 +70,8 @@ test('the numbers are this store\'s last 30 Riyadh days, and the activity is wha
     assert.equal(s.onboarding.steps.find((st) => st.key === 'connect')!.done, true);
     assert.equal(s.onboarding.steps.find((st) => st.key === 'catalogue')!.done, true, 'a sized active product');
     assert.deepEqual(s.activity.map((i) => [i.kind, i.title.en]), [['sync', 'Store connected']]);
-    assert.ok(!JSON.stringify(s).includes('7777'), "another store's numbers never appear");
+    // Numbers only: an id or a time is text, and a random one may contain the digits 7777.
+    assert.ok(!JSON.stringify(s, (_k, v) => (typeof v === 'string' ? undefined : v)).includes('7777'), "another store's numbers never appear");
   } finally { await harness.close(); }
 });
 

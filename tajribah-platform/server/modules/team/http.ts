@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { MEMBER_ROLE } from '@/lib/permissions';
 import { actorOf, setSessionTenant } from '@/server/core/auth/session';
 import { errors } from '@/server/core/errors/problem';
-import { apiConfig, assertSameOrigin, authenticate, json, readJson, tenantContextFor } from '@/server/core/http/api';
+import { apiConfig, assertSameOrigin, authenticate, json, readJson, requireOwnSignIn, tenantContextFor } from '@/server/core/http/api';
 import { loadEnv } from '@/server/core/config/env';
 import { route } from '@/server/core/observability/request';
 import { acceptInvitation, assignCustomRole, changeRole, createCustomRole, deleteCustomRole, invite, listCustomRoles, listTeam, removeMember, revokeInvitation, updateCustomRole } from './service';
@@ -67,6 +67,7 @@ export const acceptInvitationHandler = route(async (request) => {
   const config = apiConfig();
   assertSameOrigin(request, config);
   const caller = await authenticate(request, config);
+  requireOwnSignIn(caller); // P8: joining another store is the person's own act
   const { token } = await readJson(request, z.object({ token: z.string().min(10).max(200) }));
   await actorOf(caller.userId);
   const { tenantId } = await acceptInvitation({ token, userId: caller.userId, authSecret: config.authSecret });

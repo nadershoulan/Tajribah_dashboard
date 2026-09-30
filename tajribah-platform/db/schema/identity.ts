@@ -113,6 +113,35 @@ export const customRoles = pgTable('custom_roles', {
   ...timestamps(),
 }, (t) => [index('custom_roles_tenant_idx').on(t.tenantId)]);
 
+/**
+ * P8 — single sign-on (Enterprise): the store's OpenID Connect identity provider. Sign-in with it
+ * starts from the store's address, admits only people who are already members, and opens a session
+ * locked to this store (`sessions.sso_tenant_id`). The client secret is sealed under ENCRYPTION_KEY,
+ * bound to the row. `email_domains`, when set, are the only addresses the provider may assert.
+ */
+export const ssoConnections = pgTable('sso_connections', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  issuer: text('issuer').notNull(),
+  clientId: text('client_id').notNull(),
+  clientSecretEncrypted: text('client_secret_encrypted').notNull(),
+  emailDomains: json<string[]>('email_domains').notNull(),
+  enabled: bool('enabled').notNull().default(false),
+  createdBy: uuid('created_by'),
+  ...timestamps(),
+}, (t) => [uniqueIndex('sso_connections_tenant_unq').on(t.tenantId)]);
+
+/** P8 — a member's identity at the store's provider (issuer + subject), linked on their first SSO sign-in. */
+export const ssoIdentities = pgTable('sso_identities', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  issuer: text('issuer').notNull(),
+  subject: text('subject').notNull(),
+  lastLoginAt: ts('last_login_at'),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex('sso_identities_subject_unq').on(t.tenantId, t.issuer, t.subject)]);
+
 export const tenantMemberships = pgTable('tenant_memberships', {
   id: pk(),
   tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
@@ -166,6 +195,8 @@ export const sessions = pgTable('sessions', {
   impersonatingUntil: ts('impersonating_until'),
   /** A4b: the store this staff session goes back to when the view ends. */
   impersonationReturnTenantId: uuid('impersonation_return_tenant_id'),
+  /** P8: signed in through this store's single sign-on — the session acts for this store only. */
+  ssoTenantId: uuid('sso_tenant_id'),
   createdAt: createdAt(),
 }, (t) => [index('sessions_user_idx').on(t.userId)]);
 

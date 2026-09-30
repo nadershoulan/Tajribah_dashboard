@@ -58,8 +58,22 @@ export function assertSameOrigin(request: Request, config: ApiConfig): void {
   throw errors.forbidden('cross-origin request refused');
 }
 
-/** `staffViewUntil` (A4b): this session is a staff member's read-only view of `tenantId` until then. */
-export type Caller = { userId: string; sessionId: string; tenantId: string | null; staffViewUntil: Date | null };
+/**
+ * `staffViewUntil` (A4b): this session is a staff member's read-only view of `tenantId` until then.
+ * `ssoTenantId` (P8): signed in through that store's single sign-on — the session acts for it alone.
+ */
+export type Caller = { userId: string; sessionId: string; tenantId: string | null; staffViewUntil: Date | null; ssoTenantId: string | null };
+
+const SSO_ONLY = 'you signed in with your store’s single sign-on, which opens that store only — sign in with your Tajribah password for this';
+
+/**
+ * P8 — account-wide actions (another store, two-step sign-in, invitations, the staff console) need a
+ * sign-in of the person's own. A store's identity provider vouches for that store only: were an SSO
+ * session allowed these, whoever runs the provider could reach the person's other stores.
+ */
+export function requireOwnSignIn(caller: Caller): void {
+  if (caller.ssoTenantId) throw errors.forbidden(SSO_ONLY);
+}
 
 /** The authenticated caller, or 401. Binds the user (and tenant) to every later log line. */
 export async function authenticate(request: Request, config: ApiConfig = apiConfig()): Promise<Caller> {
@@ -68,7 +82,7 @@ export async function authenticate(request: Request, config: ApiConfig = apiConf
   if (!match) throw errors.unauthenticated();
   const claims = await readAccessToken(match[1], config.authSecret);
   const session = await requireSession(claims.sid);
-  const caller = { userId: claims.sub, sessionId: session.id, tenantId: session.tenantId ?? null, staffViewUntil: session.impersonatingUntil ?? null };
+  const caller = { userId: claims.sub, sessionId: session.id, tenantId: session.tenantId ?? null, staffViewUntil: session.impersonatingUntil ?? null, ssoTenantId: session.ssoTenantId ?? null };
   bindActor({ userId: caller.userId, tenantId: caller.tenantId });
   return caller;
 }
@@ -81,6 +95,7 @@ export async function authenticate(request: Request, config: ApiConfig = apiConf
 export async function tenantContextFor(request: Request, config: ApiConfig = apiConfig()): Promise<TenantContext> {
   const caller = await authenticate(request, config);
   if (!caller.tenantId) throw errors.forbidden('choose a store first');
+  if (caller.ssoTenantId && caller.tenantId !== caller.ssoTenantId) throw errors.forbidden(SSO_ONLY); // P8: never another store
   const actor = await actorOf(caller.userId);
   if (caller.staffViewUntil) {
     // A4b: a staff view ends at its time, whatever the page is still asking for.

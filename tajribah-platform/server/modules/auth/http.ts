@@ -10,7 +10,7 @@
  */
 import { z } from 'zod';
 import { route } from '@/server/core/observability/request';
-import { apiConfig, assertSameOrigin, authenticate, json, readJson } from '@/server/core/http/api';
+import { apiConfig, assertSameOrigin, authenticate, json, readJson, requireOwnSignIn } from '@/server/core/http/api';
 import {
   actorOf, clearRefreshCookie, readRefreshCookie, refreshCookie, revokeByRefreshToken,
   rotateSession, setSessionTenant, type IssuedSession,
@@ -149,7 +149,8 @@ export const meHandler = route(async (request) => {
     await endStaffView(caller.sessionId, { userId: caller.userId, requestId: currentScope()?.requestId ?? 'unscoped', why: actor.isStaff ? 'expired' : 'no longer staff' });
     caller = await authenticate(request);
   }
-  const stores = await membershipsOf(caller.userId);
+  // P8: a single sign-on session sees, and can switch to, its own store only.
+  const stores = (await membershipsOf(caller.userId)).filter(({ tenant }) => !caller.ssoTenantId || tenant.id === caller.ssoTenantId);
   const viewed = caller.staffViewUntil && caller.tenantId && !stores.some(({ tenant }) => tenant.id === caller.tenantId)
     ? await staffViewedStore(caller.tenantId) : null;
   if (viewed) stores.push({ tenant: viewed, role: 'viewer' });
@@ -160,6 +161,7 @@ export const meHandler = route(async (request) => {
     currentTenantId: caller.tenantId,
     // A4b: this session is a read-only staff view of the current store until then.
     staffView: caller.staffViewUntil ? { storeId: caller.tenantId, until: caller.staffViewUntil.toISOString() } : null,
+    ssoStoreId: caller.ssoTenantId,
     tenants: stores.map(({ tenant, role }) => ({
       id: tenant.id, slug: tenant.slug, name: tenant.name, status: tenant.status, role,
       plan: plans.get(tenant.id) ?? 'starter',
@@ -194,6 +196,7 @@ export const addStoreHandler = route(async (request) => {
   const config = apiConfig();
   assertSameOrigin(request, config);
   const caller = await authenticate(request, config);
+  requireOwnSignIn(caller);
   if (caller.staffViewUntil) throw errors.forbidden('a staff view cannot add stores');
   const input = await readJson(request, z.object({ storeName: z.string().trim().min(1).max(120), locale: z.enum(['ar', 'en']).optional() }));
   const { tenant, slugNeedsConfirmation } = await addStore(caller.userId, input);
@@ -238,6 +241,7 @@ export const twoFactorSetupHandler = route(async (request) => {
   const config = apiConfig();
   assertSameOrigin(request, config);
   const caller = await authenticate(request, config);
+  requireOwnSignIn(caller);
   const { password } = await readJson(request, PASSWORD_AGAIN);
   return json(await startTwoFactorSetup(caller.userId, password));
 });
@@ -247,6 +251,7 @@ export const twoFactorEnableHandler = route(async (request) => {
   const config = apiConfig();
   assertSameOrigin(request, config);
   const caller = await authenticate(request, config);
+  requireOwnSignIn(caller);
   const { code } = await readJson(request, z.object({ code: z.string().trim().min(1).max(20) }));
   return json(await enableTwoFactor(caller.userId, code, config.authSecret, caller.sessionId));
 });
@@ -256,6 +261,7 @@ export const twoFactorDisableHandler = route(async (request) => {
   const config = apiConfig();
   assertSameOrigin(request, config);
   const caller = await authenticate(request, config);
+  requireOwnSignIn(caller);
   const body = await readJson(request, PASSWORD_AGAIN.extend({ code: z.string().trim().min(1).max(20) }));
   await disableTwoFactor(caller.userId, body, config.authSecret);
   return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
@@ -266,6 +272,7 @@ export const twoFactorBackupCodesHandler = route(async (request) => {
   const config = apiConfig();
   assertSameOrigin(request, config);
   const caller = await authenticate(request, config);
+  requireOwnSignIn(caller);
   const { password } = await readJson(request, PASSWORD_AGAIN);
   return json(await regenerateBackupCodes(caller.userId, password, config.authSecret));
 });

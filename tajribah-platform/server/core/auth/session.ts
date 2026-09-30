@@ -40,6 +40,8 @@ const refreshHash = (secretKey: string, token: string) => keyedHash(secretKey, '
 export async function issueSession(input: {
   userId: string;
   tenantId?: string | null;
+  /** P8: a single sign-on session, locked to this store. */
+  ssoTenantId?: string | null;
   userAgent?: string | null;
   ip?: string | null;
   config: SessionSecrets;
@@ -53,6 +55,7 @@ export async function issueSession(input: {
     id: uuidv7(),
     userId: input.userId,
     tenantId: input.tenantId ?? null,
+    ssoTenantId: input.ssoTenantId ?? null,
     userAgent: input.userAgent?.slice(0, 200) ?? null,
     ipHash: await hashIp(input.ip, input.config.authSecret),
     expiresAt,
@@ -227,6 +230,9 @@ export async function requireSession(sessionId: string, now = new Date()): Promi
 /** The tenant switcher: change which store this session is acting for. */
 export async function setSessionTenant(sessionId: string, tenantId: string, config: SessionSecrets): Promise<string> {
   const db = unsafeAdminDb();
+  const [current] = await db.select({ ssoTenantId: sessions.ssoTenantId }).from(sessions).where(eq(sessions.id, sessionId)).limit(1);
+  // P8: a single sign-on session stays with the store whose provider signed it in.
+  if (current?.ssoTenantId && current.ssoTenantId !== tenantId) throw errors.forbidden('a single sign-on session opens its own store only');
   const [updated] = await db.update(sessions)
     .set({ tenantId, lastSeenAt: new Date(), impersonatingUntil: null, impersonationReturnTenantId: null }) // switching ends a staff view (A4b)
     .where(and(eq(sessions.id, sessionId), isNull(sessions.revokedAt)))

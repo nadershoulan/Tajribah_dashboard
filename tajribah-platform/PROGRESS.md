@@ -144,7 +144,7 @@ The public site that sells Tajribah, Arabic first.
 | ✅ | M5 Feature pages | One page per way to try — on the model, on your photo, true size, phone hand-off — each saying plainly what it does not do |
 | ✅ | M6 Industry pages | Watches, jewellery, eyewear, bags — what works today and what is not built yet |
 | ✅ | M7 Blog | 6 articles, no invented statistics |
-| ✅ | M8 Help centre | 15 articles written against the real dashboard |
+| ✅ | M8 Help centre | 17 articles written against the real dashboard — new: connecting WooCommerce, and signing in with your company account (SSO) |
 | ✅ | M10 Company & careers | About and careers pages |
 | ✅ | M11 Legal pages | Privacy, terms, refunds, cookies — need a lawyer's review before launch |
 | ◐ | M1 Site setup | Built; the cookie consent and site analytics wait on which analytics tool you choose |
@@ -436,3 +436,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-30 | Connect a Shopify shop from Store connections (appears once the Shopify app is registered) | 710 pass + 1 live skipped / 0 fail / 0 cancelled; seen to fail 15 ways (1 equivalent); checked in a real browser |
 | 2026-09-30 | Shopify's notices: changes at once, deletions, uninstall, the three required privacy notices | 713 pass + 1 live skipped / 0 fail / 0 cancelled; seen to fail 12 ways (1 equivalent) |
 | 2026-09-30 | Single sign-on (Enterprise): settings, sign-in page, members only, sessions locked to their store | 728 pass + 2 live skipped / 0 fail / 0 cancelled; seen to fail 31 ways; a real OpenID provider; checked in a real browser |
+| 2026-09-30 | Website corrected: WooCommerce needs no plugin, Shopify's line says what exists, no variants claimed, the trial is on Growth; two new help articles | website facts tests pass; checked in a real browser (en 1440, ar 390) |

@@ -4,7 +4,8 @@ import type { Bi } from '@/lib/lang';
  * Help centre (Track M, M8). Every article describes the merchant dashboard as it is built
  * (tajribah-platform): the onboarding steps, the connection, 3D models and versions, the AR
  * button, the embed line, team roles, two-step sign-in, plans, the 14-day trial and what happens
- * after it, invoices with 15% VAT, AI credits, and privacy requests (30 days). Nothing here
+ * after it, invoices with 15% VAT, AI credits, privacy requests (30 days), WooCommerce and single
+ * sign-on. Nothing here
  * promises a feature the dashboard does not have.
  */
 export type HelpArticle = {
@@ -21,7 +22,7 @@ export type HelpCategoryKey = 'start' | 'connect' | 'models' | 'button' | 'billi
 
 export const HELP_CATEGORIES: { key: HelpCategoryKey; title: Bi; blurb: Bi }[] = [
   { key: 'start', title: { ar: 'البداية', en: 'Getting started' }, blurb: { ar: 'إنشاء الحساب وخطوات الإعداد الأولى.', en: 'Creating your account and the first setup steps.' } },
-  { key: 'connect', title: { ar: 'ربط المتجر', en: 'Connecting your store' }, blurb: { ar: 'سلة وزد وسطر التضمين لأي متجر آخر.', en: 'Salla, Zid, and the embed line for any other store.' } },
+  { key: 'connect', title: { ar: 'ربط المتجر', en: 'Connecting your store' }, blurb: { ar: 'سلة وزد وWooCommerce وسطر التضمين لأي متجر آخر.', en: 'Salla, Zid, WooCommerce, and the embed line for any other store.' } },
   { key: 'models', title: { ar: 'المنتجات والنماذج', en: 'Products and 3D models' }, blurb: { ar: 'المقاسات والنماذج ثلاثية الأبعاد ونسخها.', en: 'Sizes, 3D models and their versions.' } },
   { key: 'button', title: { ar: 'الزر والتجربة', en: 'The button and try-on' }, blurb: { ar: 'شكل الزر ورموز QR وما يراه العميل.', en: 'Button style, QR codes and what shoppers see.' } },
   { key: 'billing', title: { ar: 'الباقات والفواتير', en: 'Plans and invoices' }, blurb: { ar: 'التجربة المجانية والباقات والفواتير والأرصدة.', en: 'The free trial, plans, invoices and credits.' } },
@@ -40,7 +41,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
       { ar: 'أكمل خطوات الإعداد في الصفحة الرئيسية بالترتيب الذي يناسبك.', en: 'Work through the setup steps on the home page in whatever order suits you.' },
     ],
     body: [
-      { ar: 'تبدأ كل المتاجر بباقة المبتدئة في فترة تجربة مجانية لمدة 14 يومًا، دون بطاقة دفع. تظهر المدة المتبقية أسفل القائمة الجانبية.', en: 'Every store starts on the Starter plan with a 14-day free trial and no card required. The days left show at the bottom of the side menu.' },
+      { ar: 'يبدأ كل متجر بتجربة مجانية لمدة 14 يومًا بمزايا باقة «النمو» — ومنها ربط متجرك على سلة أو زد — دون بطاقة دفع. تظهر المدة المتبقية أسفل القائمة الجانبية، وتختار باقتك قبل نهايتها.', en: 'Every store starts with a 14-day free trial with the Growth plan’s features — connecting your Salla or Zid store included — and no card required. The days left show at the bottom of the side menu; you choose your plan before they run out.' },
       { ar: 'يمكنك تخطي أي خطوة إعداد والعودة إليها لاحقًا من «دليل الإعداد».', en: 'You can skip any setup step and come back to it later from the “Setup guide”.' },
     ],
   },
@@ -78,6 +79,21 @@ export const HELP_ARTICLES: HelpArticle[] = [
     ],
     body: [
       { ar: 'نعمل حاليًا مع المتاجر الأولى بالتنسيق المباشر؛ إن لم يظهر لك خيار زد بعد، تواصل معنا لنفعّله لمتجرك.', en: 'We are onboarding our first stores directly; if the Zid option is not showing for you yet, contact us and we will enable it for your store.' },
+    ],
+  },
+  {
+    slug: 'connect-woocommerce', category: 'connect', updated: '2026-09-30',
+    title: { ar: 'ربط متجرك على WooCommerce', en: 'Connect your WooCommerce store' },
+    summary: { ar: 'توافق من لوحة ووردبريس نفسها — لا إضافة ولا مفاتيح تنسخها.', en: 'You approve it on your own WordPress site — no plugin, no keys to copy.' },
+    steps: [
+      { ar: 'افتح «ربط المتجر»، واكتب عنوان متجرك في خانة WooCommerce (يبدأ بـ ⁦https://⁩)، ثم اضغط «اربط عبر WooCommerce».', en: 'Open “Store connections”, type your store’s address in the WooCommerce box (it starts with https://), then press “Connect with WooCommerce”.' },
+      { ar: 'ننقلك إلى متجرك: سجّل الدخول إلى ووردبريس إن طُلب منك، ووافق على منح تجربة صلاحية القراءة.', en: 'We take you to your store: sign in to WordPress if asked, and approve read access for Tajribah.' },
+      { ar: 'تعود إلى «ربط المتجر» وتبدأ أول مزامنة تلقائيًا، ثم نزامن كل ساعة.', en: 'You come back to “Store connections” and the first sync starts on its own; after that we sync every hour.' },
+    ],
+    body: [
+      { ar: 'ربط WooCommerce ضمن باقتي «الاحترافية» و«المؤسسات». نقرأ المنتجات فقط: الاسم والوصف والسعر والصور والحالة — المسودات والمنتجات الخاصة تبقى مخفية كما هي في متجرك.', en: 'Connecting WooCommerce comes with the Pro and Enterprise plans. We only read products: name, description, price, pictures and status — drafts and private products stay hidden, as they are in your store.' },
+      { ar: 'الزر في صفحات منتجاتك يُركَّب بسطر التضمين من صفحة «التركيب في متجرك».', en: 'The button on your product pages goes in with the embed line from the “Install in your store” page.' },
+      { ar: 'إذا ألغيت صلاحية تجربة في WooCommerce (الإعدادات ← متقدم ← REST API)، تظهر الحالة «يحتاج إعادة ربط» — اربطه من جديد بالخطوات نفسها.', en: 'If you revoke Tajribah’s access in WooCommerce (Settings → Advanced → REST API), the status shows “Needs reconnecting” — connect again with the same steps.' },
     ],
   },
   {
@@ -183,6 +199,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     summary: { ar: 'المالك والمسؤول والمحرّر والمحلّل والمشاهد.', en: 'Owner, admin, editor, analyst and viewer.' },
     body: [
       { ar: 'من «الفريق» أرسل دعوة بالبريد واختر الدور. المحرّر يعدّل المنتجات والنماذج، والمحلّل يرى التحليلات ويصدّرها، والمشاهد يطّلع فقط. الفوترة للمالك والمسؤول.', en: 'From “Team” send an email invitation and choose a role. Editors change products and models, analysts see and export analytics, viewers only look. Billing is for the owner and admins.' },
+      { ar: 'في باقة «المؤسسات» يستطيع المالك والمسؤول إنشاء أدوار بأسمائكم، بتحديد ما يشمله كل دور من العمل على المنتجات والنماذج والتحليلات.', en: 'On the Enterprise plan, the owner and admins can also make roles with your own names, ticking which of the work on products, models and analytics each one covers.' },
+    ],
+  },
+  {
+    slug: 'single-sign-on', category: 'account', updated: '2026-09-30',
+    title: { ar: 'الدخول بحساب شركتك (SSO)', en: 'Sign in with your company account (SSO)' },
+    summary: { ar: 'يدخل فريقك بحساب Microsoft أو Google أو Okta — لباقة المؤسسات.', en: 'Your team signs in with its Microsoft, Google or Okta account — on the Enterprise plan.' },
+    steps: [
+      { ar: 'المالك أو المسؤول يفتح «الإعدادات» ثم «تسجيل الدخول الموحّد».', en: 'The owner or an admin opens “Settings”, then “Single sign-on”.' },
+      { ar: 'في مزوّد شركتكم أنشئوا تطبيق OpenID Connect، وضعوا فيه عنوان الرجوع الظاهر في الصفحة.', en: 'At your company’s provider, create an OpenID Connect app and give it the redirect address shown on the page.' },
+      { ar: 'انسخوا إلى تجربة عنوان المزوّد (Issuer) ومعرّف التطبيق والسر، وحدّدوا نطاقات بريدكم إن أردتم، ثم شغّلوه واحفظوا — نتأكد أن المزوّد يجيب قبل الحفظ.', en: 'Copy the issuer URL, client ID and secret into Tajribah, add your email domains if you want to, then turn it on and save — we check the provider answers before saving.' },
+      { ar: 'يدخل فريقك من العنوان الذي يظهر بعد الحفظ، أو من «الدخول بحساب شركتك» في صفحة تسجيل الدخول.', en: 'Your team signs in at the address shown after saving, or from “Sign in with your company account” on the sign-in page.' },
+    ],
+    body: [
+      { ar: 'يدخل به من دعوتموه إلى المتجر فقط؛ ادعُ الأعضاء من «الفريق» أولًا. والدخول الموحّد يفتح هذا المتجر وحده — لا المتاجر الأخرى للشخص ولا إعدادات حسابه؛ لتغيير التحقق بخطوتين مثلًا يدخل بالبريد وكلمة المرور.', en: 'Only people you have invited to the store can use it; invite members from “Team” first. And single sign-on opens this store alone — not the person’s other stores, nor their account settings; to change two-step sign-in, for example, they sign in with email and password.' },
+      { ar: 'الدخول بكلمة المرور يبقى متاحًا كما هو.', en: 'Signing in with a password keeps working as before.' },
     ],
   },
   {

@@ -12,14 +12,14 @@ export default function Integrations() {
   const platforms = [
     { name: t('سلة', 'Salla'), latin: 'Salla', how: t('تطبيق من متجر تطبيقات سلة، بموافقة واحدة.', 'An app from the Salla app store, approved in one step.') },
     { name: t('زد', 'Zid'), latin: 'Zid', how: t('تطبيق من متجر تطبيقات زد، بموافقة واحدة.', 'An app from the Zid app market, approved in one step.') },
-    { name: 'Shopify', latin: 'Shopify', how: t('تطبيق Shopify وكتلة جاهزة لقالب صفحة المنتج.', 'A Shopify app and a ready block for the product template.') },
-    { name: 'WooCommerce', latin: 'WooCommerce', how: t('إضافة ووردبريس تضيف الزر إلى صفحات المنتجات.', 'A WordPress plugin that adds the button to product pages.') },
+    { name: 'Shopify', latin: 'Shopify', how: t('تطبيق تجربة تثبّته من شاشة Shopify نفسها، بإذن قراءة المنتجات فقط.', 'The Tajribah app, installed from Shopify’s own screen, with permission to read products only.') },
+    { name: 'WooCommerce', latin: 'WooCommerce', how: t('توافق على القراءة من لوحة ووردبريس نفسها — لا إضافة ولا مفاتيح تنسخها.', 'You approve read access on your own WordPress site — no plugin, no keys to copy.') },
   ];
 
   const syncs = [
     t('المنتجات والصور والأوصاف', 'Products, images and descriptions'),
-    t('الخيارات: المقاسات والألوان والخامات', 'Variants: sizes, colours and materials'),
-    t('الأسعار', 'Prices'),
+    t('الأسعار، بدقة الهللة', 'Prices, exact to the halala'),
+    t('حالة المنتج: المسودات والمخفية تبقى كما هي', 'Status: drafts and hidden products stay as they are'),
   ];
 
   // The same two lines the dashboard's install page gives (tajribah-platform `widget/src/snippet.ts`).

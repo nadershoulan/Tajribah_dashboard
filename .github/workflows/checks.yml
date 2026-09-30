@@ -31,6 +31,9 @@ jobs:
         run: corepack enable && corepack prepare pnpm@11.25.0 --activate
       - name: install
         run: pnpm install --no-frozen-lockfile
+      - name: the website's packages (platform tests import its shared files, which import react)
+        run: pnpm install --frozen-lockfile
+        working-directory: tajribah-try-on
       - name: every gate check
         run: node scripts/verify.mjs --modules node_modules
 

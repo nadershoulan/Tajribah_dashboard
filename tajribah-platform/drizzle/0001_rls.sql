@@ -10,10 +10,12 @@
 --                   by tenant explicitly; wrapping it in withTenant scopes nothing (§13.2).
 
 
-CREATE ROLE tajribah_app NOLOGIN;
+-- Roles belong to the server, not to one database: a second database on the same server (staging
+-- beside production) finds them made already (found 2026-10-01 on a real PostgreSQL).
+DO $$ BEGIN CREATE ROLE tajribah_app NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 --> statement-breakpoint
 
-CREATE ROLE tajribah_admin NOLOGIN BYPASSRLS;
+DO $$ BEGIN CREATE ROLE tajribah_admin NOLOGIN BYPASSRLS; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 --> statement-breakpoint
 
 -- NULLIF, not an inline cast: COMMIT resets a transaction-local GUC to the empty string,

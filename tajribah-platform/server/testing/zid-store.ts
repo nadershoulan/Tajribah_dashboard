@@ -14,6 +14,7 @@
  *    `invalid_request` **(to confirm — no real answer seen)**. `grant_type=authorization_code` swaps a
  *    code, once, for the same set;
  *  - `GET /v1/managers/account/profile` — the store (`user.store.id`, `title`) the tokens open;
+ *  - `POST /v1/managers/webhooks` — a webhook subscription, recorded;
  *  - 429 with `Retry-After` while throttled, 503 while down.
  * Tests only.
  */
@@ -23,7 +24,7 @@ import { fromMinor } from '@/server/connectors/woocommerce/money';
 import { ZID_API, ZID_OAUTH, type ZidProduct } from '@/server/connectors/zid/connector';
 
 export const ZID_STORE_ID = '3';
-export const ZID_APP = { clientId: '4012', clientSecret: 'zid_test_secret', redirectUri: 'https://app.tajribah.sa/zid/callback' };
+export const ZID_APP = { clientId: '4012', clientSecret: 'zid_test_secret', redirectUri: 'https://app.tajribah.sa/api/connections/zid/callback' };
 
 const hasArabic = (text: string) => /[؀-ۿ]/.test(text);
 const uuidOf = (i: number) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`;
@@ -51,6 +52,8 @@ export class ZidStore {
   readonly refreshTokens = new Set<string>(['zid_rt_ok']);
   /** Authorization codes Zid issued, each good once. */
   readonly codes = new Set<string>();
+  /** Webhook subscriptions the app made (POST /v1/managers/webhooks). */
+  readonly webhooks: { event: string; target_url: string; original_id: string; username: string; password: string }[] = [];
   down = false;
   throttleNext = 0;
   requests = 0;
@@ -77,6 +80,13 @@ export class ZidStore {
       created_at: new Date(Date.UTC(2026, 0, 1) + held.createdAt * 1000).toISOString(),
       updated_at: p.updatedAt.toISOString().replace('.000Z', '.000000Z'),
     };
+  }
+
+  /** The merchant approves on Zid's screen: a code, good once. */
+  approve(): string {
+    const code = `zid_code_${this.codes.size + this.issued + 1}_${Math.random().toString(36).slice(2, 8)}`;
+    this.codes.add(code);
+    return code;
   }
 
   /** A merchant edits a product in the Zid dashboard. */
@@ -125,6 +135,13 @@ export class ZidStore {
     if (url.origin === new URL(ZID_API).origin && url.pathname === '/v1/managers/account/profile') {
       if (!known) return Response.json({ status: 'error', message: { type: 'error', code: null, name: null, description: 'Unauthenticated' } }, { status: 401 });
       return Response.json({ status: 'object', user: { id: 51, name: 'Store Owner', email: 'owner@example.sa', store: { id: Number(ZID_STORE_ID), uuid: 'd297fb8b-c322-412e-a2f4-ffa96dc57022', username: this.storeTitle, title: this.storeTitle, url: 'https://oud.zid.store/', currency: { code: 'SAR' } } } });
+    }
+
+    if (url.origin === new URL(ZID_API).origin && url.pathname === '/v1/managers/webhooks' && init?.method === 'POST') {
+      if (!known) return Response.json({ status: 'error', message: { type: 'error', code: null, name: null, description: 'Unauthenticated' } }, { status: 401 });
+      const sub = JSON.parse(String(init.body));
+      this.webhooks.push(sub);
+      return Response.json({ status: 'object', webhook: { id: `wh-${this.webhooks.length}`, ...sub, password: undefined } }, { status: 201 });
     }
 
     if (url.origin !== new URL(ZID_API).origin || !url.pathname.startsWith('/v1/products/') || (init?.method ?? 'GET') !== 'GET') return new Response('Not Found', { status: 404 });

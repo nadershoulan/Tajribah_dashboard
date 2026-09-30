@@ -95,6 +95,16 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
       the store is linked and the first sync runs; the products match the Salla store (names in both
       languages, prices, pictures). Then confirm the four details marked in DECISIONS T61 (listing order,
       time zone, a missing price, the page format) and run `salla.test.ts`'s conformance suite against it.
+- [ ] Zid (P6, T61), once the **Zid Partner** account exists: create the Tajribah app; app URL
+      **`https://app.tajribah.sa/api/connections/zid/activate`** (Zid's Activate opens it and OAuth starts at
+      once); allowed redirect URL **`https://app.tajribah.sa/api/connections/zid/callback`**; scopes to read
+      products and to manage webhooks (`third_webhook_write`). Set **`ZID_CLIENT_ID`** and
+      **`ZID_CLIENT_SECRET`** on the dashboard Worker — the Zid card then shows "Connect with Zid". **Check**
+      on a Zid demo store: Activate from the Zid App Market → approve → sign in to Tajribah → Store connections
+      says the store is linked, the first sync runs, the products match (both names, prices, pictures); edit a
+      product in Zid → it updates within a minute (the webhook). Then confirm the four details in DECISIONS T61
+      (page size, unpublished products, a missing price, a refused refresh) and capture Zid's uninstall
+      message to handle it.
 - [ ] Smoke test (P0.20): with a test store's account (no two-step sign-in),
       `node scripts/smoke/smoke.mjs --base https://app.tajribah.sa --email … --password …` — every read and a
       merchant's usual changes; it must end "passed".

@@ -17,6 +17,8 @@ import { disconnectStore, listConnections } from './service';
 import { completeWooConnect, startWooConnect } from './woocommerce';
 import { completeShopifyConnect, startShopifyConnect, type ShopifyAppConfig } from './shopify';
 import { linkSallaStore, openSallaApp, type SallaLinkConfig } from './salla';
+import { completeZidCallback, linkZidStore, startZid, startZidFromDashboard, ZID_STATE_COOKIE, STATE_TTL_MS, type ZidConnectConfig } from './zid';
+import { zidApp } from '@/server/connectors';
 import { loadEnv } from '@/server/core/config/env';
 
 /** The `[id]` segment at `index` from the end. A malformed id is a 404, like a missing one. */
@@ -98,7 +100,7 @@ const shopifyNotYet = () => errors.notImplemented('Shopify shops can be connecte
 export const connectionProvidersHandler = route(async (request) => {
   const config = apiConfig();
   await tenantContextFor(request, config);
-  return json({ woocommerce: true, shopify: shopifyApp(config) !== null, salla: sallaLink(config) !== null, zid: false });
+  return json({ woocommerce: true, shopify: shopifyApp(config) !== null, salla: sallaLink(config) !== null, zid: zidConnect(config) !== null });
 });
 
 /**
@@ -126,6 +128,60 @@ export const openSallaAppHandler = route(async (request) => {
   if (!link) throw sallaNotYet();
   const { token } = await readJson(request, z.object({ token: z.string().min(1).max(4096) }));
   return json(await openSallaApp(token, link));
+});
+
+/** The Zid app's settings, or null until it is registered in the Zid Partner dashboard (T61). */
+function zidConnect(config: { authSecret: string; appUrl: string }): ZidConnectConfig | null {
+  const app = zidApp();
+  return app ? { ...app, authSecret: config.authSecret, appUrl: config.appUrl } : null;
+}
+const zidNotYet = () => errors.notImplemented('Zid stores can be connected once the Tajribah Zid app is registered');
+
+/** The browser's half of Zid's `state`: HttpOnly, only sent back to the Zid routes, ten minutes. */
+const stateCookie = (nonce: string, secure: boolean) =>
+  `${ZID_STATE_COOKIE}=${nonce}; Path=/api/connections/zid; HttpOnly; SameSite=Lax; Max-Age=${STATE_TTL_MS / 1000}${secure ? '; Secure' : ''}`;
+const clearStateCookie = (secure: boolean) => `${ZID_STATE_COOKIE}=; Path=/api/connections/zid; HttpOnly; SameSite=Lax; Max-Age=0${secure ? '; Secure' : ''}`;
+const cookieValue = (request: Request, name: string) =>
+  (request.headers.get('cookie') ?? '').split(';').map((c) => c.trim()).find((c) => c.startsWith(`${name}=`))?.slice(name.length + 1) || null;
+
+/** API-084 — POST /api/connections/zid/start → { authorizeUrl }: a signed-in merchant connects their Zid store. */
+export const startZidHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  const app = zidConnect(config);
+  if (!app) throw zidNotYet();
+  const { authorizeUrl, nonce } = await startZidFromDashboard(ctx, app);
+  return json({ authorizeUrl }, { headers: { 'set-cookie': stateCookie(nonce, config.secureCookies) } });
+});
+
+/** API-085 — GET /api/connections/zid/activate: Zid's "Activate" opens this; OAuth starts at once (Zid's policy). */
+export const activateZidHandler = route(async () => {
+  const config = apiConfig();
+  const app = zidConnect(config);
+  if (!app) throw zidNotYet();
+  const { authorizeUrl, nonce } = await startZid(app, null);
+  return new Response(null, { status: 302, headers: { location: authorizeUrl, 'set-cookie': stateCookie(nonce, config.secureCookies), 'cache-control': 'no-store' } });
+});
+
+/** API-086 — GET /api/connections/zid/callback?code&state: exchanged here, at once; back to Store connections. */
+export const zidCallbackHandler = route(async (request) => {
+  const config = apiConfig();
+  const app = zidConnect(config);
+  if (!app) throw zidNotYet();
+  const next = await completeZidCallback(new URL(request.url).searchParams, cookieValue(request, ZID_STATE_COOKIE), app, { requestId: currentScope()?.requestId });
+  return new Response(null, { status: 302, headers: { location: new URL(next, config.appUrl).toString(), 'set-cookie': clearStateCookie(config.secureCookies), 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' } });
+});
+
+/** API-087 — POST /api/connections/zid/link { ticket }: the signed-in merchant links that Zid store (T61). */
+export const linkZidHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  const app = zidConnect(config);
+  if (!app) throw zidNotYet();
+  const { ticket } = await readJson(request, z.object({ ticket: z.string().min(1).max(1024) }));
+  return json(await linkZidStore(ctx, ticket, app));
 });
 
 /** API-069 — POST /api/connections/salla/link { ticket }: the signed-in merchant links that Salla store (T61). */

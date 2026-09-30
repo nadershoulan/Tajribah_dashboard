@@ -20,6 +20,7 @@ import { configureJobs, type JobsQueue } from '../jobs/nudge';
 import { registerWebhookSource } from '../../modules/webhooks/sources';
 import { shopifySource } from '../../modules/webhooks/shopify';
 import { sallaSource } from '../../modules/webhooks/salla';
+import { zidSource } from '../../modules/webhooks/zid';
 import { registerAllConnectors } from '../../connectors';
 import { setLogLevel } from '../observability/log';
 import { registerDbConnector } from '../../../db/client';
@@ -46,5 +47,6 @@ export function bootstrap(bindings: Record<string, unknown>, fallback: Record<st
   registerAllConnectors(); // P6: the store connectors (WooCommerce first)
   if (env.SHOPIFY_CLIENT_SECRET) registerWebhookSource(shopifySource(env.SHOPIFY_CLIENT_SECRET)); // P6: Shopify's webhooks
   if (env.SALLA_WEBHOOK_SECRET) registerWebhookSource(sallaSource(env.SALLA_WEBHOOK_SECRET)); // T61: Salla's webhooks
+  if (env.ZID_CLIENT_SECRET) registerWebhookSource(zidSource(env.ZID_CLIENT_SECRET)); // T61: Zid's webhooks (Basic auth per store and event)
   return env;
 }

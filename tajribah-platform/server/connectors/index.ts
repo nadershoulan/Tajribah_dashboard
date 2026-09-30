@@ -21,7 +21,7 @@ export function sallaApp(): SallaApp | null {
 export function zidApp(): ZidApp | null {
   const env = loadEnv();
   return env.ZID_CLIENT_ID && env.ZID_CLIENT_SECRET
-    ? { clientId: env.ZID_CLIENT_ID, clientSecret: env.ZID_CLIENT_SECRET, redirectUri: new URL('/zid/callback', env.APP_URL).toString() }
+    ? { clientId: env.ZID_CLIENT_ID, clientSecret: env.ZID_CLIENT_SECRET, redirectUri: new URL('/api/connections/zid/callback', env.APP_URL).toString() }
     : null;
 }
 

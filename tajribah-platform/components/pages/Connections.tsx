@@ -79,6 +79,7 @@ export default function Connections() {
   const { data: available } = useResource((source) => source.connectionProviders(), []);
   const shopifyBack = useShopifyReturn(() => setVersion((v) => v + 1));
   const sallaBack = useSallaReturn(() => setVersion((v) => v + 1));
+  const zidBack = useZidReturn(() => setVersion((v) => v + 1));
   // Back from WooCommerce's approval page: it adds success=1 (approved) or 0.
   const [returned] = useState(() => {
     try {
@@ -122,6 +123,17 @@ export default function Connections() {
               : t(`لم يكتمل ربط متجرك على سلة: ${sallaBack.problem}`, `Your Salla store was not linked: ${sallaBack.problem}`)}
         </p>
       )}
+      {zidBack && (
+        <p role="status" className={`upload-note ${zidBack.ok ? 'upload-done' : zidBack.ok === false ? 'upload-failed' : ''}`}>
+          {zidBack.ok === null
+            ? t('نربط متجرك على زد…', 'Linking your Zid store…')
+            : zidBack.ok
+              ? (zidBack.renewed
+                ? t('متجرك على زد مربوط بالفعل، وجدّدنا صلاحيته.', 'Your Zid store was already linked; its access is renewed.')
+                : t('رُبط متجرك على زد. أول مزامنة تجري الآن، وتظهر منتجاتك هنا تباعًا.', 'Your Zid store is linked. The first sync is running; your products appear here as it goes.'))
+              : t(`لم يكتمل ربط متجرك على زد: ${zidBack.problem}`, `Your Zid store was not linked: ${zidBack.problem}`)}
+        </p>
+      )}
       {loading && !data && <Panel><Loading rows={4} /></Panel>}
       {error && <ErrorNote error={error} />}
       {(data ?? []).map((connection) => (
@@ -150,6 +162,8 @@ export default function Connections() {
                 <ShopifyConnect />
               ) : provider.id === 'salla' && available?.salla ? (
                 <SallaConnect />
+              ) : provider.id === 'zid' && available?.zid ? (
+                <ZidConnect />
               ) : provider.blockedBy ? (
                 <>
                   <button type="button" className="btn btn-ghost" disabled>
@@ -439,6 +453,82 @@ function useSallaReturn(onDone: () => void): { ok: boolean | null; problem: stri
     );
   }, [ticket, source, onDone, t]);
   return outcome;
+}
+
+type ZidBack = { ok: boolean | null; renewed: boolean; problem: string };
+
+/** Why a Zid connection did not complete, in the merchant's language. */
+function zidProblem(code: string | null | undefined, t: (ar: string, en: string) => string): string {
+  if (code === 'denied') return t('لم تتم الموافقة في زد.', 'It was not approved on Zid.');
+  if (code === 'state' || code === 'forbidden') return t('انتهت صلاحية الطلب أو بدأ في متصفح آخر — ابدأ من جديد.', 'The request expired or began in another browser — start again.');
+  if (code === 'plan_required') return t('ربط زد ضمن باقة Growth وما فوقها.', 'Linking Zid is included from the Growth plan.');
+  if (code === 'setup') return t('تطبيق تجربة في زد غير مُعدّ بعد — تواصل معنا.', 'The Tajribah Zid app is not set up yet — please contact us.');
+  return t('زد لا تجيب الآن — حاول بعد قليل.', 'Zid is not answering right now — try again shortly.');
+}
+
+/**
+ * T61 — back from Zid: `?zid=<ticket>` links that store to this account with this session (once, then
+ * out of the address); `?zid=renewed` — the store was linked already; `?zid_error=…` — why not.
+ */
+function useZidReturn(onDone: () => void): ZidBack | null {
+  const { t } = useLang();
+  const source = useData();
+  const started = useRef(false);
+  const [back] = useState(() => {
+    try { const q = new URLSearchParams(window.location.search); return { zid: q.get('zid'), error: q.get('zid_error') }; } catch { return { zid: null, error: null }; }
+  });
+  const [outcome, setOutcome] = useState<ZidBack | null>(() =>
+    back.error ? { ok: false, renewed: false, problem: zidProblem(back.error, t) }
+      : back.zid === 'renewed' ? { ok: true, renewed: true, problem: '' }
+        : back.zid ? { ok: null, renewed: false, problem: '' } : null);
+  useEffect(() => {
+    if ((!back.zid && !back.error) || started.current) return;
+    started.current = true;
+    window.history.replaceState(null, '', window.location.pathname); // the ticket links once; never leave it in the address
+    if (!back.zid || back.zid === 'renewed') return;
+    source.linkZid(back.zid).then(
+      () => { setOutcome({ ok: true, renewed: false, problem: '' }); onDone(); },
+      (err: Error & { code?: string }) => setOutcome({ ok: false, renewed: false, problem: err.code === 'forbidden' || err.code === 'plan_required' ? zidProblem(err.code, t) : err.message }),
+    );
+  }, [back, source, onDone, t]);
+  return outcome;
+}
+
+/** T61 — connect a Zid store: Zid's own approval screen, then back here. Growth and up (T35). */
+function ZidConnect() {
+  const { t } = useLang();
+  const source = useData();
+  const lock = useWriteLock();
+  const { me } = useAuth();
+  const store = currentStore(me);
+  const included = store ? planByCode(store.plan).features.includes('zid') : false;
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  if (!included) {
+    return (
+      <p className="hint" style={{ margin: 0 }}>
+        {t('ضمن باقة Growth وما فوقها.', 'Included from the Growth plan.')} <AppLink href="/dashboard/billing" style={{ color: 'var(--aqua-ink)' }}>{t('الباقات', 'Plans')}</AppLink>
+      </p>
+    );
+  }
+  const go = async () => {
+    setBusy(true); setProblem(null);
+    try {
+      window.location.assign((await source.startZidConnect()).authorizeUrl);
+    } catch (err) {
+      setProblem((err as Error).message);
+      setBusy(false);
+    }
+  };
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      <button type="button" className="btn btn-ghost" onClick={go} disabled={busy || lock.locked} title={lock.title}>
+        <Link2 size={16} aria-hidden />{busy ? t('جارٍ التحويل…', 'Opening…') : t('اربط عبر زد', 'Connect with Zid')}
+      </button>
+      <p className="hint" style={{ margin: 0 }}>{t('ننقلك إلى زد لتوافق على قراءة منتجاتك، ثم نعيدك إلى هنا. يمكنك أيضًا تفعيل تطبيق تجربة من سوق تطبيقات زد.', 'We take you to Zid to approve reading your products, then bring you back here. You can also activate the Tajribah app from the Zid App Market.')}</p>
+      {problem && <p className="field-error" role="alert" style={{ margin: 0 }}>{problem}</p>}
+    </div>
+  );
 }
 
 /**

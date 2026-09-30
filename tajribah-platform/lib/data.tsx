@@ -77,6 +77,10 @@ export interface DataSource {
   openSallaApp(token: string): Promise<SallaAppView>;
   /** T61 — the signed-in merchant links the Salla store the ticket names. */
   linkSalla(ticket: string): Promise<ConnectionSummary>;
+  /** T61 — start connecting a Zid store: Zid's own approval screen to go to. */
+  startZidConnect(): Promise<{ authorizeUrl: string }>;
+  /** T61 — the signed-in merchant links the Zid store the ticket names. */
+  linkZid(ticket: string): Promise<ConnectionSummary>;
   /** P8 — the store's API keys; a new key comes back once, with its secret. */
   apiKeys(): Promise<ApiKeyView[]>;
   createApiKey(input: { name: string; scopes: string[]; expiresInDays: number | null }): Promise<{ key: string; apiKey: ApiKeyView }>;
@@ -214,6 +218,8 @@ export function apiSource(client: ApiClient): DataSource {
     async completeShopifyConnect(query) { return client.call<ConnectionSummary>('/api/connections/shopify/complete', { body: { query } }); },
     async openSallaApp(token) { return client.call<SallaAppView>('/api/salla/open', { body: { token } }); },
     async linkSalla(ticket) { return client.call<ConnectionSummary>('/api/connections/salla/link', { body: { ticket } }); },
+    async startZidConnect() { return client.call<{ authorizeUrl: string }>('/api/connections/zid/start', { method: 'POST' }); },
+    async linkZid(ticket) { return client.call<ConnectionSummary>('/api/connections/zid/link', { body: { ticket } }); },
     async apiKeys() { return (await client.call<{ keys: ApiKeyView[] }>('/api/api-keys')).keys; },
     async createApiKey(input) { return client.call<{ key: string; apiKey: ApiKeyView }>('/api/api-keys', { body: input }); },
     async revokeApiKey(id) { return client.call<ApiKeyView>(`/api/api-keys/${encodeURIComponent(id)}/revoke`, { method: 'POST' }); },
@@ -581,6 +587,9 @@ export const demoSource: DataSource = {
   // T61: no Salla app is registered yet, as the server would say.
   async openSallaApp() { throw new ApiError(501, 'not_implemented', 'Salla stores can be linked once the Tajribah Salla app is registered'); },
   async linkSalla() { throw new ApiError(501, 'not_implemented', 'Salla stores can be linked once the Tajribah Salla app is registered'); },
+  // T61: no Zid app is registered yet, as the server would say.
+  async startZidConnect() { throw new ApiError(501, 'not_implemented', 'Zid stores can be connected once the Tajribah Zid app is registered'); },
+  async linkZid() { throw new ApiError(501, 'not_implemented', 'Zid stores can be connected once the Tajribah Zid app is registered'); },
   // P8: the preview's store is on Growth — keys are Enterprise, so the server would refuse, and so does the preview.
   async apiKeys() { return []; },
   async createApiKey() { throw new ApiError(402, 'plan_required', 'public_api is not included in this plan'); },

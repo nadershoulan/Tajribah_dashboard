@@ -21,36 +21,25 @@
  * An uninstall before linking deletes the waiting grant. Tokens are never logged, never stored with
  * the webhook event (`webhooks/salla.ts` redacts them) and never returned by an endpoint.
  */
-import { and, eq } from 'drizzle-orm';
-import { unsafeAdminDb } from '@/db/client';
-import { storeConnections, storeGrants, type StoreConnection } from '@/db/schema';
 import type { ConnectionSummary, SallaAppView } from '@/lib/view-models';
-import { uuidv7 } from '@/lib/ids';
 import { SALLA_ACCOUNTS } from '@/server/connectors/salla/connector';
 import { Transport } from '@/server/connectors/transport';
 import type { TokenSet } from '@/server/connectors/types';
-import { record } from '@/server/core/audit/audit';
-import { keyedHash, timingSafeEqual } from '@/server/core/auth/crypto';
 import { assertFeature, entitlementsOf } from '@/server/core/billing/entitlements';
-import { errors, isUniqueViolation } from '@/server/core/errors/problem';
-import { log } from '@/server/core/observability/log';
-import { systemContext, type TenantContext } from '@/server/core/tenancy/context';
-import { withTenant } from '@/server/core/tenancy/rls';
+import { errors } from '@/server/core/errors/problem';
+import type { TenantContext } from '@/server/core/tenancy/context';
 import { requestSync } from '@/server/modules/sync/service';
-import { connectStore, vaultKeys } from './service';
-import { openTokens, sealTokens } from './vault';
+import { dropGrant, forgetGrant, holdGrant, linkedConnection, noStoreYet, renewLinkedTokens, signLinkTicket as signTicket, verifyLinkTicket, waitingGrant, LINK_TTL_MS } from './grants';
+import { connectStore } from './service';
+
+export { LINK_TTL_MS };
 
 export const SALLA_INTROSPECT = 'https://api.salla.dev/exchange-authority/v1/introspect';
-export const LINK_TTL_MS = 10 * 60_000;
 
 export type SallaLinkConfig = { appId: string; authSecret: string };
 
 const numeric = (v: unknown): v is number | string => (typeof v === 'number' && Number.isSafeInteger(v) && v > 0) || (typeof v === 'string' && /^\d{1,19}$/.test(v));
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
-const enc = new TextEncoder();
-const sameText = (a: string, b: string) => a.length === b.length && timingSafeEqual(enc.encode(a), enc.encode(b));
-const b64 = (text: string) => btoa(String.fromCharCode(...enc.encode(text))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-const unb64 = (text: string) => new TextDecoder().decode(Uint8Array.from(atob(text.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0)));
 
 // ------------------------------------------------------------------ 1. the tokens, from Salla's webhook
 
@@ -68,12 +57,6 @@ export function authorizeTokens(data: unknown, now = Date.now()): TokenSet | nul
   };
 }
 
-async function connectionFor(merchant: string): Promise<Pick<StoreConnection, 'id' | 'tenantId'> | null> {
-  const [row] = await unsafeAdminDb().select({ id: storeConnections.id, tenantId: storeConnections.tenantId }).from(storeConnections)
-    .where(and(eq(storeConnections.provider, 'salla'), eq(storeConnections.externalStoreId, merchant))).limit(1);
-  return row ?? null;
-}
-
 /**
  * Salla handed over a store's tokens (a verified `app.store.authorize`). A linked store's connection
  * takes them at once and works again; otherwise they wait for the merchant to link the store.
@@ -82,42 +65,14 @@ export async function receiveSallaAuthorize(merchant: unknown, data: unknown, re
   const tokens = authorizeTokens(data);
   if (!numeric(merchant) || !tokens) return 'ignored';
   const store = String(merchant);
-  const key = vaultKeys().current;
-
-  const connection = await connectionFor(store);
-  if (connection) {
-    const ctx = await systemContext({ tenantId: connection.tenantId, requestId, permissions: ['connections:write'], evenIfSuspended: true });
-    await withTenant(connection.tenantId, async (db) => {
-      const before = await db.lockById(storeConnections, connection.id);
-      const after = await db.updateById(storeConnections, connection.id, { ...(await sealTokens(connection.id, tokens, key)), status: 'active', lastError: null });
-      await record(ctx, { action: 'update', actorType: 'system', resourceType: 'store_connection', resourceId: connection.id, before, after }, db);
-    });
-    log.info('salla tokens renewed on the linked store', { connectionId: connection.id });
-    return 'connection';
-  }
-
-  for (let attempt = 0; ; attempt++) {
-    const [waiting] = await unsafeAdminDb().select({ id: storeGrants.id }).from(storeGrants)
-      .where(and(eq(storeGrants.provider, 'salla'), eq(storeGrants.externalStoreId, store))).limit(1);
-    try {
-      if (waiting) {
-        await unsafeAdminDb().update(storeGrants).set({ ...(await sealTokens(waiting.id, tokens, key)), updatedAt: new Date() }).where(eq(storeGrants.id, waiting.id));
-      } else {
-        const id = uuidv7();
-        await unsafeAdminDb().insert(storeGrants).values({ id, provider: 'salla', externalStoreId: store, ...(await sealTokens(id, tokens, key)) });
-      }
-      log.info('salla tokens waiting for the store to be linked');
-      return 'grant';
-    } catch (error) {
-      if (!isUniqueViolation(error) || attempt > 0) throw error; // two deliveries at once: the second updates
-    }
-  }
+  if (await renewLinkedTokens('salla', store, tokens, requestId)) return 'connection';
+  await holdGrant('salla', store, tokens);
+  return 'grant';
 }
 
 /** The app was uninstalled before the store was linked: its waiting access goes. */
 export async function forgetSallaGrant(merchant: unknown): Promise<void> {
-  if (!numeric(merchant)) return;
-  await unsafeAdminDb().delete(storeGrants).where(and(eq(storeGrants.provider, 'salla'), eq(storeGrants.externalStoreId, String(merchant))));
+  if (numeric(merchant)) await forgetGrant('salla', String(merchant));
 }
 
 // ------------------------------------------------------------------ 2. the store, proven by Salla
@@ -140,31 +95,16 @@ export async function introspectSalla(token: string, appId: string, transport: T
   return String(body.data.merchant_id);
 }
 
-type Ticket = { m: string; e: number };
-
-export async function signLinkTicket(merchant: string, secret: string, now = Date.now()): Promise<string> {
-  const payload = b64(JSON.stringify({ m: merchant, e: now + LINK_TTL_MS } satisfies Ticket));
-  return `${payload}.${await keyedHash(secret, 'salla-link', payload)}`;
-}
-
-async function verifyLinkTicket(ticket: string, secret: string, now: number): Promise<string> {
-  const refused = () => errors.forbidden('this link has expired or did not come from your Salla dashboard — open Tajribah again from Salla');
-  const [payload, mac] = ticket.split('.');
-  if (!payload || !mac || !sameText(await keyedHash(secret, 'salla-link', payload), mac)) throw refused();
-  let parsed: Ticket;
-  try { parsed = JSON.parse(unb64(payload)) as Ticket; } catch { throw refused(); }
-  if (typeof parsed.e !== 'number' || parsed.e < now || !numeric(parsed.m)) throw refused();
-  return parsed.m;
-}
+export const signLinkTicket = (merchant: string, secret: string, now = Date.now()) => signTicket('salla', merchant, secret, null, now);
+const ticketRefused = () => errors.forbidden('this link has expired or did not come from your Salla dashboard — open Tajribah again from Salla');
 
 export type SallaAppState = SallaAppView;
 
 /** API-068 — the app page inside Salla: which store this is, and a ticket to link it. */
 export async function openSallaApp(token: string, config: SallaLinkConfig, deps: { transport?: Transport; now?: number } = {}): Promise<SallaAppState> {
   const merchant = await introspectSalla(token, config.appId, deps.transport);
-  const connection = await connectionFor(merchant);
-  const [grant] = await unsafeAdminDb().select({ id: storeGrants.id }).from(storeGrants)
-    .where(and(eq(storeGrants.provider, 'salla'), eq(storeGrants.externalStoreId, merchant))).limit(1);
+  const connection = await linkedConnection('salla', merchant);
+  const grant = connection ? null : await waitingGrant('salla', merchant);
   return {
     linked: !!connection,
     ready: !!connection || !!grant,
@@ -198,23 +138,18 @@ async function storeOf(accessToken: string, transport: Transport): Promise<{ id:
 export async function linkSallaStore(ctx: TenantContext, ticket: string, config: SallaLinkConfig, deps: { transport?: Transport; now?: number } = {}): Promise<ConnectionSummary> {
   ctx.require('connections:write');
   assertFeature(await entitlementsOf(ctx), 'salla');
-  const merchant = await verifyLinkTicket(ticket, config.authSecret, deps.now ?? Date.now());
+  const { m: merchant } = await verifyLinkTicket('salla', ticket, config.authSecret, deps.now ?? Date.now(), ticketRefused);
 
-  const [grant] = await unsafeAdminDb().select().from(storeGrants)
-    .where(and(eq(storeGrants.provider, 'salla'), eq(storeGrants.externalStoreId, merchant))).limit(1);
-  if (!grant) {
-    throw errors.conflict((await connectionFor(merchant))
-      ? 'this Salla store is already linked'
-      : 'Salla has not handed over this store’s access yet — wait a minute and try again, or reinstall Tajribah from the Salla App Store');
-  }
-  const tokens = await openTokens(grant as unknown as StoreConnection, vaultKeys());
+  const grant = await waitingGrant('salla', merchant);
+  if (!grant) throw (await linkedConnection('salla', merchant)) ? errors.conflict('this Salla store is already linked') : noStoreYet('Salla');
+  const tokens = grant.tokens;
   if (!tokens) throw errors.conflict('this store’s access could not be read — reinstall Tajribah from the Salla App Store');
 
   const store = await storeOf(tokens.accessToken, deps.transport ?? new Transport('salla'));
   if (store.id !== merchant) throw errors.forbidden('Salla’s access is for a different store than this link'); // never cross two stores
 
   const connection = await connectStore(ctx, { provider: 'salla', externalStoreId: merchant, storeName: store.name, storeUrl: store.url, tokens });
-  await unsafeAdminDb().delete(storeGrants).where(eq(storeGrants.id, grant.id));
+  await dropGrant(grant.id);
   await requestSync(ctx, connection.id, { type: 'full', triggeredBy: 'user' });
   return connection;
 }

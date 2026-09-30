@@ -892,3 +892,14 @@ a real store (the conformance suite runs unchanged against one):
 3. **A product with no price** — the pages always show one; the stand-in holds a missing price as 0.
 4. **A refused refresh token** — no real answer was seen (it needs a real app); anything but Zid's
    "Client authentication failed" is read as the store's access ending.
+
+**T61 update (2026-10-01) — connecting a Zid store.** Zid's App Activation & OAuth Policy decides the
+shape: OAuth starts the moment the merchant presses Activate in Zid (no Tajribah sign-in first); the
+`state` is one-time, short-lived and bound to the browser that started it (a signed nonce matched
+against an HttpOnly cookie); the code is exchanged at the callback and the store identified from Zid's
+own answer; account linking comes after, with the merchant's own session — the same waiting access and
+10-minute ticket as Salla, now shared code. A reinstall renews the linked store instead of adding one.
+Zid signs no webhook, so each subscription carries its own Basic-auth credentials: the store and event as
+the username, our keyed hash of it as the password — checkable without storing anything, and useless for
+any other store or event. Zid's uninstall notice (an app-level webhook, shape unpublished) waits for a
+real app; meanwhile a refused request revokes the connection.

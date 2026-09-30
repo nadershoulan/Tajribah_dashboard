@@ -101,7 +101,7 @@ export default function Billing() {
                     `الرصيد المتبقي ${formatNumber(data.aiCredits.balance, lang)}. كل توليد نموذج ثلاثي الأبعاد يستهلك ${formatNumber(CREDITS_PER_3D_GENERATION, lang)} أرصدة.`,
                     `${formatNumber(data.aiCredits.balance, lang)} credits left. One 3D generation uses ${CREDITS_PER_3D_GENERATION} credits.`,
                   )}{' '}
-                  <AppLink href="/dashboard/ai-jobs" style={{ color: 'var(--aqua)' }}>{t('أين ذهبت الأرصدة', 'Where they went')}</AppLink>
+                  <AppLink href="/dashboard/ai-jobs" style={{ color: 'var(--aqua-ink)' }}>{t('أين ذهبت الأرصدة', 'Where they went')}</AppLink>
                 </p>
               </div>
             </div>
@@ -206,7 +206,7 @@ export default function Billing() {
                   <ul style={{ listStyle: 'none', margin: '14px 0 0', padding: 0, display: 'grid', gap: 7 }}>
                     {plan.highlights.map((line) => (
                       <li key={line.en} style={{ display: 'flex', gap: 7, fontSize: 13.5, color: 'var(--text-2)' }}>
-                        <CheckCircle2 size={15} aria-hidden style={{ flex: '0 0 auto', marginTop: 3, color: 'var(--aqua)' }} />
+                        <CheckCircle2 size={15} aria-hidden style={{ flex: '0 0 auto', marginTop: 3, color: 'var(--aqua-ink)' }} />
                         {pick(line)}
                       </li>
                     ))}

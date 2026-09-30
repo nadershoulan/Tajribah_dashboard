@@ -119,7 +119,7 @@ export default function Login() {
                 </button>
               </form>
               <p style={{ marginTop: 16, fontSize: 14 }}>
-                <button type="button" className="linklike" style={{ color: 'var(--aqua)', display: 'inline' }} onClick={() => { setUseBackup((v) => !v); setNote(null); }}>
+                <button type="button" className="linklike" style={{ color: 'var(--aqua-ink)', display: 'inline' }} onClick={() => { setUseBackup((v) => !v); setNote(null); }}>
                   {useBackup ? t('استخدم تطبيق المصادقة', 'Use the authenticator app') : t('لا يمكنك استخدام التطبيق؟ استخدم رمز استعداد', 'Can’t use the app? Use a backup code')}
                 </button>
               </p>
@@ -159,14 +159,14 @@ export default function Login() {
           </form>
 
           <p style={{ marginTop: 16, fontSize: 14, color: 'var(--text-2)' }}>
-            <AppLink href="/login/sso" style={{ color: 'var(--aqua)' }}>{t('الدخول بحساب شركتك (SSO)', 'Sign in with your company account (SSO)')}</AppLink>
+            <AppLink href="/login/sso" style={{ color: 'var(--aqua-ink)' }}>{t('الدخول بحساب شركتك (SSO)', 'Sign in with your company account (SSO)')}</AppLink>
           </p>
           <p style={{ marginTop: 4, fontSize: 14, color: 'var(--text-2)' }}>
-            <AppLink href="/reset-password" style={{ color: 'var(--aqua)' }}>{t('نسيت كلمة المرور؟', 'Forgot your password?')}</AppLink>
+            <AppLink href="/reset-password" style={{ color: 'var(--aqua-ink)' }}>{t('نسيت كلمة المرور؟', 'Forgot your password?')}</AppLink>
           </p>
           <p style={{ marginTop: 4, fontSize: 14, color: 'var(--text-2)' }}>
             {t('ليس لديك حساب؟', 'No account yet?')}{' '}
-            <AppLink href="/register" style={{ color: 'var(--aqua)' }}>{t('أنشئ متجرك', 'Create your store')}</AppLink>
+            <AppLink href="/register" style={{ color: 'var(--aqua-ink)' }}>{t('أنشئ متجرك', 'Create your store')}</AppLink>
           </p>
           </>
           )}

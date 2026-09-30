@@ -30,7 +30,7 @@ export default function DevelopersPage() {
               `من لوحة التحكم: الإعدادات ← مفاتيح الواجهة البرمجية. سمِّ المفتاح، واختر ما يسمح له به، ومدته. يظهر المفتاح (يبدأ بـ ${API.keyPrefix}) مرة واحدة. يعمل باسم من أنشأه وضمن صلاحياته: إن غادر المتجر توقف.`,
               `In the dashboard: Settings → API keys. Name the key, choose what it may do, and how long it lives. The key (it starts with ${API.keyPrefix}) is shown once. It works as the person who made it, within their permissions: if they leave the store, it stops.`,
             )} />
-          <pre className="code" dir="ltr"><code>{CURL_EXAMPLE}</code></pre>
+          <pre className="code" dir="ltr" tabIndex={0}><code>{CURL_EXAMPLE}</code></pre>
           <p className="fine"><Rich text={t(
             `حتى ${API.ratePerMinute} طلب في الدقيقة لكل مفتاح؛ كل جواب يحمل \`x-ratelimit-remaining\`. الأخطاء بصيغة \`application/problem+json\`، وتجاوز الحد \`429\` مع \`retry-after\`.`,
             `Up to ${API.ratePerMinute} requests a minute per key; every answer carries \`x-ratelimit-remaining\`. Errors are \`application/problem+json\`; over the limit is \`429\` with \`retry-after\`.`,
@@ -74,7 +74,7 @@ export default function DevelopersPage() {
             `كل رسالة موقّعة في الترويسة \`${API.signatureHeader}\`. تحقّق منها قبل أن تثق بها — بهذه الدالة في \`Node.js\` مثلًا:`,
             `Every message is signed in the \`${API.signatureHeader}\` header. Check it before you trust it — with this function in \`Node.js\`, for example:`,
           )} /></p>
-          <pre className="code" dir="ltr"><code>{VERIFY_EXAMPLE}</code></pre>
+          <pre className="code" dir="ltr" tabIndex={0}><code>{VERIFY_EXAMPLE}</code></pre>
           <p className="fine"><Rich text={t(
             `أجب بـ \`2xx\` خلال ${API.timeoutSeconds} ثوانٍ. غير ذلك نعيد المحاولة نحو ${API.retryHours} ساعة، ولا نتبع التحويلات. المعرّف \`id\` واحد في كل إعادة: تجاهل المكرر. العنوان الذي يفشل مرارًا يُوقَف ويُخبَر المتجر.`,
             `Answer \`2xx\` within ${API.timeoutSeconds} seconds. Anything else is retried for about ${API.retryHours} hours, and redirects are not followed. The \`id\` is the same on every retry: drop a repeat. An address that keeps failing is turned off and the store is told.`,

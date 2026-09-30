@@ -244,7 +244,7 @@ export default function Models() {
           )}
         </p>
         <p className="hint">
-          <AppLink href="/dashboard/products" style={{ color: 'var(--aqua)' }}>
+          <AppLink href="/dashboard/products" style={{ color: 'var(--aqua-ink)' }}>
             {t('ابحث عن المنتجات التي بلا نموذج', 'Find products with no model')}
           </AppLink>
         </p>

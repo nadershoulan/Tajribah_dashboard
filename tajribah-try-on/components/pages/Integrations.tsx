@@ -60,7 +60,7 @@ export default function Integrations() {
             <h3><Code2 size={18} aria-hidden /> {t('أي متجر آخر', 'Any other store')}</h3>
             <p>{t('متجر مخصص أو منصة غير مدرجة؟ أضف هذين السطرين إلى قالب صفحة المنتج: رمز المنتج مكان {{ product.id }}، ومفتاح متجرك مكان your-store-key.',
               'A custom store or an unlisted platform? Add these two lines to your product-page template: the product’s code in place of {{ product.id }}, and your store key in place of your-store-key.')}</p>
-            <pre className="code" dir="ltr"><code>{snippet}</code></pre>
+            <pre className="code" dir="ltr" tabIndex={0}><code>{snippet}</code></pre>
             <p className="fine">{t('تجد مفتاح متجرك والسطرين جاهزين في صفحة «التثبيت» في لوحة التحكم.', 'Your store key, and these two lines ready to copy, are on the dashboard’s Install page.')}</p>
           </div>
         </div>

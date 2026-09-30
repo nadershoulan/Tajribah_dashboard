@@ -226,7 +226,7 @@ export default function Team() {
         <div className="grid grid-2">
           {(Object.keys(ROLE_LABEL) as TeamMemberRow['role'][]).map((role) => (
             <div key={role} style={{ display: 'flex', gap: 10 }}>
-              <ShieldCheck size={16} aria-hidden style={{ flex: '0 0 auto', marginTop: 3, color: 'var(--aqua)' }} />
+              <ShieldCheck size={16} aria-hidden style={{ flex: '0 0 auto', marginTop: 3, color: 'var(--aqua-ink)' }} />
               <div>
                 <strong style={{ fontSize: 14.5 }}>{pick(ROLE_LABEL[role])}</strong>
                 <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--text-2)' }}>{pick(ROLE_BLURB[role])}</p>

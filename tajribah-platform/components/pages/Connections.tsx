@@ -346,7 +346,7 @@ function WooConnect() {
   if (!included) {
     return (
       <p className="hint" style={{ margin: 0 }}>
-        {t('ضمن باقة Pro وما فوقها.', 'Included from the Pro plan.')} <AppLink href="/dashboard/billing" style={{ color: 'var(--aqua)' }}>{t('الباقات', 'Plans')}</AppLink>
+        {t('ضمن باقة Pro وما فوقها.', 'Included from the Pro plan.')} <AppLink href="/dashboard/billing" style={{ color: 'var(--aqua-ink)' }}>{t('الباقات', 'Plans')}</AppLink>
       </p>
     );
   }
@@ -420,7 +420,7 @@ function ShopifyConnect() {
   if (!included) {
     return (
       <p className="hint" style={{ margin: 0 }}>
-        {t('ضمن باقة Pro وما فوقها.', 'Included from the Pro plan.')} <AppLink href="/dashboard/billing" style={{ color: 'var(--aqua)' }}>{t('الباقات', 'Plans')}</AppLink>
+        {t('ضمن باقة Pro وما فوقها.', 'Included from the Pro plan.')} <AppLink href="/dashboard/billing" style={{ color: 'var(--aqua-ink)' }}>{t('الباقات', 'Plans')}</AppLink>
       </p>
     );
   }

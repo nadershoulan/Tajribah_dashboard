@@ -118,7 +118,7 @@ export default function AiJobs() {
         {failure && <p className="field-error" role="alert" style={{ margin: '0 18px 14px' }}>{failure}</p>}
       </Panel>
       <p className="hint">
-        <AppLink href="/dashboard/billing" style={{ color: 'var(--aqua)' }}>{t('رصيدك من الأرصدة', 'Your credit balance')}</AppLink>
+        <AppLink href="/dashboard/billing" style={{ color: 'var(--aqua-ink)' }}>{t('رصيدك من الأرصدة', 'Your credit balance')}</AppLink>
       </p>
     </Shell>
   );

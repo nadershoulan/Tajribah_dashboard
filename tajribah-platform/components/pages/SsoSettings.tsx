@@ -33,7 +33,7 @@ export function SsoPanel() {
       sub={t('يدخل فريقك بحساب شركتكم (Microsoft أو Google أو Okta) بدل كلمة مرور تجربة.', 'Your team signs in with your company account (Microsoft, Google, Okta) instead of a Tajribah password.')}>
       {!included ? (
         <p className="hint" style={{ margin: 0 }}>
-          {t('ضمن باقة المؤسسات.', 'Included in the Enterprise plan.')} <AppLink href="/dashboard/billing" style={{ color: 'var(--aqua)' }}>{t('الباقات', 'Plans')}</AppLink>
+          {t('ضمن باقة المؤسسات.', 'Included in the Enterprise plan.')} <AppLink href="/dashboard/billing" style={{ color: 'var(--aqua-ink)' }}>{t('الباقات', 'Plans')}</AppLink>
         </p>
       ) : error ? <ErrorNote error={error} /> : !view ? (loading ? <Loading rows={3} /> : null) : (
         <SsoForm key={view.updatedAt ?? 'new'} view={view} canEdit={store?.role === 'owner' || store?.role === 'admin'} onSaved={setSaved} />

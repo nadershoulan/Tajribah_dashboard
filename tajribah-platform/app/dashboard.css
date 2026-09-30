@@ -25,7 +25,11 @@
   --line-2: #c7d5de;
   --text: #0a2237;
   --text-2: #435e73;
-  --text-3: #7a91a2;
+  /* WCAG 2.1 AA (checked with axe-core): small text on the light surfaces uses these ink shades,
+     4.6:1 or more on white, --bg and --tint; fills, borders and icons keep the brand colours. */
+  --text-3: #5d6f7c;
+  --aqua-ink: #007989;
+  --teal-ink: #0b7a6d;
   --ok: #0b7a55;
   --ok-bg: #e2f5ec;
   --warn: #8a5f10;
@@ -222,7 +226,7 @@ button { font: inherit; color: inherit; }
 .page-head .page-actions { margin-inline-start: auto; display: flex; gap: 8px; flex-wrap: wrap; }
 
 .eyebrow {
-  font-size: 12px; font-weight: 600; color: var(--aqua);
+  font-size: 12px; font-weight: 600; color: var(--aqua-ink);
   letter-spacing: .08em; text-transform: uppercase; margin: 0 0 6px;
 }
 [dir="rtl"] .eyebrow { letter-spacing: 0; text-transform: none; font-size: 13px; }
@@ -383,7 +387,7 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 
 .empty { text-align: center; padding: 42px 20px; }
 .empty .empty-icon {
-  width: 46px; height: 46px; border-radius: 14px; background: var(--aqua-50); color: var(--aqua);
+  width: 46px; height: 46px; border-radius: 14px; background: var(--aqua-50); color: var(--aqua-ink);
   display: grid; place-items: center; margin: 0 auto 14px;
 }
 .empty h3, .empty h1 { margin: 0 0 6px; font-size: 17px; }
@@ -632,7 +636,7 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 .linklike { all: unset; cursor: pointer; display: block; text-align: start; }
 .linklike:focus-visible { outline: 2px solid var(--aqua); outline-offset: 2px; border-radius: 4px; }
-.linklike[aria-current="step"] strong { color: var(--aqua); }
+.linklike[aria-current="step"] strong { color: var(--aqua-ink); }
 
 /* P1.2b — sign-in security */
 .method-list { display: grid; gap: 10px; margin-top: 14px; }
@@ -642,7 +646,7 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 }
 .method:hover:not([aria-disabled="true"]) { border-color: var(--aqua); }
 .method[aria-disabled="true"] { cursor: default; opacity: .6; }
-.method > svg { flex: 0 0 auto; margin-top: 2px; color: var(--aqua); }
+.method > svg { flex: 0 0 auto; margin-top: 2px; color: var(--aqua-ink); }
 .method strong { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14.5px; }
 .method small { display: block; margin-top: 3px; font-size: 13px; color: var(--text-3); }
 .scan-grid { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: 24px; align-items: start; }
@@ -920,3 +924,9 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .job-product { color: var(--text-2); font-size: 13.5px; margin-inline-end: auto; }
 .job-progress { display: grid; gap: 4px; margin-top: 8px; max-width: 420px; }
 .job-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 8px 0 0; }
+
+/* Contrast on the dark surfaces: the ink shades would fail there, so they keep the bright colours
+   and the grey they had. */
+.sidebar, .code-block, .auth-side, .admin-bar { --text-3: #7a91a2; --aqua-ink: var(--aqua-bright); --teal-ink: var(--teal); }
+/* A link inside running text is underlined too — told apart by more than its colour (WCAG 1.4.1). */
+.main p a, .auth-card p a, .hint a, .field-hint a { text-decoration: underline; text-underline-offset: 3px; }

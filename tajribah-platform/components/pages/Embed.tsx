@@ -128,7 +128,7 @@ export default function Embed() {
             )}
           >
             {loading && !data && <Loading rows={2} />}
-            {data && <pre className="code-block" dir="ltr">{snippet}</pre>}
+            {data && <pre className="code-block" dir="ltr" tabIndex={0}>{snippet}</pre>}
             <label className="toggle" style={{ marginTop: 12 }}>
               <input type="checkbox" checked={asksConsent} onChange={(e) => setAsksConsent(e.target.checked)} />
               <span>{t('متجري يطلب موافقة الزائر على ملفات تعريف الارتباط', 'My store asks shoppers for cookie consent')}</span>
@@ -139,7 +139,7 @@ export default function Embed() {
                   'لن نقيس أي شيء قبل الموافقة. أضف هذا السطر إلى ما يحدث عند ضغط الزائر «موافق» في نافذة الموافقة (يعمل قبل تحميل الزر وبعده):',
                   'Nothing is measured before consent. Add this line to what runs when a shopper presses “Accept” in your consent banner (it works before and after the button loads):',
                 )}</p>
-                <pre className="code-block" dir="ltr">{CONSENT_LINE}</pre>
+                <pre className="code-block" dir="ltr" tabIndex={0}>{CONSENT_LINE}</pre>
               </>
             )}
             <p className="hint">

@@ -158,7 +158,7 @@ export default function Register() {
           </p>
           <p style={{ marginTop: 10, fontSize: 14, color: 'var(--text-2)' }}>
             {t('لديك حساب؟', 'Already have an account?')}{' '}
-            <AppLink href={invitation ? `/login?next=${encodeURIComponent(next!)}` : '/login'} style={{ color: 'var(--aqua)' }}>{t('سجّل الدخول', 'Sign in')}</AppLink>
+            <AppLink href={invitation ? `/login?next=${encodeURIComponent(next!)}` : '/login'} style={{ color: 'var(--aqua-ink)' }}>{t('سجّل الدخول', 'Sign in')}</AppLink>
           </p>
         </div>
       </main>

@@ -193,7 +193,7 @@ function BackToSignIn() {
   const { t } = useLang();
   return (
     <p style={{ marginTop: 16, fontSize: 14, color: 'var(--text-2)' }}>
-      <AppLink href="/login" style={{ color: 'var(--aqua)' }}>{t('العودة لتسجيل الدخول', 'Back to sign in')}</AppLink>
+      <AppLink href="/login" style={{ color: 'var(--aqua-ink)' }}>{t('العودة لتسجيل الدخول', 'Back to sign in')}</AppLink>
     </p>
   );
 }

@@ -144,7 +144,7 @@ function Endpoints() {
           'أجب بـ 2xx خلال 10 ثوانٍ؛ غير ذلك نعيد المحاولة نحو 21 ساعة، ولا نتبع التحويلات. المعرّف id واحد في كل إعادة: تجاهل المكرر.',
           'Answer 2xx within 10 seconds; anything else is retried for about 21 hours, and redirects are not followed. The id is the same on every retry: drop a repeat.',
         )}</p>
-        <p className="hint">{t('المرجع التقني:', 'The reference:')} <a href="/api/v1/openapi.json" dir="ltr" style={{ color: 'var(--aqua)' }}>/api/v1/openapi.json</a></p>
+        <p className="hint">{t('المرجع التقني:', 'The reference:')} <a href="/api/v1/openapi.json" dir="ltr" style={{ color: 'var(--aqua-ink)' }}>/api/v1/openapi.json</a></p>
       </Panel>
     </>
   );

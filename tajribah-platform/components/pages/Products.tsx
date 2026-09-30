@@ -228,7 +228,7 @@ export default function Products() {
       </Panel>
 
       <p className="hint" style={{ marginTop: 14 }}>
-        <AppLink href="/dashboard/models" style={{ color: 'var(--aqua)' }}>
+        <AppLink href="/dashboard/models" style={{ color: 'var(--aqua-ink)' }}>
           {t('إدارة النماذج ثلاثية الأبعاد', 'Manage 3D models')}<Forward size={13} />
         </AppLink>
       </p>

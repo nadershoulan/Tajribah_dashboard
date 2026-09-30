@@ -53,7 +53,7 @@ export default function InviteAccept() {
               </AppLink>
               <p style={{ marginTop: 14, fontSize: 14, color: 'var(--text-2)' }}>
                 {t('ليس لديك حساب بهذا البريد؟', 'No account with that email yet?')}{' '}
-                <AppLink href={`/register?next=${encodeURIComponent(here)}`} style={{ color: 'var(--aqua)' }}>{t('أنشئ حسابًا', 'Create one')}</AppLink>
+                <AppLink href={`/register?next=${encodeURIComponent(here)}`} style={{ color: 'var(--aqua-ink)' }}>{t('أنشئ حسابًا', 'Create one')}</AppLink>
               </p>
             </>
           )}

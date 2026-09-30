@@ -81,7 +81,7 @@ export default function LoginSso() {
           )}
           {note && returning && <p className="field-hint" role="alert" style={{ color: 'var(--warn)' }}>{note}</p>}
           <p style={{ marginTop: 16, fontSize: 14 }}>
-            <AppLink href="/login" style={{ color: 'var(--aqua)' }}>{t('الدخول بالبريد وكلمة المرور', 'Sign in with email and password')}</AppLink>
+            <AppLink href="/login" style={{ color: 'var(--aqua-ink)' }}>{t('الدخول بالبريد وكلمة المرور', 'Sign in with email and password')}</AppLink>
           </p>
         </div>
       </main>

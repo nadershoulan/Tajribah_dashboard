@@ -286,7 +286,7 @@ Zid app names, Saudi trademark search).
 
 **Received 2026-09-27:** SRO Company's VAT certificate and national address — on every invoice now.
 
-**Needed from you:** **how many AI credits one 3D generation costs.** The plans give 5 / 40 / 200 credits a month, but nothing says what a generation uses — so the Generate button can't be priced yet. (Tell me a number, e.g. 1 credit per model, or per product.)
+**Decided 2026-09-29 (T55):** a 3D generation costs **10 credits** — the server enforces it, and billing, the photo screen and the website say it.
 
 **Decided 2026-09-28 (your studio):** in "On model" mode a merchant's watch is drawn in proportion to its case width (a 38 mm watch 1.3× the 29.3 mm demo's size); the Failet demo is unchanged, checked byte for byte.
 

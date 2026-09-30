@@ -100,6 +100,14 @@ export const REGISTRY = {
     schema: z.string().optional(), scope: 'runtime', secret: true,
     doc: 'Verifies webhook signatures against the raw body (§13.6).',
   }),
+  ZID_CLIENT_ID: entry({
+    schema: z.string().regex(/^\d{1,20}$/, 'the numeric client id from the Zid Partner dashboard').optional(), scope: 'runtime',
+    doc: 'The Tajribah app in the Zid Partner dashboard (T61). Unset: Zid stores cannot be connected yet.',
+  }),
+  ZID_CLIENT_SECRET: entry({
+    schema: z.string().optional(), scope: 'runtime', secret: true,
+    doc: 'The Zid app secret: exchanges the install code and refreshes stores’ tokens.',
+  }),
   DATABASE_APP_URL: entry({
     schema: z.string().regex(/^postgres(ql)?:\/\//, 'a postgres:// address').optional(), scope: 'runtime', secret: true,
     doc: 'P0.20: the login for the tajribah_app role (row-level security applies). On Cloudflare a Hyperdrive binding HYPERDRIVE_APP takes its place.',
@@ -180,6 +188,7 @@ const envSchema = z.object(shape).superRefine((value, ctx) => {
   need(v.SMS_PROVIDER === 'unifonic', 'UNIFONIC_SENDER_ID', 'required when SMS_PROVIDER=unifonic');
   need(!!v.SALLA_CLIENT_ID, 'SALLA_CLIENT_SECRET', 'required when SALLA_CLIENT_ID is set');
   need(!!v.SHOPIFY_CLIENT_ID, 'SHOPIFY_CLIENT_SECRET', 'required when SHOPIFY_CLIENT_ID is set');
+  need(!!v.ZID_CLIENT_ID, 'ZID_CLIENT_SECRET', 'required when ZID_CLIENT_ID is set');
   need(!!v.DATABASE_APP_URL, 'DATABASE_ADMIN_URL', 'required when DATABASE_APP_URL is set — one login per role');
   need(!!v.DATABASE_ADMIN_URL, 'DATABASE_APP_URL', 'required when DATABASE_ADMIN_URL is set — one login per role');
   // §12.6: the API must not boot in production pretending it can send an OTP.

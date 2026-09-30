@@ -882,3 +882,13 @@ from Salla's real servers differ from its documentation (introspect refuses with
 app keys get 401 `invalid_client`) — the second is now a setup fault, never a reason to disconnect stores.
 Salla's Embedded SDK is vendored (not added as a package: the app's packages are shared with another
 working copy and carry no lockfile).
+
+**T61 update (2026-09-30) — Zid, from its public documentation: what is taken on trust.** Built from
+docs.zid.sa and tested against a stand-in; Zid's real servers were asked how they refuse. To confirm on
+a real store (the conformance suite runs unchanged against one):
+1. **Page size** — the docs give no maximum; 50 is asked for.
+2. **Unpublished products** — the list is asked without `is_published`, whose documented default is
+   `true`; whether unpublished products are then listed.
+3. **A product with no price** — the pages always show one; the stand-in holds a missing price as 0.
+4. **A refused refresh token** — no real answer was seen (it needs a real app); anything but Zid's
+   "Client authentication failed" is read as the store's access ending.

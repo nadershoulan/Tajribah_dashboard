@@ -858,3 +858,16 @@ to from the request's same-origin Referer (the try-on frame's own address) and t
 from Tajribah's config host for that store and product. The brand is never taken from the request,
 so a forged Referer can only show a real store's own published name and logo. Any doubt (another
 page, another site, no brand, the host unreachable) → Tajribah's, as before; the pairing still works.
+
+**T61 update (2026-09-30) — Salla, from its public documentation: what is taken on trust.** Built from
+docs.salla.dev and tested against a stand-in that answers as those pages show. Four details the pages
+do not settle, each chosen so a real store proves or corrects it (the conformance suite runs unchanged
+against one):
+1. **Listing order** — not documented. Paging holds under edits if it is by id; the stand-in orders by id.
+2. **Time zone of `updated_at`** ("2022-05-26 09:45:09", no zone) — read as Saudi time (UTC+3), as
+   Salla stamps its webhook times.
+3. **A product with no price** — the pages always show one; the stand-in holds a missing price as 0.
+4. **Page format** — the general pages show `currentPage/totalPages/total`, the products page
+   `current/next`; both are read.
+Also: Salla sends no event id with a webhook, so a delivery is identified by its event, store, product
+and time stamp; and the store's tokens inside `app.store.authorize` are never stored with the event.

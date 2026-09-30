@@ -6,9 +6,9 @@
  * that is either always false or, worse, checks something other than what was sent. It
  * then maps the provider's envelope onto our canonical topics.
  *
- * No real provider is registered yet: Salla's signature header and envelope are confirmed
- * against a real partner app in P1.4 (🔒). Until then the mechanics are tested with a
- * source built from `hmacSource`, the scheme Salla documents.
+ * The providers: Shopify (`shopify.ts`) and Salla (`salla.ts`, T61 — from Salla's public
+ * documentation; a real partner app confirms it in P1.4). The mechanics are also tested with a
+ * source built from `hmacSource`.
  */
 import type { Provider } from '@/db/schema';
 import { timingSafeEqual } from '@/server/core/auth/crypto';
@@ -37,6 +37,11 @@ export interface WebhookSource {
    * event id and store are on the row by then — only `subject` is read again).
    */
   parse(body: unknown, headers?: Headers): Delivery | null;
+  /**
+   * What is stored of the body, when not all of it may be (T61: Salla sends a store's access and
+   * refresh tokens inside `app.store.authorize` — they are never written to the events table).
+   */
+  redact?(body: unknown): unknown;
 }
 
 /**

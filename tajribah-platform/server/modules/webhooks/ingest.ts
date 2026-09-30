@@ -69,7 +69,7 @@ export async function ingest(provider: string, rawBody: string, headers: Headers
   try {
     await withTenant(connection.tenantId, (db) => db.insert(webhookEvents, {
       id, tenantId: connection.tenantId, connectionId: connection.id, provider: source.provider,
-      providerEventId: delivery.eventId, topic: delivery.topic, payload: body as Record<string, unknown>,
+      providerEventId: delivery.eventId, topic: delivery.topic, payload: (source.redact ? source.redact(body) : body) as Record<string, unknown>,
       signatureValid: true, status: 'received',
     }));
   } catch (error) {

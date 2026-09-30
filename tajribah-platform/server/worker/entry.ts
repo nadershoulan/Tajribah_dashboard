@@ -14,6 +14,7 @@
 import handler from 'vinext/server/fetch-handler';
 import { bootOnce } from '@/server/boot';
 import { log } from '@/server/core/observability/log';
+import { withDbConnection } from '@/db/client';
 import { registerEdgeHandlers } from './handlers-edge';
 import { runQueuePass, runScheduledPass, chooseHandlers } from './passes';
 
@@ -26,7 +27,7 @@ type Batch = { messages: readonly unknown[]; ackAll(): void };
 async function run(kind: 'cron' | 'queue', pass: () => Promise<unknown>): Promise<void> {
   try {
     bootOnce();
-    await pass();
+    await withDbConnection(pass); // one pass, one connection per role, ended with it
   } catch (error) {
     log.error('worker pass failed', { kind, error: error instanceof Error ? error.message : String(error) });
   }

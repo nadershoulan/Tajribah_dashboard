@@ -96,6 +96,14 @@ export const REGISTRY = {
     schema: z.string().optional(), scope: 'runtime', secret: true,
     doc: 'Verifies webhook signatures against the raw body (§13.6).',
   }),
+  DATABASE_APP_URL: entry({
+    schema: z.string().regex(/^postgres(ql)?:\/\//, 'a postgres:// address').optional(), scope: 'runtime', secret: true,
+    doc: 'P0.20: the login for the tajribah_app role (row-level security applies). On Cloudflare a Hyperdrive binding HYPERDRIVE_APP takes its place.',
+  }),
+  DATABASE_ADMIN_URL: entry({
+    schema: z.string().regex(/^postgres(ql)?:\/\//, 'a postgres:// address').optional(), scope: 'runtime', secret: true,
+    doc: 'P0.20: the login for the tajribah_admin role (BYPASSRLS on the login itself). On Cloudflare a Hyperdrive binding HYPERDRIVE_ADMIN takes its place.',
+  }),
   SHOPIFY_CLIENT_ID: entry({
     schema: z.string().optional(), scope: 'runtime',
     doc: 'The Tajribah app in the Shopify Partner dashboard (P6). Unset: Shopify cannot be connected yet.',
@@ -161,6 +169,8 @@ const envSchema = z.object(shape).superRefine((value, ctx) => {
   need(v.SMS_PROVIDER === 'unifonic', 'UNIFONIC_SENDER_ID', 'required when SMS_PROVIDER=unifonic');
   need(!!v.SALLA_CLIENT_ID, 'SALLA_CLIENT_SECRET', 'required when SALLA_CLIENT_ID is set');
   need(!!v.SHOPIFY_CLIENT_ID, 'SHOPIFY_CLIENT_SECRET', 'required when SHOPIFY_CLIENT_ID is set');
+  need(!!v.DATABASE_APP_URL, 'DATABASE_ADMIN_URL', 'required when DATABASE_APP_URL is set — one login per role');
+  need(!!v.DATABASE_ADMIN_URL, 'DATABASE_APP_URL', 'required when DATABASE_ADMIN_URL is set — one login per role');
   // §12.6: the API must not boot in production pretending it can send an OTP.
   if (v.NODE_ENV === 'production' && v.SMS_PROVIDER === 'console') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['SMS_PROVIDER'],

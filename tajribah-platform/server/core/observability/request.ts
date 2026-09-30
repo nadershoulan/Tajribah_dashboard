@@ -16,6 +16,7 @@ import { isAppError, problemResponse } from '../errors/problem';
 import { log } from './log';
 import { currentScope, runInScope } from './scope';
 import { budgetMs } from './slo';
+import { withDbConnection } from '../../../db/client';
 
 export const REQUEST_ID_HEADER = 'x-request-id';
 
@@ -35,7 +36,7 @@ export function route(handler: RouteHandler): RouteHandler {
       const path = new URL(request.url).pathname;
       let response: Response;
       try {
-        response = await handler(request);
+        response = await withDbConnection(() => handler(request)); // P0.20: this request's connections
       } catch (error) {
         if (!isAppError(error) || error.code === 'internal') {
           log.error('unhandled error', {

@@ -62,7 +62,10 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
       **`https://app.tajribah.sa/api/health`** (answering) and **`/api/health/ready`** (503 while the database
       cannot answer). In the log service, alert on the share of `slow request` lines per path
       (`server/core/observability/slo.ts` holds the plan's targets).
-- [ ] The database: still an open decision (DECISIONS T9) — nothing registers one yet.
+- [ ] The database (T60, `docs/DATABASE.md`): on the chosen host, create the database, run
+      `node scripts/db/migrate.mjs --db …`, create the two logins; bind two Hyperdrive configurations as
+      **`HYPERDRIVE_APP`** and **`HYPERDRIVE_ADMIN`** (production refuses to start without them). Run the
+      migration runner before each deploy. **Check:** `/api/health/ready` → 200, `"database": "ok"`.
 - [ ] WooCommerce (P6): nothing to set up — the approval screen calls back to
       **`https://app.tajribah.sa/api/connections/woocommerce/callback`**, which only has to be reachable over https.
       **Check:** connect a test WordPress store from Store connections; its products appear after the first sync.

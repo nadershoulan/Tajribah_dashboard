@@ -6,9 +6,10 @@
  * the adapters the environment names. Kept free of `cloudflare:workers` so it runs in tests;
  * `server/boot.ts` is the one file that imports the Workers runtime.
  *
- * The database is **not** registered here yet: the production Postgres host and driver are
- * an open decision (DECISIONS T9). Until then the first query fails with the "No database
- * registered" message from db/client.ts — loudly, rather than pretending.
+ * P0.20: the database — Hyperdrive bindings (`HYPERDRIVE_APP`, `HYPERDRIVE_ADMIN`) on Cloudflare, or
+ * `DATABASE_APP_URL` / `DATABASE_ADMIN_URL` — becomes a connector: a connection per role for each
+ * unit of work (`db/client.ts`). Production refuses to start without one. Without one elsewhere,
+ * the first query fails with "No database registered" — loudly, rather than pretending.
  */
 import { loadEnv, type Env } from '../config/env';
 import { configureNotify } from '../notify/notify';
@@ -20,6 +21,10 @@ import { registerWebhookSource } from '../../modules/webhooks/sources';
 import { shopifySource } from '../../modules/webhooks/shopify';
 import { registerAllConnectors } from '../../connectors';
 import { setLogLevel } from '../observability/log';
+import { registerDbConnector } from '../../../db/client';
+import { postgresConnector } from '../../../db/postgres';
+
+type Hyperdrive = { connectionString: string };
 
 export function bootstrap(bindings: Record<string, unknown>, fallback: Record<string, string | undefined> = {}): Env {
   const vars: Record<string, string | undefined> = { ...fallback };
@@ -33,6 +38,10 @@ export function bootstrap(bindings: Record<string, unknown>, fallback: Record<st
   configureConfigStore(env, bindings.CONFIGS as KvBinding | undefined);
   configureRateLimiter(env, bindings.RATE_LIMITS as RateLimitKv | undefined);
   configureJobs(env, bindings.JOBS as JobsQueue | undefined); // P7: the job queue's wake-up
+  const app = (bindings.HYPERDRIVE_APP as Hyperdrive | undefined)?.connectionString ?? env.DATABASE_APP_URL;
+  const admin = (bindings.HYPERDRIVE_ADMIN as Hyperdrive | undefined)?.connectionString ?? env.DATABASE_ADMIN_URL;
+  if (app && admin) registerDbConnector(postgresConnector({ app, admin }));
+  else if (env.NODE_ENV === 'production') throw new Error('no database: bind HYPERDRIVE_APP and HYPERDRIVE_ADMIN (or set DATABASE_APP_URL and DATABASE_ADMIN_URL)');
   registerAllConnectors(); // P6: the store connectors (WooCommerce first)
   if (env.SHOPIFY_CLIENT_SECRET) registerWebhookSource(shopifySource(env.SHOPIFY_CLIENT_SECRET)); // P6: Shopify's webhooks
   return env;

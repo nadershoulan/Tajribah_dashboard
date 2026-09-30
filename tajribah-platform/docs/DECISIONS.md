@@ -803,3 +803,27 @@ the safer of two:
 
 OIDC only for now. SAML (still asked for by some older corporate setups) would be a second protocol
 behind the same rules; Entra, Google Workspace and Okta all speak OIDC.
+
+## T60 · 2026-09-30 · The database connection: `pg` through Hyperdrive, two logins, a connection per unit of work
+
+T9 left the production driver open; the host is still Nader's choice (Hetzner), but the connection code
+does not depend on it, and without it the app could not run anywhere but the tests.
+
+- **Driver: node-postgres (`pg`)**, through **Hyperdrive** on Cloudflare — the pairing Cloudflare
+  documents for Workers (`nodejs_compat`), and what Drizzle supports as `drizzle-orm/node-postgres`.
+- **Two logins**, one per role: `tajribah_app` members (RLS applies) and a `BYPASSRLS` login in
+  `tajribah_admin` (the attribute is not inherited). Not one login with `SET ROLE`: Hyperdrive pools
+  by transaction, so session settings do not survive — the reason tenancy is transaction-local too.
+- **A connection per role per unit of work** — each request (`route`) and each background pass — opened
+  on first use and ended when it settles (`withDbConnection`). A Worker may not use a connection opened
+  for another request; Hyperdrive keeps the real ones warm. One connection per role, as the tests'
+  single PGlite: a query outside its transaction waits visibly rather than running without the
+  store's setting.
+- **Migrations by `scripts/db/migrate.mjs`** — psql only, a ledger with each file's sha-256, applied
+  before the code that needs them (they are expand-only).
+
+**Tried:** the whole app in workerd on a local Postgres 16 — sign-up, sign-in through the browser,
+RLS-bound writes, isolation between stores (`docs/DATABASE.md`).
+
+**Rollback path.** `db/postgres.ts` is the only file that knows the driver; `postgres.js` would be a
+drop-in. A long-lived Node worker (`runForever`) registers its own pools with `registerDb` instead.

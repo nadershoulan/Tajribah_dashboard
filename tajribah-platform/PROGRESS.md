@@ -268,14 +268,15 @@ The public site that sells Tajribah, Arabic first.
 | ⬜ | Unifonic (SMS / WhatsApp) | Real phone OTP |
 | ⬜ | Shopify Partner account | Connecting Shopify shops (P6) — the connection itself is built |
 | ⬜ | 3D generation API (Meshy / Tripo3D / CSM) | Generating models from photos (P3.4 onwards) |
-| ⬜ | **Hetzner server** (for Postgres) | Real sign-in, staging, anything saved outside tests |
+| ⬜ | **Hetzner server** (for Postgres) | Staging and going live — the platform itself now runs on PostgreSQL (tried here, `docs/DATABASE.md`) |
+| ⬜ | **A yes from you: automatic checks on GitHub** | P0.21 — I can add a GitHub Actions workflow that runs the typecheck, lint and the 700+ tests on every push; it uses your GitHub account's Actions minutes, so it waits on your OK |
 
 Before paying for any of them: check the name **Tajribah** is free (`.com`, `.sa`, Salla and
 Zid app names, Saudi trademark search).
 
 **Decided 2026-09-23:**
 - Database: **Postgres on a Hetzner server.** Needed from you: the server (a CX22-class
-  machine is enough to start). Until it exists, sign-in cannot work in the browser.
+  machine is enough to start). Sign-in already works in a browser against a local PostgreSQL; the server is for staging and launch.
 - Arabic text uses **ASCII digits** (30, 15%) — done; a test keeps it that way.
 - **Start P1 without waiting** for CI/staging — only the parts that need no account.
 

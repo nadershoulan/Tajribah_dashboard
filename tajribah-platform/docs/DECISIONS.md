@@ -903,3 +903,14 @@ Zid signs no webhook, so each subscription carries its own Basic-auth credential
 the username, our keyed hash of it as the password — checkable without storing anything, and useless for
 any other store or event. Zid's uninstall notice (an app-level webhook, shape unpublished) waits for a
 real app; meanwhile a refused request revokes the connection.
+
+## T62 · 2026-10-01 · P8: agency accounts and custom domains; the website's wording stays
+
+**Decisions (Nader's, 2026-10-01):**
+- **Agency accounts — build now:** one agency login manages its clients' stores (switching, and an
+  overview of all of them). No commissions or reseller pricing — those stay Nader's to set later.
+- **Custom domains — build now:** an Enterprise store's AR and try-on pages on its own address (like
+  `ar.theirstore.com`); the verification is built now, switching it on needs Cloudflare.
+- **GCC stores and the partner program: not now.**
+- **The website keeps saying Salla and Zid are coming** until a real Salla or Zid store has connected.
+

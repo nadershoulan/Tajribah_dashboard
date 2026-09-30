@@ -105,6 +105,18 @@ export type SsoSettingsView = {
 /** P6 — which store platforms this dashboard can connect yet (API-065). */
 export type ConnectionProviders = Record<ConnectionSummary['provider'], boolean>;
 
+/** T62 — one store in an agency's overview (API-088): what it is, and what needs a person's attention. */
+export type StoreOverview = {
+  id: string; name: string; slug: string; role: string; plan: string;
+  status: 'trial' | 'active' | 'past_due' | 'suspended' | 'cancelled';
+  trialEndsAt: string | null; readOnly: string | null;
+  products: number; liveButtons: number; setupComplete: boolean;
+  connection: { provider: 'salla' | 'zid' | 'shopify' | 'woocommerce'; status: 'active' | 'expired' | 'revoked' | 'error'; health: 'healthy' | 'attention' | 'failing'; lastSyncAt: string | null } | null;
+  last30: { views: number; arSessions: number; tryonSessions: number };
+  /** What to look at first, most urgent first. */
+  attention: ('suspended' | 'read_only' | 'past_due' | 'trial_ending' | 'connection' | 'setup')[];
+};
+
 /** T61 — the Salla app page (API-068): the store Salla vouched for, as far as linking it goes. */
 export type SallaAppView = {
   /** Already linked to a Tajribah account (the answer names none). */

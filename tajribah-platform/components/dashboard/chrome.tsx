@@ -287,6 +287,9 @@ function TenantSwitcher({ tenant }: { tenant: TenantSummary | null }) {
               );
             })}
           </ul>
+          {stores.length > 1 && (
+            <AppLink href="/dashboard/stores" className="tenant-all" onClick={() => setOpen(false)}>{t('كل المتاجر وما يحتاج انتباهك', 'All stores, and what needs attention')}</AppLink>
+          )}
           {adding ? (
             <form className="tenant-add" onSubmit={add}>
               <label htmlFor="new-store-name">{t('اسم المتجر الجديد', 'New store name')}</label>

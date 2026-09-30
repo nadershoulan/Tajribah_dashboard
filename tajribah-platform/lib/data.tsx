@@ -13,7 +13,7 @@ import {
   DEMO_AI_JOBS, DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
 } from './demo-data';
 import type {
-  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, SallaAppView, SsoSettingsView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, SallaAppView, SsoSettingsView, StoreOverview, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
@@ -48,6 +48,8 @@ export interface DataSource {
   /** The store being viewed. The shell reads it on every screen for the store switcher. */
   currentTenant(): Promise<TenantSummary>;
   dashboard(): Promise<DashboardSummary>;
+  /** T62 — every store this person can open, and what needs attention in each (the agency overview). */
+  storesOverview(): Promise<StoreOverview[]>;
   /** One page of the catalogue: search, filter and cursor are the server's (P1.9). */
   products(query?: Partial<ProductListQuery>): Promise<ProductListPage>;
   product(id: string): Promise<ProductRow | null>;
@@ -179,6 +181,7 @@ export function apiSource(client: ApiClient): DataSource {
       return store;
     },
     async dashboard() { return client.call<DashboardSummary>('/api/dashboard'); },
+    async storesOverview() { return (await client.call<{ stores: StoreOverview[] }>('/api/agency/stores')).stores; },
     async products(query = {}) {
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(query)) {
@@ -541,6 +544,21 @@ export const demoSource: DataSource = {
       return { ...copy, done: step?.done ?? false, skipped: step?.skipped ?? false };
     });
     return { ...DEMO_DASHBOARD, tenant: { ...demoTenant }, onboarding: { complete: view.complete, steps } };
+  },
+  // T62: the preview has its one store; the overview shows it as the server would.
+  async storesOverview() {
+    const summary = await demoSource.dashboard();
+    return [{
+      id: demoTenant.id, name: demoTenant.name, slug: demoTenant.slug, role: demoTenant.role, plan: demoTenant.plan,
+      status: demoTenant.status as StoreOverview['status'], trialEndsAt: demoTenant.trialEndsAt, readOnly: null,
+      products: summary.counts.products, liveButtons: summary.counts.arEnabled, setupComplete: summary.onboarding.complete,
+      connection: summary.connection ? { provider: summary.connection.provider, status: summary.connection.status, health: 'healthy', lastSyncAt: summary.connection.lastSyncAt } : null,
+      last30: { views: summary.last30.views, arSessions: summary.last30.arSessions, tryonSessions: summary.last30.tryonSessions },
+      attention: [
+        ...(demoTenant.status === 'trial' && demoTenant.trialEndsAt && new Date(demoTenant.trialEndsAt).getTime() - Date.now() < 3 * 86_400_000 ? ['trial_ending' as const] : []),
+        ...(summary.onboarding.complete ? [] : ['setup' as const]),
+      ],
+    }];
   },
   async products(query = {}) { return pageOf(DEMO_PRODUCTS.map((p) => withLive(demoEdits.get(p.id) ?? p)), query); },
   async product(id) { const p = demoEdits.get(id) ?? DEMO_PRODUCTS.find((x) => x.id === id); return p ? withLive(p) : null; },

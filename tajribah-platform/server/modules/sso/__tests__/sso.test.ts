@@ -22,6 +22,7 @@ import { addStoreHandler, meHandler, switchTenantHandler, twoFactorSetupHandler 
 import { acceptInvitationHandler } from '@/server/modules/team/http';
 import { analyticsHandler } from '@/server/modules/analytics/http';
 import { staffTrailHandler } from '@/server/modules/admin/http';
+import { storesOverviewHandler } from '@/server/modules/agency/http';
 
 setLogLevel('error');
 const APP = 'https://app.tajribah.sa';
@@ -177,6 +178,8 @@ test('an SSO session acts for its store and nothing else', async () => {
 
     const me = await (await call(meHandler, accessToken, '/api/auth/me')).json() as any;
     assert.deepEqual([me.tenants.map((t: any) => t.id), me.ssoStoreId], [[tenantId], tenantId], 'her own shop is not even listed');
+    const overview = await (await call(storesOverviewHandler, accessToken, '/api/agency/stores')).json() as any;
+    assert.deepEqual(overview.stores.map((s: any) => s.id), [tenantId], 'nor in the all-stores overview (T62)');
     assert.equal((await call(analyticsHandler, accessToken, '/api/analytics?range=7d')).status, 200, 'the store itself: yes');
 
     for (const [name, response] of [

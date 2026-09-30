@@ -48,6 +48,7 @@ import AdminCoupons from '@/components/pages/admin/AdminCoupons';
 import AdminCompliance from '@/components/pages/admin/AdminCompliance';
 import AdminAnnouncements from '@/components/pages/admin/AdminAnnouncements';
 import SallaApp from '@/components/pages/SallaApp';
+import AgencyStores from '@/components/pages/AgencyStores';
 import NotFound from '@/components/pages/NotFound';
 
 export const ROUTES: Record<string, () => ReactElement> = {
@@ -67,6 +68,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/dashboard/api-keys': ApiKeys, // P8
   '/dashboard/webhooks': Webhooks, // P8
   '/dashboard/qr': Qr, // T52: was "page not found" from the sidebar
+  '/dashboard/stores': AgencyStores, // T62: every store at once (agency accounts)
   '/dashboard/ar-settings': ArSettings,
   '/login': Login,
   '/login/sso': LoginSso, // P8

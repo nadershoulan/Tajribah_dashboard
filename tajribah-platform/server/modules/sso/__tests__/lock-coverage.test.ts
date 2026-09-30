@@ -17,6 +17,7 @@ const SAFE_FOR_SSO: Record<string, string> = {
   twoFactorStatusHandler: 'reads whether two-step sign-in is on; changes nothing',
   endStaffViewHandler: 'only ends a staff view; an SSO session never starts one (the console refuses it)',
   announcementsHandler: 'platform notices every signed-in person sees',
+  storesOverviewHandler: 'lists only the SSO store (onlyTenantId = ssoTenantId), as meHandler does; reads, changes nothing (T62)',
 };
 
 function files(dir: string): string[] {

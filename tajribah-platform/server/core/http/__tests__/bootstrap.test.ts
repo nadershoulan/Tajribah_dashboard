@@ -27,9 +27,10 @@ import * as publicApiHttp from '@/server/modules/public-api/http';
 import * as healthHttp from '@/server/modules/health/http';
 import * as outgoingWebhooksHttp from '@/server/modules/outgoing-webhooks/http';
 import * as ssoHttp from '@/server/modules/sso/http';
+import * as agencyHttp from '@/server/modules/agency/http';
 
 // Every module's handlers. A new module's http.ts is added here once.
-const MODULE_HANDLERS: Record<string, Record<string, unknown>> = { auth: authHttp, onboarding: onboardingHttp, products: productsHttp, webhooks: webhooksHttp, models: modelsHttp, connections: connectionsHttp, team: teamHttp, settings: settingsHttp, dashboard: dashboardHttp, ar: arHttp, notifications: notificationsHttp, embed: embedHttp, billing: billingHttp, admin: adminHttp, analytics: analyticsHttp, 'ai-jobs': aiJobsHttp, tryon: tryOnHttp, 'api-keys': apiKeysHttp, 'public-api': publicApiHttp, health: healthHttp, 'outgoing-webhooks': outgoingWebhooksHttp, sso: ssoHttp };
+const MODULE_HANDLERS: Record<string, Record<string, unknown>> = { auth: authHttp, onboarding: onboardingHttp, products: productsHttp, webhooks: webhooksHttp, models: modelsHttp, connections: connectionsHttp, team: teamHttp, settings: settingsHttp, dashboard: dashboardHttp, ar: arHttp, notifications: notificationsHttp, embed: embedHttp, billing: billingHttp, admin: adminHttp, analytics: analyticsHttp, 'ai-jobs': aiJobsHttp, tryon: tryOnHttp, 'api-keys': apiKeysHttp, 'public-api': publicApiHttp, health: healthHttp, 'outgoing-webhooks': outgoingWebhooksHttp, sso: ssoHttp, agency: agencyHttp };
 
 const BASE = { APP_URL: 'http://localhost:5173', AUTH_SECRET: 'a'.repeat(40), ENCRYPTION_KEY: 'b'.repeat(40) };
 

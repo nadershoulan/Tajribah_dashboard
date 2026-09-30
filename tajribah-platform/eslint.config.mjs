@@ -18,6 +18,8 @@ const eslintConfig = defineConfig([
     "dist-worker/**",
     // Vendored third-party viewer files, served as they were published (public/vendor/README.md).
     "public/vendor/**",
+    // Salla's Embedded App SDK, as published (lib/vendor/salla-embedded-sdk-0.2.6/README.md).
+    "lib/vendor/**",
     // Local tool output, never committed: wrangler's dev bundles and the test runner's build.
     ".wrangler/**",
     ".tests/**",
@@ -69,6 +71,7 @@ const eslintConfig = defineConfig([
       "server/modules/webhooks/dispatch.ts",
       "server/modules/connections/rotation.ts",
       "server/modules/connections/health.ts",
+      "server/modules/connections/salla.ts",
       "server/modules/ai-jobs/guardrails.ts",
       "server/modules/ai-jobs/models.ts",
       "server/modules/admin/models.ts",

@@ -21,6 +21,7 @@ import { uuidv7 } from '@/lib/ids';
 import { errors, isUniqueViolation } from '@/server/core/errors/problem';
 import { log } from '@/server/core/observability/log';
 import { withTenant } from '@/server/core/tenancy/rls';
+import { currentScope } from '@/server/core/observability/scope';
 import { webhookSourceFor } from './sources';
 
 /** Providers' own limits are far below this; anything bigger is not a webhook. */
@@ -52,6 +53,7 @@ export async function ingest(provider: string, rawBody: string, headers: Headers
   if (!delivery?.eventId || !delivery.externalStoreId || !delivery.topic) {
     throw errors.validation({ body: ['not a webhook envelope this source understands'] });
   }
+  if (source.capture) await source.capture(body, currentScope()?.requestId ?? `webhook-${delivery.eventId}`);
 
   // Which tenant: a platform lookup — the delivery precedes any tenant scope, as a login's
   // membership lookup does. Filtered by the provider and a store id the signature vouched for.

@@ -11,6 +11,8 @@
  *    pair; the connection service already refreshes one connection at a time (T8) for this reason.
  *    Salla answers `invalid_grant` (400 or 401) for a refresh token it will not take, and 401 for an
  *    access token that is expired, revoked or whose app was uninstalled: both → `TokenRevokedError`.
+ *    `invalid_client` means our own app keys were refused — a setup fault, retried and logged, never
+ *    a reason to disconnect a store (the real server's answer, checked 2026-09-30).
  *  - **Names**: one per answer, in the language of `Accept-Language` (Arabic by default). Each page
  *    is read twice — Arabic, then English — and matched by id. The Arabic answer is the Arabic name
  *    when it is written in Arabic (a Latin-only name is not an Arabic name); the English answer is
@@ -31,6 +33,7 @@
  *    `deleted` → archived; anything new → draft until looked at.
  */
 import { errors } from '../../core/errors/problem';
+import { log } from '../../core/observability/log';
 import { Transport } from '../transport';
 import { TokenRevokedError, type Connector, type ExternalProduct, type Page, type TokenSet } from '../types';
 import { htmlToText } from '../woocommerce/html';
@@ -151,6 +154,13 @@ export class SallaConnector implements Connector {
       body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: tokens.refreshToken, client_id: app.clientId, client_secret: app.clientSecret }).toString(),
     });
     const body = await response.json().catch(() => null) as { access_token?: string; refresh_token?: string; expires_in?: number; expires?: number; scope?: string; error?: string } | null;
+    // Salla's accounts server answers `invalid_client` (401) when it is *our* app's keys it refuses
+    // (seen from the real server, 2026-09-30): a setup fault to fix, never a store to disconnect —
+    // treating it as a revocation would wipe every Salla store's tokens at once.
+    if (body?.error === 'invalid_client') {
+      log.error('Salla refused the app’s own keys — check SALLA_CLIENT_ID / SALLA_CLIENT_SECRET');
+      throw errors.upstream('salla', new Error('token refresh: the app keys were refused (invalid_client)'));
+    }
     if (body?.error === 'invalid_grant' || response.status === 401) throw new TokenRevokedError('Salla will not take this refresh token — the store must reinstall the app');
     if (!response.ok || !body?.access_token || !body.refresh_token) throw errors.upstream('salla', new Error(`token refresh: ${response.status}`));
     const seconds = body.expires_in ?? body.expires ?? null;

@@ -3,7 +3,10 @@
  *
  * Nothing in this app is meant to be framed: the storefront widget is a script on the merchant's
  * page, not an iframe of ours. So framing is refused everywhere — the staff console's store and
- * account actions, and the merchant's billing, cannot be click-jacked from another site.
+ * account actions, and the merchant's billing, cannot be click-jacked from another site. One page is
+ * the exception (T61): `/salla/app`, which Salla's merchant dashboard (`https://s.salla.sa`) loads in
+ * a frame — that host only, by its policy's `frame-ancestors` (browsers then ignore X-Frame-Options).
+ * The page asks for nothing but Salla's word on who opened it, and opens Tajribah in its own tab.
  *
  * Two Content-Security-Policies, because pages and the API need different things:
  *  - **Pages** get `pageCsp(nonce)` from `proxy.ts`, a fresh nonce per request. The framework
@@ -33,7 +36,11 @@ export const API_CSP = "default-src 'none'; frame-ancestors 'none'";
  * The policy for an HTML page. `dev` adds only what Vite's dev server needs (its hot-reload
  * socket and React's dev-time `eval` for readable stacks); a build never carries them.
  */
-export function pageCsp(nonce: string, { dev = false }: { dev?: boolean } = {}): string {
+/** The page Salla's merchant dashboard frames (T61), and the one host allowed to frame it. */
+export const SALLA_APP_PATH = '/salla/app';
+export const SALLA_DASHBOARD = 'https://s.salla.sa';
+
+export function pageCsp(nonce: string, { dev = false, framedBy }: { dev?: boolean; framedBy?: string } = {}): string {
   return [
     "default-src 'self'",
     // 'wasm-unsafe-eval' lets WebAssembly compile (the meshopt decoder in the staff model review,
@@ -51,7 +58,7 @@ export function pageCsp(nonce: string, { dev = false }: { dev?: boolean } = {}):
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    "frame-ancestors 'none'",
+    `frame-ancestors ${framedBy ?? "'none'"}`,
   ].join('; ');
 }
 

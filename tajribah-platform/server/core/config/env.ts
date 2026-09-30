@@ -92,6 +92,10 @@ export const REGISTRY = {
   SALLA_CLIENT_SECRET: entry({
     schema: z.string().optional(), scope: 'runtime', secret: true, doc: 'Salla partner app secret.',
   }),
+  SALLA_APP_ID: entry({
+    schema: z.string().regex(/^\d{1,20}$/, 'the numeric app id from the Salla Partners portal').optional(), scope: 'runtime',
+    doc: 'The Salla app id (Partners portal). Verifies the app page’s session token with Salla (introspect, T61); without it a Salla store cannot be linked.',
+  }),
   SALLA_WEBHOOK_SECRET: entry({
     schema: z.string().optional(), scope: 'runtime', secret: true,
     doc: 'Verifies webhook signatures against the raw body (§13.6).',

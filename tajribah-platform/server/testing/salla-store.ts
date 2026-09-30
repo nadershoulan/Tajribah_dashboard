@@ -7,10 +7,14 @@
  *    at most, one name per answer in the `Accept-Language` language (Arabic by default), ordered by
  *    id; `GET /admin/v2/products/{id}` — the product, or 404 with Salla's error envelope;
  *  - 401 `Unauthorized` for an access token it does not accept (expired, revoked, uninstalled);
+ *    `invalid_client` for app keys it does not know;
  *  - `POST accounts.salla.sa/oauth2/token` (`grant_type=refresh_token`) — a new pair, the old
  *    refresh token spent; a spent one used again answers `invalid_grant` and revokes the whole
  *    family, as Salla warns;
  *  - `GET accounts.salla.sa/oauth2/user/info` — the merchant (store) the token belongs to;
+ *  - `POST api.salla.dev/exchange-authority/v1/introspect` — the store an app page's session token
+ *    belongs to, for the app id in `s-source` only (422 "Decryption failed" otherwise — the real
+ *    server's status; the docs show 401);
  *  - 429 with `Retry-After` while throttled, 503 while down.
  * Tests only.
  */
@@ -21,6 +25,7 @@ import { SALLA_ACCOUNTS, SALLA_API, type SallaProduct } from '@/server/connector
 
 export const SALLA_MERCHANT = 847769313;
 export const SALLA_APP = { clientId: 'tajribah-salla-test', clientSecret: 'salla_test_secret' };
+export const SALLA_APP_ID = '1180704399';
 
 const hasArabic = (text: string) => /[؀-ۿ]/.test(text);
 
@@ -55,6 +60,10 @@ export class SallaStore {
   throttleNext = 0;
   requests = 0;
   readonly languages: string[] = [];
+  /** App-page session tokens Salla issued: token → the store (merchant id) it belongs to. */
+  readonly sessions = new Map<string, number>([['em_tok_ok', SALLA_MERCHANT]]);
+  /** The store the access tokens open (user info). */
+  merchant = SALLA_MERCHANT;
   private issued = 0;
 
   constructor(catalogue: ExternalProduct[] = []) {
@@ -98,7 +107,9 @@ export class SallaStore {
       const form = new URLSearchParams(String(init.body));
       const refresh = form.get('refresh_token') ?? '';
       const invalid = () => Response.json({ error: 'invalid_grant', error_description: 'The provided authorization grant (e.g., authorization code, resource owner credentials) or refresh token is invalid, expired, revoked, does not match the redirection URI used in the authorization request, or was issued to another client.' }, { status: 401 });
-      if (form.get('grant_type') !== 'refresh_token' || form.get('client_id') !== SALLA_APP.clientId || form.get('client_secret') !== SALLA_APP.clientSecret) return invalid();
+      // What the real server answers to keys it does not know (checked 2026-09-30).
+      if (form.get('client_id') !== SALLA_APP.clientId || form.get('client_secret') !== SALLA_APP.clientSecret) return Response.json({ error: 'invalid_client', error_description: 'Client authentication failed (e.g., unknown client, no client authentication included, or unsupported authentication method). Unable to locate the resource' }, { status: 401 });
+      if (form.get('grant_type') !== 'refresh_token') return invalid();
       if (this.spent.has(refresh)) {
         // Used twice: the whole family is revoked — only a reinstall brings access back.
         for (const [rt, at] of this.refreshTokens) { this.refreshTokens.delete(rt); this.accessTokens.delete(at); }
@@ -116,6 +127,14 @@ export class SallaStore {
       return Response.json({ ...pair, expires_in: 1_209_599, scope: 'settings.read products.read offline_access', token_type: 'bearer' });
     }
 
+    if (url.href === 'https://api.salla.dev/exchange-authority/v1/introspect' && init?.method === 'POST') {
+      const { token: session } = JSON.parse(String(init.body)) as { token?: string };
+      const merchant = this.sessions.get(session ?? '');
+      // 422, not the 401 the docs show: what the real server answers (checked 2026-09-30).
+      if (headers.get('s-source') !== SALLA_APP_ID || merchant === undefined) return Response.json({ status: 422, success: false, error: { message: 'Decryption failed', code: 0 } }, { status: 422 });
+      return Response.json({ status: 200, success: true, data: { merchant_id: merchant, user_id: 987654, exp: new Date(Date.now() + 600_000).toISOString() } });
+    }
+
     const token = /^Bearer (.+)$/.exec(headers.get('authorization') ?? '')?.[1] ?? '';
     const unauthorized = () => Response.json({ status: 401, success: false, error: { code: 'Unauthorized', message: 'The access token is invalid' } }, { status: 401 });
 
@@ -123,7 +142,7 @@ export class SallaStore {
       if (!this.accessTokens.has(token)) return unauthorized();
       return Response.json({
         status: 200, success: true,
-        data: { id: 1689171978, name: 'Store Owner', email: 'owner@example.sa', role: 'user', merchant: { id: SALLA_MERCHANT, username: 'oud-house', name: 'بيت العود', avatar: 'https://cdn.salla.sa/oud-house/logo.png', plan: 'pro', status: 'active', domain: 'https://oud-house.example.sa' } },
+        data: { id: 1689171978, name: 'Store Owner', email: 'owner@example.sa', role: 'user', merchant: { id: this.merchant, username: 'oud-house', name: 'بيت العود', avatar: 'https://cdn.salla.sa/oud-house/logo.png', plan: 'pro', status: 'active', domain: 'https://oud-house.example.sa' } },
       });
     }
 

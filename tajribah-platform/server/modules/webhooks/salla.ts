@@ -13,11 +13,13 @@
  *    (`product.price.updated`, `product.status.updated`, `product.image.updated`, …): every one of
  *    them is a product change. `app.uninstalled` → `app.uninstalled`. Anything else is stored under
  *    Salla's own name and ignored.
- *  - **Tokens are never stored**: `app.store.authorize` carries the store's access and refresh tokens;
- *    what is kept of it has them blanked (`redact`).
+ *  - **Tokens are never stored with the event**: `app.store.authorize` carries the store's access and
+ *    refresh tokens. `capture` hands them to the connection (or, for a store not linked yet, to the
+ *    sealed waiting grant — `connections/salla.ts`); what is kept of the event has them blanked.
  */
 import { hmacSha256, toHex, type Delivery, type WebhookSource } from './sources';
 import { timingSafeEqual } from '@/server/core/auth/crypto';
+import { forgetSallaGrant, receiveSallaAuthorize } from '@/server/modules/connections/salla';
 
 export const SALLA_PRODUCT_CHANGES = [
   'product.updated', 'product.available', 'product.price.updated', 'product.status.updated', 'product.image.updated',
@@ -49,6 +51,11 @@ export function sallaSource(secret: string): WebhookSource {
       const stamped = typeof body.created_at === 'string' ? body.created_at : '';
       const merchant = String(body.merchant);
       return { eventId: `${body.event}:${merchant}:${subject ?? ''}:${stamped}`, topic, externalStoreId: merchant, subject };
+    },
+    async capture(body, requestId) {
+      if (!isObj(body)) return;
+      if (body.event === 'app.store.authorize') await receiveSallaAuthorize(body.merchant, body.data, requestId);
+      if (body.event === 'app.uninstalled') await forgetSallaGrant(body.merchant);
     },
     redact(body) {
       if (!isObj(body) || body.event !== 'app.store.authorize' || !isObj(body.data)) return body;

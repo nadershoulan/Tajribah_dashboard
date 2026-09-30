@@ -53,6 +53,16 @@ test('the proxy gives each page its own nonce, on the request (for the renderer)
   assert.equal(newNonce().length, 24);
 });
 
+test('one page may be framed — the Salla app page, by Salla’s merchant dashboard only (T61)', () => {
+  const policy = (path: string) => proxy(new NextRequest(`https://app.tajribah.sa${path}`)).headers.get('content-security-policy') ?? '';
+  assert.equal(directive(policy('/salla/app'), 'frame-ancestors'), 'frame-ancestors https://s.salla.sa');
+  assert.equal(directive(policy('/salla/app/'), 'frame-ancestors'), 'frame-ancestors https://s.salla.sa');
+  for (const path of ['/dashboard', '/salla', '/salla/app/x', '/dashboard/connections', '/login']) {
+    assert.equal(directive(policy(path), 'frame-ancestors'), "frame-ancestors 'none'", path);
+  }
+  assert.equal(directive(pageCsp('n', { framedBy: 'https://s.salla.sa' }), 'script-src'), directive(pageCsp('n'), 'script-src'), 'framed or not, scripts are held to the nonce');
+});
+
 test('the proxy runs on pages, not on the API or static files', () => {
   const [matcher] = proxyConfig.matcher;
   const runs = (path: string) => new RegExp(`^${matcher}$`).test(path);

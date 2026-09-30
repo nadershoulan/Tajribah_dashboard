@@ -59,6 +59,26 @@ export const storeConnections = pgTable('store_connections', {
   index('connections_tenant_idx').on(t.tenantId, t.status),
 ]);
 
+/**
+ * T61 — a store's access, handed over before any Tajribah account owns it. Salla sends a store's
+ * tokens by webhook when the merchant installs the app (`app.store.authorize`, its "easy mode" — the
+ * only one allowed for published apps); they wait here, sealed like a connection's and bound to this
+ * row's id, until the merchant links the store from inside Salla (`connections/salla.ts`), then
+ * move onto the connection and the row is deleted. Platform data, admin role only (EXEMPT).
+ */
+export const storeGrants = pgTable('store_grants', {
+  id: pk(),
+  provider: provider('provider').notNull(),
+  externalStoreId: text('external_store_id').notNull(),
+  accessTokenEncrypted: text('access_token_encrypted'),
+  refreshTokenEncrypted: text('refresh_token_encrypted'),
+  tokenExpiresAt: ts('token_expires_at'),
+  scopes: json<string[]>('scopes'),
+  ...timestamps(),
+}, (t) => [
+  uniqueIndex('store_grants_provider_store_unq').on(t.provider, t.externalStoreId),
+]);
+
 export const syncJobs = pgTable('sync_jobs', {
   id: pk(),
   tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),

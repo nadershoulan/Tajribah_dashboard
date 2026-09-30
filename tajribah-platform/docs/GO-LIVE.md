@@ -81,6 +81,20 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
       listing — `customers/data_request`, `customers/redact`, `shop/redact` (T58). **Check:** on a development store, connect from Store
       connections; the install screen asks for products only; back on Store connections the note says
       the app is installed and the first sync runs.
+- [ ] Salla (P1.4/P1.5, T61), once the **Salla Partner** account exists: create the Tajribah app in the
+      Partners portal with **Easy Mode** authorization (the only mode Salla allows published apps) and the
+      scopes **`products.read`** and **`offline_access`**. Webhook URL
+      **`https://app.tajribah.sa/api/webhooks/salla`**, security strategy **Signature**, events
+      `app.store.authorize`, `app.uninstalled`, `product.created`, `product.deleted` and the product change
+      events (`product.price.updated`, `product.status.updated`, `product.image.updated`, …). Add an
+      **Embedded Page** whose iframe URL is **`https://app.tajribah.sa/salla/app`** (set it as the default
+      page). Then set **`SALLA_APP_ID`**, **`SALLA_CLIENT_ID`**, **`SALLA_CLIENT_SECRET`** and
+      **`SALLA_WEBHOOK_SECRET`** on the dashboard Worker — the Salla card shows its steps once all four are
+      set. **Check** on a Salla demo store: install the app; open it from the Salla dashboard (Apps →
+      Tajribah) — the page says "Link to my Tajribah account"; follow it, sign in; Store connections says
+      the store is linked and the first sync runs; the products match the Salla store (names in both
+      languages, prices, pictures). Then confirm the four details marked in DECISIONS T61 (listing order,
+      time zone, a missing price, the page format) and run `salla.test.ts`'s conformance suite against it.
 - [ ] Smoke test (P0.20): with a test store's account (no two-step sign-in),
       `node scripts/smoke/smoke.mjs --base https://app.tajribah.sa --email … --password …` — every read and a
       merchant's usual changes; it must end "passed".

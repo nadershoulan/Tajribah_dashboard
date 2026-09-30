@@ -871,3 +871,14 @@ against one):
    `current/next`; both are read.
 Also: Salla sends no event id with a webhook, so a delivery is identified by its event, store, product
 and time stamp; and the store's tokens inside `app.store.authorize` are never stored with the event.
+
+**T61 update (2026-09-30) — linking a Salla store.** Salla allows published apps only its "easy mode":
+the store's tokens arrive by webhook on install, with nothing that says which Tajribah account the store
+belongs to. Linking takes proof from each side: the tokens are Salla's (the webhook signature) and wait
+sealed in `store_grants`; the store is Salla's word (its introspect answer for the session token it gives
+our app page inside its dashboard); the account is the merchant's own sign-in, spending a 10-minute
+ticket. That page is the only one of ours another site may frame, and only Salla's dashboard. Two answers
+from Salla's real servers differ from its documentation (introspect refuses with 422, not 401; unknown
+app keys get 401 `invalid_client`) — the second is now a setup fault, never a reason to disconnect stores.
+Salla's Embedded SDK is vendored (not added as a package: the app's packages are shared with another
+working copy and carry no lockfile).

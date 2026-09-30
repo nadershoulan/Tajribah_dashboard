@@ -110,7 +110,11 @@ test('refresh tokens work once: the new pair works, the old access stops, and a 
 
   await assert.rejects(() => connector.refresh({ accessToken: 'x' }), TokenRevokedError, 'no refresh token');
   await assert.rejects(() => connectorFor(store, null).refresh({ accessToken: 'x', refreshToken: 'y' }), (e: any) => e.code === 'not_implemented', 'no Salla app yet');
-  await assert.rejects(() => connectorFor(store, { clientId: 'other-app', clientSecret: 'x' }).refresh({ accessToken: 'x', refreshToken: 'salla_rt_1' }), TokenRevokedError);
+  // Our own keys refused (a setup fault): retried and logged — never a store disconnected.
+  const fresh = new SallaStore([]);
+  await assert.rejects(() => connectorFor(fresh, { clientId: 'other-app', clientSecret: 'x' }).refresh({ accessToken: 'salla_at_ok', refreshToken: 'salla_rt_ok' }),
+    (e: any) => !(e instanceof TokenRevokedError) && e.code?.startsWith('upstream_'));
+  assert.equal((await connectorFor(fresh).refresh({ accessToken: 'salla_at_ok', refreshToken: 'salla_rt_ok' })).accessToken, 'salla_at_1', 'and the store’s refresh token is still good'); 
 });
 
 test('a throttled store is waited for; a missing product is null; a non-numeric id is not asked about', async () => {

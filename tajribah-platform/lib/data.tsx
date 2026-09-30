@@ -13,7 +13,7 @@ import {
   DEMO_AI_JOBS, DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
 } from './demo-data';
 import type {
-  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, SsoSettingsView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, SallaAppView, SsoSettingsView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
@@ -73,6 +73,10 @@ export interface DataSource {
   startShopifyConnect(shop: string): Promise<{ authorizeUrl: string }>;
   /** P6 — finish it: the query Shopify sent the merchant back with. */
   completeShopifyConnect(query: string): Promise<ConnectionSummary>;
+  /** T61 — the Salla app page: Salla's session token → which store, and a ticket to link it (no session needed). */
+  openSallaApp(token: string): Promise<SallaAppView>;
+  /** T61 — the signed-in merchant links the Salla store the ticket names. */
+  linkSalla(ticket: string): Promise<ConnectionSummary>;
   /** P8 — the store's API keys; a new key comes back once, with its secret. */
   apiKeys(): Promise<ApiKeyView[]>;
   createApiKey(input: { name: string; scopes: string[]; expiresInDays: number | null }): Promise<{ key: string; apiKey: ApiKeyView }>;
@@ -208,6 +212,8 @@ export function apiSource(client: ApiClient): DataSource {
     async saveSsoSettings(input) { return client.call<SsoSettingsView>('/api/settings/sso', { method: 'PUT', body: input }); },
     async startShopifyConnect(shop) { return client.call<{ authorizeUrl: string }>('/api/connections/shopify/start', { body: { shop } }); },
     async completeShopifyConnect(query) { return client.call<ConnectionSummary>('/api/connections/shopify/complete', { body: { query } }); },
+    async openSallaApp(token) { return client.call<SallaAppView>('/api/salla/open', { body: { token } }); },
+    async linkSalla(ticket) { return client.call<ConnectionSummary>('/api/connections/salla/link', { body: { ticket } }); },
     async apiKeys() { return (await client.call<{ keys: ApiKeyView[] }>('/api/api-keys')).keys; },
     async createApiKey(input) { return client.call<{ key: string; apiKey: ApiKeyView }>('/api/api-keys', { body: input }); },
     async revokeApiKey(id) { return client.call<ApiKeyView>(`/api/api-keys/${encodeURIComponent(id)}/revoke`, { method: 'POST' }); },
@@ -572,6 +578,9 @@ export const demoSource: DataSource = {
   async saveSsoSettings() { throw new ApiError(402, 'plan_required', 'sso is not included in this plan'); },
   async startShopifyConnect() { throw new ApiError(501, 'not_implemented', 'Shopify shops can be connected once the Tajribah Shopify app is registered'); },
   async completeShopifyConnect() { throw new ApiError(501, 'not_implemented', 'Shopify shops can be connected once the Tajribah Shopify app is registered'); },
+  // T61: no Salla app is registered yet, as the server would say.
+  async openSallaApp() { throw new ApiError(501, 'not_implemented', 'Salla stores can be linked once the Tajribah Salla app is registered'); },
+  async linkSalla() { throw new ApiError(501, 'not_implemented', 'Salla stores can be linked once the Tajribah Salla app is registered'); },
   // P8: the preview's store is on Growth — keys are Enterprise, so the server would refuse, and so does the preview.
   async apiKeys() { return []; },
   async createApiKey() { throw new ApiError(402, 'plan_required', 'public_api is not included in this plan'); },

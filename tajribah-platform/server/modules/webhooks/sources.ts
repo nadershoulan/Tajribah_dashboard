@@ -42,6 +42,12 @@ export interface WebhookSource {
    * refresh tokens inside `app.store.authorize` — they are never written to the events table).
    */
   redact?(body: unknown): unknown;
+  /**
+   * What must happen on receipt, before the store is looked up — for deliveries that concern a store
+   * no account has linked yet (T61: Salla's `app.store.authorize` hands over the store's tokens,
+   * `app.uninstalled` withdraws them). Runs only after the signature has been verified.
+   */
+  capture?(body: unknown, requestId: string): Promise<void>;
 }
 
 /**

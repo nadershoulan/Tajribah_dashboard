@@ -105,6 +105,16 @@ export type SsoSettingsView = {
 /** P6 — which store platforms this dashboard can connect yet (API-065). */
 export type ConnectionProviders = Record<ConnectionSummary['provider'], boolean>;
 
+/** T61 — the Salla app page (API-068): the store Salla vouched for, as far as linking it goes. */
+export type SallaAppView = {
+  /** Already linked to a Tajribah account (the answer names none). */
+  linked: boolean;
+  /** Salla has handed over the store's access, so linking can finish. */
+  ready: boolean;
+  /** For the signed-in merchant to link this store; null once it is linked. */
+  ticket: string | null;
+};
+
 /** One store connection as the connections screen shows it (P1.11): no token, ever. */
 export type ConnectionDetail = ConnectionSummary & {
   latestSync: SyncProgress | null;

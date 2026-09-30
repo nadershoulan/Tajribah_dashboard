@@ -47,6 +47,7 @@ import AdminSupport from '@/components/pages/admin/AdminSupport';
 import AdminCoupons from '@/components/pages/admin/AdminCoupons';
 import AdminCompliance from '@/components/pages/admin/AdminCompliance';
 import AdminAnnouncements from '@/components/pages/admin/AdminAnnouncements';
+import SallaApp from '@/components/pages/SallaApp';
 import NotFound from '@/components/pages/NotFound';
 
 export const ROUTES: Record<string, () => ReactElement> = {
@@ -69,6 +70,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/dashboard/ar-settings': ArSettings,
   '/login': Login,
   '/login/sso': LoginSso, // P8
+  '/salla/app': SallaApp, // T61: inside the Salla merchant dashboard
   '/register': Register,
   // The staff console (Track A).
   '/admin': AdminOverview,

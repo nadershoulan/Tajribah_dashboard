@@ -16,6 +16,7 @@ import { connectionHealth } from './health';
 import { disconnectStore, listConnections } from './service';
 import { completeWooConnect, startWooConnect } from './woocommerce';
 import { completeShopifyConnect, startShopifyConnect, type ShopifyAppConfig } from './shopify';
+import { linkSallaStore, openSallaApp, type SallaLinkConfig } from './salla';
 import { loadEnv } from '@/server/core/config/env';
 
 /** The `[id]` segment at `index` from the end. A malformed id is a 404, like a missing one. */
@@ -97,7 +98,45 @@ const shopifyNotYet = () => errors.notImplemented('Shopify shops can be connecte
 export const connectionProvidersHandler = route(async (request) => {
   const config = apiConfig();
   await tenantContextFor(request, config);
-  return json({ woocommerce: true, shopify: shopifyApp(config) !== null, salla: false, zid: false });
+  return json({ woocommerce: true, shopify: shopifyApp(config) !== null, salla: sallaLink(config) !== null, zid: false });
+});
+
+/**
+ * The Salla app's settings for linking a store, or null until the app is registered in the Salla
+ * Partners portal: its id (Salla's introspect), keys (token refresh) and webhook secret (the tokens
+ * arrive by webhook) — all four, or a store could be linked and then not kept working (T61).
+ */
+function sallaLink(config: { authSecret: string }): SallaLinkConfig | null {
+  const env = loadEnv();
+  return env.SALLA_APP_ID && env.SALLA_CLIENT_ID && env.SALLA_CLIENT_SECRET && env.SALLA_WEBHOOK_SECRET
+    ? { appId: env.SALLA_APP_ID, authSecret: config.authSecret }
+    : null;
+}
+const sallaNotYet = () => errors.notImplemented('Salla stores can be linked once the Tajribah Salla app is registered');
+
+/**
+ * API-068 — POST /api/salla/open { token } → { linked, ready, ticket }: the app page inside the Salla
+ * dashboard hands over the session token Salla gave it; Salla says which store it is (T61). No session
+ * of ours — the merchant may not be signed in to Tajribah in that frame.
+ */
+export const openSallaAppHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const link = sallaLink(config);
+  if (!link) throw sallaNotYet();
+  const { token } = await readJson(request, z.object({ token: z.string().min(1).max(4096) }));
+  return json(await openSallaApp(token, link));
+});
+
+/** API-069 — POST /api/connections/salla/link { ticket }: the signed-in merchant links that Salla store (T61). */
+export const linkSallaHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  const link = sallaLink(config);
+  if (!link) throw sallaNotYet();
+  const { ticket } = await readJson(request, z.object({ ticket: z.string().min(1).max(1024) }));
+  return json(await linkSallaStore(ctx, ticket, link));
 });
 
 /** API-066 — POST /api/connections/shopify/start { shop } → { authorizeUrl } (the shop's own install screen). */

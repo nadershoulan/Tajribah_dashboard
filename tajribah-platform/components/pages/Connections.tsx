@@ -78,6 +78,7 @@ export default function Connections() {
   const linked = new Set((data ?? []).filter((c) => c.status === 'active').map((c) => c.provider));
   const { data: available } = useResource((source) => source.connectionProviders(), []);
   const shopifyBack = useShopifyReturn(() => setVersion((v) => v + 1));
+  const sallaBack = useSallaReturn(() => setVersion((v) => v + 1));
   // Back from WooCommerce's approval page: it adds success=1 (approved) or 0.
   const [returned] = useState(() => {
     try {
@@ -112,6 +113,15 @@ export default function Connections() {
               : t(`لم يكتمل الربط مع Shopify: ${shopifyBack.problem}`, `The Shopify connection did not complete: ${shopifyBack.problem}`)}
         </p>
       )}
+      {sallaBack && (
+        <p role="status" className={`upload-note ${sallaBack.ok ? 'upload-done' : sallaBack.ok === false ? 'upload-failed' : ''}`}>
+          {sallaBack.ok === null
+            ? t('نربط متجرك على سلة…', 'Linking your Salla store…')
+            : sallaBack.ok
+              ? t('رُبط متجرك على سلة. أول مزامنة تجري الآن، وتظهر منتجاتك هنا تباعًا.', 'Your Salla store is linked. The first sync is running; your products appear here as it goes.')
+              : t(`لم يكتمل ربط متجرك على سلة: ${sallaBack.problem}`, `Your Salla store was not linked: ${sallaBack.problem}`)}
+        </p>
+      )}
       {loading && !data && <Panel><Loading rows={4} /></Panel>}
       {error && <ErrorNote error={error} />}
       {(data ?? []).map((connection) => (
@@ -138,6 +148,8 @@ export default function Connections() {
                 <WooConnect />
               ) : provider.id === 'shopify' && available?.shopify ? (
                 <ShopifyConnect />
+              ) : provider.id === 'salla' && available?.salla ? (
+                <SallaConnect />
               ) : provider.blockedBy ? (
                 <>
                   <button type="button" className="btn btn-ghost" disabled>
@@ -401,6 +413,58 @@ function useShopifyReturn(onDone: () => void): { ok: boolean | null; problem: st
     );
   }, [outcome, source, onDone]);
   return outcome;
+}
+
+/**
+ * T61 — opened from the Tajribah app inside Salla with `?salla=<ticket>`: link that store to this
+ * account with this session, once, then take the ticket out of the address.
+ */
+function useSallaReturn(onDone: () => void): { ok: boolean | null; problem: string } | null {
+  const { t } = useLang();
+  const source = useData();
+  const started = useRef(false);
+  const [ticket] = useState(() => {
+    try { return new URLSearchParams(window.location.search).get('salla'); } catch { return null; }
+  });
+  const [outcome, setOutcome] = useState<{ ok: boolean | null; problem: string } | null>(ticket ? { ok: null, problem: '' } : null);
+  useEffect(() => {
+    if (!ticket || started.current) return;
+    started.current = true;
+    window.history.replaceState(null, '', window.location.pathname); // the ticket links once; never leave it in the address
+    source.linkSalla(ticket).then(
+      () => { setOutcome({ ok: true, problem: '' }); onDone(); },
+      (err: Error & { code?: string }) => setOutcome({ ok: false, problem: err.code === 'forbidden'
+        ? t('انتهت صلاحية الرابط أو لم يأتِ من لوحة سلة — افتح تجربة من متجرك في سلة مجددًا.', 'The link has expired or did not come from your Salla dashboard — open Tajribah from your Salla store again.')
+        : err.code === 'plan_required' ? t('ربط سلة ضمن باقة Growth وما فوقها.', 'Linking Salla is included from the Growth plan.') : err.message }),
+    );
+  }, [ticket, source, onDone, t]);
+  return outcome;
+}
+
+/**
+ * T61 — Salla has one way in for published apps: the merchant installs Tajribah from the Salla App
+ * Store, then opens it from their Salla dashboard, which brings them back here to link the store.
+ * Growth and up (T35).
+ */
+function SallaConnect() {
+  const { t } = useLang();
+  const { me } = useAuth();
+  const store = currentStore(me);
+  const included = store ? planByCode(store.plan).features.includes('salla') : false;
+  if (!included) {
+    return (
+      <p className="hint" style={{ margin: 0 }}>
+        {t('ضمن باقة Growth وما فوقها.', 'Included from the Growth plan.')} <AppLink href="/dashboard/billing" style={{ color: 'var(--aqua-ink)' }}>{t('الباقات', 'Plans')}</AppLink>
+      </p>
+    );
+  }
+  return (
+    <ol style={{ margin: 0, paddingInlineStart: 18, fontSize: 14, lineHeight: 1.9, color: 'var(--text-2)' }}>
+      <li>{t('ثبّت تطبيق «تجربة» من متجر تطبيقات سلة.', 'Install the Tajribah app from the Salla App Store.')}</li>
+      <li>{t('افتحه من لوحة تحكم متجرك في سلة، واختر «اربط بحسابي في تجربة».', 'Open it from your Salla dashboard and choose “Link to my Tajribah account”.')}</li>
+      <li>{t('نعيدك إلى هنا ويكتمل الربط، ثم تبدأ أول مزامنة.', 'You come back here, the link completes, and the first sync starts.')}</li>
+    </ol>
+  );
 }
 
 /**

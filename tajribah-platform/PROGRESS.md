@@ -269,7 +269,6 @@ The public site that sells Tajribah, Arabic first.
 | ⬜ | Shopify Partner account | Connecting Shopify shops (P6) — the connection itself is built |
 | ⬜ | 3D generation API (Meshy / Tripo3D / CSM) | Generating models from photos (P3.4 onwards) |
 | ⬜ | **Hetzner server** (for Postgres) | Staging and going live — the platform itself now runs on PostgreSQL (tried here, `docs/DATABASE.md`) |
-| ⬜ | **A yes from you: automatic checks on GitHub** | P0.21 — I can add a GitHub Actions workflow that runs the typecheck, lint and the 700+ tests on every push; it uses your GitHub account's Actions minutes, so it waits on your OK |
 
 Before paying for any of them: check the name **Tajribah** is free (`.com`, `.sa`, Salla and
 Zid app names, Saudi trademark search).

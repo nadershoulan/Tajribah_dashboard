@@ -835,3 +835,19 @@ database pools, and runs no sweeps. It reaches the bucket through the S3 API —
 endpoint in production. Run on this machine with the dashboard in workerd, PostgreSQL 16 and SeaweedFS
 (an S3 server that checks every signature): a real 8.97 MB model was uploaded through the dashboard,
 optimised by the Node worker in about 4 seconds to 509 KB (web) and 975 KB (native), and marked ready.
+
+## T61 · 2026-09-30 · Four answers from Nader
+
+**Decisions (Nader's, 2026-09-30):**
+- **CI on GitHub Actions — yes.** `.github/workflows/checks.yml`: the platform runs `scripts/verify.mjs`
+  (typecheck, tests, `.env.example`, RLS, lint) and the website its typecheck, on every push and pull
+  request, on the account's Actions minutes.
+- **The try-on studio's three accessibility gaps may be fixed — only those three,** without changing
+  how it looks or works: names for the two sliders, the tab link to a missing panel, and the faint
+  text (the same deeper shade as the rest of the site).
+- **White-label (Enterprise): the store's own logo and name** replace Tajribah's in the two places
+  shoppers see it — the phone page a QR code opens, and the try-on page's title. The store owner's
+  dashboard is unchanged.
+- **Salla and Zid connectors — build both now** from their public API documentation, tested against
+  faithful stand-ins as Shopify's was; a real store confirms or corrects the details once the partner
+  accounts exist.

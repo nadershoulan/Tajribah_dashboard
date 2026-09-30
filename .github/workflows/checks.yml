@@ -1,0 +1,53 @@
+# P0.21 — the automated checks on every push and pull request (Nader's go-ahead, 2026-09-30).
+#
+# platform: `scripts/verify.mjs` — typecheck, the full test suite (isolation, migrations, audit,
+#           storage, connectors, SSO…), .env.example current, the RLS migration matching the schema,
+#           and lint (errors fail).
+# website:  the typecheck. Its lint is not a gate yet: the try-on studio and the vendored vision
+#           model file carry errors the site's code does not (see STATE.md, 2026-09-30).
+name: checks
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  platform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: tajribah-platform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: pnpm (the version package.json names)
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: install
+        run: pnpm install --no-frozen-lockfile
+      - name: every gate check
+        run: node scripts/verify.mjs --modules node_modules
+
+  website:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: tajribah-try-on
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: pnpm (the version package.json names)
+        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: typecheck
+        run: node node_modules/typescript/bin/tsc --noEmit -p .

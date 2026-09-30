@@ -13,7 +13,7 @@
  */
 import type { Env } from '../config/env';
 import { errors } from '../errors/problem';
-import { presignUrl } from './sigv4';
+import { presignUrl, signRequest } from './sigv4';
 export type StoredObject = {
   key: string;
   size: number;
@@ -175,6 +175,97 @@ export class R2Storage implements Storage {
   }
 }
 
+/**
+ * P7 / T57 — any S3-compatible bucket through the S3 API itself: Cloudflare R2's S3 endpoint for the
+ * Node worker (it has no Workers binding, and runs the image and model jobs), or MinIO on this machine.
+ * Path-style addresses (`{endpoint}/{bucket}/{key}`), each request signed (SigV4). A streamed body is
+ * read whole first: S3 needs its length, and these files are a few megabytes.
+ */
+export type S3Config = { endpoint: string; region: string; bucket: string; accessKeyId: string; secretAccessKey: string; cdnBaseUrl: string };
+
+export class S3Storage implements Storage {
+  private readonly base: URL;
+  constructor(private readonly config: S3Config, private readonly fetchImpl: typeof fetch = (...a) => fetch(...a)) {
+    this.base = new URL(config.endpoint.replace(/\/+$/, ''));
+  }
+
+  private url(k = '', query: Record<string, string> = {}): URL {
+    const url = new URL(`${this.base.origin}${this.base.pathname.replace(/\/$/, '')}/${this.config.bucket}${k ? `/${k.split('/').map(encodeURIComponent).join('/')}` : ''}`);
+    for (const [name, value] of Object.entries(query)) url.searchParams.set(name, value);
+    return url;
+  }
+
+  private async send(method: 'GET' | 'PUT' | 'HEAD' | 'DELETE', url: URL, headers: Record<string, string> = {}, body?: Uint8Array): Promise<Response> {
+    const signed = await signRequest({ method, url, region: this.config.region, accessKeyId: this.config.accessKeyId, secretAccessKey: this.config.secretAccessKey, headers });
+    const response = await this.fetchImpl(url.toString(), { method, headers: signed, ...(body ? { body: body as unknown as BodyInit } : {}) });
+    if (!response.ok && response.status !== 404) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`storage ${method} ${url.pathname}: ${response.status} ${/<Code>([^<]+)<\/Code>/.exec(text)?.[1] ?? ''}`.trim());
+    }
+    return response;
+  }
+
+  private meta(k: string, response: Response): StoredObject {
+    return {
+      key: k, size: Number(response.headers.get('content-length') ?? 0), contentType: response.headers.get('content-type'),
+      checksum: response.headers.get('etag')?.replace(/"/g, '') ?? null, uploadedAt: new Date(response.headers.get('last-modified') ?? Date.now()),
+    };
+  }
+
+  async put(k: string, body: ArrayBuffer | ReadableStream | string, options: { contentType?: string; immutable?: boolean } = {}) {
+    const bytes = typeof body === 'string' ? new TextEncoder().encode(body) : body instanceof ArrayBuffer ? new Uint8Array(body) : await drain(body);
+    const response = await this.send('PUT', this.url(k), {
+      ...(options.contentType ? { 'content-type': options.contentType } : {}),
+      'cache-control': options.immutable ? 'public, max-age=31536000, immutable' : 'private, max-age=0',
+    }, bytes);
+    await response.body?.cancel();
+    return { key: k, size: bytes.byteLength, contentType: options.contentType ?? null, checksum: response.headers.get('etag')?.replace(/"/g, '') ?? null, uploadedAt: new Date() };
+  }
+
+  async get(k: string) {
+    const response = await this.send('GET', this.url(k));
+    if (response.status === 404 || !response.body) { await response.body?.cancel(); return null; }
+    return { body: response.body, meta: this.meta(k, response) };
+  }
+
+  async head(k: string) {
+    const response = await this.send('HEAD', this.url(k));
+    return response.status === 404 ? null : this.meta(k, response);
+  }
+
+  async delete(k: string) {
+    const response = await this.send('DELETE', this.url(k));
+    await response.body?.cancel();
+  }
+
+  async list(prefix: string, limit = 100) {
+    const response = await this.send('GET', this.url('', { 'list-type': '2', prefix, 'max-keys': String(limit) }));
+    const xml = await response.text();
+    const field = (block: string, name: string) => new RegExp(`<${name}>([^<]*)</${name}>`).exec(block)?.[1] ?? '';
+    const unescape = (s: string) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+    return [...xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)].map(([, block]) => ({
+      key: unescape(field(block!, 'Key')), size: Number(field(block!, 'Size')), contentType: null,
+      checksum: unescape(field(block!, 'ETag')).replace(/"/g, '') || null, uploadedAt: new Date(field(block!, 'LastModified')),
+    }));
+  }
+
+  async presignUpload(k: string, options: { contentType?: string; expiresInSeconds?: number } = {}) {
+    const expires = Math.min(options.expiresInSeconds ?? 900, MAX_PRESIGN_SECONDS);
+    const now = new Date();
+    const url = await presignUrl({
+      method: 'PUT', host: this.base.host, path: `${this.base.pathname.replace(/\/$/, '')}/${this.config.bucket}/${k}`, region: this.config.region,
+      accessKeyId: this.config.accessKeyId, secretAccessKey: this.config.secretAccessKey, expiresInSeconds: expires, now,
+      headers: options.contentType ? { 'content-type': options.contentType } : undefined,
+      protocol: this.base.protocol === 'http:' ? 'http' : 'https',
+    });
+    return { url, expiresAt: new Date(now.getTime() + expires * 1000) };
+  }
+
+  publicUrl(k: string): string {
+    return `${this.config.cdnBaseUrl.replace(/\/$/, '')}/${k}`;
+  }
+}
+
 /** In-memory, for tests and for local work before the Cloudflare account exists. */
 export class MemoryStorage implements Storage {
   private readonly objects = new Map<string, { data: Uint8Array; meta: StoredObject }>();
@@ -242,13 +333,21 @@ export function setStorage(storage: Storage): void { current = storage; }
 export function storage(): Storage { return current; }
 
 export type StorageConfig = Pick<Env,
-  'STORAGE_PROVIDER' | 'CDN_BASE_URL' | 'R2_ACCOUNT_ID' | 'R2_BUCKET_NAME' | 'R2_ACCESS_KEY_ID' | 'R2_SECRET_ACCESS_KEY'>;
+  'STORAGE_PROVIDER' | 'CDN_BASE_URL' | 'R2_ACCOUNT_ID' | 'R2_BUCKET_NAME' | 'R2_ACCESS_KEY_ID' | 'R2_SECRET_ACCESS_KEY'> & { S3_ENDPOINT?: string; S3_REGION?: string };
 
 /**
  * Install the adapter the environment names. `bucket` is the Workers binding (`env.BUCKET`);
  * `loadEnv()` has already refused `r2` without a CDN base URL, and memory in production.
  */
 export function configureStorage(config: StorageConfig, bucket?: R2Bucket): void {
+  if (config.STORAGE_PROVIDER === 's3') {
+    // T57: the Node worker, or any runtime without the binding — R2 through its S3 endpoint.
+    current = new S3Storage({
+      endpoint: config.S3_ENDPOINT ?? `https://${config.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`, region: config.S3_REGION ?? 'auto',
+      bucket: config.R2_BUCKET_NAME!, accessKeyId: config.R2_ACCESS_KEY_ID!, secretAccessKey: config.R2_SECRET_ACCESS_KEY!, cdnBaseUrl: config.CDN_BASE_URL!,
+    });
+    return;
+  }
   if (config.STORAGE_PROVIDER !== 'r2') { current = new MemoryStorage(); return; }
   if (!bucket) throw new Error('STORAGE_PROVIDER=r2 but no R2 bucket binding (BUCKET) is bound to this Worker');
   const s3 = config.R2_ACCOUNT_ID && config.R2_BUCKET_NAME && config.R2_ACCESS_KEY_ID && config.R2_SECRET_ACCESS_KEY

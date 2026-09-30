@@ -45,6 +45,8 @@ export type PresignInput = {
    * makes the upload fail unless the browser declares the type we agreed to.
    */
   headers?: Record<string, string>;
+  /** http only for an S3 server on this machine (MinIO in the local run); https everywhere else. */
+  protocol?: 'https' | 'http';
 };
 
 export async function presignUrl(input: PresignInput): Promise<string> {
@@ -81,5 +83,49 @@ export async function presignUrl(input: PresignInput): Promise<string> {
   for (const part of [input.region, service, 'aws4_request']) signingKey = await hmacRaw(signingKey, part);
   const signature = hex(await hmacRaw(signingKey, stringToSign));
 
-  return `https://${input.host}${canonicalUri}?${canonicalQuery}&X-Amz-Signature=${signature}`;
+  return `${input.protocol ?? 'https'}://${input.host}${canonicalUri}?${canonicalQuery}&X-Amz-Signature=${signature}`;
+}
+
+export type SignInput = {
+  method: 'GET' | 'PUT' | 'HEAD' | 'DELETE';
+  url: URL;
+  region: string;
+  service?: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  /** Headers to send and sign besides host, x-amz-date and x-amz-content-sha256 (lower-case names). */
+  headers?: Record<string, string>;
+  /** Hex SHA-256 of the body, or UNSIGNED-PAYLOAD (allowed by S3 and R2). */
+  payloadHash?: string;
+  now?: Date;
+};
+
+/**
+ * P7 / T57 — a request signed in its headers (Authorization), for the S3 API itself: the Node worker
+ * reaches R2 through it, having no Workers binding. Same canonical form as `presignUrl`; checked
+ * against the AWS documentation's "GET Object" example and against a real S3 server (MinIO).
+ */
+export async function signRequest(input: SignInput): Promise<Record<string, string>> {
+  const service = input.service ?? 's3';
+  const now = input.now ?? new Date();
+  const amzDate = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const dateStamp = amzDate.slice(0, 8);
+  const scope = `${dateStamp}/${input.region}/${service}/aws4_request`;
+  const payloadHash = input.payloadHash ?? 'UNSIGNED-PAYLOAD';
+
+  const headers: Record<string, string> = { ...(input.headers ?? {}), host: input.url.host, 'x-amz-content-sha256': payloadHash, 'x-amz-date': amzDate };
+  const names = Object.keys(headers).map((h) => h.toLowerCase()).sort();
+  const signedHeaders = names.join(';');
+  const canonicalHeaders = names.map((name) => `${name}:${String(headers[name]).trim()}\n`).join('');
+  const params = [...input.url.searchParams.entries()].map(([k, v]) => [rfc3986(k), rfc3986(v)] as const).sort(([a, x], [b, y]) => (a < b ? -1 : a > b ? 1 : x < y ? -1 : x > y ? 1 : 0));
+  const canonicalQuery = params.map(([k, v]) => `${k}=${v}`).join('&');
+  const canonicalUri = decodeURIComponent(input.url.pathname).split('/').map(rfc3986).join('/');
+  const canonicalRequest = [input.method, canonicalUri, canonicalQuery, canonicalHeaders, signedHeaders, payloadHash].join('\n');
+  const stringToSign = ['AWS4-HMAC-SHA256', amzDate, scope, await sha256Hex(canonicalRequest)].join('\n');
+  let signingKey = await hmacRaw(encoder.encode(`AWS4${input.secretAccessKey}`), dateStamp);
+  for (const part of [input.region, service, 'aws4_request']) signingKey = await hmacRaw(signingKey, part);
+  const signature = hex(await hmacRaw(signingKey, stringToSign));
+  const { host: _host, ...sent } = headers;
+  void _host;
+  return { ...sent, authorization: `AWS4-HMAC-SHA256 Credential=${input.accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}` };
 }

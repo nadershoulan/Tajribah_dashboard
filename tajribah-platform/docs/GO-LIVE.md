@@ -52,9 +52,12 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
       the logs, `queue behind` means the oldest due job waited over 2 minutes at the end of a full pass.
 - [ ] **A Node worker for image and model work** (T57): `ai.postprocess` (optimising an uploaded 3D
       model) and `tryon.quality` (checking a try-on picture) use `sharp`, which cannot run on Workers;
-      the Worker leaves those jobs queued. Run `runForever()` from `server/worker/main.ts` on a Node
-      host that reaches the database (the database server is the natural place). Until it runs, those
-      two kinds of job wait. **Check:** upload a model; it leaves "processing".
+      the Worker leaves those jobs queued. On a Node 22 host that reaches the database (the database
+      server is the natural place): an R2 API token for the bucket (R2 → Manage API tokens, object read &
+      write), then the dashboard's variables plus **`STORAGE_PROVIDER=s3`**, **`R2_ACCOUNT_ID`**,
+      **`R2_BUCKET_NAME`**, **`R2_ACCESS_KEY_ID`**, **`R2_SECRET_ACCESS_KEY`**, and
+      `node scripts/worker-node.mjs` under a process manager (systemd). It claims only those two queues
+      and runs no sweeps. **Check:** upload a model; it leaves "processing" within seconds.
 - [ ] Rate limits (P7): create a second KV namespace, bind it as **`RATE_LIMITS`**, and set
       **`RATE_LIMITER=kv`** — per-isolate memory counters are refused in production, since no limit
       would hold across isolates (`server/core/ratelimit/limiter.ts`).

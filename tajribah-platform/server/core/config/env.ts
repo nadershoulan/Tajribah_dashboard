@@ -118,8 +118,15 @@ export const REGISTRY = {
     example: 'https://cdn.example.com',
   }),
   STORAGE_PROVIDER: entry({
-    schema: z.enum(['memory', 'r2']).default('memory'),
-    scope: 'runtime', doc: 'memory keeps files in-process (local only, lost on restart). r2 uses the BUCKET binding and needs CDN_BASE_URL.',
+    schema: z.enum(['memory', 'r2', 's3']).default('memory'),
+    scope: 'runtime', doc: 'memory keeps files in-process (local only, lost on restart). r2 uses the BUCKET binding (the Worker). s3 uses the S3 API with the R2_* keys (the Node worker, T57). Both need CDN_BASE_URL.',
+  }),
+  S3_ENDPOINT: entry({
+    schema: z.string().url().optional(), scope: 'runtime',
+    doc: 'T57: with STORAGE_PROVIDER=s3, the S3 endpoint (default: R2\'s, from R2_ACCOUNT_ID). Another only for a local S3 server such as MinIO.',
+  }),
+  S3_REGION: entry({
+    schema: z.string().optional(), scope: 'runtime', doc: 'T57: the S3 signing region (R2: auto, the default).',
   }),
   R2_ACCOUNT_ID: entry({
     schema: z.string().optional(), scope: 'runtime',
@@ -177,6 +184,8 @@ const envSchema = z.object(shape).superRefine((value, ctx) => {
       message: 'console SMS is not allowed in production — phone verification would silently no-op' });
   }
   need(v.STORAGE_PROVIDER === 'r2', 'CDN_BASE_URL', 'required when STORAGE_PROVIDER=r2');
+  for (const name of ['CDN_BASE_URL', 'R2_BUCKET_NAME', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY'] as const) need(v.STORAGE_PROVIDER === 's3', name, 'required when STORAGE_PROVIDER=s3');
+  need(v.STORAGE_PROVIDER === 's3' && !v.S3_ENDPOINT, 'R2_ACCOUNT_ID', 'required when STORAGE_PROVIDER=s3 without S3_ENDPOINT');
   if (v.NODE_ENV === 'production' && v.STORAGE_PROVIDER === 'memory') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['STORAGE_PROVIDER'],
       message: 'memory storage is not allowed in production — every upload would vanish on restart' });

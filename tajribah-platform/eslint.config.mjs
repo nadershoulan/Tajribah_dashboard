@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Build output: the minified storefront widget (P1.16).
     "widget/dist/**",
+    // The Node worker bundle (T57, scripts/worker-node.mjs).
+    "dist-worker/**",
     // Vendored third-party viewer files, served as they were published (public/vendor/README.md).
     "public/vendor/**",
     // Local tool output, never committed: wrangler's dev bundles and the test runner's build.

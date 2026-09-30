@@ -59,3 +59,6 @@ next-env.d.ts
 
 # P1.16 — the built storefront widget (widget/build.mjs)
 /widget/dist/
+
+# T57: the Node worker bundle (scripts/worker-node.mjs)
+/dist-worker/

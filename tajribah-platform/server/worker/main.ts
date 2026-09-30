@@ -14,7 +14,7 @@
  * registers every handler, including the two that need Node (`sharp`): `ai.postprocess` and
  * `tryon.quality` run only where this file runs.
  */
-import { tick } from '../core/jobs/runner';
+import { registeredQueues, tick } from '../core/jobs/runner';
 import { log } from '../core/observability/log';
 import { registerAllHandlers } from './handlers';
 import { WORKER_ID, dispatchWebhooks, ensureHandlers, scheduled, chooseHandlers } from './passes';
@@ -24,10 +24,11 @@ export * from './passes';
 chooseHandlers(registerAllHandlers);
 
 /** The long-lived loop. Sleeps when idle rather than spinning. */
-export async function runForever(options: { intervalMs?: number; limit?: number } = {}): Promise<void> {
+export async function runForever(options: { intervalMs?: number; limit?: number; sweeps?: boolean } = {}): Promise<void> {
   const interval = options.intervalMs ?? 1000;
+  const sweeps = options.sweeps ?? true; // T57: the Node worker beside Cloudflare leaves them to the cron
   ensureHandlers();
-  log.info('worker started', { worker: WORKER_ID, queues: 'all registered' });
+  log.info('worker started', { worker: WORKER_ID, queues: registeredQueues().join(', ') });
   let lastSchedule = 0;
 
   while (true) {
@@ -35,7 +36,7 @@ export async function runForever(options: { intervalMs?: number; limit?: number 
       const result = await tick(WORKER_ID, options.limit ?? 10);
       const webhooks = await dispatchWebhooks();
       // The schedule is a database read; once a minute is plenty for a long-lived loop.
-      if (Date.now() - lastSchedule >= 60_000) { lastSchedule = Date.now(); await scheduled(); }
+      if (sweeps && Date.now() - lastSchedule >= 60_000) { lastSchedule = Date.now(); await scheduled(); }
       if (result.claimed === 0 && webhooks === 0) await sleep(interval);
     } catch (error) {
       log.error('worker tick threw', { worker: WORKER_ID, error: String(error) });

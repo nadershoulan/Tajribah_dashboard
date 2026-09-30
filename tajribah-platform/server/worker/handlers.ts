@@ -11,10 +11,15 @@ import { registerEdgeHandlers } from './handlers-edge';
 
 export { NODE_ONLY_QUEUES, tenantOf } from './handlers-edge';
 
+/** T57: only the jobs that need Node — what the Node worker beside Cloudflare runs. */
+export function registerNodeHandlers(): void {
+  registerHandler('ai.postprocess', (job: Job) => handleProcessJob(job));
+  registerHandler('tryon.quality', (job: Job) => handleQualityJob(job));
+}
+
 export function registerAllHandlers(): void {
   registerEdgeHandlers();
-  // P1.13: optimise a confirmed model upload (gltf-transform + sharp).
-  registerHandler('ai.postprocess', (job: Job) => handleProcessJob(job));
-  // P5.9: check a confirmed try-on cut-out — crop empty edges, measure the size shown (sharp).
-  registerHandler('tryon.quality', (job: Job) => handleQualityJob(job));
+  // P1.13: optimise a confirmed model upload (gltf-transform + sharp); P5.9: check a confirmed
+  // try-on cut-out — crop empty edges, measure the size shown (sharp).
+  registerNodeHandlers();
 }

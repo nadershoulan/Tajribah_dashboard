@@ -5,7 +5,7 @@ import {
   MemoryStorage, R2Storage, configureStorage, forTenant, key, keyBelongsTo, storage,
   type Storage,
 } from '@/server/core/storage/storage';
-import { presignUrl } from '@/server/core/storage/sigv4';
+import { presignUrl, signRequest } from '@/server/core/storage/sigv4';
 import { loadEnv, resetEnv } from '@/server/core/config/env';
 
 const A = '01a0caa1-0000-7000-8000-00000000000a';
@@ -152,4 +152,18 @@ test('configureStorage picks the adapter, and the env refuses unsafe combination
   resetEnv();
   assert.equal(loadEnv(base).STORAGE_PROVIDER, 'memory');
   resetEnv();
+});
+
+test('header signing matches the AWS documentation (Signature V4, "GET Object" example)', async () => {
+  // docs.aws.amazon.com — "Authenticating Requests: Using the Authorization Header", example: GET Object.
+  const headers = await signRequest({
+    method: 'GET', url: new URL('https://examplebucket.s3.amazonaws.com/test.txt'), region: 'us-east-1',
+    accessKeyId: 'AKIAIOSFODNN7EXAMPLE', secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+    headers: { range: 'bytes=0-9' }, payloadHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    now: new Date('2013-05-24T00:00:00Z'),
+  });
+  assert.equal(headers.authorization,
+    'AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request, SignedHeaders=host;range;x-amz-content-sha256;x-amz-date, Signature=f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41');
+  assert.equal(headers['x-amz-date'], '20130524T000000Z');
+  assert.equal(headers.host, undefined, 'the host header is set by fetch itself');
 });

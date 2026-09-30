@@ -73,3 +73,22 @@ file refused); readiness 200 with the database ok; sign-up created a store; **si
 dashboard's own sign-in page in a real browser** opened the dashboard — the new store, in Arabic, on its
 Growth trial; saving store settings went through row-level security on the app login and read back; a
 second store saw only its own settings and team; no errors in the log.
+
+## Model and picture work on this machine too (tried 2026-09-30)
+
+The Node worker needs a real bucket shared with the dashboard. SeaweedFS (github.com/seaweedfs,
+`windows_amd64.zip`, checksum published) is an S3 server that checks signatures:
+
+```sh
+weed server -dir=… -ip=127.0.0.1 -s3 -s3.port=8333 -s3.config=s3.json   # s3.json: one identity, key + secret
+# the dashboard (wrangler dev as above) and the Node worker, both with:
+#   STORAGE_PROVIDER=s3 S3_ENDPOINT=http://127.0.0.1:8333 S3_REGION=us-east-1
+#   R2_BUCKET_NAME=… R2_ACCESS_KEY_ID=… R2_SECRET_ACCESS_KEY=… CDN_BASE_URL=http://127.0.0.1:8333/<bucket>
+node scripts/worker-node.mjs
+# the adapter's own live test (creates the bucket):
+S3_LIVE_ENDPOINT=http://127.0.0.1:8333 S3_LIVE_KEY=… S3_LIVE_SECRET=… node scripts/test.mjs --modules node_modules s3-live
+```
+
+Seen that day: the live test passed (byte-for-byte round trip, an Arabic key, a presigned browser
+upload, a wrong secret refused); a real 8.97 MB model uploaded through the dashboard was optimised by
+the Node worker in about 4 s — 509 KB for the web, 975 KB native — and marked ready.

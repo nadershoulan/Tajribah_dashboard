@@ -827,3 +827,11 @@ RLS-bound writes, isolation between stores (`docs/DATABASE.md`).
 
 **Rollback path.** `db/postgres.ts` is the only file that knows the driver; `postgres.js` would be a
 drop-in. A long-lived Node worker (`runForever`) registers its own pools with `registerDb` instead.
+
+**Update 2026-09-30 (T57) — the Node worker exists and was run.** `server/worker/node.ts` (built and
+started by `scripts/worker-node.mjs`) registers only `ai.postprocess` and `tryon.quality`, keeps its own
+database pools, and runs no sweeps. It reaches the bucket through the S3 API — `S3Storage`
+(`STORAGE_PROVIDER=s3`, SigV4 in the headers, checked against the AWS documentation's example), R2's S3
+endpoint in production. Run on this machine with the dashboard in workerd, PostgreSQL 16 and SeaweedFS
+(an S3 server that checks every signature): a real 8.97 MB model was uploaded through the dashboard,
+optimised by the Node worker in about 4 seconds to 509 KB (web) and 975 KB (native), and marked ready.

@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  S3Storage,
   MemoryStorage, R2Storage, configureStorage, forTenant, key, keyBelongsTo, storage,
   type Storage,
 } from '@/server/core/storage/storage';
@@ -166,4 +167,35 @@ test('header signing matches the AWS documentation (Signature V4, "GET Object" e
     'AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request, SignedHeaders=host;range;x-amz-content-sha256;x-amz-date, Signature=f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41');
   assert.equal(headers['x-amz-date'], '20130524T000000Z');
   assert.equal(headers.host, undefined, 'the host header is set by fetch itself');
+});
+
+test('the S3 adapter: signed path-style requests, a missing object is none, a listing is read, a refusal is loud', async () => {
+  const seen: { method: string; url: string; auth: string | null; type: string | null; cache: string | null }[] = [];
+  const fake = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    const h = new Headers(init?.headers);
+    seen.push({ method: init?.method ?? 'GET', url, auth: h.get('authorization'), type: h.get('content-type'), cache: h.get('cache-control') });
+    if (url.includes('forbidden')) return new Response('<Error><Code>AccessDenied</Code></Error>', { status: 403 });
+    if (url.includes('missing')) return new Response('', { status: 404 });
+    if (url.includes('list-type=2')) {
+      return new Response('<ListBucketResult><Contents><Key>t/a/x&amp;y.glb</Key><Size>12</Size><ETag>"abc"</ETag><LastModified>2026-09-30T09:00:00Z</LastModified></Contents><Contents><Key>t/a/z.glb</Key><Size>3</Size><ETag>"d"</ETag><LastModified>2026-09-30T09:01:00Z</LastModified></Contents></ListBucketResult>');
+    }
+    return new Response(init?.method === 'HEAD' ? null : 'body', { headers: { 'content-length': '4', 'content-type': 'model/gltf-binary', etag: '"e1"', 'last-modified': 'Wed, 30 Sep 2026 09:00:00 GMT' } });
+  }) as typeof fetch;
+  const store = new S3Storage({ endpoint: 'https://acc.r2.cloudflarestorage.com', region: 'auto', bucket: 'tajribah', accessKeyId: 'k', secretAccessKey: 's', cdnBaseUrl: 'https://cdn.tajribah.com/' }, fake);
+
+  await store.put('t/a/model/m/v1/watch 1.glb', new Uint8Array([1, 2, 3]).buffer as ArrayBuffer, { contentType: 'model/gltf-binary', immutable: true });
+  assert.equal(seen[0]!.url, 'https://acc.r2.cloudflarestorage.com/tajribah/t/a/model/m/v1/watch%201.glb', 'path-style, each segment encoded');
+  assert.match(seen[0]!.auth ?? '', /^AWS4-HMAC-SHA256 Credential=k\/\d{8}\/auto\/s3\/aws4_request, SignedHeaders=cache-control;content-type;host;x-amz-content-sha256;x-amz-date, Signature=[0-9a-f]{64}$/);
+  assert.deepEqual([seen[0]!.type, seen[0]!.cache], ['model/gltf-binary', 'public, max-age=31536000, immutable']);
+  assert.equal(await store.get('t/a/missing.glb'), null);
+  assert.equal(await store.head('t/a/missing.glb'), null);
+  assert.deepEqual((await store.head('t/a/x.glb'))?.checksum, 'e1');
+  const listed = await store.list('t/a/', 50);
+  assert.deepEqual(listed.map((o) => [o.key, o.size, o.checksum]), [['t/a/x&y.glb', 12, 'abc'], ['t/a/z.glb', 3, 'd']]);
+  assert.match(seen.at(-1)!.url, /\/tajribah\?list-type=2&prefix=t%2Fa%2F&max-keys=50$/);
+  await assert.rejects(() => store.get('t/a/forbidden.glb'), /403 AccessDenied/);
+  assert.equal(store.publicUrl('t/a/z.glb'), 'https://cdn.tajribah.com/t/a/z.glb');
+  const { url } = await store.presignUpload('t/a/p.jpg', { contentType: 'image/jpeg' });
+  assert.match(url, /^https:\/\/acc\.r2\.cloudflarestorage\.com\/tajribah\/t\/a\/p\.jpg\?X-Amz-Algorithm=AWS4-HMAC-SHA256/);
 });

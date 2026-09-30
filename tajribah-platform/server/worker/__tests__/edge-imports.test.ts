@@ -6,7 +6,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 
 const ROOT = process.cwd();
@@ -75,4 +75,19 @@ test('the Worker runs every queue but the two that need Node, and says which it 
   assert.deepEqual([...NODE_ONLY_QUEUES].sort(), ['ai.postprocess', 'tryon.quality']);
   assert.deepEqual(all.filter((q) => !edge.includes(q)).sort(), [...NODE_ONLY_QUEUES].sort(), 'the Node worker adds exactly these');
   assert.ok(edge.includes('sync.products') && edge.includes('edge.publish-config') && edge.includes('webhooks.deliver'));
+});
+
+test('no API route loads sharp either — every request runs on Workers (found on the real stack, 2026-09-30)', () => {
+  const api = join(ROOT, 'app', 'api');
+  const routeFiles: string[] = [];
+  const collect = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const path = join(dir, name);
+      if (statSync(path).isDirectory()) collect(path); else if (name === 'route.ts') routeFiles.push(path);
+    }
+  };
+  collect(api);
+  assert.ok(routeFiles.length > 60, `found the routes (${routeFiles.length})`);
+  const offenders = routeFiles.map((file) => [relative(ROOT, file), walk(file).get('sharp')] as const).filter(([, chain]) => chain);
+  assert.deepEqual(offenders.map(([file, chain]) => `${file}: ${chain!.join(' → ')}`), []);
 });

@@ -22,7 +22,7 @@ import { forTenant } from '@/server/core/storage/storage';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { turnQuaternion, type Turn } from '@/lib/model-turn';
 import { fileFor } from './files';
-import { fitToProduct, type ProductSize } from './postprocess';
+import { fitToProduct, type ProductSize } from './fit'; // not ./postprocess: that loads sharp
 import { confirmUpload, startUpload } from './service';
 
 export type ModelEdit = { fromVersionId: string; rotate?: { x?: Turn; y?: Turn; z?: Turn }; fit?: boolean };

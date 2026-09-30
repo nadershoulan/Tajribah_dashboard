@@ -25,7 +25,6 @@ import { products, tryonConfigs } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { alphaFacts, hasMargins, qualityScore, sizeShown, type SlotQuality, type TryOnQuality } from '@/lib/tryon-quality';
 import { record } from '@/server/core/audit/audit';
-import { enqueue } from '@/server/core/jobs/queue';
 import { currentScope } from '@/server/core/observability/scope';
 import { forTenant } from '@/server/core/storage/storage';
 import { systemContext } from '@/server/core/tenancy/context';
@@ -33,7 +32,8 @@ import { withTenant } from '@/server/core/tenancy/rls';
 import { keepLive } from '@/server/modules/edge/publish';
 import { retireCutout } from './retire';
 
-export type Slot = 'worn' | 'flat';
+import type { Slot } from './quality-queue';
+export type { Slot } from './quality-queue';
 export const QUALITY_PERMISSIONS = ['tryon:read', 'tryon:write'] as const;
 export type QualityOutcome = 'measured' | 'replaced' | 'skipped';
 /** Keep the WebP only when it saves at least this share — a near tie is not worth a new file. */
@@ -42,9 +42,7 @@ export const WEBP_KEEP_BELOW = 0.9;
 const KEY_OF = { worn: 'wornKey', flat: 'flatKey' } as const;
 const BYTES_OF = { worn: 'wornBytes', flat: 'flatBytes' } as const;
 
-export async function enqueueQuality(tenantId: string, productId: string, slot: Slot, key: string): Promise<void> {
-  await enqueue({ queue: 'tryon.quality', tenantId, payload: { productId, slot, key }, dedupeKey: `tryon:${key}:quality` });
-}
+export { enqueueQuality } from './quality-queue';
 
 export async function handleQualityJob(job: Job): Promise<void> {
   const p = job.payload as { productId?: string; slot?: Slot; key?: string } | null;

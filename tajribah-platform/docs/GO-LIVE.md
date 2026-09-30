@@ -78,6 +78,9 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
       listing — `customers/data_request`, `customers/redact`, `shop/redact` (T58). **Check:** on a development store, connect from Store
       connections; the install screen asks for products only; back on Store connections the note says
       the app is installed and the first sync runs.
+- [ ] Smoke test (P0.20): with a test store's account (no two-step sign-in),
+      `node scripts/smoke/smoke.mjs --base https://app.tajribah.sa --email … --password …` — every read and a
+      merchant's usual changes; it must end "passed".
 - [ ] Backups (P7): schedule `scripts/dr/drill.mjs backup`, keep the dumps off the database host and
       encrypted, and run `verify` on a spare server before launch — `docs/DR.md` is the runbook.
 - **Check:** sign in; the setup guide loads; `/api/auth/me` answers; eleven wrong passwords for one

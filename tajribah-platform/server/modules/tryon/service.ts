@@ -36,7 +36,7 @@ import { withTenant } from '@/server/core/tenancy/rls';
 import { daysOf } from '@/server/modules/analytics/metrics';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { CUTOUT_MAX_BYTES, checkCutout, type CutoutIssue } from './cutout';
-import { enqueueQuality } from './quality';
+import { enqueueQuality } from './quality-queue'; // not ./quality: it loads sharp
 import { retireCutout } from './retire';
 import { keepLive } from '@/server/modules/edge/publish';
 

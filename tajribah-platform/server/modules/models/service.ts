@@ -26,8 +26,8 @@ import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
 import { fileFor } from './files';
 import { CONTENT_TYPES, formatOf, HEADER_BYTES, inspect, MAX_MODEL_BYTES } from './inspect';
-import { TARGET_BYTES } from './optimize';
-import { enqueueProcessing } from './process';
+import { MODEL_TARGET_BYTES as TARGET_BYTES } from '@/lib/model-size';
+import { enqueueProcessing } from './process-queue'; // not ./process or ./optimize: they load sharp
 
 /** Long enough for a slow phone connection; a presigned URL is a bearer credential. */
 export const UPLOAD_URL_SECONDS = 15 * 60;

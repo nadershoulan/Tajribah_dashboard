@@ -22,7 +22,6 @@ import type { Job } from '@/db/schema';
 import { modelFiles, models3d, modelVersions, products } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { record } from '@/server/core/audit/audit';
-import { enqueue } from '@/server/core/jobs/queue';
 import { log } from '@/server/core/observability/log';
 import { currentScope } from '@/server/core/observability/scope';
 import { forTenant } from '@/server/core/storage/storage';
@@ -37,9 +36,7 @@ import { notifyIn } from '@/server/modules/notifications/service';
 export const PROCESS_PERMISSIONS = ['models:read', 'models:write'] as const;
 export type ProcessOutcome = 'ready' | 'failed' | 'skipped';
 
-export async function enqueueProcessing(tenantId: string, versionId: string): Promise<void> {
-  await enqueue({ queue: 'ai.postprocess', tenantId, payload: { versionId }, dedupeKey: `model:${versionId}:process` });
-}
+export { enqueueProcessing } from './process-queue';
 
 export async function handleProcessJob(job: Job): Promise<void> {
   const versionId = (job.payload as { versionId?: string } | null)?.versionId;

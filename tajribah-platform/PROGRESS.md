@@ -3,13 +3,13 @@
 _Last updated: 2026-09-30 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-09-30):** **your studio's three accessibility gaps are fixed — only those three, as you said.** The two sliders now have names a screen reader says ("Rotation", "Watch size"), the mode tabs no longer point at panels that aren't there, and the small faint text uses the same deeper shade as the rest of the site. Checked in a real browser, Arabic and English: the watch drawing is **identical pixel for pixel**, the words are the same, and the only visible change is the text shade ("emerald." and the small grey notes are a touch darker). The site now passes the accessibility check on every page, the studio included · before that: **checks now run on every push** (GitHub Actions)
-> **Next:** white-label (the store's logo and name on the phone page and the try-on title), then the Salla and Zid connections — all three per your answers.
+> **Just finished (2026-09-30):** **white-label, as you chose: an Enterprise store's shoppers see the store's own name and logo, not Tajribah's.** In the try-on frame's top bar and the page title, and on the phone page a QR code opens (its logo spot and title). Seen in a real browser on the real site: a store with a brand shows "متجر تجريبي" / "Demo store" in all three places (its logo when it has one); a store without one looks exactly as before. Other plans are unchanged, and so is your dashboard. Renaming the store updates its live pages · also: **the automatic checks now pass on GitHub** (both the platform and the website) · before that: your studio's three accessibility fixes
+> **Next:** the Salla connection, then Zid — built from their public documentation and tested against faithful stand-ins, as Shopify's was.
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
 > **Waiting on you:** no new question. The **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
 
 ```
-P0 Foundation     █████████████████████████████░░░  20 / 22   (2 blocked: CI runner, staging server)
+P0 Foundation     ██████████████████████████████░░  21 / 22   (1 blocked: staging server)
 P1 Core loop      █████████████████████████░░░░░░░  20 / 26   ← first sellable product · the rest needs Salla / Cloudflare / domain
 P2 Billing        █████████████░░░░░░░░░░░░░░░░░░░   6 / 15   (+ 3 partly) · the rest needs Moyasar / ZATCA
 P3 3D pipeline    ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ P3.7 photo screen, P3.8 editor) · the rest needs a provider, prices or caps
@@ -17,10 +17,10 @@ P4 Analytics      ███████████░░░░░░░░░�
 P5 Try-on         ████████████████░░░░░░░░░░░░░░░░   7 / 14   (+ watch partly) · the rest touches your studio or needs new photography
 P6 AI+connectors  ██████████████░░░░░░░░░░░░░░░░░░   7 / 16   · the rest needs AI providers or store accounts
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ security, safe updates, rate limits, database speed, monitoring, load tests, backups: the code-level parts done)
-P8 Enterprise     ████████████████░░░░░░░░░░░░░░░░   6 / 12
+P8 Enterprise     ███████████████████░░░░░░░░░░░░░   7 / 12
 M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
-                                            overall  96 / 169
+                                            overall  98 / 169
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -53,7 +53,7 @@ thing it protects was broken on purpose. Code that merely exists does not count.
 
 | ✅ | P0.19 API | 9 real endpoints: sign up, sign in, refresh, sign out, who-am-I, switch store, verify email, password reset. Stolen-token detection, sign-out takes effect instantly, other websites cannot trigger them |
 | ✅ | P0.20 Dashboard ↔ API + real login | Sign-in, sign-up, sign-out and "send me back to the page I wanted" are built and tested end to end — and now **seen working on a real database**: on this machine, the real app on the real Cloudflare runtime with a real PostgreSQL — sign-up, sign-in through the browser, the dashboard, settings saved, stores kept apart. On your server it needs only the setup steps in `docs/DATABASE.md` |
-| 🔒 | P0.21 CI pipeline | Every push runs all checks automatically — needs a GitHub repo/CI runner |
+| ✅ | P0.21 CI pipeline | Every push runs all checks automatically on GitHub (your go-ahead, T61): the platform's full check — types, every test, settings template, database rules, lint — and the website's types. First run caught a real gap (the platform job lacked the website's packages); green since 248c7f0 |
 | 🔒 | P0.22 Staging server | A live test copy of the platform — needs the Cloudflare account and a database host |
 
 **The P0 gate ran on 2026-09-22.** It re-checked every package, added 20 missing tests, and
@@ -177,6 +177,7 @@ The public site that sells Tajribah, Arabic first.
 
 | | Package | In plain words |
 |---|---|---|
+| ✅ | P8 White-label | **Your store's name and logo instead of Tajribah's** (Enterprise, your choice T61): in the try-on frame's bar and title, and on the phone page a QR code opens. The logo from Settings (or the store's own); without one the name stands in its place. Other plans and the dashboard unchanged; renaming the store updates live pages. Seen in a real browser |
 | ✅ | P8 Single sign-on | **Your team signs in with your company account** (Enterprise): the owner or an admin connects your company's sign-in (Microsoft, Google Workspace, Okta — OpenID Connect) in Settings, optionally limited to your email domains; your team uses the store's own sign-in address. Only people you have invited get in, and that sign-in opens this store alone — not their other stores, not their account settings. Passwords keep working. Tried against a real certified sign-in provider (T59) |
 | ✅ | P8 Developer page | **`/developers` on the website**: keys, the API requests, limits and errors, webhook events, and a sample that checks a message's signature — every fact tested equal to the platform, the sample run against a real signature |
 | ✅ | P8 Custom roles | **Roles with your own names** (Enterprise), ticking what each covers — the work only; people, settings, billing, keys and connections stay with owners and admins. Given from the Team page's role menu; changes apply at once; leaving the plan falls back to viewer; a held role cannot be deleted |
@@ -446,3 +447,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-30 | The Node worker (model and picture jobs) built and run end to end with the dashboard, PostgreSQL and a real S3 server: 8.97 MB → 509 KB in ~4 s | 734 pass + 3 live skipped / 0 fail / 0 cancelled; S3 live test passed; AWS signing example matched |
 | 2026-09-30 | Keyboard: every stop on 31 website and dashboard pages has a visible focus, nothing traps the keyboard — the website's claim holds | no change needed |
 | 2026-09-30 | Your studio's three accessibility gaps fixed (your go-ahead): slider names, tab links, text shade — the drawing identical pixel for pixel; axe: 0 on /demo, ar and en | contrast test 3/3, and it fails when either change is undone |
+| 2026-09-30 | CI green on GitHub (P0.21 done); white-label for Enterprise — the store's name and logo on the try-on frame and the QR phone page, seen on the real site | full gate passed locally; white-label 6/6, every guard seen failing when broken |

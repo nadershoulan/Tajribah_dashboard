@@ -1,11 +1,9 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
+import { cache } from 'react';
 import { preload } from 'react-dom';
 import EmbedTryOn, { type EmbedState } from '@/components/pages/EmbedTryOn';
-import { configBase, configUrl, isLocalHost, studioImages, tryOnProductFrom, validRefs } from '@/lib/tryon-config';
-
-// P5 (T26) — opened in a frame over a merchant's product page; not a site page.
-export const metadata: Metadata = { title: 'Tajribah try-on', robots: { index: false, follow: false } };
+import { brandFrom, configBase, embedTitle, configUrl, isLocalHost, studioImages, tryOnProductFrom, validRefs } from '@/lib/tryon-config';
 
 type Search = Promise<Record<string, string | string[] | undefined>>;
 const one = (v: string | string[] | undefined) => (typeof v === 'string' ? v : '');
@@ -16,23 +14,38 @@ const one = (v: string | string[] | undefined) => (typeof v === 'string' ? v : '
  * waits for is named up front so the phone fetches them alongside the scripts. When the config
  * host cannot be reached, the page falls back to reading it in the browser, as before.
  */
-async function load(store: string, product: string, base: string, local: boolean): Promise<EmbedState | undefined> {
+const load = cache(async (store: string, product: string, base: string, local: boolean): Promise<EmbedState | undefined> => {
   if (!validRefs(store, product)) return { kind: 'unavailable' };
   try {
     const response = await fetch(configUrl(configBase(base, local), store, product), { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(2500) });
     if (response.status === 404) return { kind: 'unavailable' };
     if (!response.ok) return undefined;
-    const found = tryOnProductFrom(await response.json(), local);
-    return found ? { kind: 'ready', product: found } : { kind: 'unavailable' };
+    const json: unknown = await response.json();
+    const found = tryOnProductFrom(json, local);
+    return found ? { kind: 'ready', product: found, brand: brandFrom(json, local) } : { kind: 'unavailable' };
   } catch {
     return undefined;
   }
+});
+
+async function initialOf(query: Record<string, string | string[] | undefined>) {
+  const host = ((await headers()).get('host') ?? '').replace(/:\d+$/, '');
+  return load(one(query.store), one(query.product), one(query.base), isLocalHost(host));
+}
+
+// P5 (T26) — opened in a frame over a merchant's product page; not a site page. T61: an Enterprise
+// store's own name in the title (the frame speaks the shop page's language, Arabic by default).
+export async function generateMetadata({ searchParams }: { searchParams: Search }): Promise<Metadata> {
+  const query = await searchParams;
+  const initial = await initialOf(query);
+  const brand = initial?.kind === 'ready' ? initial.brand : null;
+  // A store's own title stands alone: the site's "| تجربة Tajribah" suffix would put our name back.
+  const title = brand ? { absolute: embedTitle(brand, one(query.lang) === 'en' ? 'en' : 'ar') } : embedTitle(null, 'ar');
+  return { title, robots: { index: false, follow: false } };
 }
 
 export default async function Page({ searchParams }: { searchParams: Search }) {
-  const query = await searchParams;
-  const host = ((await headers()).get('host') ?? '').replace(/:\d+$/, '');
-  const initial = await load(one(query.store), one(query.product), one(query.base), isLocalHost(host));
+  const initial = await initialOf(await searchParams);
   if (initial?.kind === 'ready') for (const src of studioImages(initial.product)) preload(src, { as: 'image' });
   return <EmbedTryOn initial={initial} />;
 }

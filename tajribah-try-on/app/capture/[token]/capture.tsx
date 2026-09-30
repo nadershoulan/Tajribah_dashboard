@@ -5,11 +5,13 @@ import { Camera, Check, Globe, Hand, LoaderCircle, Upload } from 'lucide-react';
 import { preparePhoto } from '@/lib/photo';
 import { useLang } from '@/lib/i18n';
 import { Logo } from '@/components/site/chrome';
+import { StoreMark } from '@/components/site/store-mark';
+import type { StoreBrand } from '@/lib/tryon-config';
 import { Frame } from '@/components/site/ui';
 import { SiteLink } from '@/lib/site-env';
 
 /** The phone side of the QR hand-off: take a wrist photo, send it to the paired studio. */
-export default function Capture({ token }: { token: string }) {
+export default function Capture({ token, brand = null }: { token: string; brand?: StoreBrand | null }) {
   const { t, toggle } = useLang();
   const [photo, setPhoto] = useState<{ blob: Blob; dataUrl: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -49,7 +51,7 @@ export default function Capture({ token }: { token: string }) {
   return (
     <main className="capture-page">
       <header>
-        <Logo />
+        {brand ? <StoreMark brand={brand} /> : <Logo />}
         <button className="lang-btn" onClick={toggle}><Globe size={16} aria-hidden />{t('English', 'العربية')}</button>
       </header>
       <section className="capture-card">

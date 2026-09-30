@@ -16,13 +16,17 @@
  *
  * P5.7 — the bar says, before anything is used, that photos are handled on the shopper's device,
  * and links to the full camera & photo privacy page in a new tab (the shop page stays open).
+ *
+ * T61 — white-label: an Enterprise store's config carries its name and logo, and the bar and the
+ * page title show them in place of Tajribah's.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { ShieldCheck, X } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 import { SiteEnvContext, SiteLink, useSiteEnv } from '@/lib/site-env';
 import type { TryOnProduct } from '@/lib/demo-product';
-import { CLOSE_MESSAGE, configBase, configUrl, isLocalHost, tryOnProductFrom, validRefs } from '@/lib/tryon-config';
+import { brandFrom, CLOSE_MESSAGE, configBase, configUrl, embedTitle, isLocalHost, tryOnProductFrom, validRefs, type StoreBrand } from '@/lib/tryon-config';
+import { StoreMark } from '@/components/site/store-mark';
 import Studio from '@/components/studio/Studio';
 
 /** `store` and `product` from the address (a query in the app, after the hash in the preview). */
@@ -33,7 +37,7 @@ function params(): URLSearchParams {
 
 const onThisMachine = () => typeof location !== 'undefined' && isLocalHost(location.hostname);
 
-export type EmbedState = { kind: 'loading' } | { kind: 'ready'; product: TryOnProduct } | { kind: 'unavailable' };
+export type EmbedState = { kind: 'loading' } | { kind: 'ready'; product: TryOnProduct; brand?: StoreBrand | null } | { kind: 'unavailable' };
 
 export default function EmbedTryOn({ initial }: { initial?: EmbedState } = {}) {
   const { t, lang, setLang } = useLang();
@@ -56,10 +60,13 @@ export default function EmbedTryOn({ initial }: { initial?: EmbedState } = {}) {
     const url = configUrl(configBase(p.get('base'), onThisMachine()), store, product);
     // An address that cannot name a published config is simply "unavailable" — nothing is fetched.
     (valid ? fetch(url, { credentials: 'omit' }).then((r) => (r.ok ? r.json() : null)) : Promise.resolve(null))
-      .then((json) => { if (!live) return; const found = tryOnProductFrom(json, onThisMachine()); setState(found ? { kind: 'ready', product: found } : { kind: 'unavailable' }); })
+      .then((json) => { if (!live) return; const found = tryOnProductFrom(json, onThisMachine()); setState(found ? { kind: 'ready', product: found, brand: brandFrom(json, onThisMachine()) } : { kind: 'unavailable' }); })
       .catch(() => { if (live) setState({ kind: 'unavailable' }); });
     return () => { live = false; };
   }, [initial]);
+
+  const brand = state.kind === 'ready' ? state.brand ?? null : null;
+  useEffect(() => { if (brand) document.title = embedTitle(brand, lang); }, [brand, lang]);
 
   // The merchant's images are absolute CDN addresses; site files still go through the shell.
   const embedEnv = useMemo(() => ({
@@ -73,7 +80,7 @@ export default function EmbedTryOn({ initial }: { initial?: EmbedState } = {}) {
   return (
     <div className="embed-root">
       <div className="embed-bar">
-        <span className="embed-brand">{t('تجربة', 'Tajribah')}</span>
+        <span className="embed-brand">{brand ? <StoreMark brand={brand} /> : t('تجربة', 'Tajribah')}</span>
         <SiteLink href="/try-on-privacy" target="_blank" rel="noopener" className="embed-privacy">
           <ShieldCheck size={15} aria-hidden />{t('تُعالج صورك على جهازك', 'Your photos are processed on your device')}
         </SiteLink>

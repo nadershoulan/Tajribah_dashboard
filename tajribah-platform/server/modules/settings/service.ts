@@ -62,8 +62,8 @@ export async function updateSettings(ctx: TenantContext, input: unknown): Promis
       after: { ...pick(after), branding: settingsAfter.branding, consentTextAr: settingsAfter.consentTextAr, consentTextEn: settingsAfter.consentTextEn },
     }, db);
   });
-  // P1.15: the button's colour and corners are in every live config.
-  if ('brandColor' in patch || 'buttonRadius' in patch) await enqueueEdgeRefresh(ctx.tenantId);
+  // P1.15: the button's colour and corners are in every live config; T61: so is the store's name (white-label).
+  if ('brandColor' in patch || 'buttonRadius' in patch || 'name' in patch || 'nameAr' in patch) await enqueueEdgeRefresh(ctx.tenantId);
   return getSettings(ctx);
 }
 

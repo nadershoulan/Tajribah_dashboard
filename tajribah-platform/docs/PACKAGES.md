@@ -32,7 +32,7 @@ Nothing user-visible ships. Everything after inherits these decisions.
 | P0.18 ✅ | Observability | Request id propagation, structured logging with tenant context, error hook | A request's id appears in every log line it produced |
 | P0.19 ✅ | API skeleton | Route handlers through `route()`: auth endpoints (register, login, refresh, logout, verify, reset), session cookie, `requireSession` → `TenantContext`, zod-validated bodies | Each endpoint tested Request → Response, incl. a refused cross-tenant call |
 | P0.20 ◐ | Dashboard API client + login + protected routes | An API `DataSource` beside the demo one, login/register screens wired to it, protected routes redirect with `?next=` | Login → dashboard → logout, rendered and tested |
-| P0.21 [!] | CI pipeline | Runs `scripts/verify.mjs` + lint on every push | Blocked: no CI runner / repo remote |
+| P0.21 [x] | CI pipeline | Runs `scripts/verify.mjs` + lint on every push | `.github/workflows/checks.yml` (T61); green on GitHub Actions since 248c7f0 |
 | P0.22 [!] | Staging deployment | Worker + Postgres + R2, deployed from CI | Blocked: Cloudflare account, Postgres host |
 
 **P0 gate:** isolation suite green and seen to fail when broken · typecheck + lint clean ·

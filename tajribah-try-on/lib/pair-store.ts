@@ -1,4 +1,5 @@
 import { env } from 'cloudflare:workers';
+import type { StoreBrand } from './tryon-config';
 export const SESSION_MS=30*60*1000;
 export const NO_CACHE={'Cache-Control':'no-store, private','Referrer-Policy':'no-referrer'};
 export function bucket(){if(!env.BUCKET)throw new Error('Photo transfer storage is unavailable');return env.BUCKET;}
@@ -6,7 +7,7 @@ export function validToken(token:string){return /^[a-f0-9]{32}$/.test(token);}
 export async function readSession(token:string){
   if(!validToken(token))return null;
   const obj=await bucket().get(`sessions/${token}.json`);if(!obj)return null;
-  const session=await obj.json<{expiresAt:number}>();
+  const session=await obj.json<{expiresAt:number;brand?:StoreBrand|null}>();
   if(Date.now()>session.expiresAt){await removeSession(token);return null;}
   return session;
 }

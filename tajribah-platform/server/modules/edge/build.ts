@@ -9,6 +9,8 @@
  *    `ready`): the web GLB (required), the plain GLB for Android and the USDZ for iPhone when made.
  *  - **Try-on**: a watch whose try-on is switched on and complete, placed on the wrist — the two
  *    cut-outs, the case width, the SKU and finish; `onMe` from the plan (`virtual_tryon`, T33).
+ *  - **Brand** (T61, white-label — Enterprise): the store's name and logo, which the try-on page
+ *    and its phone page show in Tajribah's place. Only with a try-on; null on every other plan.
  *  - Nothing to open (no model, no try-on) or a product that is archived, deleted, or in a store
  *    that is suspended or closed → no config, with the reason.
  *
@@ -37,10 +39,13 @@ export const BLOCK_TEXT: Record<EdgeBlock, string> = {
   invalid: 'the settings do not make a valid config — please contact support',
 };
 
-/** What is published: the widget's contract, plus the finish line only the try-on page reads. */
+/** What is published: the widget's contract, plus what only the try-on page reads — the finish line and the brand. */
 export type PublishedConfig = Omit<ViewerConfig, 'tryon'> & {
   tryon: (NonNullable<ViewerConfig['tryon']> & { finish: { ar: string; en: string } | null }) | null;
+  brand: StoreBrand | null;
 };
+
+export type StoreBrand = { name: string; nameAr: string | null; logo: string | null };
 
 export type EdgeBuild =
   | { ok: true; key: string; config: PublishedConfig; body: string; fingerprint: string }
@@ -95,6 +100,7 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
     autoRotate: button.autoRotate,
     shadow: button.shadow,
     tryon: watch,
+    brand: watch && entitlements.has('white_label') ? brandOf(tenant, settings?.branding?.logoUrl) : null,
   };
   const body = JSON.stringify(config);
   if (!parseConfig(JSON.parse(body))) {
@@ -102,6 +108,15 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
     return { ok: false, key, reason: 'invalid' };
   }
   return { ok: true, key, config, body, fingerprint: await sha256(body) };
+}
+
+/** The store's name (both languages) and logo — the Settings logo first, then the store's own; https only. */
+function brandOf(tenant: { name: string; nameAr: string | null; logoUrl: string | null }, settingsLogo: string | undefined): StoreBrand {
+  const https = (v: string | null | undefined) => {
+    if (!v || v.length > 2048) return null;
+    try { return new URL(v).protocol === 'https:' ? v : null; } catch { return null; }
+  };
+  return { name: tenant.name.slice(0, 80), nameAr: tenant.nameAr?.slice(0, 80) || null, logo: https(settingsLogo) ?? https(tenant.logoUrl) };
 }
 
 /** The product's live 3D files, or null when it has none that the shop can show. */

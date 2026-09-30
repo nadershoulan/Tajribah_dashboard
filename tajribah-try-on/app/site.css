@@ -683,6 +683,11 @@ html[lang="en"] .legal-body p { line-height: 1.75; }
 .capture-page { max-width: 560px; margin: auto; padding: 0 22px 44px; }
 .capture-page > header { height: 76px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
 .capture-page .logo img { height: 32px; }
+/* T61 — white-label: the store's logo (or name) in Tajribah's place */
+.store-mark { display: inline-flex; align-items: center; min-width: 0; font-family: var(--f-display); font-weight: 700; font-size: 19px; overflow-wrap: anywhere; }
+.store-mark img { height: 32px; width: auto; max-width: 180px; object-fit: contain; }
+.embed-brand .store-mark { font-size: 15px; }
+.embed-brand .store-mark img { height: 24px; max-width: 120px; }
 .capture-card { display: flex; flex-direction: column; align-items: center; text-align: center; padding-top: 36px; }
 .capture-card h1 { font-size: 2rem; font-weight: 700; margin: 8px 0 10px; }
 .capture-card > p { color: var(--text-2); max-width: 40ch; margin-bottom: 20px; }

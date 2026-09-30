@@ -851,3 +851,10 @@ optimised by the Node worker in about 4 seconds to 509 KB (web) and 975 KB (nati
 - **Salla and Zid connectors — build both now** from their public API documentation, tested against
   faithful stand-ins as Shopify's was; a real store confirms or corrects the details once the partner
   accounts exist.
+
+**T61 update (2026-09-30) — how white-label reaches the phone page.** The studio starts a QR pairing
+with a bare `POST /api/pair`; rather than change its code, the pairing reads which store it belongs
+to from the request's same-origin Referer (the try-on frame's own address) and then reads the brand
+from Tajribah's config host for that store and product. The brand is never taken from the request,
+so a forged Referer can only show a real store's own published name and logo. Any doubt (another
+page, another site, no brand, the host unreachable) → Tajribah's, as before; the pairing still works.

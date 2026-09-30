@@ -74,6 +74,26 @@ export function tryOnProductFrom(config: unknown, local = false): TryOnProduct |
   };
 }
 
+/** T61 — white-label (Enterprise): the store's own name and logo, shown where shoppers would see Tajribah's. */
+export type StoreBrand = { name: Bi; logo: string | null };
+
+/**
+ * The store's brand from a published config, or null — no brand block (every plan but Enterprise)
+ * or anything about it wrong. Then the pages show Tajribah's name, as before. The logo is optional
+ * (https only); without one the store's name stands in its place.
+ */
+export function brandFrom(config: unknown, local = false): StoreBrand | null {
+  if (!isObj(config) || !isObj(config.brand)) return null;
+  const { brand } = config;
+  if (!str(brand.name, 80) || !(brand.nameAr == null || str(brand.nameAr, 80))) return null;
+  if (!(brand.logo == null || httpsUrl(brand.logo, local))) return null;
+  return { name: { ar: (brand.nameAr as string | null | undefined) ?? brand.name, en: brand.name }, logo: (brand.logo as string | null | undefined) ?? null };
+}
+
+/** The try-on page's title: the store's own under white-label, Tajribah's otherwise. */
+export const embedTitle = (brand: StoreBrand | null | undefined, lang: 'ar' | 'en') =>
+  brand ? (lang === 'ar' ? `${brand.name.ar} · تجربة افتراضية` : `${brand.name.en} · Virtual try-on`) : 'Tajribah try-on';
+
 /**
  * The pictures the studio's first view draws — the wrist photo and the watch as worn. The embed
  * page names them in its HTML so they download alongside the page's scripts, not after. The rest

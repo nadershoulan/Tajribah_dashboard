@@ -8,7 +8,7 @@ import { currentStore } from '@/lib/api-client';
 import { AppLink } from '@/lib/app-env';
 import { useAuth } from '@/lib/auth';
 import { planByCode } from '@/lib/plans';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLang } from '@/lib/i18n';
 import { useData, useResource } from '@/lib/data';
 import type { ConnectionDetail, SyncProgress } from '@/lib/view-models';
@@ -45,9 +45,10 @@ const PROVIDERS: ProviderCard[] = [
   {
     id: 'shopify',
     name: { ar: 'Shopify', en: 'Shopify' },
-    blurb: { ar: 'تطبيق يُضاف لمتجرك ويستورد الكتالوج.', en: 'An app you add to your store that imports the catalogue.' },
+    blurb: { ar: 'تثبّت تطبيق تجربة في متجرك من شاشة Shopify نفسها، بإذن قراءة المنتجات فقط. نزامن كل ساعة.', en: 'You install the Tajribah app on your shop from Shopify’s own screen, with permission to read products only. Synced every hour.' },
     tier: 'secondary',
-    blockedBy: { ar: 'بانتظار تطبيق شريك Shopify', en: 'Waiting on a Shopify Partner app' },
+    // P6: shown until the Tajribah Shopify app is registered — then the server says it is available.
+    blockedBy: { ar: 'بانتظار تسجيل تطبيق تجربة في Shopify', en: 'Waiting on the Tajribah Shopify app' },
   },
   {
     id: 'woocommerce',
@@ -75,6 +76,8 @@ export default function Connections() {
     { label: t('ربط المتجر', 'Store connections') },
   ];
   const linked = new Set((data ?? []).filter((c) => c.status === 'active').map((c) => c.provider));
+  const { data: available } = useResource((source) => source.connectionProviders(), []);
+  const shopifyBack = useShopifyReturn(() => setVersion((v) => v + 1));
   // Back from WooCommerce's approval page: it adds success=1 (approved) or 0.
   const [returned] = useState(() => {
     try {
@@ -98,6 +101,15 @@ export default function Connections() {
           {returned
             ? t('وافق متجرك على الربط. أول مزامنة تجري الآن، وتظهر منتجاتك هنا تباعًا.', 'Your store approved the connection. The first sync is running; your products appear here as it goes.')
             : t('لم يُوافَق على الربط في WooCommerce. يمكنك المحاولة مجددًا.', 'The connection was not approved in WooCommerce. You can try again.')}
+        </p>
+      )}
+      {shopifyBack && (
+        <p role="status" className={`upload-note ${shopifyBack.ok ? 'upload-done' : shopifyBack.ok === false ? 'upload-failed' : ''}`}>
+          {shopifyBack.ok === null
+            ? t('نكمل الربط مع Shopify…', 'Finishing the connection with Shopify…')
+            : shopifyBack.ok
+              ? t('ثُبّت التطبيق في متجرك على Shopify. أول مزامنة تجري الآن، وتظهر منتجاتك هنا تباعًا.', 'The app is installed on your Shopify shop. The first sync is running; your products appear here as it goes.')
+              : t(`لم يكتمل الربط مع Shopify: ${shopifyBack.problem}`, `The Shopify connection did not complete: ${shopifyBack.problem}`)}
         </p>
       )}
       {loading && !data && <Panel><Loading rows={4} /></Panel>}
@@ -124,6 +136,8 @@ export default function Connections() {
                 <span className="badge badge-ok"><CheckCircle2 size={13} aria-hidden />{t('مربوط بمتجرك', 'Linked to your store')}</span>
               ) : provider.id === 'woocommerce' ? (
                 <WooConnect />
+              ) : provider.id === 'shopify' && available?.shopify ? (
+                <ShopifyConnect />
               ) : provider.blockedBy ? (
                 <>
                   <button type="button" className="btn btn-ghost" disabled>
@@ -358,6 +372,83 @@ function WooConnect() {
         <Link2 size={16} aria-hidden />{busy ? t('جارٍ التحويل…', 'Opening…') : t('اربط عبر WooCommerce', 'Connect with WooCommerce')}
       </button>
       <p className="hint" style={{ margin: 0 }}>{t('ننقلك إلى متجرك لتوافق على قراءة المنتجات فقط، ثم نعيدك إلى هنا.', 'We take you to your store to approve reading products only, then bring you back here.')}</p>
+      {problem && <p className="field-error" role="alert" style={{ margin: 0 }}>{problem}</p>}
+    </form>
+  );
+}
+
+/**
+ * P6 — back from Shopify's install screen with `code`, `shop`, `state` and Shopify's `hmac`: hand the
+ * query to the server with this session (it checks all of it), once, then take it out of the address.
+ */
+function useShopifyReturn(onDone: () => void): { ok: boolean | null; problem: string } | null {
+  const source = useData();
+  const started = useRef(false);
+  const [outcome, setOutcome] = useState<{ ok: boolean | null; problem: string } | null>(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      return q.get('hmac') && q.get('shop') && q.get('state') && q.get('code') ? { ok: null, problem: '' } : null;
+    } catch { return null; }
+  });
+  useEffect(() => {
+    if (!outcome || outcome.ok !== null || started.current) return;
+    started.current = true;
+    const query = window.location.search;
+    window.history.replaceState(null, '', window.location.pathname); // the code is single-use; never leave it in the address
+    source.completeShopifyConnect(query).then(
+      () => { setOutcome({ ok: true, problem: '' }); onDone(); },
+      (err: Error) => setOutcome({ ok: false, problem: err.message }),
+    );
+  }, [outcome, source, onDone]);
+  return outcome;
+}
+
+/**
+ * P6 — connect a Shopify shop: its name, then Shopify's own install screen for that shop (read
+ * products only). Shopify sends the merchant back here. Pro and up.
+ */
+function ShopifyConnect() {
+  const { t } = useLang();
+  const source = useData();
+  const lock = useWriteLock();
+  const { me } = useAuth();
+  const store = currentStore(me);
+  const included = store ? planByCode(store.plan).features.includes('shopify') : false;
+  const [shop, setShop] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  if (!included) {
+    return (
+      <p className="hint" style={{ margin: 0 }}>
+        {t('ضمن باقة Pro وما فوقها.', 'Included from the Pro plan.')} <AppLink href="/dashboard/billing" style={{ color: 'var(--aqua)' }}>{t('الباقات', 'Plans')}</AppLink>
+      </p>
+    );
+  }
+  const go = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true); setProblem(null);
+    try {
+      const { authorizeUrl } = await source.startShopifyConnect(shop.trim());
+      window.location.assign(authorizeUrl);
+    } catch (err) {
+      const fields = (err as { fields?: Record<string, string[]> }).fields;
+      setProblem(fields?.shop ? t('اسم متجرك كما في عنوانه على myshopify.com — مثل oud-house', 'Your shop’s name as in its myshopify.com address — like oud-house') : (err as Error).message);
+      setBusy(false);
+    }
+  };
+  return (
+    <form onSubmit={go} style={{ display: 'grid', gap: 8 }}>
+      <label className="field" style={{ margin: 0 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 500 }}>{t('اسم متجرك على Shopify', 'Your Shopify shop')}</span>
+        <span dir="ltr" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input value={shop} onChange={(e) => setShop(e.target.value)} dir="ltr" placeholder="your-shop" maxLength={300} style={{ flex: 1, minWidth: 0 }} />
+          <span className="hint" style={{ margin: 0 }}>.myshopify.com</span>
+        </span>
+      </label>
+      <button type="submit" className="btn btn-ghost" disabled={busy || lock.locked || !shop.trim()} title={lock.title}>
+        <Link2 size={16} aria-hidden />{busy ? t('جارٍ التحويل…', 'Opening…') : t('اربط عبر Shopify', 'Connect with Shopify')}
+      </button>
+      <p className="hint" style={{ margin: 0 }}>{t('ننقلك إلى Shopify لتثبّت التطبيق بإذن قراءة المنتجات فقط، ثم نعيدك إلى هنا.', 'We take you to Shopify to install the app with permission to read products only, then bring you back here.')}</p>
       {problem && <p className="field-error" role="alert" style={{ margin: 0 }}>{problem}</p>}
     </form>
   );

@@ -96,6 +96,14 @@ export const REGISTRY = {
     schema: z.string().optional(), scope: 'runtime', secret: true,
     doc: 'Verifies webhook signatures against the raw body (§13.6).',
   }),
+  SHOPIFY_CLIENT_ID: entry({
+    schema: z.string().optional(), scope: 'runtime',
+    doc: 'The Tajribah app in the Shopify Partner dashboard (P6). Unset: Shopify cannot be connected yet.',
+  }),
+  SHOPIFY_CLIENT_SECRET: entry({
+    schema: z.string().optional(), scope: 'runtime', secret: true,
+    doc: 'The Shopify app secret: signs the install callback (HMAC) and exchanges its code for the shop token.',
+  }),
   CDN_BASE_URL: entry({
     schema: z.string().url().optional(), scope: 'runtime',
     doc: 'Public base for R2 assets. Models and textures are served from here, never from the app.',
@@ -152,6 +160,7 @@ const envSchema = z.object(shape).superRefine((value, ctx) => {
   need(v.SMS_PROVIDER === 'unifonic', 'UNIFONIC_APP_SID', 'required when SMS_PROVIDER=unifonic');
   need(v.SMS_PROVIDER === 'unifonic', 'UNIFONIC_SENDER_ID', 'required when SMS_PROVIDER=unifonic');
   need(!!v.SALLA_CLIENT_ID, 'SALLA_CLIENT_SECRET', 'required when SALLA_CLIENT_ID is set');
+  need(!!v.SHOPIFY_CLIENT_ID, 'SHOPIFY_CLIENT_SECRET', 'required when SHOPIFY_CLIENT_ID is set');
   // §12.6: the API must not boot in production pretending it can send an OTP.
   if (v.NODE_ENV === 'production' && v.SMS_PROVIDER === 'console') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['SMS_PROVIDER'],

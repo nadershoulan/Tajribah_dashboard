@@ -13,7 +13,7 @@ import {
   DEMO_AI_JOBS, DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
 } from './demo-data';
 import type {
-  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
@@ -64,6 +64,12 @@ export interface DataSource {
   aiJobs(active?: boolean): Promise<AiJobView[]>;
   /** P6 — start connecting a WooCommerce store: its own approval page to go to. */
   startWooConnect(storeUrl: string): Promise<{ authorizeUrl: string }>;
+  /** P6 — which store platforms can be connected here yet (Shopify once its app is registered). */
+  connectionProviders(): Promise<ConnectionProviders>;
+  /** P6 — start connecting a Shopify shop: its own install screen to go to. */
+  startShopifyConnect(shop: string): Promise<{ authorizeUrl: string }>;
+  /** P6 — finish it: the query Shopify sent the merchant back with. */
+  completeShopifyConnect(query: string): Promise<ConnectionSummary>;
   /** P8 — the store's API keys; a new key comes back once, with its secret. */
   apiKeys(): Promise<ApiKeyView[]>;
   createApiKey(input: { name: string; scopes: string[]; expiresInDays: number | null }): Promise<{ key: string; apiKey: ApiKeyView }>;
@@ -194,6 +200,9 @@ export function apiSource(client: ApiClient): DataSource {
       return (await client.call<{ models: ModelRow[] }>('/api/models')).models;
     },
     async startWooConnect(storeUrl) { return client.call<{ authorizeUrl: string }>('/api/connections/woocommerce/start', { body: { storeUrl } }); },
+    async connectionProviders() { return client.call<ConnectionProviders>('/api/connections/providers'); },
+    async startShopifyConnect(shop) { return client.call<{ authorizeUrl: string }>('/api/connections/shopify/start', { body: { shop } }); },
+    async completeShopifyConnect(query) { return client.call<ConnectionSummary>('/api/connections/shopify/complete', { body: { query } }); },
     async apiKeys() { return (await client.call<{ keys: ApiKeyView[] }>('/api/api-keys')).keys; },
     async createApiKey(input) { return client.call<{ key: string; apiKey: ApiKeyView }>('/api/api-keys', { body: input }); },
     async revokeApiKey(id) { return client.call<ApiKeyView>(`/api/api-keys/${encodeURIComponent(id)}/revoke`, { method: 'POST' }); },
@@ -549,6 +558,10 @@ export const demoSource: DataSource = {
   async models() { return demoModels.map((m) => ({ ...m })); },
   // P6: WooCommerce is Pro and up; the preview's store is on Growth, as the server would say.
   async startWooConnect() { throw new ApiError(402, 'plan_required', 'woocommerce is not included in this plan'); },
+  // P6: no Shopify app is registered yet, as the server would say.
+  async connectionProviders() { return { woocommerce: true, shopify: false, salla: false, zid: false }; },
+  async startShopifyConnect() { throw new ApiError(501, 'not_implemented', 'Shopify shops can be connected once the Tajribah Shopify app is registered'); },
+  async completeShopifyConnect() { throw new ApiError(501, 'not_implemented', 'Shopify shops can be connected once the Tajribah Shopify app is registered'); },
   // P8: the preview's store is on Growth — keys are Enterprise, so the server would refuse, and so does the preview.
   async apiKeys() { return []; },
   async createApiKey() { throw new ApiError(402, 'plan_required', 'public_api is not included in this plan'); },

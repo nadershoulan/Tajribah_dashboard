@@ -3,7 +3,8 @@
  * API operations the connector sends, the way Shopify does — products by id with opaque cursors,
  * the `updated_at:>=` search, `productsCount` with its precision, a null product for an unknown id,
  * 401 for a token it does not accept, `THROTTLED` inside a 200 while its bucket is empty, and 503
- * while it is down. It does not parse GraphQL: it reads the operation name. Tests only.
+ * while it is down. It does not parse GraphQL: it reads the operation name. It also plays the install
+ * step: `POST /admin/oauth/access_token` swaps a code, once, for a token. Tests only.
  */
 import type { ExternalProduct } from '@/server/connectors/types';
 import { textToHtml } from '@/server/connectors/woocommerce/html';
@@ -12,6 +13,7 @@ import { SHOPIFY_API_VERSION, type ShopifyProduct } from '@/server/connectors/sh
 
 export const SHOPIFY_SHOP = 'oud-house.myshopify.com';
 export const SHOPIFY_CURRENCY = 'SAR';
+export const SHOPIFY_APP = { clientId: 'tajribah-test-app', clientSecret: 'shpss_test_secret' };
 
 /**
  * What a Shopify store can hold of a catalogue: numeric ids (in catalogue order), one currency,
@@ -42,6 +44,10 @@ export class ShopifyStore {
   throttleNext = 0;
   requests = 0;
   readonly operations: string[] = [];
+  /** Install codes Shopify issued, each good once: code → what it grants. */
+  readonly codes = new Map<string, { token: string; scope: string }>();
+  /** Shops this stand-in answers the install step for (a real code from any real shop). */
+  readonly shops = new Set<string>([SHOPIFY_SHOP]);
 
   constructor(catalogue: ExternalProduct[] = []) {
     for (const p of shopifyHolds(catalogue)) this.products.set(Number(p.externalId), ShopifyStore.toShopify(p));
@@ -84,6 +90,16 @@ export class ShopifyStore {
     this.requests += 1;
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url);
     if (this.down) return new Response('Service Unavailable', { status: 503 });
+    if (this.shops.has(url.host) && url.pathname === '/admin/oauth/access_token' && init?.method === 'POST') {
+      const body = JSON.parse(String(init.body)) as { client_id?: string; client_secret?: string; code?: string };
+      const grant = this.codes.get(body.code ?? '');
+      if (body.client_id !== SHOPIFY_APP.clientId || body.client_secret !== SHOPIFY_APP.clientSecret || !grant) {
+        return Response.json({ error: 'invalid_request', error_description: 'The authorization code was not found or was already used' }, { status: 400 });
+      }
+      this.codes.delete(body.code!);
+      this.tokens.add(grant.token);
+      return Response.json({ access_token: grant.token, scope: grant.scope });
+    }
     if (url.host !== SHOPIFY_SHOP || url.pathname !== `/admin/api/${SHOPIFY_API_VERSION}/graphql.json` || (init?.method ?? 'GET') !== 'POST') {
       return new Response('Not Found', { status: 404 });
     }

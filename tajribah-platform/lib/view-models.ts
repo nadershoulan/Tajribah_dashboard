@@ -96,6 +96,9 @@ export type ConnectionSummary = {
   lastError: string | null;
 };
 
+/** P6 — which store platforms this dashboard can connect yet (API-065). */
+export type ConnectionProviders = Record<ConnectionSummary['provider'], boolean>;
+
 /** One store connection as the connections screen shows it (P1.11): no token, ever. */
 export type ConnectionDetail = ConnectionSummary & {
   latestSync: SyncProgress | null;

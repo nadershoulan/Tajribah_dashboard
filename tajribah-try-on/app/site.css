@@ -40,11 +40,11 @@
 /* ---------- contrast (WCAG 2.1 AA) --------------------------------------- */
 /* Small text on the light surfaces uses darker "ink" shades of the brand colours (4.6:1 or more on
    white, --bg and --tint, checked with axe-core); fills, borders and icons keep the brand colours.
-   Dark sections keep the bright ones — the ink shades would fail there. The try-on studio keeps its
-   own colours exactly. */
+   Dark sections keep the bright ones — the ink shades would fail there. The try-on studio takes the
+   same ink shades for its small text only (Nader's go-ahead, T61); its fills and icons are unchanged. */
 .site { --text-3: #5d6f7c; --aqua-ink: #007989; --teal-ink: #0b7a6d; }
 .site .sec-dark, .site .site-foot, .site .plan.featured, .site .plan-mini.featured { --text-3: #9db4c4; --aqua-ink: var(--aqua-bright); --teal-ink: var(--teal); }
-.studio-root { --text-3: #7a91a2; --aqua-ink: var(--aqua); --teal-ink: var(--teal); }
+.studio-root { --text-3: #5d6f7c; --aqua-ink: #007989; --teal-ink: #0b7a6d; }
 
 /* ---------- base ---------------------------------------------------------- */
 html { scroll-behavior: smooth; }
@@ -538,7 +538,7 @@ html[lang="en"] .legal-body p { line-height: 1.75; }
 }
 .demo-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); }
 .product-panel h1 { font-size: 2rem; font-weight: 700; margin: 12px 0 8px; line-height: 1.3; }
-.product-panel h1 em { font-style: normal; color: var(--aqua); }
+.product-panel h1 em { font-style: normal; color: var(--aqua-ink); }
 .product-name { color: var(--text-2); font-size: 16px; }
 .finish-name { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 14px; color: var(--text-2); }
 .finish-dot { width: 12px; height: 12px; border-radius: 50%; background: #0f4a3a; box-shadow: 0 0 0 2px #e4be63; }
@@ -643,15 +643,15 @@ html[lang="en"] .legal-body p { line-height: 1.75; }
 }
 .primary-button:hover { background: var(--navy-700); }
 .text-button { display: inline-flex; align-items: center; gap: 8px; padding: 12px; font-family: var(--f-display); font-size: 14.5px; color: var(--navy-700); }
-.text-button:hover { color: var(--aqua); }
+.text-button:hover { color: var(--aqua-ink); }
 .privacy-note { font-size: 13px; color: var(--text-3); margin-top: 12px; line-height: 1.7; max-width: 46ch; }
-.privacy-note a { color: var(--aqua); text-decoration: underline; }
+.privacy-note a { color: var(--aqua-ink); text-decoration: underline; }
 
 .studio-footer { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; margin-top: 18px; margin-inline-start: 340px; }
 .studio-footer > span { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--text-3); max-width: 80ch; line-height: 1.7; }
 .studio-footer > span svg { flex: 0 0 auto; margin-top: 4px; color: var(--aqua); }
 .download-button { display: inline-flex; align-items: center; gap: 8px; font-family: var(--f-display); font-weight: 600; font-size: 14px; color: var(--navy-700); padding: 6px 0; }
-.download-button:hover { color: var(--aqua); }
+.download-button:hover { color: var(--aqua-ink); }
 
 .qr-dialog { text-align: center; padding: 30px !important; }
 .qr-dialog [data-slot="dialog-title"] { font-family: var(--f-display); font-size: 1.4rem; font-weight: 600; line-height: 1.4; }

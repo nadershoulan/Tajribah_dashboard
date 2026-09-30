@@ -41,3 +41,16 @@ test('small text on the website reads at 4.5:1 or more on every light surface', 
   }
   assert.ok(contrast(token(css, 'text-2'), token(css, 'tint')) >= 4.5, '--text-2');
 });
+
+test("the try-on studio's small text takes the same ink shades (T61)", () => {
+  const css = readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'app', 'site.css'), 'utf8');
+  const surfaces = ['#ffffff', token(css, 'bg'), token(css, 'tint')];
+  for (const ink of ['text-3', 'aqua-ink', 'teal-ink']) {
+    const colour = token(css, ink, '.studio-root {');
+    for (const surface of surfaces) assert.ok(contrast(colour, surface) >= 4.5, `studio --${ink} ${colour} on ${surface}: ${contrast(colour, surface).toFixed(2)}`);
+  }
+  for (const rule of ['.product-panel h1 em', '.privacy-note a', '.text-button:hover', '.download-button:hover']) {
+    const body = css.slice(css.indexOf(rule + ' {'), css.indexOf('}', css.indexOf(rule + ' {')));
+    assert.match(body, /color: var\(--aqua-ink\)/, `${rule} is text, so it uses the ink shade`);
+  }
+});

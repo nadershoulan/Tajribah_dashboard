@@ -453,9 +453,9 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
           <div className="studio-topbar">
             <Tabs value={mode} onValueChange={changeMode}>
               <TabsList className="mode-tabs">
-                <TabsTrigger value="model"><Hand size={17} />{t('On model', 'على النموذج')}</TabsTrigger>
-                {product.onMe !== false && <TabsTrigger value="me"><Camera size={17} />{t('On me', 'عليّ')}</TabsTrigger>}
-                <TabsTrigger value="compare"><Ruler size={17} />{t('Compare', 'قارن الحجم')}</TabsTrigger>
+                <TabsTrigger value="model" aria-controls={undefined}><Hand size={17} />{t('On model', 'على النموذج')}</TabsTrigger>
+                {product.onMe !== false && <TabsTrigger value="me" aria-controls={undefined}><Camera size={17} />{t('On me', 'عليّ')}</TabsTrigger>}
+                <TabsTrigger value="compare" aria-controls={undefined}><Ruler size={17} />{t('Compare', 'قارن الحجم')}</TabsTrigger>
               </TabsList>
             </Tabs>
             <div className="topbar-actions">

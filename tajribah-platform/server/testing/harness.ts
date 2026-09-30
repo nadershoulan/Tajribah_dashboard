@@ -116,6 +116,9 @@ export type TestDb = {
 
 export async function createTestDb(options: { observe?: QueryObserver } = {}): Promise<TestDb> {
   const client = await PGlite.create();
+  // As in production after 0030 (`ALTER DATABASE … SET timezone TO 'UTC'`, which reaches new sessions
+  // only): this one session runs in UTC from the first migration, so months are UTC months everywhere.
+  await client.exec("SET TIME ZONE 'UTC'");
   for (const statement of migrationStatements()) {
     try {
       await client.exec(statement);

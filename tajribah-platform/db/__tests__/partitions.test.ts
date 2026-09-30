@@ -78,6 +78,29 @@ test('rows land in their month; RLS on the parent matches the generator; partiti
   } finally { await harness.close(); }
 });
 
+test('partition bounds are UTC months, whatever the session’s time zone (0030 — found at a month’s turn in Riyadh)', async () => {
+  const harness = await createTestDb();
+  try {
+    await harness.asAdmin(async () => {
+      await harness.db.execute(sql`set time zone 'Asia/Riyadh'`);
+      try {
+        await ensureSyncItemPartitions(new Date(Date.UTC(2027, 1, 15))); // February 2027 and the months after
+      } finally {
+        await harness.db.execute(sql`set time zone 'UTC'`);
+      }
+    });
+    const a = await seedTenant(harness, 'alpha');
+    const job = await oneSyncJob(harness, a.tenantId);
+    // 22:00 UTC on 28 February is already 1 March in Riyadh: the row belongs to February (UTC).
+    for (const [at, month] of [['2027-02-28T22:00:00Z', 'sync_job_items_y2027m02'], ['2027-03-01T00:30:00Z', 'sync_job_items_y2027m03']] as const) {
+      const id = uuidv7();
+      await harness.asAdmin(() => harness.db.insert(syncJobItems).values({ id, tenantId: a.tenantId, syncJobId: job, externalId: at, action: 'created', createdAt: new Date(at) } as any));
+      const [row] = rows(await harness.asAdmin(() => harness.db.execute(sql`select tableoid::regclass::text as part from sync_job_items where id = ${id}`)));
+      assert.equal(row.part, month, at);
+    }
+  } finally { await harness.close(); }
+});
+
 test('rolling back 0002 alone gives the flat table back, rows, policy and grants included', async () => {
   const client = await PGlite.create();
   try {

@@ -28,6 +28,10 @@ CREATE ROLE tajribah_admin_login LOGIN BYPASSRLS PASSWORD '…' IN ROLE tajribah
 `BYPASSRLS` is on the admin login itself because it is not inherited through membership. Two logins,
 not one login switching roles: Hyperdrive pools by transaction, so a `SET ROLE` would not survive.
 
+The database's sessions run in **UTC** (migration 0030 sets `ALTER DATABASE … SET timezone TO 'UTC'`;
+the app's times are all UTC). A server whose own zone is set otherwise needs nothing more — the setting
+reaches every new session. **Check:** `SHOW timezone;` as the app login → `UTC`.
+
 ## The dashboard Worker
 
 Create two Hyperdrive configurations, one per login, and bind them as **`HYPERDRIVE_APP`** and

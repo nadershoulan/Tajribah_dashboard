@@ -96,6 +96,12 @@ export type ConnectionSummary = {
   lastError: string | null;
 };
 
+/** P8 — the store's single sign-on as its settings show it (API-082); never the client secret. */
+export type SsoSettingsView = {
+  configured: boolean; enabled: boolean; issuer: string | null; clientId: string | null; emailDomains: string[];
+  redirectUri: string; signInUrl: string; updatedAt: string | null;
+};
+
 /** P6 — which store platforms this dashboard can connect yet (API-065). */
 export type ConnectionProviders = Record<ConnectionSummary['provider'], boolean>;
 

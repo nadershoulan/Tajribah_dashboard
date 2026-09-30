@@ -11,6 +11,7 @@ import { useData, useResource } from '@/lib/data';
 import { useLang } from '@/lib/i18n';
 import { Shell } from '@/components/dashboard/chrome';
 import { ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
+import { SsoPanel } from './SsoSettings';
 
 /** Server and contract messages are English; the ones this screen meets get their Arabic here. */
 const MESSAGE_AR: [RegExp, string][] = [
@@ -52,6 +53,7 @@ export default function SettingsPage() {
       {loading && !settings && <Panel><Loading rows={5} /></Panel>}
       {error && <ErrorNote error={error} />}
       {settings && <SettingsForm key={JSON.stringify(settings)} settings={settings} onSaved={setSaved} wasSaved={saved !== null} />}
+      <SsoPanel />
     </Shell>
   );
 }

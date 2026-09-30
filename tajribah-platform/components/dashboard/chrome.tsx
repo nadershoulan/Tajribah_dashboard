@@ -298,7 +298,7 @@ function TenantSwitcher({ tenant }: { tenant: TenantSummary | null }) {
               </div>
               {addError && <p className="tenant-panel-note" role="alert" style={{ padding: 0 }}>{pick(addError)}</p>}
             </form>
-          ) : (
+          ) : auth.me?.ssoStoreId ? null : ( // P8: a single sign-on session opens its own store only
             <button type="button" className="tenant-add-open" onClick={() => setAdding(true)} disabled={busy !== null}>
               <Plus size={15} aria-hidden /> {t('أضف متجرًا', 'Add a store')}
             </button>

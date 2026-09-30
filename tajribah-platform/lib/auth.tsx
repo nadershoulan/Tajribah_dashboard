@@ -34,6 +34,9 @@ export type AuthApi = {
   completeTwoFactor(challenge: string, code: string): Promise<void>;
   /** P1.2b: the signed-in person's own two-step sign-in. */
   twoFactor: TwoFactorApi;
+  /** P8: single sign-on — the store's provider to go to, then back with its code. */
+  startSso(store: string): Promise<string>;
+  completeSso(code: string, state: string): Promise<void>;
   /** A1: the staff console. 404 for anyone not staff, 403 for staff without two-step sign-in. */
   admin: AdminApi;
   register(body: RegisterBody): Promise<{ slugNeedsConfirmation: boolean }>;
@@ -319,6 +322,8 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       return pending;
     },
     completeTwoFactor: async (challenge, code) => { await client.completeTwoFactor(challenge, code); await load(); },
+    startSso: async (store) => (await client.startSso(store)).authorizeUrl,
+    completeSso: async (code, state) => { await client.completeSso(code, state); await load(); },
     admin: {
       whoami: () => client.call('/api/admin/whoami'),
       trail: async (storeId) => (await client.call<{ entries: StaffTrailRow[] }>(`/api/admin/audit${storeId ? `?store=${encodeURIComponent(storeId)}` : ''}`)).entries,
@@ -454,6 +459,8 @@ export function DemoAuthProvider({ children }: { children: ReactNode }) {
       }],
     },
     login: async () => null,
+    startSso: async () => { throw new Error('preview'); },
+    completeSso: async () => { throw new Error('preview'); },
     completeTwoFactor: async () => {},
     twoFactor: demoTwoFactor,
     // The preview has no staff: the console answers as it does for any merchant.

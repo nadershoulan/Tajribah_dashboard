@@ -13,7 +13,7 @@ import {
   DEMO_AI_JOBS, DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
 } from './demo-data';
 import type {
-  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, SsoSettingsView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
@@ -64,6 +64,9 @@ export interface DataSource {
   aiJobs(active?: boolean): Promise<AiJobView[]>;
   /** P6 — start connecting a WooCommerce store: its own approval page to go to. */
   startWooConnect(storeUrl: string): Promise<{ authorizeUrl: string }>;
+  /** P8 — the store's single sign-on (Enterprise); owners and admins change it. */
+  ssoSettings(): Promise<SsoSettingsView>;
+  saveSsoSettings(input: { issuer: string; clientId: string; clientSecret: string | null; emailDomains: string[]; enabled: boolean }): Promise<SsoSettingsView>;
   /** P6 — which store platforms can be connected here yet (Shopify once its app is registered). */
   connectionProviders(): Promise<ConnectionProviders>;
   /** P6 — start connecting a Shopify shop: its own install screen to go to. */
@@ -201,6 +204,8 @@ export function apiSource(client: ApiClient): DataSource {
     },
     async startWooConnect(storeUrl) { return client.call<{ authorizeUrl: string }>('/api/connections/woocommerce/start', { body: { storeUrl } }); },
     async connectionProviders() { return client.call<ConnectionProviders>('/api/connections/providers'); },
+    async ssoSettings() { return client.call<SsoSettingsView>('/api/settings/sso'); },
+    async saveSsoSettings(input) { return client.call<SsoSettingsView>('/api/settings/sso', { method: 'PUT', body: input }); },
     async startShopifyConnect(shop) { return client.call<{ authorizeUrl: string }>('/api/connections/shopify/start', { body: { shop } }); },
     async completeShopifyConnect(query) { return client.call<ConnectionSummary>('/api/connections/shopify/complete', { body: { query } }); },
     async apiKeys() { return (await client.call<{ keys: ApiKeyView[] }>('/api/api-keys')).keys; },
@@ -560,6 +565,11 @@ export const demoSource: DataSource = {
   async startWooConnect() { throw new ApiError(402, 'plan_required', 'woocommerce is not included in this plan'); },
   // P6: no Shopify app is registered yet, as the server would say.
   async connectionProviders() { return { woocommerce: true, shopify: false, salla: false, zid: false }; },
+  // P8: single sign-on is Enterprise — the preview's Growth store has none and cannot set one.
+  async ssoSettings() {
+    return { configured: false, enabled: false, issuer: null, clientId: null, emailDomains: [], redirectUri: 'https://app.tajribah.sa/login/sso', signInUrl: 'https://app.tajribah.sa/login/sso?store=failet', updatedAt: null };
+  },
+  async saveSsoSettings() { throw new ApiError(402, 'plan_required', 'sso is not included in this plan'); },
   async startShopifyConnect() { throw new ApiError(501, 'not_implemented', 'Shopify shops can be connected once the Tajribah Shopify app is registered'); },
   async completeShopifyConnect() { throw new ApiError(501, 'not_implemented', 'Shopify shops can be connected once the Tajribah Shopify app is registered'); },
   // P8: the preview's store is on Growth — keys are Enterprise, so the server would refuse, and so does the preview.

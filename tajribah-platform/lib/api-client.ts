@@ -33,6 +33,8 @@ export type MeResponse = {
   currentTenantId: string | null;
   /** A4b: this session is a staff member's read-only view of `storeId` until then. */
   staffView?: { storeId: string; until: string } | null;
+  /** P8: signed in with this store's single sign-on — the session is for this store only. */
+  ssoStoreId?: string | null;
   tenants: {
     id: string; slug: string; name: string; status: string; role: string;
     plan: PlanCode; trialEndsAt: string | null; logoUrl: string | null;
@@ -167,6 +169,20 @@ export class ApiClient {
     if ('twoFactorRequired' in body) return { twoFactorChallenge: body.challenge };
     this.setToken(body.accessToken);
     return null;
+  }
+
+  /** P8: single sign-on, first step — the store's provider to go to (a flow cookie is set for this browser). */
+  async startSso(store: string): Promise<{ authorizeUrl: string }> {
+    const response = await this.send('/api/auth/sso/start', { body: { store } });
+    if (!response.ok) return ApiClient.fail(response);
+    return await response.json() as { authorizeUrl: string };
+  }
+
+  /** P8: back from the provider with a code — a session for that store only. */
+  async completeSso(code: string, state: string): Promise<void> {
+    const response = await this.send('/api/auth/sso/complete', { body: { code, state } });
+    if (!response.ok) return ApiClient.fail(response);
+    this.setToken(((await response.json()) as TokenBody).accessToken);
   }
 
   /** P1.2b: the code from the authenticator app, or a backup code. */

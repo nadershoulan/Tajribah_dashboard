@@ -22,6 +22,7 @@ import AiJobs from '@/components/pages/AiJobs';
 import ApiKeys from '@/components/pages/ApiKeys';
 import Webhooks from '@/components/pages/Webhooks';
 import Login from '@/components/pages/Login';
+import LoginSso from '@/components/pages/LoginSso';
 import Register from '@/components/pages/Register';
 import VerifyEmail from '@/components/pages/VerifyEmail';
 import ResetPassword from '@/components/pages/ResetPassword';
@@ -67,6 +68,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/dashboard/qr': Qr, // T52: was "page not found" from the sidebar
   '/dashboard/ar-settings': ArSettings,
   '/login': Login,
+  '/login/sso': LoginSso, // P8
   '/register': Register,
   // The staff console (Track A).
   '/admin': AdminOverview,

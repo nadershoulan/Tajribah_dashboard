@@ -3,7 +3,7 @@
 _Last updated: 2026-09-30 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-09-30):** **Shopify tells us the moment something changes** (P6). An edited product is fetched at once instead of at the next hourly sync; a deleted one leaves your catalogue and its button leaves your shop; removing the app from Shopify disconnects at once. The three privacy notices Shopify requires of every app are answered too. One choice made that you may want to change: when a shop asks Shopify to erase its data, we erase its access but **keep the products it imported** — they are the merchant's own Tajribah catalogue (DECISIONS T58) · before that: **Connecting a Shopify shop is built** (P6)
+> **Just finished (2026-09-30):** **Single sign-on for Enterprise stores** (P8). A store's owner connects the company's own sign-in (Microsoft, Google, Okta…) in Settings, and its team signs in at the store's own sign-in address with their company account. Only people already invited to the store get in, and that sign-in opens that store and nothing else — never the person's other stores or account settings. Tried end to end against a real, certified sign-in provider on this machine. How it is designed, and why: DECISIONS T59 · before that: **Shopify tells us the moment something changes** (P6)
 > **Next:** more account-free work. White-label waits on your answer below.
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
 > **Waiting on you:** **new question — white-label (Enterprise): what should shoppers see instead of Tajribah's name?** Today they see it in two places: the logo on the phone page a QR code opens, and the try-on page's title. The store's own logo and name there? Anything in the store owner's dashboard too? Also: the **Hetzner server**, and the accounts below — Salla, Cloudflare, the domain, Moyasar and a 3D-generation provider are what most of the remaining work needs.
@@ -17,10 +17,10 @@ P4 Analytics      ███████████░░░░░░░░░�
 P5 Try-on         ████████████████░░░░░░░░░░░░░░░░   7 / 14   (+ watch partly) · the rest touches your studio or needs new photography
 P6 AI+connectors  ██████████████░░░░░░░░░░░░░░░░░░   7 / 16   · the rest needs AI providers or store accounts
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ security, safe updates, rate limits, database speed, monitoring, load tests, backups: the code-level parts done)
-P8 Enterprise     █████████████░░░░░░░░░░░░░░░░░░░   5 / 12
+P8 Enterprise     ████████████████░░░░░░░░░░░░░░░░   6 / 12
 M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
-                                            overall  94 / 169
+                                            overall  95 / 169
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -177,6 +177,7 @@ The public site that sells Tajribah, Arabic first.
 
 | | Package | In plain words |
 |---|---|---|
+| ✅ | P8 Single sign-on | **Your team signs in with your company account** (Enterprise): the owner or an admin connects your company's sign-in (Microsoft, Google Workspace, Okta — OpenID Connect) in Settings, optionally limited to your email domains; your team uses the store's own sign-in address. Only people you have invited get in, and that sign-in opens this store alone — not their other stores, not their account settings. Passwords keep working. Tried against a real certified sign-in provider (T59) |
 | ✅ | P8 Developer page | **`/developers` on the website**: keys, the API requests, limits and errors, webhook events, and a sample that checks a message's signature — every fact tested equal to the platform, the sample run against a real signature |
 | ✅ | P8 Custom roles | **Roles with your own names** (Enterprise), ticking what each covers — the work only; people, settings, billing, keys and connections stay with owners and admins. Given from the Team page's role menu; changes apply at once; leaving the plan falls back to viewer; a held role cannot be deleted |
 | ✅ | P8 Outgoing webhooks | **Your systems told when something changes** (Enterprise): products added, changed or deleted in Tajribah, a 3D model published, an AI job finished. Https public addresses only; a signing secret shown once; every message signed; retried for about 21 hours; an address that keeps failing is turned off and you are told; test message, recent messages, send again |
@@ -434,3 +435,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-09-30 | Shopify connection reads a catalogue: passes the connector suite, syncs end to end | 705 pass + 1 live skipped / 0 fail / 0 cancelled; seen to fail 26 ways |
 | 2026-09-30 | Connect a Shopify shop from Store connections (appears once the Shopify app is registered) | 710 pass + 1 live skipped / 0 fail / 0 cancelled; seen to fail 15 ways (1 equivalent); checked in a real browser |
 | 2026-09-30 | Shopify's notices: changes at once, deletions, uninstall, the three required privacy notices | 713 pass + 1 live skipped / 0 fail / 0 cancelled; seen to fail 12 ways (1 equivalent) |
+| 2026-09-30 | Single sign-on (Enterprise): settings, sign-in page, members only, sessions locked to their store | 728 pass + 2 live skipped / 0 fail / 0 cancelled; seen to fail 31 ways; a real OpenID provider; checked in a real browser |

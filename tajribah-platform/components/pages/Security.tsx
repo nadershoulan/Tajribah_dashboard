@@ -49,9 +49,15 @@ export default function Security() {
           'These are settings for your own account, not the store: they apply to every store you open with this account.',
         )}
       />
-      {loadError && <ErrorNote error={loadError} />}
-      {!status && !loadError && <Panel><Loading rows={3} /></Panel>}
-      {status && stage.kind === 'overview' && <Overview status={status} onStart={(purpose) => setStage({ kind: 'password', purpose })} />}
+      {auth.me?.ssoStoreId && (
+        // P8: an SSO session vouches for one store; the account's own settings need the account's own sign-in.
+        <Panel><p style={{ margin: 0 }}>{t(
+          'دخلت بتسجيل الدخول الموحّد لمتجرك، وهو يفتح المتجر وحده. لتغيير إعدادات حسابك هنا، ادخل بالبريد وكلمة المرور.',
+          'You signed in with your store’s single sign-on, which opens that store only. To change your account’s settings here, sign in with your email and password.')}</p></Panel>
+      )}
+      {!auth.me?.ssoStoreId && loadError && <ErrorNote error={loadError} />}
+      {!auth.me?.ssoStoreId && !status && !loadError && <Panel><Loading rows={3} /></Panel>}
+      {!auth.me?.ssoStoreId && status && stage.kind === 'overview' && <Overview status={status} onStart={(purpose) => setStage({ kind: 'password', purpose })} />}
       {stage.kind === 'password' && (
         <PasswordStep
           purpose={stage.purpose}

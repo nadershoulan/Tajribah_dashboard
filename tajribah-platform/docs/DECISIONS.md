@@ -781,3 +781,25 @@ using, and can delete, themselves.
 **Revisit (Nader):** if Shopify's review, or your reading of the rules, wants the imported products
 gone too, the handler (`privacy.shop_redact` in `server/modules/webhooks/dispatch.ts`) can archive or
 delete that connection's products — a small change.
+
+## T59 · 2026-09-30 · Single sign-on: from the store's address, members only, one store per session
+
+Enterprise stores sign their people in with their own OpenID Connect provider. Four choices, each
+the safer of two:
+
+- **Sign-in starts from the store's address** (`/login/sso?store=…`), not from an email domain. With
+  domain routing, any store could list someone else's domain and send their staff to its provider's
+  page; domain ownership checks would be needed to stop it. By address, no claim is needed.
+- **Members only; no account is made on the fly.** The provider's word adds nobody: the store invites
+  people first, and a first sign-in links the provider's identity to the member with that verified
+  address. (Creating accounts at first sign-in is a later choice, if stores ask.)
+- **An SSO session opens its store and nothing else.** A person may belong to several stores and have
+  their own password and two-step sign-in. Whoever runs one store's provider vouches for that store
+  only — so the session is locked to it, and account-wide actions (another store, two-step settings,
+  invitations, the staff console) need the person's own sign-in. A test makes every future endpoint
+  that authenticates by itself choose.
+- **Password sign-in stays on.** Requiring SSO for a store's members (turning passwords off for them)
+  is a later option; today SSO is an additional way in.
+
+OIDC only for now. SAML (still asked for by some older corporate setups) would be a second protocol
+behind the same rules; Entra, Google Workspace and Okta all speak OIDC.

@@ -159,6 +159,9 @@ export default function Login() {
           </form>
 
           <p style={{ marginTop: 16, fontSize: 14, color: 'var(--text-2)' }}>
+            <AppLink href="/login/sso" style={{ color: 'var(--aqua)' }}>{t('الدخول بحساب شركتك (SSO)', 'Sign in with your company account (SSO)')}</AppLink>
+          </p>
+          <p style={{ marginTop: 4, fontSize: 14, color: 'var(--text-2)' }}>
             <AppLink href="/reset-password" style={{ color: 'var(--aqua)' }}>{t('نسيت كلمة المرور؟', 'Forgot your password?')}</AppLink>
           </p>
           <p style={{ marginTop: 4, fontSize: 14, color: 'var(--text-2)' }}>

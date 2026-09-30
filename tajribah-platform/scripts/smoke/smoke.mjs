@@ -31,7 +31,7 @@ if (!session.accessToken) { console.error(`sign-in failed (${signIn.status}): ${
 const auth = { ...H, authorization: `Bearer ${session.accessToken}` };
 
 async function call(what, method, route, body, expect, headers = auth) {
-  const res = await fetch(base + route, { method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  const res = await fetch(base + route, { method, headers, redirect: 'manual', ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
   const text = await res.text();
   let json = null; try { json = JSON.parse(text); } catch { /* not json */ }
   const ok = expect ? expect.includes(res.status) : res.status < 500;
@@ -48,7 +48,13 @@ function getRoutes(dir, prefix = '/api') {
   });
 }
 const QUERY = { '/api/analytics': '?range=30d', '/api/analytics/export': '?range=7d', '/api/admin/ai': '?days=30', '/api/admin/ai/models': '?days=30' };
-for (const route of getRoutes(API)) await call(`read ${route}`, 'GET', route + (QUERY[route] ?? ''), undefined, null);
+// Steps of a browser journey, not reads: they send the browser on (302) once their store platform's app
+// is registered, and say "not yet" (501) before (T61: Zid's Activate and its OAuth callback).
+const NAVIGATION = { '/api/connections/zid/activate': [302, 501], '/api/connections/zid/callback': [302, 501] };
+for (const route of getRoutes(API)) {
+  if (NAVIGATION[route]) await call(`journey step ${route}`, 'GET', route, undefined, NAVIGATION[route]);
+  else await call(`read ${route}`, 'GET', route + (QUERY[route] ?? ''), undefined, null);
+}
 
 const product = await call('create a product', 'POST', '/api/products', { name: 'Smoke test watch', nameAr: 'ساعة اختبار', sku: `SMOKE-${Date.now()}`, priceMinor: 125050, productType: 'watch', dimensions: { widthMm: 41, heightMm: 48, depthMm: 12, caseMm: 41 } }, [201]);
 const id = product?.id;

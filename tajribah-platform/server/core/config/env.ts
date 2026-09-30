@@ -100,6 +100,10 @@ export const REGISTRY = {
     schema: z.string().optional(), scope: 'runtime', secret: true,
     doc: 'Verifies webhook signatures against the raw body (§13.6).',
   }),
+  CUSTOM_DOMAIN_TARGET: entry({
+    schema: z.string().regex(/^[a-z0-9.-]+\.[a-z]{2,}$/, 'a hostname').optional(), scope: 'runtime',
+    doc: 'Where Enterprise stores point their own address (CNAME) — the Cloudflare for SaaS fallback origin (T62). Default domains.tajribah.sa.',
+  }),
   ZID_CLIENT_ID: entry({
     schema: z.string().regex(/^\d{1,20}$/, 'the numeric client id from the Zid Partner dashboard').optional(), scope: 'runtime',
     doc: 'The Tajribah app in the Zid Partner dashboard (T61). Unset: Zid stores cannot be connected yet.',

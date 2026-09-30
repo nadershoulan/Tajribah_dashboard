@@ -12,6 +12,7 @@ import { useLang } from '@/lib/i18n';
 import { Shell } from '@/components/dashboard/chrome';
 import { ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
 import { SsoPanel } from './SsoSettings';
+import { DomainPanel } from './DomainSettings';
 
 /** Server and contract messages are English; the ones this screen meets get their Arabic here. */
 const MESSAGE_AR: [RegExp, string][] = [
@@ -54,6 +55,7 @@ export default function SettingsPage() {
       {error && <ErrorNote error={error} />}
       {settings && <SettingsForm key={JSON.stringify(settings)} settings={settings} onSaved={setSaved} wasSaved={saved !== null} />}
       <SsoPanel />
+      <DomainPanel />
     </Shell>
   );
 }

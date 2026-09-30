@@ -182,6 +182,31 @@ export const hostedPages = pgTable('hosted_pages', {
   ...timestamps(),
 }, (t) => [uniqueIndex('hosted_pages_slug_unq').on(t.slug)]);
 
+/**
+ * T62 — an Enterprise store's own address for its AR and try-on pages (like `ar.theirstore.com`).
+ * One per store; a hostname belongs to one store at most (a global unique index — another store's claim
+ * is refused, never shown). The merchant proves the name is theirs with a TXT record carrying `token`
+ * and points it at Tajribah with a CNAME; both are checked over DNS. `active` is Cloudflare's to set
+ * once it serves the address (T62: switching it on needs Cloudflare).
+ */
+export const CUSTOM_DOMAIN_STATUS = ['pending', 'verified', 'ready', 'active'] as const;
+export const customDomainStatus = pgEnum('custom_domain_status', CUSTOM_DOMAIN_STATUS);
+export const customDomains = pgTable('custom_domains', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  hostname: text('hostname').notNull(),
+  token: text('token').notNull(),
+  status: customDomainStatus('status').notNull().default('pending'),
+  verifiedAt: ts('verified_at'),
+  checkedAt: ts('checked_at'),
+  /** What the last check found missing, for the merchant: `txt`, `cname` or `cname_elsewhere:<target>`. */
+  lastProblem: text('last_problem'),
+  ...timestamps(),
+}, (t) => [
+  uniqueIndex('custom_domains_hostname_unq').on(t.hostname),
+  uniqueIndex('custom_domains_tenant_unq').on(t.tenantId),
+]);
+
 export type Model3d = typeof models3d.$inferSelect;
 export type ModelVersion = typeof modelVersions.$inferSelect;
 export type ModelFile = typeof modelFiles.$inferSelect;

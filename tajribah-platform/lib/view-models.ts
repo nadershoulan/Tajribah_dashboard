@@ -105,6 +105,19 @@ export type SsoSettingsView = {
 /** P6 — which store platforms this dashboard can connect yet (API-065). */
 export type ConnectionProviders = Record<ConnectionSummary['provider'], boolean>;
 
+/** T62 — an Enterprise store's own address (API-089): where it stands, and the two DNS records to add. */
+export type CustomDomainView = {
+  hostname: string;
+  /** pending: the TXT record is not seen yet · verified: ownership proven, the CNAME is not there yet ·
+   *  ready: both in place, waiting for Tajribah to switch it on · active: shoppers are served there. */
+  status: 'pending' | 'verified' | 'ready' | 'active';
+  records: { type: 'CNAME' | 'TXT'; name: string; value: string; seen: boolean }[];
+  verifiedAt: string | null;
+  checkedAt: string | null;
+  /** When the CNAME points elsewhere: where. */
+  pointsTo: string | null;
+};
+
 /** T62 — one store in an agency's overview (API-088): what it is, and what needs a person's attention. */
 export type StoreOverview = {
   id: string; name: string; slug: string; role: string; plan: string;

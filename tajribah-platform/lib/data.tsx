@@ -13,7 +13,7 @@ import {
   DEMO_AI_JOBS, DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
 } from './demo-data';
 import type {
-  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, SallaAppView, SsoSettingsView, StoreOverview, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, SallaAppView, SsoSettingsView, StoreOverview, CustomDomainView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
@@ -50,6 +50,11 @@ export interface DataSource {
   dashboard(): Promise<DashboardSummary>;
   /** T62 — every store this person can open, and what needs attention in each (the agency overview). */
   storesOverview(): Promise<StoreOverview[]>;
+  /** T62 — the store's own address (Enterprise): the name, its two DNS records, where it stands. */
+  customDomain(): Promise<CustomDomainView | null>;
+  setCustomDomain(hostname: string): Promise<CustomDomainView>;
+  removeCustomDomain(): Promise<void>;
+  checkCustomDomain(): Promise<CustomDomainView>;
   /** One page of the catalogue: search, filter and cursor are the server's (P1.9). */
   products(query?: Partial<ProductListQuery>): Promise<ProductListPage>;
   product(id: string): Promise<ProductRow | null>;
@@ -182,6 +187,10 @@ export function apiSource(client: ApiClient): DataSource {
     },
     async dashboard() { return client.call<DashboardSummary>('/api/dashboard'); },
     async storesOverview() { return (await client.call<{ stores: StoreOverview[] }>('/api/agency/stores')).stores; },
+    async customDomain() { return (await client.call<{ domain: CustomDomainView | null }>('/api/settings/domain')).domain; },
+    async setCustomDomain(hostname) { return (await client.call<{ domain: CustomDomainView }>('/api/settings/domain', { method: 'PUT', body: { hostname } })).domain; },
+    async removeCustomDomain() { await client.call<void>('/api/settings/domain', { method: 'DELETE' }); },
+    async checkCustomDomain() { return (await client.call<{ domain: CustomDomainView }>('/api/settings/domain/check', { method: 'POST' })).domain; },
     async products(query = {}) {
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(query)) {
@@ -545,6 +554,11 @@ export const demoSource: DataSource = {
     });
     return { ...DEMO_DASHBOARD, tenant: { ...demoTenant }, onboarding: { complete: view.complete, steps } };
   },
+  // T62: the preview's store is on Growth — its own address is Enterprise, as the server would say.
+  async customDomain() { return null; },
+  async setCustomDomain() { throw new ApiError(402, 'plan_required', 'custom_domain is not included in this plan'); },
+  async removeCustomDomain() { throw new ApiError(402, 'plan_required', 'custom_domain is not included in this plan'); },
+  async checkCustomDomain() { throw new ApiError(402, 'plan_required', 'custom_domain is not included in this plan'); },
   // T62: the preview has its one store; the overview shows it as the server would.
   async storesOverview() {
     const summary = await demoSource.dashboard();

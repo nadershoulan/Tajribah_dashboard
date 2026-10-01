@@ -28,6 +28,7 @@ import type { PlanCode } from './plans';
 import { DEFAULT_BUTTON_RADIUS, SettingsPatch, type StoreSettings } from './contracts/settings';
 import { ArConfigInput, DEFAULT_AR_CONFIG, defaultLabelsFor, placementErrors, placementsFor, type ArConfigView, type PublishResult } from './contracts/ar-config';
 import { pageOf } from './product-list';
+import { DEFAULT_HOSTED_PAGE_BASE, HostedPageInput, hostedPageUrl, type HostedPageView } from './contracts/hosted-page';
 import { MODEL_TARGET_BYTES } from './model-size';
 import { embedSnippet } from '../widget/src/snippet';
 import { applyEdit, editErrors, type ProductEdit } from './product-edit';
@@ -154,6 +155,8 @@ export interface DataSource {
   publishArConfig(productId: string): Promise<PublishResult>;
   /** T40 — take the product off the shop. */
   unpublishArConfig(productId: string): Promise<PublishResult>;
+  /** P1.19 — the product's own page: on or off, and the link to buy it in the shop. */
+  saveHostedPage(productId: string, input: HostedPageInput): Promise<HostedPageView>;
   updateSettings(patch: Record<string, unknown>): Promise<StoreSettings>;
   analytics(range: '7d' | '30d' | '90d'): Promise<AnalyticsView>;
   /** P4.8: the range's daily figures as CSV text. */
@@ -349,6 +352,9 @@ export function apiSource(client: ApiClient): DataSource {
     async publishArConfig(productId) {
       return client.call<PublishResult>(`/api/ar-configs/${encodeURIComponent(productId)}/publish`, { method: 'POST' });
     },
+    async saveHostedPage(productId, input) {
+      return client.call<HostedPageView>(`/api/ar-configs/${encodeURIComponent(productId)}/page`, { method: 'PUT', body: input });
+    },
     async unpublishArConfig(productId) {
       return client.call<PublishResult>(`/api/ar-configs/${encodeURIComponent(productId)}/publish`, { method: 'DELETE' });
     },
@@ -420,6 +426,12 @@ export function photoContentType(file: File): string {
 const demoEdits = new Map<string, ProductRow>();
 const demoTeam: TeamMemberRow[] = DEMO_TEAM.map((m) => ({ ...m }));
 const demoArConfigs = new Map<string, ArConfigView>();
+const demoPages = new Map<string, { active: boolean; shopUrl: string | null }>();
+/** P1.19: the preview's product page — its address while published there, as the server builds it. */
+function withDemoPage(view: ArConfigView): ArConfigView {
+  const page = demoPages.get(view.productId) ?? { active: true, shopUrl: null };
+  return { ...view, page: { ...page, url: view.publishedVersion > 0 ? hostedPageUrl(DEFAULT_HOSTED_PAGE_BASE, DEMO_DASHBOARD.tenant.slug, view.productId) : null } };
+}
 const demoNotifications: NotificationItem[] = DEMO_NOTIFICATIONS.map((n) => ({ ...n }));
 let demoWeeklyReport = false;
 /** The coming Sunday in Riyadh, as the server names it (`reportWeek().nextOn`). */
@@ -436,7 +448,7 @@ function demoArDefault(p: ProductRow): ArConfigView {
     productId: p.id, productName: p.name, productNameAr: p.nameAr, productType: p.productType, arEnabled: p.arEnabled,
     ...defaultLabelsFor(p.productType), variant: DEFAULT_AR_CONFIG.variant,
     showIcon: DEFAULT_AR_CONFIG.showIcon, placement: placementsFor(p.productType)[0], scale: 1, autoRotate: true, shadow: 1,
-    saved: false, publishedVersion: 0, publishedAt: null, unpublishedChanges: false,
+    saved: false, publishedVersion: 0, publishedAt: null, unpublishedChanges: false, page: null,
   };
 }
 /** The preview store's settings: blank identity fields, as a new merchant has (§11). */
@@ -834,7 +846,7 @@ export const demoSource: DataSource = {
     for (const n of demoNotifications) if (ids === 'all' || ids.includes(n.id)) n.read = true;
   },
   async arConfigs() {
-    return DEMO_PRODUCTS.filter((p) => p.status !== 'archived').map((p) => demoArConfigs.get(p.id) ?? demoArDefault(p));
+    return DEMO_PRODUCTS.filter((p) => p.status !== 'archived').map((p) => withDemoPage(demoArConfigs.get(p.id) ?? demoArDefault(p)));
   },
   async saveArConfig(productId, input) {
     const product = DEMO_PRODUCTS.find((p) => p.id === productId);
@@ -845,7 +857,7 @@ export const demoSource: DataSource = {
     if (Object.keys(fields).length) throw new ApiError(422, 'validation_failed', 'Validation failed', fields);
     const view = { ...demoArDefault(product), ...parsed.data!, saved: true, unpublishedChanges: true, publishedVersion: demoArConfigs.get(productId)?.publishedVersion ?? 0, publishedAt: demoArConfigs.get(productId)?.publishedAt ?? null };
     demoArConfigs.set(productId, view);
-    return view;
+    return withDemoPage(view);
   },
   async publishArConfig(productId) {
     // The preview's own copy only — no shop reads it. Same refusal as the server for a product with nothing to open.
@@ -856,6 +868,19 @@ export const demoSource: DataSource = {
     const published = { ...view, publishedVersion: view.publishedVersion + 1, publishedAt: new Date().toISOString(), unpublishedChanges: false };
     demoArConfigs.set(productId, published);
     return { version: published.publishedVersion, publishedAt: published.publishedAt, outdated: false };
+  },
+  async saveHostedPage(productId, input) {
+    const product = DEMO_PRODUCTS.find((p) => p.id === productId);
+    if (!product) throw new ApiError(404, 'not_found', 'product not found');
+    const view = demoArConfigs.get(productId) ?? demoArDefault(product);
+    const parsed = HostedPageInput.safeParse(input);
+    if (!parsed.success) {
+      const fields: Record<string, string[]> = {};
+      for (const issue of parsed.error.issues) (fields[String(issue.path[0] ?? '_')] ??= []).push(issue.message);
+      throw new ApiError(422, 'validation_failed', 'Validation failed', fields);
+    }
+    demoPages.set(productId, parsed.data);
+    return withDemoPage(view).page!;
   },
   async unpublishArConfig(productId) {
     const view = demoArConfigs.get(productId);

@@ -171,16 +171,22 @@ export const qrCodes = pgTable('qr_codes', {
   ...timestamps(),
 }, (t) => [uniqueIndex('qr_codes_code_unq').on(t.code)]);
 
+/**
+ * P1.19 (0035) — a product's own page (the website's `/p/{store}/{product}`), one per product. No row:
+ * the page is on, with no buy link. `shop_url` is the merchant's link to the product in their shop;
+ * `slug` is kept for the short code of the short domain (P1.20) and unused until then.
+ */
 export const hostedPages = pgTable('hosted_pages', {
   id: pk(),
   tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
   productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
-  slug: text('slug').notNull(),
+  slug: text('slug'),
   theme: json<{ primary?: string; logoUrl?: string; dark?: boolean }>('theme'),
   isActive: bool('is_active').notNull().default(true),
+  shopUrl: text('shop_url'),
   viewCount: integer('view_count').notNull().default(0),
   ...timestamps(),
-}, (t) => [uniqueIndex('hosted_pages_slug_unq').on(t.slug)]);
+}, (t) => [uniqueIndex('hosted_pages_slug_unq').on(t.slug), uniqueIndex('hosted_pages_product_unq').on(t.productId)]);
 
 /**
  * T62 — an Enterprise store's own address for its AR and try-on pages (like `ar.theirstore.com`).

@@ -7,6 +7,7 @@ import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@
 import { errors } from '@/server/core/errors/problem';
 import { listArConfigs, saveArConfig } from './service';
 import { publishProduct, unpublishProduct } from '@/server/modules/edge/publish';
+import { saveHostedPage } from '@/server/modules/hosted-pages/service';
 
 /** API-100 — GET /api/ar-configs */
 export const listArConfigsHandler = route(async (request) => {
@@ -44,4 +45,15 @@ export const unpublishArConfigHandler = route(async (request) => {
   const id = parts[parts.length - 2] ?? '';
   if (!z.string().uuid().safeParse(id).success) throw errors.notFound('product');
   return json(await unpublishProduct(ctx, id));
+});
+
+/** API-126 — PUT /api/ar-configs/[productId]/page (P1.19): the product's own page — on or off, and the buy link. */
+export const saveHostedPageHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  const parts = new URL(request.url).pathname.split('/').filter(Boolean);
+  const id = parts[parts.length - 2] ?? '';
+  if (!z.string().uuid().safeParse(id).success) throw errors.notFound('product');
+  return json(await saveHostedPage(ctx, id, await readJson(request, z.unknown())));
 });

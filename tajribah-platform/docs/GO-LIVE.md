@@ -135,8 +135,15 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
       and its R2 binding for those photos.
 - [ ] Point **`tajribah.sa`** at it. Shops open the try-on at **`https://tajribah.sa/embed/try-on`**
       (`widget/src/tryon.ts` `DEFAULT_TRYON`), which reads configs from `cfg.tajribah.com`.
+- [ ] **Products' own pages (P1.19)** are this Worker's `/p/{store}/{product}`, reading the same
+      configs. The dashboard shows each published product's link from **`HOSTED_PAGE_BASE`**
+      (default `https://tajribah.sa/p`). Decide the short domain *before* merchants start sharing
+      links: point it at this Worker with a rule that maps `/{store}/{product}` to `/p/{store}/{product}`
+      (or serve `/p` there), then set `HOSTED_PAGE_BASE` to it — a shared link should never change.
 - **Check:** a published watch's button on a shop page opens the studio with that watch; a QR photo
-  left unclaimed is gone a minute after its 30 minutes (the sweep logs only failures).
+  left unclaimed is gone a minute after its 30 minutes (the sweep logs only failures). A published
+  product's link from AR settings → "Product page" opens it in 3D (a watch in the studio); switched
+  off there, the same link says the page is not available within about a minute.
 
 ## 5. Analytics collector (`ev.tajribah.com`, P4.2)
 

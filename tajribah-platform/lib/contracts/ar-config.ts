@@ -10,6 +10,7 @@
  */
 import { z } from 'zod';
 import type { ProductRow } from '../view-models';
+import type { HostedPageView } from './hosted-page';
 
 export const PLACEMENTS = ['floor', 'wall', 'table', 'face', 'wrist'] as const;
 export type Placement = (typeof PLACEMENTS)[number];
@@ -69,6 +70,8 @@ export type ArConfigView = ArConfigInput & {
    * settings, the model, the try-on, the store's colours, the plan). Not published: saved settings.
    */
   unpublishedChanges: boolean;
+  /** P1.19: the product's own page — its address while published, on or off, the buy link. */
+  page: HostedPageView | null;
 };
 
 /** API-102's answer (P1.15): the version shoppers now see. */

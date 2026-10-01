@@ -104,6 +104,10 @@ export const REGISTRY = {
     schema: z.string().regex(/^[a-z0-9.-]+\.[a-z]{2,}$/, 'a hostname').optional(), scope: 'runtime',
     doc: 'Where Enterprise stores point their own address (CNAME) — the Cloudflare for SaaS fallback origin (T62). Default domains.tajribah.sa.',
   }),
+  HOSTED_PAGE_BASE: entry({
+    schema: z.string().regex(/^(?:https:\/\/[a-z0-9.-]+\.[a-z]{2,}|http:\/\/(?:localhost|127\.0\.0\.1)(?::\d{2,5})?)(?:\/[a-z0-9-]+)*$/, 'an https address (http only on this machine), no trailing slash').optional(), scope: 'runtime',
+    doc: 'Where products’ own pages live (P1.19): {base}/{store}/{product}. Default https://tajribah.sa/p — set to the short domain before launch; locally, the website’s dev address.',
+  }),
   CLOUDFLARE_SAAS_ZONE_ID: entry({
     schema: z.string().regex(/^[0-9a-f]{32}$/, 'a Cloudflare zone id (32 hex characters)').optional(), scope: 'runtime',
     doc: 'The Cloudflare zone that serves stores’ own addresses (Cloudflare for SaaS, T62). Unset: a ready address stays ready.',

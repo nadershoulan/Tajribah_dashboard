@@ -4,10 +4,11 @@
 
 import { useWriteLock } from '@/components/dashboard/write-lock';
 import { useState } from 'react';
-import { Box, Rotate3D, Sparkles } from 'lucide-react';
+import { Box, Copy, ExternalLink, Link2, Rotate3D, Sparkles } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import { ApiError } from '@/lib/api-client';
 import { ArConfigInput, placementErrors, placementsFor, type ArConfigView, type Placement } from '@/lib/contracts/ar-config';
+import { HostedPageInput, type HostedPageView } from '@/lib/contracts/hosted-page';
 import { useData, useResource } from '@/lib/data';
 import { formatDateTime, formatNumber } from '@/lib/format';
 import { useLang } from '@/lib/i18n';
@@ -37,6 +38,8 @@ const MESSAGE_AR: [RegExp, string][] = [
   [/suspended or closed/, 'هذا المتجر موقوف أو مغلق.'],
   [/not make a valid config/, 'الإعدادات لا تكوّن عرضًا صالحًا — تواصل مع الدعم.'],
   [/is not published/, 'هذا المنتج غير منشور.'],
+  [/a link starting with https/, 'رابط يبدأ بـ https:// لصفحة المنتج في متجرك'],
+  [/plan does not include product pages/, 'باقتك لا تشمل صفحات المنتجات'],
 ];
 
 export default function ArSettings() {
@@ -86,9 +89,13 @@ export default function ArSettings() {
               ))}
             </ul>
           </Panel>
-          <Editor key={`${current.productId}:${JSON.stringify(current)}`} config={current} name={name(current)}
-            brandColor={settings?.brandColor ?? null} radius={settings?.buttonRadius ?? 12}
-            onSaved={() => setVersion((v) => v + 1)} />
+          <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
+            <Editor key={`${current.productId}:${JSON.stringify(current)}`} config={current} name={name(current)}
+              brandColor={settings?.brandColor ?? null} radius={settings?.buttonRadius ?? 12}
+              onSaved={() => setVersion((v) => v + 1)} />
+            {current.page && <ProductPage key={`page:${current.productId}:${JSON.stringify(current.page)}`} productId={current.productId} page={current.page}
+              onSaved={() => setVersion((v) => v + 1)} />}
+          </div>
         </div>
       )}
     </Shell>
@@ -269,6 +276,89 @@ function Editor({ config, name, brandColor, radius, onSaved }: {
         'الحفظ يحفظ الإعدادات هنا. النشر يضعها في صفحة المنتج في متجرك مع نموذجه ثلاثي الأبعاد (وتجربة الساعة إن وُجدت)، ويراها المتسوّقون خلال دقيقة تقريبًا.',
         'Saving keeps the settings here. Publishing puts them on the product’s page in your store, with its 3D model (and a watch’s try-on); shoppers see it within about a minute.',
       )}</p>
+    </Panel>
+  );
+}
+
+/**
+ * P1.19 — the product's own page: one link a merchant can share anywhere (a post, a message, a bio),
+ * showing the product in 3D with "view in your space", and a watch in the try-on. It exists while the
+ * product is published; here it can be switched off, and given the link to buy it in the shop.
+ */
+function ProductPage({ productId, page, onSaved }: { productId: string; page: HostedPageView; onSaved: () => void }) {
+  const { t, lang } = useLang();
+  const source = useData();
+  const lock = useWriteLock();
+  const [active, setActive] = useState(page.active);
+  const [shopUrl, setShopUrl] = useState(page.shopUrl ?? '');
+  const [saving, setSaving] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const say = (m: string) => (lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(m))?.[1] ?? m : m);
+  const dirty = active !== page.active || (shopUrl.trim() || null) !== page.shopUrl;
+
+  const save = async () => {
+    setProblem(null);
+    const parsed = HostedPageInput.safeParse({ active, shopUrl });
+    if (!parsed.success) { setProblem(say(parsed.error.issues[0]!.message)); return; }
+    setSaving(true);
+    try {
+      await source.saveHostedPage(productId, parsed.data);
+      onSaved();
+    } catch (e) {
+      setProblem(say((e as ApiError).fields?.shopUrl?.[0] ?? (e as Error).message));
+    } finally {
+      setSaving(false);
+    }
+  };
+  const copy = async () => {
+    if (!page.url) return;
+    try { await navigator.clipboard.writeText(page.url); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* the link can still be selected */ }
+  };
+
+  return (
+    <Panel title={t('صفحة المنتج', 'Product page')} sub={t('رابط واحد تشاركه في أي مكان', 'One link to share anywhere')}
+      actions={!page.url ? <Badge>{t('بعد النشر', 'After publishing')}</Badge>
+        : page.active ? <Badge tone="ok" dot>{t('متاحة', 'Live')}</Badge> : <Badge>{t('متوقفة', 'Off')}</Badge>}>
+      <p style={{ margin: '0 0 14px', fontSize: 14, color: 'var(--text-2)' }}>{t(
+        'صفحة خاصة بهذا المنتج يفتحها أي أحد من رابط: يراه بأبعاده الثلاثية ويضعه في مكانه، ويجرّب الساعة على المعصم. شاركها في منشور أو رسالة أو في حسابك.',
+        'A page of its own for this product, opened from a link: anyone can see it in 3D, place it in their space, and try a watch on the wrist. Share it in a post, a message or your profile.',
+      )}</p>
+      {page.url ? (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
+          <span style={{ display: 'flex', gap: 8, alignItems: 'center', flex: '1 1 100%', minWidth: 0 }}>
+            <Link2 size={16} aria-hidden style={{ color: 'var(--text-3)', flex: 'none' }} />
+            <code dir="ltr" style={{ wordBreak: 'break-all', opacity: page.active ? 1 : 0.55 }}>{page.url}</code>
+          </span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => void copy()} disabled={!page.active}>
+            <Copy size={14} aria-hidden />{copied ? t('نُسخ', 'Copied') : t('انسخ الرابط', 'Copy link')}
+          </button>
+          {page.active && (
+            <a className="btn btn-ghost btn-sm" href={page.url} target="_blank" rel="noopener noreferrer">
+              <ExternalLink size={14} aria-hidden />{t('افتح', 'Open')}
+            </a>
+          )}
+        </div>
+      ) : (
+        <p className="hint" style={{ marginTop: 0 }}>{t('يظهر رابط الصفحة بعد نشر المنتج في المتجر.', 'The page’s link appears once the product is published to the store.')}</p>
+      )}
+      <label className="toggle" style={{ marginBottom: 14 }}>
+        <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
+        <span>{t('الصفحة متاحة لمن معه الرابط', 'Anyone with the link can open the page')}</span>
+      </label>
+      <div className="field">
+        <label htmlFor={`page-shop-${productId}`}>{t('رابط شراء المنتج في متجرك (اختياري)', 'Link to buy it in your shop (optional)')}</label>
+        <input id={`page-shop-${productId}`} dir="ltr" type="url" inputMode="url" placeholder="https://" value={shopUrl}
+          onChange={(e) => setShopUrl(e.target.value)} maxLength={2048} aria-invalid={!!problem} />
+        <span className="field-hint">{t('يظهر في الصفحة زرًا يأخذ المتسوّق إلى المنتج في متجرك.', 'Shown on the page as a button that takes the shopper to the product in your shop.')}</span>
+      </div>
+      {problem && <p className="field-error" role="alert">{problem}</p>}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button type="button" className="btn btn-primary" onClick={() => void save()} disabled={saving || !dirty || lock.locked} title={lock.title}>
+          {saving ? t('جارٍ الحفظ…', 'Saving…') : t('احفظ', 'Save')}
+        </button>
+        <span className="hint" style={{ margin: 0 }}>{t('يصل التغيير إلى الصفحة خلال دقيقة تقريبًا.', 'Changes reach the page within about a minute.')}</span>
+      </div>
     </Panel>
   );
 }

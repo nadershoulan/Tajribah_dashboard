@@ -17,6 +17,7 @@ import { TITLES } from '@/lib/site';
 import Home from '@/components/pages/Home';
 import Demo from '@/components/pages/Demo';
 import EmbedTryOn from '@/components/pages/EmbedTryOn';
+import HostedPage from '@/components/pages/HostedPage';
 import Features from '@/components/pages/Features';
 import HowItWorks from '@/components/pages/HowItWorks';
 import Integrations from '@/components/pages/Integrations';
@@ -70,6 +71,9 @@ function dynamicRoute(path: string): { element: ReactElement; title: { ar: strin
   if (blog) return { element: <BlogPostPage slug={blog[1]!} />, title: blogPost(blog[1]!)?.title ?? null };
   const feature = /^\/features\/([a-z0-9-]+)$/.exec(path);
   if (feature) return { element: <FeaturePageBySlug slug={feature[1]!} />, title: featurePage(feature[1]!)?.nav ?? null };
+  // P1.19: a product's own page — like the try-on frame, not a site page, so it has no title of its own here.
+  const hosted = /^\/p\/([^/]+)\/([^/]+)$/.exec(path);
+  if (hosted) return { element: <HostedPage store={decodeURIComponent(hosted[1]!)} product={decodeURIComponent(hosted[2]!)} />, title: null };
   const ind = /^\/industries\/([a-z0-9-]+)$/.exec(path);
   if (ind) return { element: <IndustryPageBySlug slug={ind[1]!} />, title: industry(ind[1]!)?.nav ?? null };
   return null;

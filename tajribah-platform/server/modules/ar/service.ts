@@ -7,13 +7,14 @@
  * carries its status: the version shoppers see, and whether what would be published now differs.
  */
 import { and, eq, inArray, isNull, ne } from 'drizzle-orm';
-import { arConfigs, products } from '@/db/schema';
+import { arConfigs, edgeConfigs, hostedPages, products } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { ArConfigInput, DEFAULT_AR_CONFIG, defaultLabelsFor, placementErrors, placementsFor, type ArConfigView } from '@/lib/contracts/ar-config';
 import { auditedInsert, auditedUpdate } from '@/server/core/audit/audit';
 import { errors, fieldErrorsFrom } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { edgeStatuses, type EdgeStatus } from '@/server/modules/edge/publish';
+import { hostedPageViewOf } from '@/server/modules/hosted-pages/view';
 
 type Product = typeof products.$inferSelect;
 type Config = typeof arConfigs.$inferSelect;
@@ -23,7 +24,20 @@ export async function listArConfigs(ctx: TenantContext): Promise<ArConfigView[]>
   const rows = await ctx.db.find(products, and(isNull(products.deletedAt), ne(products.status, 'archived')), { limit: 500 });
   const configs = rows.length ? await ctx.db.find(arConfigs, inArray(arConfigs.productId, rows.map((p) => p.id)), { limit: 500 }) : [];
   const live = await edgeStatuses(ctx, rows.map((p) => p.id));
-  return rows.map((p) => withEdge(arViewOf(p, configs.find((c) => c.productId === p.id) ?? null), live.get(p.id)));
+  const pages = await pagesOf(ctx, rows);
+  return rows.map((p) => ({ ...withEdge(arViewOf(p, configs.find((c) => c.productId === p.id) ?? null), live.get(p.id)), page: pages.get(p.id)! }));
+}
+
+/** P1.19: each product's own page, from its row (none: on, no link) and whether it is published. */
+async function pagesOf(ctx: TenantContext, rows: Product[]) {
+  const ids = rows.map((p) => p.id);
+  const [pages, edges] = ids.length
+    ? await Promise.all([
+      ctx.db.find(hostedPages, inArray(hostedPages.productId, ids), { limit: ids.length }),
+      ctx.db.find(edgeConfigs, inArray(edgeConfigs.productId, ids), { limit: ids.length }),
+    ])
+    : [[], []];
+  return new Map(rows.map((p) => [p.id, hostedPageViewOf(ctx.tenant.slug, p, pages.find((r) => r.productId === p.id) ?? null, edges.find((r) => r.productId === p.id))]));
 }
 
 /** P1.15: what shoppers see, from `edge_configs` — the settings row's own publish columns are unused. */
@@ -53,7 +67,7 @@ export async function saveArConfig(ctx: TenantContext, productId: string, input:
   if (existing) await auditedUpdate(ctx, arConfigs, existing.id, values, { resourceType: 'ar_config' });
   else await auditedInsert(ctx, arConfigs, { id: uuidv7(), tenantId: ctx.tenantId, productId, ...values }, { resourceType: 'ar_config' });
   const saved = await ctx.db.findOne(arConfigs, eq(arConfigs.productId, productId));
-  return withEdge(arViewOf(product, saved), (await edgeStatuses(ctx, [productId])).get(productId));
+  return { ...withEdge(arViewOf(product, saved), (await edgeStatuses(ctx, [productId])).get(productId)), page: (await pagesOf(ctx, [product])).get(productId)! };
 }
 
 /** A product's AR settings as shown and as published (P1.15): the saved row, or the defaults. */
@@ -72,5 +86,6 @@ export function arViewOf(p: Product, c: Config | null): ArConfigView {
     publishedVersion: 0,
     publishedAt: null,
     unpublishedChanges: !!c,
+    page: null,
   };
 }

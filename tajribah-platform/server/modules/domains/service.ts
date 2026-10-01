@@ -124,6 +124,17 @@ export async function checkCustomDomain(ctx: TenantContext, deps: { fetch?: type
   assertFeature(await entitlementsOf(ctx), 'custom_domain');
   const row = await ctx.db.findOne(customDomains);
   if (!row) throw errors.notFound('custom domain');
+  const found = await standingOf(row, deps);
+  // Someone pressing "Check now": on the trail, with what it found.
+  const updated = await auditedUpdate(ctx, customDomains, row.id, found.patch, { resourceType: 'custom_domain' });
+  // No longer in place: shoppers go back to Tajribah's own address at once (the edge keeps the name
+  // for when the records return).
+  if (row.status === 'active' && found.status !== 'active') await enqueueEdgeRefresh(ctx.tenantId);
+  return viewOf(updated as Row, found);
+}
+
+/** What the DNS says of `row` now, and the standing that follows — written by whoever asked (a check, or the watch). */
+export async function standingOf(row: Row, deps: { fetch?: typeof fetch; now?: Date } = {}) {
   const [txts, cnames] = await Promise.all([
     lookup(`${VERIFY_LABEL}.${row.hostname}`, 'TXT', deps.fetch),
     lookup(row.hostname, 'CNAME', deps.fetch),
@@ -138,10 +149,5 @@ export async function checkCustomDomain(ctx: TenantContext, deps: { fetch?: type
     verifiedAt: row.verifiedAt ?? (txt ? now : null),
     lastProblem: !txt ? 'txt' : !cname ? (pointsTo ? `cname_elsewhere:${pointsTo}` : 'cname') : null,
   };
-  // Every check is someone pressing "Check now": on the trail, with what it found.
-  const updated = await auditedUpdate(ctx, customDomains, row.id, patch, { resourceType: 'custom_domain' });
-  // No longer in place: shoppers go back to Tajribah's own address at once (the edge keeps the name
-  // for when the records return).
-  if (row.status === 'active' && status !== 'active') await enqueueEdgeRefresh(ctx.tenantId);
-  return viewOf(updated as Row, { txt, cname, pointsTo });
+  return { txt, cname, pointsTo, status, patch };
 }

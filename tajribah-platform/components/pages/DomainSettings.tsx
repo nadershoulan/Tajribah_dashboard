@@ -18,7 +18,7 @@ import { Badge, ErrorNote, Loading, Panel, type BadgeTone } from '@/components/d
 
 const STANDING: Record<CustomDomainView['status'], { tone: BadgeTone; label: Bi; next: Bi }> = {
   pending: { tone: 'neutral', label: { ar: 'بانتظار السجلات', en: 'Waiting for the records' },
-    next: { ar: 'أضف السجلّين عند مزوّد نطاقك، ثم اضغط «تحقّق الآن». قد يستغرق ظهورهما دقائق.', en: 'Add the two records at your domain provider, then press “Check now”. They can take a few minutes to appear.' } },
+    next: { ar: 'أضف السجلّين عند مزوّد نطاقك. نتحقّق منهما تلقائيًا كل ربع ساعة، أو اضغط «تحقّق الآن». قد يستغرق ظهورهما دقائق.', en: 'Add the two records at your domain provider. We look for them every quarter of an hour by ourselves, or press “Check now”. They can take a few minutes to appear.' } },
   verified: { tone: 'accent', label: { ar: 'العنوان لك — بقي سجل CNAME', en: 'The address is yours — the CNAME is left' },
     next: { ar: 'ثبت أن العنوان لمتجرك. بقي أن يشير سجل CNAME إلى تجربة.', en: 'The address is proven to be your store’s. The CNAME record still has to point to Tajribah.' } },
   ready: { tone: 'ok', label: { ar: 'جاهز — بانتظار التفعيل', en: 'Ready — waiting to be switched on' },

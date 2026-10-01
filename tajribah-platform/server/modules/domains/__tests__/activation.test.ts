@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq } from 'drizzle-orm';
-import { customDomains, jobs, products, tryonConfigs } from '@/db/schema';
+import { auditLogs, customDomains, jobs, products, tryonConfigs } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { loadEnv, resetEnv } from '@/server/core/config/env';
 import { MemoryConfigStore, setConfigStore } from '@/server/core/edge/configs';
@@ -17,7 +17,7 @@ import { MemoryStorage, setStorage } from '@/server/core/storage/storage';
 import { buildTenantContext } from '@/server/core/tenancy/context';
 import { CF_TOKEN, CF_ZONE, CloudflareZone } from '@/server/testing/cloudflare-zone';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
-import { activateCustomDomains } from '@/server/modules/domains/activation';
+import { WATCH_EVERY_MINUTES, activateCustomDomains, watchCustomDomains, watchSlot } from '@/server/modules/domains/activation';
 import { checkCustomDomain, customDomain, removeCustomDomain, setCustomDomain } from '@/server/modules/domains/service';
 import { handleEdgeJob, publishProduct } from '@/server/modules/edge/publish';
 import { hostOf, parseConfig } from '@/widget/src/config';
@@ -194,4 +194,73 @@ test('the widget reads only a plain hostname; the shop script’s own address wi
   assert.equal(tryOnBase(DEFAULT_TRYON, null), DEFAULT_TRYON);
   assert.equal(tryOnBase(DEFAULT_TRYON, 'ar.bigco.sa'), 'https://ar.bigco.sa/embed/try-on');
   assert.equal(tryOnBase('http://localhost:5173/embed/try-on', 'ar.bigco.sa'), 'http://localhost:5173/embed/try-on', 'a test or preview address named by the script stays');
+});
+
+/** A time in the address's own minute of the quarter-hour (and one that is not). */
+function minuteFor(id: string, offset = 0) {
+  const base = Date.UTC(2026, 9, 1, 12, 0, 0);
+  return new Date(base + ((watchSlot(id) + offset) % WATCH_EVERY_MINUTES) * 60_000);
+}
+
+test('the watch: records added are noticed without "Check now"; records removed take a live address away from shoppers within the quarter-hour', async () => {
+  const harness = await createTestDb();
+  try {
+    const zone = new CloudflareZone();
+    const edge = new CloudflareCustomHostnames(CF_ZONE, CF_TOKEN, zone.fetch);
+    setCustomHostnames(edge);
+    const { ctx, tenantId, kv, key } = await store(harness, 'bigco');
+    const set = await setCustomDomain(ctx, 'ar.bigco.sa');
+    const token = set.records[1]!.value;
+    const { id } = await row(harness, tenantId);
+    assert.ok(watchSlot(id) >= 0 && watchSlot(id) < WATCH_EVERY_MINUTES && watchSlot(id) === watchSlot(id));
+    const audits = async () => (await harness.asAdmin(() => harness.db.select().from(auditLogs)) as any[]).filter((a) => a.resourceType === 'custom_domain').length;
+
+    // Not its minute: not looked at.
+    assert.deepEqual(await watchCustomDomains({ edge, fetch: dns('ar.bigco.sa', token), now: minuteFor(id, 1) }), { looked: 0, changed: 0, failed: 0 });
+    // Its minute, nothing added yet: looked at, nothing written.
+    const before = await audits();
+    assert.deepEqual(await watchCustomDomains({ edge, fetch: dns('ar.bigco.sa', null), now: minuteFor(id) }), { looked: 1, changed: 0, failed: 0 });
+    assert.deepEqual([(await row(harness, tenantId)).checkedAt, await audits()], [null, before], 'the same standing writes nothing');
+    // The merchant added both records and walked away: ready on the next look.
+    assert.deepEqual(await watchCustomDomains({ edge, fetch: dns('ar.bigco.sa', token), now: minuteFor(id) }), { looked: 1, changed: 1, failed: 0 });
+    assert.equal((await row(harness, tenantId)).status, 'ready');
+    assert.equal(await audits(), before + 1, 'a change of standing is on the trail');
+
+    // Asked for at the edge, still waiting there — and the records are taken away: pending, whatever the edge says.
+    await activateCustomDomains(edge);
+    assert.deepEqual(await watchCustomDomains({ edge, fetch: dns('ar.bigco.sa', null), now: minuteFor(id) }), { looked: 1, changed: 1, failed: 0 });
+    assert.equal((await row(harness, tenantId)).status, 'pending');
+    await watchCustomDomains({ edge, fetch: dns('ar.bigco.sa', token), now: minuteFor(id) });
+    assert.equal((await row(harness, tenantId)).status, 'ready');
+
+    // Switched on.
+    await activateCustomDomains(edge);
+    zone.validate('ar.bigco.sa');
+    await activateCustomDomains(edge);
+    await runRefresh(harness);
+    assert.equal(config(kv, key).host, 'ar.bigco.sa');
+
+    // The resolver is down: not a reason to take anything away.
+    const failing = (async () => Response.json({ Status: 2 })) as typeof fetch;
+    assert.deepEqual(await watchCustomDomains({ edge, fetch: failing, now: minuteFor(id) }), { looked: 1, changed: 0, failed: 1 });
+    assert.equal((await row(harness, tenantId)).status, 'active');
+
+    // The edge stops serving it (the hostname is gone there) though the records stand: asked for again.
+    zone.hostnames.clear();
+    assert.deepEqual(await watchCustomDomains({ edge, fetch: dns('ar.bigco.sa', token), now: minuteFor(id) }), { looked: 1, changed: 1, failed: 0 });
+    assert.deepEqual([(await row(harness, tenantId)).status, (await row(harness, tenantId)).providerId], ['ready', null]);
+    assert.equal(await runRefresh(harness), 1);
+    assert.equal(config(kv, key).host, null, 'shoppers are not sent to an address nobody serves');
+    await activateCustomDomains(edge);
+    zone.validate('ar.bigco.sa');
+    await activateCustomDomains(edge);
+    await runRefresh(harness);
+    assert.equal(config(kv, key).host, 'ar.bigco.sa');
+
+    // The merchant removes the records and tells no one: noticed, and shoppers go back to Tajribah's address.
+    assert.deepEqual(await watchCustomDomains({ edge, fetch: dns('ar.bigco.sa', null), now: minuteFor(id) }), { looked: 1, changed: 1, failed: 0 });
+    assert.equal((await row(harness, tenantId)).status, 'pending');
+    assert.equal(await runRefresh(harness), 1);
+    assert.equal(config(kv, key).host, null);
+  } finally { setCustomHostnames(null); await harness.close(); }
 });

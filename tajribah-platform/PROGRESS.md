@@ -3,7 +3,7 @@
 _Last updated: 2026-10-01 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-10-01):** **a store's own address now goes all the way to its shoppers** (the second half of custom domains). Once a store's two DNS records are in place, Tajribah asks Cloudflare to serve the address, and when Cloudflare says it is live, the store's "Try it" button opens the try-on **on the store's own address** instead of Tajribah's. If the records are later removed, shoppers go back to Tajribah's address at once. On a store's address only its try-on is served — anything else is sent to tajribah.sa. **Seen in a real browser:** your studio opening on a store's address with the store's name, and the QR hand-off working from it. The Cloudflare part is built from Cloudflare's documentation and waits for the account to be tried for real · before that: the address, its DNS records and the real check
+> **Just finished (2026-10-01):** **the weekly summary by email** (the last open piece of analytics exports, P4.8). On the Analytics screen each member can switch on "Email me the week's figures every Sunday" — for themselves only, off until they ask. Every Sunday morning (08:00 Riyadh) it sends the store's week, Sunday to Saturday, each figure beside the week before, in the member's own language. It goes only to people who may export, on a plan with full analytics, with a confirmed email address — all checked again every week. **Seen for real:** switched on in Chrome on the real app and database, and the built app's every-minute timer sent the email once, with the right figures (a second pass sent nothing). Real delivery starts when the email account exists, like every other message · before that: custom domains (a store's own address, all the way to its shoppers)
 > **Next:** what is left needs an account or your decision (GCC, the partner program's terms, marketplace wait for real demand, as you chose).
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
 > **Waiting on you:** no new question (your T62 answers are in). The **Hetzner server**, and the accounts below — Salla, Zid, Cloudflare, the domain, Moyasar and a 3D-generation provider.
@@ -13,14 +13,14 @@ P0 Foundation     ████████████████████�
 P1 Core loop      █████████████████████████░░░░░░░  20 / 26   ← first sellable product · the rest needs Salla / Cloudflare / domain
 P2 Billing        █████████████░░░░░░░░░░░░░░░░░░░   6 / 15   (+ 3 partly) · the rest needs Moyasar / ZATCA
 P3 3D pipeline    ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ P3.7 photo screen, P3.8 editor) · the rest needs a provider, prices or caps
-P4 Analytics      ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ CSV export partly) · shared with the other session
+P4 Analytics      █████████████░░░░░░░░░░░░░░░░░░░   5 / 12   · shared with the other session
 P5 Try-on         ████████████████░░░░░░░░░░░░░░░░   7 / 14   (+ watch partly) · the rest touches your studio or needs new photography
 P6 AI+connectors  ██████████████░░░░░░░░░░░░░░░░░░   7 / 16   · the rest needs AI providers or store accounts
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ security, safe updates, rate limits, database speed, monitoring, load tests, backups: the code-level parts done)
 P8 Enterprise     ███████████████████░░░░░░░░░░░░░   7 / 12
 M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
-                                            overall  98 / 169
+                                            overall  99 / 169
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -161,7 +161,7 @@ The public site that sells Tajribah, Arabic first.
 | ✅ | P4.4 The numbers behind the screen | The dashboard reads daily totals only, and shows the try-on uplift only when there are at least 100 sessions on each side |
 | ✅ | P4.5 Analytics screen | The analytics screen on real numbers, in Arabic and English, with a note when there is no data yet |
 | ✅ | P4.6 Does try-on sell more? | Shoppers who tried on and those who didn't, side by side, and whether the difference could just be chance |
-| ◐ | P4.8 Exports | Download the daily figures as a spreadsheet file — done. Weekly emails wait on live email sending |
+| ✅ | P4.8 Exports & weekly email | Download the daily figures as a spreadsheet file. And a **weekly summary by email**: each member switches it on for themselves on the Analytics screen; every Sunday morning it brings the store's week (Sunday to Saturday) beside the week before, in their language. Only for people who may export, on a plan with full analytics, with a confirmed address. Real delivery starts with the email account |
 | ⬜ | P4.2 / P4.3 Receiving and adding up events | The other session's part; planned in detail, waiting on its go-ahead |
 
 ## P3 — 3D models from photos (started 2026-09-27)
@@ -464,3 +464,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-10-01 | Custom domains (Enterprise): the address, its two DNS records, a real DNS check — seen on the real app and database in Chrome, Arabic and English | domains 4; every guard seen failing when broken; full gate green |
 | 2026-10-01 | Custom domains, second half: switched on through Cloudflare (from its documentation), the shop's button opens the try-on on the store's address, and only the try-on is served there — seen in a real browser | activation 4 + site rule 2; every guard seen failing when broken; full gate green |
 | 2026-10-01 | Custom domains watch themselves: every address is looked at again each quarter-hour — records added are noticed without pressing anything, and a live address whose records are removed stops being used by shoppers within minutes | activation 5; every guard seen failing when broken; full gate green |
+| 2026-10-01 | The weekly summary by email (P4.8 done): a member's own switch on the Analytics screen, sent every Sunday 08:00 Riyadh, once — seen on the real app, database and timer | report 6; seen to fail 36 ways (2 gaps closed with tests); full gate 818 pass + 3 skipped / 0 fail |

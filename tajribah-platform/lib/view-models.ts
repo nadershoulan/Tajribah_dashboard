@@ -118,6 +118,17 @@ export type CustomDomainView = {
   pointsTo: string | null;
 };
 
+/** P4.8 — the signed-in member's weekly summary by email, for this store (API-092). */
+export type ReportSubscriptionView = {
+  weekly: boolean;
+  /** Where it is sent: the member's own sign-in address. */
+  email: string;
+  /** Why it cannot be turned on: the role may not export, the plan has no full analytics, or the address is not confirmed. */
+  unavailable: 'role' | 'plan' | 'email' | null;
+  /** The Sunday (Riyadh, `YYYY-MM-DD`) the next summary goes out. */
+  nextOn: string;
+};
+
 /** T62 — one store in an agency's overview (API-088): what it is, and what needs a person's attention. */
 export type StoreOverview = {
   id: string; name: string; slug: string; role: string; plan: string;

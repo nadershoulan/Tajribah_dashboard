@@ -112,6 +112,15 @@ export const EMAIL = {
     },
   })),
 
+  /** P4.8: the week's figures, to a member who asked for them (`analytics/report.ts`). */
+  weeklyReport: emailTemplate(({ store, period, lines, link }: { store: string; period: Bi; lines: Bi; link: string }) => ({
+    subject: { ar: `ملخص الأسبوع — ${store}`, en: `Your week — ${store}` },
+    text: {
+      ar: `مرحباً،\n\nملخص متجر «${store}» ${period.ar}:\n\n${lines.ar}\n\nالتفاصيل في صفحة التحليلات:\n${link}\n\nتصلك هذه الرسالة كل أحد لأنك فعّلت الملخص الأسبوعي في ${BRAND.ar}. لإيقافها افتح صفحة التحليلات وأوقف «ملخص أسبوعي بالبريد».`,
+      en: `Hello,\n\n"${store}", ${period.en}:\n\n${lines.en}\n\nThe detail is on the Analytics page:\n${link}\n\nYou get this every Sunday because you turned on the weekly summary in ${BRAND.en}. To stop it, open the Analytics page and turn off "Weekly summary by email".`,
+    },
+  })),
+
   /** P1.2b: sent on every change, so a change the owner did not make is noticed. */
   twoFactorChanged: emailTemplate(({ on }: { on: boolean }) => ({
     subject: on

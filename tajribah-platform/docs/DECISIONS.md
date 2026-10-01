@@ -914,3 +914,21 @@ real app; meanwhile a refused request revokes the connection.
 - **GCC stores and the partner program: not now.**
 - **The website keeps saying Salla and Zid are coming** until a real Salla or Zid store has connected.
 
+
+## T63 · 2026-10-01 · P4.8: the weekly summary by email — the defaults
+
+The plan names "exports & scheduled reports" and says nothing more. These are the defaults built —
+**mine, not Nader's; each is one constant or one rule to change**:
+
+- **Opt-in, per member.** Nobody is emailed unasked: each member switches it on for themselves, per
+  store, on the Analytics screen. (The alternative — the owner switching it on for the whole team —
+  sends recurring mail to people who never asked.)
+- **Weekly, Sunday 08:00 Riyadh, covering Sunday to Saturday** — the Saudi working week. One cadence
+  only; no daily or monthly option until someone asks for one.
+- **Who may:** the people who may export (`analytics:export`: owner, admin, analyst), on a plan with
+  full analytics (T35 already puts reports there), with a **confirmed email address**. Checked again
+  every week; a read-only store (trial or subscription ended) gets none.
+- **What it says:** the week's totals from the daily rollup beside the week before, and the conversion
+  uplift only when both groups are large enough. A quiet week is sent as zeros (a missing mail would
+  read as a fault). Plain text, in the member's language.
+- **Once:** a week is claimed before it is sent; an email that fails is logged and not sent again.

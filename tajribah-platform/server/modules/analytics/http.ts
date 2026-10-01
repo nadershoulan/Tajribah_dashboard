@@ -4,8 +4,9 @@
  */
 import { z } from 'zod';
 import { route } from '@/server/core/observability/request';
-import { json, tenantContextFor } from '@/server/core/http/api';
+import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@/server/core/http/api';
 import { analyticsCsv, analyticsView } from './metrics';
+import { reportSubscription, setReportSubscription } from './report';
 
 const RANGE = z.enum(['7d', '30d', '90d']);
 
@@ -28,4 +29,18 @@ export const analyticsExportHandler = route(async (request) => {
       'cache-control': 'no-store',
     },
   });
+});
+
+/** API-092 — GET /api/analytics/report: the signed-in member's own weekly summary by email (P4.8). */
+export const analyticsReportHandler = route(async (request) => {
+  return json(await reportSubscription(await tenantContextFor(request, apiConfig())));
+});
+
+/** API-092 — PUT /api/analytics/report { weekly }: turn one's own on or off. */
+export const setAnalyticsReportHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  const { weekly } = await readJson(request, z.object({ weekly: z.boolean() }));
+  return json(await setReportSubscription(ctx, weekly));
 });

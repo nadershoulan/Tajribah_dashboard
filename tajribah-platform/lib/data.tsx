@@ -13,7 +13,7 @@ import {
   DEMO_AI_JOBS, DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
 } from './demo-data';
 import type {
-  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, SallaAppView, SsoSettingsView, StoreOverview, CustomDomainView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, SallaAppView, SsoSettingsView, ReportSubscriptionView, StoreOverview, CustomDomainView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
@@ -158,6 +158,9 @@ export interface DataSource {
   analytics(range: '7d' | '30d' | '90d'): Promise<AnalyticsView>;
   /** P4.8: the range's daily figures as CSV text. */
   analyticsCsv(range: '7d' | '30d' | '90d'): Promise<string>;
+  /** P4.8: the signed-in member's own weekly summary by email, and turning it on or off. */
+  reportSubscription(): Promise<ReportSubscriptionView>;
+  setReportSubscription(weekly: boolean): Promise<ReportSubscriptionView>;
   /** P1.2: the setup checklist as the database decides it (P1.1), and the merchant's moves on it. */
   onboarding(): Promise<OnboardingView>;
   skipStep(step: StepKey): Promise<OnboardingView>;
@@ -347,6 +350,8 @@ export function apiSource(client: ApiClient): DataSource {
     async updateSettings(patch) { return client.call<StoreSettings>('/api/settings', { method: 'PATCH', body: patch }); },
     async analytics(range) { return client.call<AnalyticsView>(`/api/analytics?range=${range}`); },
     async analyticsCsv(range) { return client.callText(`/api/analytics/export?range=${range}`); },
+    async reportSubscription() { return client.call<ReportSubscriptionView>('/api/analytics/report'); },
+    async setReportSubscription(weekly) { return client.call<ReportSubscriptionView>('/api/analytics/report', { method: 'PUT', body: { weekly } }); },
     async onboarding() { return client.call<OnboardingView>('/api/onboarding'); },
     async skipStep(step) { return client.call<OnboardingView>('/api/onboarding/skip', { body: { step } }); },
     async unskipStep(step) { return client.call<OnboardingView>('/api/onboarding/unskip', { body: { step } }); },
@@ -402,6 +407,12 @@ const demoEdits = new Map<string, ProductRow>();
 const demoTeam: TeamMemberRow[] = DEMO_TEAM.map((m) => ({ ...m }));
 const demoArConfigs = new Map<string, ArConfigView>();
 const demoNotifications: NotificationItem[] = DEMO_NOTIFICATIONS.map((n) => ({ ...n }));
+let demoWeeklyReport = false;
+/** The coming Sunday in Riyadh, as the server names it (`reportWeek().nextOn`). */
+const nextSunday = () => {
+  const riyadh = new Date(Date.now() + 3 * 3_600_000 - 8 * 3_600_000);
+  return new Date(Date.UTC(riyadh.getUTCFullYear(), riyadh.getUTCMonth(), riyadh.getUTCDate()) + (7 - riyadh.getUTCDay()) * 86_400_000).toISOString().slice(0, 10);
+};
 /** T42: live in the preview = published in its AR settings. */
 function withLive(p: ProductRow): ProductRow {
   return { ...p, live: (demoArConfigs.get(p.id)?.publishedVersion ?? 0) > 0 };
@@ -854,6 +865,9 @@ export const demoSource: DataSource = {
     const view = await this.analytics(range);
     return ['day,views,ar_sessions,tryon_sessions,purchases', ...view.series.map((p) => [p.day, p.views, p.arSessions, p.tryonSessions, p.purchases].join(','))].join('\r\n') + '\r\n';
   },
+  // The preview sends no mail: the switch works, and says where a real one would go.
+  async reportSubscription() { return { weekly: demoWeeklyReport, email: 'owner@failet.sa', unavailable: null, nextOn: nextSunday() }; },
+  async setReportSubscription(weekly) { demoWeeklyReport = weekly; return this.reportSubscription(); },
   async analytics(range) {
     const days = range === '7d' ? 7 : range === '30d' ? 30 : 90;
     const series = DEMO_ANALYTICS.series.slice(-Math.min(days, DEMO_ANALYTICS.series.length));

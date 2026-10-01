@@ -5,7 +5,7 @@
  * what the tenant switcher is for. Tenancy lives in `tenant_memberships`. This is the one
  * table without a `tenant_id`, deliberately — it looks like a bug if you forget why.
  */
-import { index, pgEnum, pgTable, text, uniqueIndex, integer, uuid } from 'drizzle-orm/pg-core';
+import { date, index, pgEnum, pgTable, text, uniqueIndex, integer, uuid } from 'drizzle-orm/pg-core';
 import { bool, createdAt, deletedAt, json, pk, tenantId, timestamps, ts } from './_shared';
 // One source for the role list: the dashboard reads it too, without importing the database.
 import { MEMBER_ROLE } from '../../lib/permissions';
@@ -171,6 +171,23 @@ export const invitations = pgTable('invitations', {
 }, (t) => [
   index('invitations_tenant_idx').on(t.tenantId),
   uniqueIndex('invitations_token_unq').on(t.tokenHash),
+]);
+
+/**
+ * P4.8 (0033) — a member who asked for the store's weekly analytics summary by email. A row is the
+ * choice: one per member per store, made and removed by that member only. `lastSentFor` is the last
+ * day of the week already handled (sent, or skipped because the member may no longer export) — a
+ * week is handled once.
+ */
+export const reportSubscriptions = pgTable('report_subscriptions', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  lastSentFor: date('last_sent_for'),
+  ...timestamps(),
+}, (t) => [
+  uniqueIndex('report_subscriptions_member_unq').on(t.tenantId, t.userId),
+  index('report_subscriptions_due_idx').on(t.lastSentFor),
 ]);
 
 /**

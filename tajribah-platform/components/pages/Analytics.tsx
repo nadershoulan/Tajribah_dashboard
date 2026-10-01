@@ -7,11 +7,11 @@ import { Download, Info, Smartphone } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
 import { useData, useResource } from '@/lib/data';
-import type { AnalyticsView } from '@/lib/view-models';
+import type { AnalyticsView, ReportSubscriptionView } from '@/lib/view-models';
 import { currentStore } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
 import { ROLE_PERMISSIONS } from '@/lib/permissions';
-import { formatNumber, formatPercent, formatPoints } from '@/lib/format';
+import { formatDate, formatNumber, formatPercent, formatPoints } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
 import { Shell } from '@/components/dashboard/chrome';
 import { ErrorNote, Funnel, Loading, MiniChart, PageHead, Panel, Stat } from '@/components/dashboard/ui';
@@ -209,6 +209,8 @@ export default function Analytics() {
                 ))}
               </Panel>
 
+              <WeeklyReportPanel />
+
               <Panel title={t('ماذا نقيس وماذا لا نقيس', 'What we measure, and what we do not')}>
                 <p style={{ margin: 0, fontSize: 13.5, color: 'var(--text-2)' }}>
                   <Info size={14} aria-hidden style={{ verticalAlign: -2 }} />{' '}
@@ -229,6 +231,47 @@ export default function Analytics() {
         </>
       )}
     </Shell>
+  );
+}
+
+/**
+ * P4.8 — the member's own weekly summary by email: a switch, where it goes and when. Each member
+ * chooses for themselves; the reason is said when it cannot be turned on (role, plan, or an address
+ * not yet confirmed), and when one that is on has stopped arriving.
+ */
+function WeeklyReportPanel() {
+  const { t, lang } = useLang();
+  const source = useData();
+  const { data, error } = useResource((s) => s.reportSubscription(), []);
+  const [changed, setChanged] = useState<ReportSubscriptionView | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<Error | null>(null);
+  const view = changed ?? data;
+  const toggle = async (weekly: boolean) => {
+    setBusy(true); setFailure(null);
+    try { setChanged(await source.setReportSubscription(weekly)); } catch (e) { setFailure(e as Error); } finally { setBusy(false); }
+  };
+  const why = view?.unavailable === 'role' ? t('الملخص لمن يملك صلاحية التصدير: المالك والمسؤول والمحلّل.', 'The summary is for those who may export: owners, admins and analysts.')
+    : view?.unavailable === 'plan' ? t('الملخص الأسبوعي ضمن التحليلات الكاملة (باقة النمو فأعلى).', 'The weekly summary is part of full analytics (Growth and up).')
+    : view?.unavailable === 'email' ? t('أكّد بريدك الإلكتروني أولاً — الملخص يُرسل إليه.', 'Confirm your email address first — the summary is sent to it.')
+    : null;
+  return (
+    <Panel title={t('ملخص أسبوعي بالبريد', 'Weekly summary by email')}>
+      <label className="toggle">
+        <input type="checkbox" role="switch" checked={!!view?.weekly} disabled={!view || busy || (!!view.unavailable && !view.weekly)} onChange={(e) => void toggle(e.target.checked)} />
+        <span>{t('أرسل لي أرقام الأسبوع كل أحد', 'Email me the week’s figures every Sunday')}</span>
+      </label>
+      {view && (
+        <p className="hint" data-report-state={view.weekly ? (why ? 'paused' : 'on') : why ? 'unavailable' : 'off'}>
+          {why
+            ? <>{view.weekly && t('متوقف الآن. ', 'Paused for now. ')}{why}{view.unavailable === 'plan' && <>{' '}<AppLink href="/dashboard/billing">{t('الباقات', 'Plans')}</AppLink></>}</>
+            : view.weekly
+              ? <>{t('الملخص القادم إلى', 'The next one goes to')} <bdi dir="ltr">{view.email}</bdi> {t('صباح الأحد', 'on Sunday morning,')} {formatDate(`${view.nextOn}T12:00:00Z`, lang)}.</>
+              : <>{t('أرقام الأسبوع من الأحد إلى السبت بجانب الأسبوع الذي قبله، إلى', 'The week’s figures, Sunday to Saturday, beside the week before, sent to')} <bdi dir="ltr">{view.email}</bdi>. {t('لك وحدك — كل عضو يختار لنفسه.', 'For you only — each member chooses for themselves.')}</>}
+        </p>
+      )}
+      {(failure ?? error) && <ErrorNote error={(failure ?? error)!} />}
+    </Panel>
   );
 }
 

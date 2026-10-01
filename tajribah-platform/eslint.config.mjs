@@ -73,6 +73,7 @@ const eslintConfig = defineConfig([
       "server/modules/connections/health.ts",
       "server/modules/connections/grants.ts",
       "server/modules/domains/activation.ts",
+      "server/modules/analytics/report.ts",
       "server/modules/ai-jobs/guardrails.ts",
       "server/modules/ai-jobs/models.ts",
       "server/modules/admin/models.ts",

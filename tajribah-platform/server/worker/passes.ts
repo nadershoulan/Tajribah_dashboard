@@ -20,6 +20,7 @@ import { sweepAiJobs, sweepUnconfirmedPhotos } from '@/server/modules/ai-jobs/sw
 import { resealWebhookSecrets, sweepWebhookDeliveries } from '@/server/modules/outgoing-webhooks/sweep';
 import { activateCustomDomains, watchCustomDomains } from '@/server/modules/domains/activation';
 import { sendTrialReminders } from '@/server/modules/billing/trial';
+import { sendWeeklyReports } from '@/server/modules/analytics/report';
 import { refreshConnectionHealth } from '@/server/modules/connections/health';
 
 export const WORKER_ID = `worker-${Math.random().toString(36).slice(2, 8)}`;
@@ -92,6 +93,7 @@ export const SWEEPS: [string, () => Promise<unknown>][] = [
   ['reseal connections', resealConnections],
   ['reseal two-factor secrets', resealTwoFactorSecrets],
   ['trial reminders', sendTrialReminders],
+  ['weekly reports', () => sendWeeklyReports()], // P4.8: the week's summary, to the members who asked for it
   ['retention', sweepRetentionHourly], // A14, T22: data past its retention period
   ['AI jobs', sweepAiJobs], // P3.2: AI jobs never dispatched, or abandoned mid-run
   ['unconfirmed photos', sweepUnconfirmedPhotos], // P3.3: photo uploads never confirmed

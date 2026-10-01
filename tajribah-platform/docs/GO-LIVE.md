@@ -114,6 +114,12 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
       **Check** with an Enterprise test store and a real subdomain: add the two records → "Check now" says
       ready → within minutes "Live"; the shop's try-on button opens on the store's address; `https://<the
       address>/pricing` lands on tajribah.sa; remove the CNAME and check → the button opens on tajribah.sa again.
+- [ ] The weekly summary by email (P4.8), once the mail provider is set: with a test member whose address
+      is confirmed, on a store with full analytics — Analytics → "Email me the week's figures every
+      Sunday" → on. **Check** the following Sunday after 08:00 Riyadh: one email arrives, in the member's
+      language, with the week (Sunday to Saturday) beside the week before; the log line
+      `weekly reports sent`; and no second copy on later passes. (To see one without waiting, set the
+      row's `report_subscriptions.last_sent_for` back a week on staging.)
 - [ ] Smoke test (P0.20): with a test store's account (no two-step sign-in),
       `node scripts/smoke/smoke.mjs --base https://app.tajribah.sa --email … --password …` — every read and a
       merchant's usual changes; it must end "passed".

@@ -26,6 +26,7 @@ import { useLang } from '@/lib/i18n';
 import { SiteEnvContext, SiteLink, useSiteEnv } from '@/lib/site-env';
 import type { TryOnProduct } from '@/lib/demo-product';
 import { brandFrom, CLOSE_MESSAGE, configBase, configUrl, embedTitle, isLocalHost, tryOnProductFrom, validRefs, type StoreBrand } from '@/lib/tryon-config';
+import { servesHere } from '@/lib/store-host';
 import { StoreMark } from '@/components/site/store-mark';
 import Studio from '@/components/studio/Studio';
 
@@ -39,7 +40,8 @@ const onThisMachine = () => typeof location !== 'undefined' && isLocalHost(locat
 
 export type EmbedState = { kind: 'loading' } | { kind: 'ready'; product: TryOnProduct; brand?: StoreBrand | null } | { kind: 'unavailable' };
 
-export default function EmbedTryOn({ initial }: { initial?: EmbedState } = {}) {
+/** `storeHost`: the store's own address this page is on (P1.19) — then only that store's watches are shown. */
+export default function EmbedTryOn({ initial, storeHost = null }: { initial?: EmbedState; storeHost?: string | null } = {}) {
   const { t, lang, setLang } = useLang();
   const env = useSiteEnv();
   const [state, setState] = useState<EmbedState>(initial ?? { kind: 'loading' });
@@ -60,10 +62,10 @@ export default function EmbedTryOn({ initial }: { initial?: EmbedState } = {}) {
     const url = configUrl(configBase(p.get('base'), onThisMachine()), store, product);
     // An address that cannot name a published config is simply "unavailable" — nothing is fetched.
     (valid ? fetch(url, { credentials: 'omit' }).then((r) => (r.ok ? r.json() : null)) : Promise.resolve(null))
-      .then((json) => { if (!live) return; const found = tryOnProductFrom(json, onThisMachine()); setState(found ? { kind: 'ready', product: found, brand: brandFrom(json, onThisMachine()) } : { kind: 'unavailable' }); })
+      .then((json) => { if (!live) return; const found = servesHere(storeHost, (json as { host?: string | null } | null)?.host) ? tryOnProductFrom(json, onThisMachine()) : null; setState(found ? { kind: 'ready', product: found, brand: brandFrom(json, onThisMachine()) } : { kind: 'unavailable' }); })
       .catch(() => { if (live) setState({ kind: 'unavailable' }); });
     return () => { live = false; };
-  }, [initial]);
+  }, [initial, storeHost]);
 
   const brand = state.kind === 'ready' ? state.brand ?? null : null;
   useEffect(() => { if (brand) document.title = embedTitle(brand, lang); }, [brand, lang]);

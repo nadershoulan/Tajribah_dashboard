@@ -14,7 +14,7 @@ import { auditedInsert, auditedUpdate } from '@/server/core/audit/audit';
 import { errors, fieldErrorsFrom } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { edgeStatuses, type EdgeStatus } from '@/server/modules/edge/publish';
-import { hostedPageViewOf } from '@/server/modules/hosted-pages/view';
+import { customHostOf, hostedPageViewOf } from '@/server/modules/hosted-pages/view';
 
 type Product = typeof products.$inferSelect;
 type Config = typeof arConfigs.$inferSelect;
@@ -31,13 +31,14 @@ export async function listArConfigs(ctx: TenantContext): Promise<ArConfigView[]>
 /** P1.19: each product's own page, from its row (none: on, no link) and whether it is published. */
 async function pagesOf(ctx: TenantContext, rows: Product[]) {
   const ids = rows.map((p) => p.id);
-  const [pages, edges] = ids.length
+  const [pages, edges, customHost] = ids.length
     ? await Promise.all([
       ctx.db.find(hostedPages, inArray(hostedPages.productId, ids), { limit: ids.length }),
       ctx.db.find(edgeConfigs, inArray(edgeConfigs.productId, ids), { limit: ids.length }),
+      customHostOf(ctx),
     ])
-    : [[], []];
-  return new Map(rows.map((p) => [p.id, hostedPageViewOf(ctx.tenant.slug, p, pages.find((r) => r.productId === p.id) ?? null, edges.find((r) => r.productId === p.id))]));
+    : [[], [], null];
+  return new Map(rows.map((p) => [p.id, hostedPageViewOf(ctx.tenant.slug, p, pages.find((r) => r.productId === p.id) ?? null, edges.find((r) => r.productId === p.id), customHost)]));
 }
 
 /** P1.15: what shoppers see, from `edge_configs` — the settings row's own publish columns are unused. */

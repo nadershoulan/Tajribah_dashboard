@@ -50,4 +50,6 @@ export type PublishedPage = {
   shopUrl: string | null;
   /** "Made with Tajribah" under the page — off under white-label (Enterprise). */
   poweredBy: boolean;
+  /** The store's own address (T62, once active): the page is served there, and there only its store's pages are. */
+  host: string | null;
 };

@@ -17,17 +17,18 @@ import { entitlementsOf } from '@/server/core/billing/entitlements';
 import { errors, fieldErrorsFrom } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { keepLive } from '@/server/modules/edge/publish';
-import { hostedPageViewOf } from './view';
+import { customHostOf, hostedPageViewOf } from './view';
 
 export async function getHostedPage(ctx: TenantContext, productId: string): Promise<HostedPageView> {
   ctx.require('ar:read');
   const product = await ctx.db.findById(products, productId);
   if (!product || product.deletedAt) throw errors.notFound('product');
-  const [page, edge] = await Promise.all([
+  const [page, edge, customHost] = await Promise.all([
     ctx.db.findOne(hostedPages, eq(hostedPages.productId, productId)),
     ctx.db.findOne(edgeConfigs, eq(edgeConfigs.productId, productId)),
+    customHostOf(ctx),
   ]);
-  return hostedPageViewOf(ctx.tenant.slug, product, page, edge);
+  return hostedPageViewOf(ctx.tenant.slug, product, page, edge, customHost);
 }
 
 /**

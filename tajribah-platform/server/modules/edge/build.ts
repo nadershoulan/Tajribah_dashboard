@@ -15,7 +15,9 @@
  *    (`active`); the shop's widget then opens the try-on there instead of on Tajribah's address.
  *  - **Page** (P1.19): what the product's own page on the website shows beside the product — the
  *    store's name, the merchant's link to buy it in their shop, and whether "Made with Tajribah" is
- *    shown (not under white-label). Null when the merchant switched the page off.
+ *    shown (not under white-label), and the store's own address once it is switched on — the website
+ *    serves the page there, and shows only this store's pages there. Null when the merchant switched
+ *    the page off.
  *  - Nothing to open (no model, no try-on) or a product that is archived, deleted, or in a store
  *    that is suspended or closed → no config, with the reason.
  *
@@ -117,6 +119,7 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
         store: { name: tenant.name.slice(0, 80), nameAr: tenant.nameAr?.slice(0, 80) || null },
         shopUrl: hosted?.shopUrl && isShopUrl(hosted.shopUrl) ? hosted.shopUrl : null,
         poweredBy: !entitlements.has('white_label'),
+        host: domain ? domain.hostname : null,
       }
       : null,
   };

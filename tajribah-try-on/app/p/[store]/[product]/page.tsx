@@ -4,6 +4,7 @@ import { cache } from 'react';
 import HostedPage, { type HostedState } from '@/components/pages/HostedPage';
 import { hostedProductFrom } from '@/lib/hosted-page';
 import { configBase, configUrl, isLocalHost, validRefs } from '@/lib/tryon-config';
+import { servesHere, STORE_HOST_HEADER } from '@/lib/store-host';
 
 type Params = Promise<{ store: string; product: string }>;
 type Search = Promise<Record<string, string | string[] | undefined>>;
@@ -16,14 +17,15 @@ const segment = (v: string) => { try { return decodeURIComponent(v); } catch { r
  * the product already in the HTML (and its link preview has the product's name and picture). When the
  * config host cannot be reached, the page reads it in the browser instead.
  */
-const load = cache(async (store: string, product: string, base: string, local: boolean): Promise<HostedState | undefined> => {
+const load = cache(async (store: string, product: string, base: string, local: boolean, storeHost: string | null): Promise<HostedState | undefined> => {
   if (!validRefs(store, product)) return { kind: 'unavailable' };
   try {
     const response = await fetch(configUrl(configBase(base, local), store, product), { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(2500) });
     if (response.status === 404) return { kind: 'unavailable' };
     if (!response.ok) return undefined;
     const found = hostedProductFrom(await response.json(), local);
-    return found ? { kind: 'ready', product: found } : { kind: 'unavailable' };
+    // On a store's own address, only that store's products — never another's under its name.
+    return found && servesHere(storeHost, found.host) ? { kind: 'ready', product: found } : { kind: 'unavailable' };
   } catch {
     return undefined;
   }
@@ -32,8 +34,10 @@ const load = cache(async (store: string, product: string, base: string, local: b
 async function initialOf(params: Params, search: Search) {
   const raw = await params;
   const [store, product] = [segment(raw.store), segment(raw.product)];
-  const host = ((await headers()).get('host') ?? '').replace(/:\d+$/, '');
-  return { store, product, initial: await load(store, product, one((await search).base), isLocalHost(host)) };
+  const h = await headers();
+  const host = (h.get('host') ?? '').replace(/:\d+$/, '');
+  const storeHost = h.get(STORE_HOST_HEADER);
+  return { store, product, storeHost, initial: await load(store, product, one((await search).base), isLocalHost(host), storeHost) };
 }
 
 // A merchant's page, not one of the site's: not indexed (the shop's own page should rank), titled
@@ -55,6 +59,6 @@ export async function generateMetadata({ params, searchParams }: { params: Param
 }
 
 export default async function Page({ params, searchParams }: { params: Params; searchParams: Search }) {
-  const { store, product, initial } = await initialOf(params, searchParams);
-  return <HostedPage initial={initial} store={store} product={product} />;
+  const { store, product, storeHost, initial } = await initialOf(params, searchParams);
+  return <HostedPage initial={initial} store={store} product={product} storeHost={storeHost} />;
 }

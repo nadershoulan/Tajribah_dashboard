@@ -3,19 +3,22 @@
  * expired QR photo-transfer sessions (P5.7, `lib/pair-sweep.ts`). vinext documents delegating to
  * its handler from a custom worker exactly like this.
  *
- * T62: on a store's own address only the try-on is served; any other path is sent to Tajribah's own
- * site (`lib/store-host.ts`, the `SITE_HOSTS` variable — unset, nothing is restricted).
+ * T62: on a store's own address only the try-on (and its products' own pages) is served; any other path
+ * is sent to Tajribah's own site (`lib/store-host.ts`, the `SITE_HOSTS` variable — unset, nothing is
+ * restricted). What is served there is marked with the address, so it shows only that store's products.
  */
 import handler from 'vinext/server/fetch-handler';
 import { sweepExpiredPairs } from '../lib/pair-sweep';
-import { siteHosts, storeHostRedirect } from '../lib/store-host';
+import { markStoreHost, siteHosts, storeHostRedirect } from '../lib/store-host';
 
 type Ctx = { waitUntil(promise: Promise<unknown>): void };
 
 const worker = {
   fetch(request: Request, env: unknown, ctx: Ctx) {
-    const elsewhere = storeHostRedirect(new URL(request.url), siteHosts((env as { SITE_HOSTS?: string } | null)?.SITE_HOSTS));
-    return elsewhere ? Response.redirect(elsewhere, 302) : handler.fetch(request, env, ctx);
+    const hosts = siteHosts((env as { SITE_HOSTS?: string } | null)?.SITE_HOSTS);
+    const elsewhere = storeHostRedirect(new URL(request.url), hosts);
+    // P1.19: the pages on a store's address learn which store's it is, and show only that store's products.
+    return elsewhere ? Response.redirect(elsewhere, 302) : handler.fetch(markStoreHost(request, hosts), env, ctx);
   },
   async scheduled(_event: unknown, _env: unknown, ctx: Ctx) {
     ctx.waitUntil(sweepExpiredPairs().catch((error) => console.error('QR photo sweep failed', error instanceof Error ? error.message : 'unknown')));

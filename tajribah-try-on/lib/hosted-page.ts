@@ -44,6 +44,8 @@ export type HostedProduct = {
   brand: StoreBrand | null;
   /** A picture for link previews (the watch's flat shot), when there is one. */
   image: string | null;
+  /** The store's own address (Enterprise custom domain), when it has one: the page is served there too. */
+  host: string | null;
 };
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -66,6 +68,11 @@ export function shopLink(v: unknown): string | null {
     const u = new URL(v);
     return u.protocol === 'https:' && !u.username && !u.password && u.hostname.includes('.') ? v : null;
   } catch { return null; }
+}
+
+/** A plain hostname of three labels or more (a store's subdomain), or null — as the widget reads `host`. */
+function hostnameOf(v: unknown): string | null {
+  return typeof v === 'string' && v.length <= 253 && /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){2,}[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(v) && !/\.\d+$/.test(v) ? v : null;
 }
 
 /** The page's product from a published config, or null — no page (switched off) or anything wrong. */
@@ -100,6 +107,7 @@ export function hostedProductFrom(config: unknown, local = false): HostedProduct
     poweredBy: page.poweredBy !== false,
     brand: brandFrom(config, local),
     image: tryon?.flat ?? null,
+    host: hostnameOf(page.host),
   };
 }
 

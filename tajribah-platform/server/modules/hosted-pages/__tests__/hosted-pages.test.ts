@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq } from 'drizzle-orm';
-import { auditLogs, hostedPages, models3d, modelFiles, modelVersions, products, tenantMemberships, tenants, tryonConfigs, users } from '@/db/schema';
+import { auditLogs, customDomains, hostedPages, models3d, modelFiles, modelVersions, products, tenantMemberships, tenants, tryonConfigs, users } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { HostedPageInput, hostedPageUrl, isShopUrl } from '@/lib/contracts/hosted-page';
 import { loadEnv, resetEnv } from '@/server/core/config/env';
@@ -24,6 +24,7 @@ import { getHostedPage, saveHostedPage } from '@/server/modules/hosted-pages/ser
 import { parseConfig } from '@/widget/src/config';
 import { arPath as widgetArPath, detectDevice as widgetDetect, sceneViewerIntent as widgetIntent } from '@/widget/src/ar';
 import { arPath, detectDevice, hostedProductFrom, sceneViewerIntent, shopLink, sizeLine } from '../../../../../tajribah-try-on/lib/hosted-page';
+import { servesHere } from '../../../../../tajribah-try-on/lib/store-host';
 
 setLogLevel('error');
 const ENV = { APP_URL: 'http://localhost:5173', AUTH_SECRET: 'a'.repeat(40), ENCRYPTION_KEY: 'b'.repeat(40) };
@@ -92,7 +93,7 @@ test('a published product has a page: its block in the config, its address on th
 
     await publishProduct(ctx, row.id);
     const config = stored(kv, 'oud/sa-77.json');
-    assert.deepEqual(config.page, { store: { name: 'Oud House', nameAr: 'بيت العود' }, shopUrl: null, poweredBy: true }, 'Starter has the page; "Made with Tajribah" shown');
+    assert.deepEqual(config.page, { store: { name: 'Oud House', nameAr: 'بيت العود' }, shopUrl: null, poweredBy: true, host: null }, 'Starter has the page; "Made with Tajribah" shown');
     assert.ok(parseConfig(config), 'the shop’s widget still reads the config');
     const view = (await listArConfigs(ctx)).find((c) => c.productId === row.id)!;
     assert.equal(view.page?.url, 'https://tajribah.sa/p/oud/sa-77', 'the address: the config’s own store key and product reference');
@@ -202,6 +203,9 @@ test('the website’s reader refuses what it must not show', () => {
   assert.equal(hostedProductFrom({ ...good, model: { glb: 'http://localhost:9000/a.glb' } }, true)?.model?.glb, 'http://localhost:9000/a.glb', 'a local file only on this machine');
   assert.equal(hostedProductFrom({ ...good, page: { ...good.page, shopUrl: 'javascript:alert(1)' } })!.shopUrl, null, 'a bad buy link is dropped, not followed');
   assert.equal(hostedProductFrom({ ...good, page: { ...good.page, store: { name: '' } } }), null, 'a store without a name');
+  const hostOf = (host: unknown) => hostedProductFrom({ ...good, page: { ...good.page, host } })!.host;
+  assert.equal(hostOf('ar.oud.sa'), 'ar.oud.sa', 'a store’s own address');
+  for (const bad of ['10.0.0.1', '192.168.1.20', 'oud.sa', 'https://ar.oud.sa', 'ar.oud.sa/p', 'AR.OUD.SA', '', 42]) assert.equal(hostOf(bad), null, `not an address: ${String(bad)}`);
   for (const v of ['https://oud.example.sa/x', 'http://oud.example.sa/x', 'https://a:b@oud.example.sa/', 'https://localhost/', 'ftp://x.sa', '']) {
     assert.equal(shopLink(v) !== null, isShopUrl(v), `the platform and the website agree on "${v}"`);
   }
@@ -236,4 +240,32 @@ test('the website’s copy of the AR path is the widget’s', () => {
   }
   const config: any = { product: { name: 'Arc lamp', nameAr: null }, placement: 'wall' };
   assert.equal(sceneViewerIntent('https://c.test/n.glb', { placement: 'wall', name: 'Arc lamp' }, 'https://x.test/p'), widgetIntent('https://c.test/n.glb', config, 'https://x.test/p'));
+});
+
+test('T62: on the store’s own address — the config names it, the link uses it, and only that store’s pages show there', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, tenantId, kv } = await store(harness, 'ward2', 'enterprise');
+    const row = await watch(harness, tenantId);
+    await harness.asAdmin(() => harness.db.insert(customDomains).values({ id: uuidv7(), tenantId, hostname: 'ar.ward.sa', token: 't'.repeat(32), status: 'active' } as any));
+    await publishProduct(ctx, row.id);
+    const config = stored(kv, 'ward2/sa-1001.json');
+    assert.equal(config.page.host, 'ar.ward.sa');
+    assert.equal((await getHostedPage(ctx, row.id)).url, 'https://ar.ward.sa/p/ward2/sa-1001', 'the link the merchant shares is on their address');
+    assert.equal((await listArConfigs(ctx)).find((c) => c.productId === row.id)!.page?.url, 'https://ar.ward.sa/p/ward2/sa-1001');
+    const page = hostedProductFrom(config)!;
+    assert.equal(page.host, 'ar.ward.sa');
+    assert.equal(servesHere('ar.ward.sa', page.host), true, 'shown on its own address');
+    assert.equal(servesHere('ar.other.sa', page.host), false, 'not on another store’s');
+    assert.equal(servesHere(null, page.host), true, 'and still on Tajribah’s');
+    assert.equal(servesHere('ar.ward.sa', config.host), true, 'the try-on frame there too');
+
+    const pro = await store(harness, 'oud4', 'pro');
+    const other = await watch(harness, pro.tenantId);
+    await harness.asAdmin(() => harness.db.insert(customDomains).values({ id: uuidv7(), tenantId: pro.tenantId, hostname: 'ar.oud.sa', token: 'u'.repeat(32), status: 'active' } as any));
+    await publishProduct(pro.ctx, other.id);
+    assert.equal(stored(pro.kv, 'oud4/sa-1001.json').page.host, null, 'a plan without custom domains: no address of its own');
+    assert.equal((await getHostedPage(pro.ctx, other.id)).url, 'https://tajribah.sa/p/oud4/sa-1001');
+    assert.equal(servesHere('ar.ward.sa', hostedProductFrom(stored(pro.kv, 'oud4/sa-1001.json'))!.host), false, 'and never under Ward’s address');
+  } finally { await harness.close(); resetEnv(); }
 });

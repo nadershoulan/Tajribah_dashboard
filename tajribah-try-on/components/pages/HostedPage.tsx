@@ -13,6 +13,7 @@ import { useLang } from '@/lib/i18n';
 import { SiteEnvContext, SiteLink, useSiteEnv } from '@/lib/site-env';
 import { arPath, detectDevice, hostedProductFrom, MESHOPT_DECODER_FILE, sizeParts, VIEWER_AR_MODES, VIEWER_SRC, type HostedProduct } from '@/lib/hosted-page';
 import { configBase, configUrl, isLocalHost, validRefs } from '@/lib/tryon-config';
+import { servesHere } from '@/lib/store-host';
 import { StoreMark } from '@/components/site/store-mark';
 import Studio from '@/components/studio/Studio';
 
@@ -25,7 +26,8 @@ const query = () => {
   return new URLSearchParams(location.search || (location.hash.includes('?') ? location.hash.slice(location.hash.indexOf('?')) : ''));
 };
 
-export default function HostedPage({ initial, store, product }: { initial?: HostedState; store: string; product: string }) {
+/** `storeHost`: the store's own address this page is on — then only that store's products are shown. */
+export default function HostedPage({ initial, store, product, storeHost = null }: { initial?: HostedState; store: string; product: string; storeHost?: string | null }) {
   const { t, lang, setLang } = useLang();
   const env = useSiteEnv();
   const [state, setState] = useState<HostedState>(initial ?? { kind: 'loading' });
@@ -42,10 +44,10 @@ export default function HostedPage({ initial, store, product }: { initial?: Host
     (validRefs(store, product)
       ? fetch(configUrl(configBase(query().get('base'), onThisMachine()), store, product), { credentials: 'omit' }).then((r) => (r.ok ? r.json() : null))
       : Promise.resolve(null))
-      .then((json) => { if (live) { const found = hostedProductFrom(json, onThisMachine()); setState(found ? { kind: 'ready', product: found } : { kind: 'unavailable' }); } })
+      .then((json) => { if (live) { const found = hostedProductFrom(json, onThisMachine()); setState(found && servesHere(storeHost, found.host) ? { kind: 'ready', product: found } : { kind: 'unavailable' }); } })
       .catch(() => { if (live) setState({ kind: 'unavailable' }); });
     return () => { live = false; };
-  }, [initial, store, product]);
+  }, [initial, store, product, storeHost]);
 
   // The merchant's pictures are absolute addresses; the site's own files still go through the shell.
   const studioEnv = useMemo(() => ({

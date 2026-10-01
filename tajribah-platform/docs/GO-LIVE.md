@@ -110,7 +110,7 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
       **`CUSTOM_DOMAIN_TARGET`** on the dashboard Worker to the one chosen). On the dashboard Worker set
       **`CLOUDFLARE_SAAS_ZONE_ID`** and **`CLOUDFLARE_SAAS_API_TOKEN`** (a token that may edit that zone's
       custom hostnames) — ready addresses are then switched on by the minute's pass. On the **website**
-      Worker set **`SITE_HOSTS=tajribah.sa,www.tajribah.sa`**, so a store's address serves only its try-on.
+      Worker set **`SITE_HOSTS=tajribah.sa,www.tajribah.sa`**, so a store's address serves only its try-on and its products' own pages — and only that store's (unset, no address counts as a store's).
       **Check** with an Enterprise test store and a real subdomain: add the two records → "Check now" says
       ready → within minutes "Live"; the shop's try-on button opens on the store's address; `https://<the
       address>/pricing` lands on tajribah.sa; remove the CNAME and check → the button opens on tajribah.sa again.
@@ -140,6 +140,7 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
       (default `https://tajribah.sa/p`). Decide the short domain *before* merchants start sharing
       links: point it at this Worker with a rule that maps `/{store}/{product}` to `/p/{store}/{product}`
       (or serve `/p` there), then set `HOSTED_PAGE_BASE` to it — a shared link should never change.
+      An Enterprise store's own address serves its pages without this (its link is `https://{its address}/p/…`).
 - **Check:** a published watch's button on a shop page opens the studio with that watch; a QR photo
   left unclaimed is gone a minute after its 30 minutes (the sweep logs only failures). A published
   product's link from AR settings → "Product page" opens it in 3D (a watch in the studio); switched

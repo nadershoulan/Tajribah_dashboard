@@ -64,6 +64,23 @@ test('T34: a feature the dashboard does not have is never sold as included', () 
   assert.ok(growth.features.some((f) => f.en === 'AI product comparison (coming soon)'), 'the Growth card says it is coming');
 });
 
+test('T34: the dashboard\'s plan cards mark what is not built as coming, as the website does', () => {
+  const soon = (code: string, en: string) => {
+    const line = PLANS.find((p) => p.code === code)!.highlights.find((h) => h.en === en);
+    assert.ok(line, `${code}: "${en}" is on the card`);
+    assert.equal(line.soon, true, `${code}: "${en}" is marked coming soon`);
+  };
+  soon('starter', 'Hosted pages and QR codes per product'); // P1.19, P1.20: the short domain
+  soon('growth', 'Return-rate reporting'); // P4.7: needs a live store connection
+  soon('pro', 'AI recommendations and comparisons'); // P6: the engines are not built
+  for (const plan of PLANS) {
+    for (const h of plan.highlights) {
+      if (/comparison/i.test(h.en) && /AI/.test(h.en)) assert.equal(h.soon, true, `${plan.code}: AI comparison is coming on the website too`);
+      if (/return/i.test(h.en)) assert.equal(h.soon, true, `${plan.code}: returns are not reported yet`);
+    }
+  }
+});
+
 test('T39: the website says the catalogue sync brings what the connector contract carries — no stock, no cart inside the studio', () => {
   // server/connectors/types.ts ExternalProduct: ids, names, description, price, images, status. Stock is not in it.
   const connector = readFileSync(join(process.cwd(), 'server/connectors/types.ts'), 'utf8');

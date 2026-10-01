@@ -51,7 +51,7 @@ function Plans() {
       {notice && <p role="status" className="plan-notice">{notice}</p>}
       <Editor key={`${plan.code}:${loads}`} plan={plan} onSaved={(message) => { setNotice(message); setVersion((v) => v + 1); }} />
       <Panel title={t('نصوص البطاقة', 'Card copy')} sub={t('هذه الأسطر نص ثابت في lib/plans.ts لا يتغيّر من هنا. إن ذكرت رقمًا غيّرته فعدّلها أيضًا.', 'These lines are fixed copy in lib/plans.ts and do not change from here. If one names a number you change, update it too.')}>
-        <ul className="plain-list">{planByCode(plan.code).highlights.map((h) => <li key={h.en}>{pick(h)}</li>)}</ul>
+        <ul className="plain-list">{planByCode(plan.code).highlights.map((h) => <li key={h.en}>{pick(h)}{h.soon && <> · {t('قريبًا', 'coming soon')}</>}</li>)}</ul>
       </Panel>
     </>
   );

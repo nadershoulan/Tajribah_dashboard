@@ -4,7 +4,7 @@
 
 import { CREDITS_PER_3D_GENERATION } from '@/lib/ai-credits';
 import { useState } from 'react';
-import { CheckCircle2, CreditCard, FileText, Lock, Sparkles, X } from 'lucide-react';
+import { CheckCircle2, Clock, CreditCard, FileText, Lock, Sparkles, X } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
 import { useData, useResource, type CouponQuote } from '@/lib/data';
@@ -205,9 +205,11 @@ export default function Billing() {
                   </div>
                   <ul style={{ listStyle: 'none', margin: '14px 0 0', padding: 0, display: 'grid', gap: 7 }}>
                     {plan.highlights.map((line) => (
-                      <li key={line.en} style={{ display: 'flex', gap: 7, fontSize: 13.5, color: 'var(--text-2)' }}>
-                        <CheckCircle2 size={15} aria-hidden style={{ flex: '0 0 auto', marginTop: 3, color: 'var(--aqua-ink)' }} />
-                        {pick(line)}
+                      <li key={line.en} style={{ display: 'flex', gap: 7, fontSize: 13.5, color: line.soon ? 'var(--text-3)' : 'var(--text-2)' }}>
+                        {line.soon
+                          ? <Clock size={15} aria-hidden style={{ flex: '0 0 auto', marginTop: 3 }} />
+                          : <CheckCircle2 size={15} aria-hidden style={{ flex: '0 0 auto', marginTop: 3, color: 'var(--aqua-ink)' }} />}
+                        <span>{pick(line)}{line.soon && <> · <strong style={{ fontWeight: 600 }}>{t('قريبًا', 'coming soon')}</strong></>}</span>
                       </li>
                     ))}
                   </ul>

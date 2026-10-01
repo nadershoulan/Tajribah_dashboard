@@ -29,7 +29,8 @@ export type PlanDefinition = {
   featured?: boolean;
   limits: PlanLimits;
   features: string[];
-  highlights: Bi[];
+  /** T34: `soon` marks a line not built yet — shown as coming, never as included. */
+  highlights: (Bi & { soon?: true })[];
 };
 
 /** `-1` is unlimited, the same convention as `plan_limits.value` (§7.4). */
@@ -48,7 +49,8 @@ export const PLANS: PlanDefinition[] = [
     highlights: [
       { ar: '20 منتجًا بعرض ثلاثي الأبعاد', en: '20 products with 3D viewing' },
       { ar: 'زر «شاهدها في مكانك» داخل متجرك', en: '“View in your space” button in your store' },
-      { ar: 'صفحات وروابط QR لكل منتج', en: 'Hosted pages and QR codes per product' },
+      // T34: both wait on the short domain (P1.19, P1.20) — a printed or shared link must not change.
+      { ar: 'صفحات وروابط QR لكل منتج', en: 'Hosted pages and QR codes per product', soon: true },
     ],
   },
   {
@@ -63,7 +65,9 @@ export const PLANS: PlanDefinition[] = [
     highlights: [
       { ar: '200 منتج، ومقارنة الحجم بأشياء يعرفها العميل', en: '200 products, plus size comparison with familiar objects' },
       { ar: 'ربط مباشر مع سلة وزد', en: 'Direct Salla and Zid integration' },
-      { ar: 'تقارير التحويل ومعدل الإرجاع', en: 'Conversion and return-rate reporting' },
+      { ar: 'تقارير التحويل', en: 'Conversion reporting' },
+      // T34: returns come from the store platform (P4.7), and no store connection is live yet.
+      { ar: 'تقارير معدل الإرجاع', en: 'Return-rate reporting', soon: true },
     ],
   },
   {
@@ -80,7 +84,8 @@ export const PLANS: PlanDefinition[] = [
     highlights: [
       { ar: 'منتجات بلا حد، وتجربة افتراضية كاملة', en: 'Unlimited products and full virtual try-on' },
       { ar: 'توليد نماذج ثلاثية الأبعاد من صور المنتج', en: '3D models generated from product photos' },
-      { ar: 'توصيات ومقارنات مدعومة بالذكاء الاصطناعي', en: 'AI recommendations and comparisons' },
+      // T34: the P6 recommendation and comparison engines are not built.
+      { ar: 'توصيات ومقارنات مدعومة بالذكاء الاصطناعي', en: 'AI recommendations and comparisons', soon: true },
     ],
   },
   {

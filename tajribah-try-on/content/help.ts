@@ -5,7 +5,7 @@ import type { Bi } from '@/lib/lang';
  * (tajribah-platform): the onboarding steps, the connection, 3D models and versions, the AR
  * button, the embed line, team roles, two-step sign-in, plans, the 14-day trial and what happens
  * after it, invoices with 15% VAT, AI credits, privacy requests (30 days), WooCommerce and single
- * sign-on. Nothing here
+ * sign-on, products' own pages (P1.19). Nothing here
  * promises a feature the dashboard does not have.
  */
 export type HelpArticle = {
@@ -24,7 +24,7 @@ export const HELP_CATEGORIES: { key: HelpCategoryKey; title: Bi; blurb: Bi }[] =
   { key: 'start', title: { ar: 'البداية', en: 'Getting started' }, blurb: { ar: 'إنشاء الحساب وخطوات الإعداد الأولى.', en: 'Creating your account and the first setup steps.' } },
   { key: 'connect', title: { ar: 'ربط المتجر', en: 'Connecting your store' }, blurb: { ar: 'سلة وزد وWooCommerce وسطر التضمين لأي متجر آخر.', en: 'Salla, Zid, WooCommerce, and the embed line for any other store.' } },
   { key: 'models', title: { ar: 'المنتجات والنماذج', en: 'Products and 3D models' }, blurb: { ar: 'المقاسات والنماذج ثلاثية الأبعاد ونسخها.', en: 'Sizes, 3D models and their versions.' } },
-  { key: 'button', title: { ar: 'الزر والتجربة', en: 'The button and try-on' }, blurb: { ar: 'شكل الزر ورموز QR وما يراه العميل.', en: 'Button style, QR codes and what shoppers see.' } },
+  { key: 'button', title: { ar: 'الزر والتجربة', en: 'The button and try-on' }, blurb: { ar: 'شكل الزر وصفحة كل منتج وما يراه العميل.', en: 'Button style, each product’s own page and what shoppers see.' } },
   { key: 'billing', title: { ar: 'الباقات والفواتير', en: 'Plans and invoices' }, blurb: { ar: 'التجربة المجانية والباقات والفواتير والأرصدة.', en: 'The free trial, plans, invoices and credits.' } },
   { key: 'account', title: { ar: 'الحساب والفريق والخصوصية', en: 'Account, team and privacy' }, blurb: { ar: 'الأعضاء والصلاحيات والتحقق بخطوتين وبياناتك.', en: 'Members, roles, two-step sign-in and your data.' } },
 ];
@@ -142,11 +142,29 @@ export const HELP_ARTICLES: HelpArticle[] = [
     ],
   },
   {
-    slug: 'qr-codes', category: 'button', updated: '2026-09-19',
-    title: { ar: 'رموز QR للمنتجات', en: 'QR codes for products' },
-    summary: { ar: 'للواجهات والكتالوجات المطبوعة.', en: 'For shop windows and printed catalogues.' },
+    // P1.19 — AR settings → "Product page", as built.
+    slug: 'product-page', category: 'button', updated: '2026-10-01',
+    title: { ar: 'صفحة خاصة لكل منتج', en: 'A page of its own for each product' },
+    summary: { ar: 'رابط واحد تشاركه في منشور أو رسالة أو في حسابك.', en: 'One link to share in a post, a message or your profile.' },
+    steps: [
+      { ar: 'انشر المنتج من «إعدادات العرض» بزر «انشر في المتجر».', en: 'Publish the product from “AR settings” with “Publish to the store”.' },
+      { ar: 'في لوحة «صفحة المنتج» أسفلها يظهر رابط الصفحة: انسخه أو افتحه.', en: 'In the “Product page” panel below, the page’s link appears: copy it or open it.' },
+      { ar: 'أضف رابط شراء المنتج في متجرك إن أردت، واحفظ.', en: 'Add the link to buy the product in your shop if you like, and save.' },
+    ],
     body: [
-      { ar: 'لكل منتج مفعّل رمز QR يفتح صفحة التجربة مباشرة. نزّله من «رموز QR» واطبعه على البطاقة أو الكتالوج؛ الرمز يبقى صالحًا ما دام المنتج مفعّلًا.', en: 'Every enabled product has a QR code that opens its try-on page directly. Download it from “QR codes” and print it on a card or catalogue; it keeps working as long as the product is enabled.' },
+      { ar: 'تعرض الصفحة المنتج بأبعاده الثلاثية يدور ببطء، ومعه زر «شاهدها في مكانك» الذي يضعه في غرفة المتسوّق بمقاسه الحقيقي على الجوال. أما الساعة فتفتح في استوديو التجربة نفسه الذي يفتحه زرّ متجرك.', en: 'The page shows the product in 3D, turning slowly, with “View in your space”, which places it in the shopper’s room at its real size on a phone. A watch opens in the same try-on studio your store’s button opens.' },
+      { ar: 'رابط الشراء يظهر زرًا «اشترها من …» باسم متجرك، ويجب أن يبدأ بـ https://. يمكنك إيقاف الصفحة في أي وقت؛ فيقول الرابط إنها غير متاحة خلال دقيقة تقريبًا، ويعود حين تفعّلها.', en: 'The buy link shows as a “Buy it at …” button with your store’s name, and must start with https://. You can switch the page off at any time; the link then says it is not available within about a minute, and comes back when you switch it on.' },
+      { ar: 'الصفحة في كل الباقات، ولا تظهر في محركات البحث، حتى تبقى صفحة منتجك في متجرك هي التي تظهر. في باقة «المؤسسات» تظهر باسم متجرك دون «بتقنية تجربة»، وعلى عنوان متجرك الخاص إن فعّلته.', en: 'The page comes with every plan, and is kept out of search engines, so your own store’s product page is the one that shows up. On Enterprise it carries your store’s name without “Powered by Tajribah”, and lives on your store’s own address once you switch that on.' },
+    ],
+  },
+  {
+    // T34 — P1.20 waits on the short domain: a printed code must never stop working.
+    slug: 'qr-codes', category: 'button', updated: '2026-10-01',
+    title: { ar: 'رموز QR للمنتجات (قريبًا)', en: 'QR codes for products (coming soon)' },
+    summary: { ar: 'للواجهات والكتالوجات المطبوعة — تصل مع عنوان تجربة القصير.', en: 'For shop windows and printed catalogues — arriving with Tajribah’s short address.' },
+    body: [
+      { ar: 'الرمز المطبوع يبقى على البطاقة أو الكتالوج سنوات، فيجب أن يحمل عنوانًا لن يتغيّر أبدًا. لذلك تصل رموز QR مع عنوان تجربة القصير النهائي، لا قبله.', en: 'A printed code stays on a card or catalogue for years, so it must carry an address that never changes. That is why QR codes arrive with Tajribah’s final short address, not before.' },
+      { ar: 'حتى ذلك الحين، شارك رابط صفحة المنتج نفسها — من «إعدادات العرض» ← «صفحة المنتج».', en: 'Until then, share the product’s own page link — from “AR settings” → “Product page”.' },
     ],
   },
   {

@@ -49,8 +49,9 @@ export const PLANS: PlanDefinition[] = [
     highlights: [
       { ar: '20 منتجًا بعرض ثلاثي الأبعاد', en: '20 products with 3D viewing' },
       { ar: 'زر «شاهدها في مكانك» داخل متجرك', en: '“View in your space” button in your store' },
-      // T34: both wait on the short domain (P1.19, P1.20) — a printed or shared link must not change.
-      { ar: 'صفحات وروابط QR لكل منتج', en: 'Hosted pages and QR codes per product', soon: true },
+      { ar: 'صفحة خاصة لكل منتج تشاركها في أي مكان', en: 'A page of its own for each product, to share anywhere' }, // P1.19
+      // T34: P1.20 waits on the short domain — a printed code must never change.
+      { ar: 'رموز QR لكل منتج', en: 'QR codes per product', soon: true },
     ],
   },
   {

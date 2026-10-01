@@ -32,6 +32,7 @@ export const PLANS: Plan[] = [
       { ar: 'زر «جرّبها» في صفحة المنتج', en: '“Try it” button on the product page' },
       { ar: 'المقارنة بالحجم الحقيقي', en: 'True-size comparison' },
       { ar: 'العرض ثلاثي الأبعاد والواقع المعزز الأساسي', en: 'Basic 3D and AR viewing' },
+      { ar: 'صفحة خاصة لكل منتج تشاركها في أي مكان', en: 'A page of its own for each product, to share anywhere' }, // P1.19
       { ar: 'واجهة عربية وإنجليزية', en: 'Arabic and English interface' },
       { ar: 'دعم عبر البريد الإلكتروني', en: 'Email support' },
     ],

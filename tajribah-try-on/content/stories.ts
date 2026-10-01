@@ -40,7 +40,7 @@ export const STORIES: Story[] = [
     approach: [
       { ar: 'فعّل التجربة على أكثر 30 ساعة مشاهدة، وأدخل قطر العلبة وعرض السوار لكل منها.', en: 'Turned try-on on for the 30 most-viewed watches and entered the case diameter and strap width for each.' },
       { ar: 'غيّر نص الزر إلى «شوفها على يدك» ليطابق لهجة المتجر.', en: 'Changed the button text to match the store’s own tone of voice.' },
-      { ar: 'أضاف رمز QR على بطاقات الواجهة في المعرض ليجرّب زوار المعرض القطع المعروضة على الإنترنت.', en: 'Added QR codes to the showroom window cards so visitors could try pieces from the online range.' },
+      { ar: 'صار يردّ على سؤال المقاس في المحادثة برابط صفحة الساعة نفسها، ليجرّبها العميل قبل أن يسأل مرة أخرى.', en: 'Started answering the size question in chat with the watch’s own page link, so the shopper could try it on before asking again.' },
     ],
     outcome: {
       ar: 'في هذا المثال، صار الرد على سؤال المقاس رابطًا واحدًا بدل وصف طويل، وبدأ المتجر يقارن نسبة الإرجاع بسبب المقاس بين الساعات المفعّلة وغير المفعّلة.',

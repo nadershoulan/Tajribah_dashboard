@@ -70,7 +70,13 @@ test('T34: the dashboard\'s plan cards mark what is not built as coming, as the 
     assert.ok(line, `${code}: "${en}" is on the card`);
     assert.equal(line.soon, true, `${code}: "${en}" is marked coming soon`);
   };
-  soon('starter', 'Hosted pages and QR codes per product'); // P1.19, P1.20: the short domain
+  soon('starter', 'QR codes per product'); // P1.20: the short domain
+  const page = PLANS.find((p) => p.code === 'starter')!.highlights.find((h) => h.en === 'A page of its own for each product, to share anywhere');
+  assert.ok(page && !page.soon, 'P1.19: product pages are built — sold as included, here and on the website');
+  assert.ok(SITE_PLANS.find((p) => p.id === 'starter')!.features.some((f) => f.en === page.en));
+  // No help article may describe a QR download until P1.20 exists.
+  assert.ok(!/Download it from “QR codes”|نزّله من «رموز QR»/.test(site('content/help.ts')), 'the help centre does not describe QR codes as built');
+  assert.ok(!/QR codes to the showroom|رمز QR على بطاقات/.test(site('content/stories.ts')), 'nor do the example stories');
   soon('growth', 'Return-rate reporting'); // P4.7: needs a live store connection
   soon('pro', 'AI recommendations and comparisons'); // P6: the engines are not built
   for (const plan of PLANS) {

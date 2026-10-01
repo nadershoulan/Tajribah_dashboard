@@ -47,6 +47,20 @@ export async function withTenant<T>(
 }
 
 /**
+ * One tenant's transaction for statements `TenantDb` cannot express (an aggregate written in SQL —
+ * the analytics roll-up). The tenant is set exactly as in `withTenant`, on the same RLS-bound
+ * handle, so Postgres confines every statement to that tenant's rows whatever the SQL says; the
+ * caller still names the tenant in each statement (both layers, as everywhere).
+ */
+export async function withTenantSql<T>(tenantId: string, fn: (tx: Db) => Promise<T>, handle: Db = appDb()): Promise<T> {
+  if (!tenantId) throw new Error('withTenantSql requires a tenant id');
+  return handle.transaction(async (tx) => {
+    await tx.execute(sql`select set_config(${TENANT_GUC}, ${tenantId}, true)`);
+    return fn(tx as unknown as Db);
+  });
+}
+
+/**
  * Background work that legitimately spans tenants (rollups, cleanup) still has to say which
  * tenant each statement is for. This makes that explicit rather than reaching for the admin
  * client — §13.2: a helper that wraps an unscoped client scopes nothing.

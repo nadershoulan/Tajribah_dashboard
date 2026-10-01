@@ -329,7 +329,9 @@ export async function mount(doc: Document, settings: Settings, fetchImpl: typeof
     });
     if (config.placement === 'wrist' && config.tryon) warmTryOn(doc, tryOnBase(settings.tryon, config.host));
     host.setAttribute(READY, 'yes');
-    tracker?.track({ type: 'product_view', productId: product });
+    // Whether this device could show AR goes with the view, so "devices that support AR" counts
+    // every visit — not only the ones that tapped the button.
+    tracker?.track({ type: 'product_view', productId: product, arSupported: hasNativeAr() });
     drawn += 1;
   })));
   return drawn;

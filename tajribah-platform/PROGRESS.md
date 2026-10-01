@@ -3,24 +3,24 @@
 _Last updated: 2026-10-01 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: this one (website, analytics screen, security, 3D generation) and a second one (collecting analytics from shop pages).
-> **Just finished (2026-10-01):** **the weekly summary by email** (the last open piece of analytics exports, P4.8). On the Analytics screen each member can switch on "Email me the week's figures every Sunday" — for themselves only, off until they ask. Every Sunday morning (08:00 Riyadh) it sends the store's week, Sunday to Saturday, each figure beside the week before, in the member's own language. It goes only to people who may export, on a plan with full analytics, with a confirmed email address — all checked again every week. **Seen for real:** switched on in Chrome on the real app and database, and the built app's every-minute timer sent the email once, with the right figures (a second pass sent nothing). Real delivery starts when the email account exists, like every other message · before that: custom domains (a store's own address, all the way to its shoppers)
-> **Next:** what is left needs an account or your decision (GCC, the partner program's terms, marketplace wait for real demand, as you chose).
+> **Just finished (2026-10-01):** **analytics now receives and counts real shop visits** (your choice today: this session builds the part the other session had). The script on a shop's product page sends its events to Tajribah; they are checked, stored without anything that identifies a shopper, and added up into the daily figures every few minutes — so the analytics screen, the home screen, the plan's monthly AR count and the weekly email now show real numbers instead of zeros. New on the Analytics screen: **"In your shop right now"** (the last half hour, minute by minute) and a **Visits** page — one day's visits and each visit's path (what it saw, opened, whether it bought), kept 90 days. **Seen for real:** a shop page in Chrome with the real script → the collector → the database → the every-minute timer added it up → the screens showed it, numbers matching. Search-engine robots are not counted (seen too) · before that: the weekly summary by email
+> **Next:** what is left needs an account or your decision. One small one below (the privacy-policy wording).
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
-> **Waiting on you:** no new question (your T62 answers are in). The **Hetzner server**, and the accounts below — Salla, Zid, Cloudflare, the domain, Moyasar and a 3D-generation provider.
+> **Waiting on you:** **the website's privacy policy** still says shop statistics are only kept as totals; since today each visit's events are kept for 90 days (anonymous). Proposed new wording is in `docs/ANALYTICS-PRIVACY.md` (last section) — say yes or change it, and it goes onto the site. Then the **Hetzner server**, and the accounts below — Salla, Zid, Cloudflare, the domain, Moyasar and a 3D-generation provider.
 
 ```
 P0 Foundation     ██████████████████████████████░░  21 / 22   (1 blocked: staging server)
 P1 Core loop      █████████████████████████░░░░░░░  20 / 26   ← first sellable product · the rest needs Salla / Cloudflare / domain
 P2 Billing        █████████████░░░░░░░░░░░░░░░░░░░   6 / 15   (+ 3 partly) · the rest needs Moyasar / ZATCA
 P3 3D pipeline    ███████████░░░░░░░░░░░░░░░░░░░░░   4 / 12   (+ P3.7 photo screen, P3.8 editor) · the rest needs a provider, prices or caps
-P4 Analytics      █████████████░░░░░░░░░░░░░░░░░░░   5 / 12   · shared with the other session
+P4 Analytics      ███████████████████████████░░░░░   9 / 12   (+ P4.11 partly) · P4.7 needs a store connection, P4.12 the staging server
 P5 Try-on         ████████████████░░░░░░░░░░░░░░░░   7 / 14   (+ watch partly) · the rest touches your studio or needs new photography
 P6 AI+connectors  ██████████████░░░░░░░░░░░░░░░░░░   7 / 16   · the rest needs AI providers or store accounts
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ security, safe updates, rate limits, database speed, monitoring, load tests, backups: the code-level parts done)
 P8 Enterprise     ███████████████████░░░░░░░░░░░░░   7 / 12
 M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
-                                            overall  99 / 169
+                                            overall 103 / 169
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -162,7 +162,11 @@ The public site that sells Tajribah, Arabic first.
 | ✅ | P4.5 Analytics screen | The analytics screen on real numbers, in Arabic and English, with a note when there is no data yet |
 | ✅ | P4.6 Does try-on sell more? | Shoppers who tried on and those who didn't, side by side, and whether the difference could just be chance |
 | ✅ | P4.8 Exports & weekly email | Download the daily figures as a spreadsheet file. And a **weekly summary by email**: each member switches it on for themselves on the Analytics screen; every Sunday morning it brings the store's week (Sunday to Saturday) beside the week before, in their language. Only for people who may export, on a plan with full analytics, with a confirmed address. Real delivery starts with the email account |
-| ⬜ | P4.2 / P4.3 Receiving and adding up events | The other session's part; planned in detail, waiting on its go-ahead |
+| ✅ | P4.2 Receiving events | The shop page's events arrive at Tajribah: oversized, malformed or robot traffic is dropped before anything is stored; each store has speed limits so one shop or one attacker cannot flood it; the shopper's address and browser identity are never stored — only device type, browser name, country and the shop page's host |
+| ✅ | P4.3 Adding them up | Every few minutes each store's day is recounted from its events into the daily figures the screens read — running it twice gives the same numbers; a day older than 85 days is never rewritten |
+| ✅ | P4.9 Right now | "In your shop right now" on the Analytics screen: visits in the last five minutes, the last half hour minute by minute, the latest events (Growth and up) |
+| ✅ | P4.10 Visits | A Visits page: one day's visits, newest first, filtered by "opened AR or try-on" or "bought", and each visit's path in order. A visit is not a person — its id changes every day and in every shop (Growth and up) |
+| ◐ | P4.11 Analytics privacy | The record of exactly what is collected, kept 90 days and shown to whom (`docs/ANALYTICS-PRIVACY.md`), held by tests. **Left:** your yes on the privacy-policy wording |
 
 ## P3 — 3D models from photos (started 2026-09-27)
 
@@ -467,3 +471,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-10-01 | Custom domains watch themselves: every address is looked at again each quarter-hour — records added are noticed without pressing anything, and a live address whose records are removed stops being used by shoppers within minutes | activation 5; every guard seen failing when broken; full gate green |
 | 2026-10-01 | The weekly summary by email (P4.8 done): a member's own switch on the Analytics screen, sent every Sunday 08:00 Riyadh, once — seen on the real app, database and timer | report 6; seen to fail 36 ways (2 gaps closed with tests); full gate 818 pass + 3 skipped / 0 fail |
 | 2026-10-01 | T34 on the dashboard's plan cards: Billing promised four things not built (hosted pages and QR codes, return-rate reports, AI recommendations and comparisons) — now each says "coming soon" with a clock, as the website does | website 7; seen to fail with a mark removed |
+| 2026-10-01 | Analytics receives and counts real visits (P4.2, P4.3), "right now" (P4.9), the Visits page (P4.10), the privacy record (P4.11 ◐) — the whole path seen in Chrome on the real app, database and timer | collect 6, rollup 3, live 2, sessions 4, privacy 3; 81 attempts to break it, 74 caught (6 harmless, 1 order the test database cannot show); full gate 836 pass + 3 skipped / 0 fail |

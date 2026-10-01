@@ -7,7 +7,7 @@
  * Invoices, the AI credit ledger and coupon uses are never swept. Deleted stores are listed for
  * a person to review, never purged automatically (purging a store would delete its invoices).
  */
-import { and, count, eq, inArray, isNotNull, isNull, lt, or, type SQL } from 'drizzle-orm';
+import { and, count, eq, inArray, isNotNull, isNull, lt, or, sql, type SQL } from 'drizzle-orm';
 import type { PgTable } from 'drizzle-orm/pg-core';
 import { unsafeAdminDb, type Db } from '@/db/client';
 import { analyticsEvents, auditLogs, jobs, notifications, sessions, staffAudit, tenants, verificationTokens, webhookEvents } from '@/db/schema';
@@ -70,7 +70,8 @@ export async function retentionState(now = new Date(), db: Db = unsafeAdminDb())
 export async function sweepRetention(now = new Date(), db: Db = unsafeAdminDb()): Promise<Record<string, number>> {
   const removed: Record<string, number> = {};
   for (const rule of RETENTION) {
-    const rows = await db.delete(rule.table).where(rule.where(now)).returning();
+    // One constant per removed row, not the row: an hour of shop events is ~100k rows (P4.2 live).
+    const rows = await db.delete(rule.table).where(rule.where(now)).returning({ gone: sql<number>`1` });
     removed[rule.key] = rows.length;
   }
   const total = Object.values(removed).reduce((a, b) => a + b, 0);

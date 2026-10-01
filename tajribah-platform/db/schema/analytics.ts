@@ -47,6 +47,8 @@ export const analyticsEvents = pgTable('analytics_events', {
 }, (t) => [
   index('events_tenant_type_time_idx').on(t.tenantId, t.eventType, t.occurredAt),
   index('events_session_idx').on(t.sessionId),
+  /** 0034: one store's day, whatever the event — what the roll-up and the live view read. */
+  index('events_tenant_time_idx').on(t.tenantId, t.occurredAt),
 ]);
 
 /** Rollups are what the dashboard reads. Retained indefinitely; raw events expire at 90 days. */

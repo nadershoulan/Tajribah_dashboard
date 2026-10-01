@@ -13,7 +13,7 @@ import {
   DEMO_AI_JOBS, DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
 } from './demo-data';
 import type {
-  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, SallaAppView, SsoSettingsView, ReportSubscriptionView, StoreOverview, CustomDomainView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, SallaAppView, SsoSettingsView, ReportSubscriptionView, LiveActivityView, SessionListView, SessionPathView, StoreOverview, CustomDomainView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
@@ -158,6 +158,11 @@ export interface DataSource {
   analytics(range: '7d' | '30d' | '90d'): Promise<AnalyticsView>;
   /** P4.8: the range's daily figures as CSV text. */
   analyticsCsv(range: '7d' | '30d' | '90d'): Promise<string>;
+  /** P4.10: the visits of one Riyadh day, and one visit's events in order (null: not found, or expired). */
+  sessionList(input: { day?: string; filter?: SessionListView['filter']; offset?: number }): Promise<SessionListView>;
+  sessionPath(id: string): Promise<SessionPathView | null>;
+  /** P4.9: the shop's last half hour, from the raw events. */
+  liveActivity(): Promise<LiveActivityView>;
   /** P4.8: the signed-in member's own weekly summary by email, and turning it on or off. */
   reportSubscription(): Promise<ReportSubscriptionView>;
   setReportSubscription(weekly: boolean): Promise<ReportSubscriptionView>;
@@ -350,6 +355,15 @@ export function apiSource(client: ApiClient): DataSource {
     async updateSettings(patch) { return client.call<StoreSettings>('/api/settings', { method: 'PATCH', body: patch }); },
     async analytics(range) { return client.call<AnalyticsView>(`/api/analytics?range=${range}`); },
     async analyticsCsv(range) { return client.callText(`/api/analytics/export?range=${range}`); },
+    async liveActivity() { return client.call<LiveActivityView>('/api/analytics/live'); },
+    async sessionList({ day, filter, offset }) {
+      const query = new URLSearchParams({ ...(day ? { day } : {}), ...(filter ? { filter } : {}), ...(offset ? { offset: String(offset) } : {}) });
+      return client.call<SessionListView>(`/api/analytics/sessions${query.size ? `?${query}` : ''}`);
+    },
+    async sessionPath(id) {
+      try { return await client.call<SessionPathView>(`/api/analytics/sessions/${encodeURIComponent(id)}`); }
+      catch (error) { if (error instanceof ApiError && error.status === 404) return null; throw error; }
+    },
     async reportSubscription() { return client.call<ReportSubscriptionView>('/api/analytics/report'); },
     async setReportSubscription(weekly) { return client.call<ReportSubscriptionView>('/api/analytics/report', { method: 'PUT', body: { weekly } }); },
     async onboarding() { return client.call<OnboardingView>('/api/onboarding'); },
@@ -864,6 +878,18 @@ export const demoSource: DataSource = {
     // The preview's own demo series, labelled as such in the file name the screen gives it.
     const view = await this.analytics(range);
     return ['day,views,ar_sessions,tryon_sessions,purchases', ...view.series.map((p) => [p.day, p.views, p.arSessions, p.tryonSessions, p.purchases].join(','))].join('\r\n') + '\r\n';
+  },
+  // The preview has no shoppers: no visits to list.
+  async sessionList({ day, filter, offset }) {
+    const today = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
+    const oldest = new Date(Date.now() + 3 * 3_600_000 - 89 * 86_400_000).toISOString().slice(0, 10);
+    return { day: day ?? today, today, oldest, kept: true, filter: filter ?? 'all', offset: offset ?? 0, more: false, sessions: [] };
+  },
+  async sessionPath() { return null; },
+  // The preview has no shoppers: a quiet half hour, honestly empty.
+  async liveActivity() {
+    const now = Math.floor(Date.now() / 60_000) * 60_000;
+    return { asOf: new Date().toISOString(), activeVisits: 0, latest: [], minutes: Array.from({ length: 30 }, (_, i) => ({ at: new Date(now - (29 - i) * 60_000).toISOString(), views: 0, opens: 0 })) };
   },
   // The preview sends no mail: the switch works, and says where a real one would go.
   async reportSubscription() { return { weekly: demoWeeklyReport, email: 'owner@failet.sa', unavailable: null, nextOn: nextSunday() }; },

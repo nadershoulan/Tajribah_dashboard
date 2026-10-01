@@ -932,3 +932,26 @@ The plan names "exports & scheduled reports" and says nothing more. These are th
   uplift only when both groups are large enough. A quiet week is sent as zeros (a missing mail would
   read as a fault). Plain text, in the member's language.
 - **Once:** a week is claimed before it is sent; an email that fails is logged and not sent again.
+
+## T64 · 2026-10-01 · P4: the analytics write side is built here; how visits are counted
+
+**Decision (Nader, 2026-10-01):** the read-side session builds the write side (P4.2 collector, P4.3
+roll-ups, then P4.9–P4.11); the two-session split of 2026-09-27 ends. The other session had written
+no code for it.
+
+**Defaults built (mine; each one constant or one clause):**
+- **A visit** is one tab's token in one store on one Riyadh day (hashed with all three). An **AR or
+  try-on session** is a visit opening it on a product (taps on the same product count once) — the
+  figure the plan's "AR sessions per month" meters.
+- **Conversion** per product: visits that saw the product, split by whether they opened AR or the
+  try-on on it; *bought* = a purchase of that product, or a purchase reported without a product (a
+  whole order).
+- **Revenue** counts purchases in riyals or with no currency; another currency is a purchase that
+  adds no riyals (no conversion by a guessed rate).
+- **Robots** (crawlers, headless browsers, command-line tools) are not stored.
+- **Roll-ups** run per store per day at most every 5 minutes; days older than 85 are never recomputed
+  (raw events go at 90).
+- **Limits** (from the agreed P4.2 table): 60 batches a minute per store and visitor, 1,200 a minute
+  per store (counted per Worker instance — Workers KV takes one write per key per second).
+- **Live view and visit paths** are full analytics (Growth and up, with the trial), like the other
+  reports (T35).

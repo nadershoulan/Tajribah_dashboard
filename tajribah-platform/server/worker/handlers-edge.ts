@@ -20,6 +20,7 @@ import { handleAiJob } from '@/server/modules/ai-jobs/job';
 import { handleEdgeJob } from '@/server/modules/edge/publish';
 import { handleDeleteLater } from '@/server/modules/tryon/retire';
 import { handleWebhookDelivery } from '@/server/modules/outgoing-webhooks/deliver';
+import { handleRollupJob } from '@/server/modules/analytics/rollup';
 import { registerAllConnectors } from '@/server/connectors';
 
 /** Queues only a Node worker can run (`handlers.ts`). */
@@ -48,4 +49,6 @@ export function registerEdgeHandlers(): void {
   registerHandler('storage.delete-later', (job: Job) => handleDeleteLater(job));
   // P8: one try of one outgoing webhook delivery (it schedules its own retries).
   registerHandler('webhooks.deliver', (job: Job) => handleWebhookDelivery(job));
+  // P4.3: one store's one day, recomputed from its raw events into the tables the screens read.
+  registerHandler('analytics.rollup', (job: Job) => handleRollupJob(job));
 }

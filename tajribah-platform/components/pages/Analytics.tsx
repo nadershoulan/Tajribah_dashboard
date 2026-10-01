@@ -2,16 +2,16 @@
 
 // MD-120 — Analytics
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Download, Info, Smartphone } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
 import { useData, useResource } from '@/lib/data';
-import type { AnalyticsView, ReportSubscriptionView } from '@/lib/view-models';
+import type { AnalyticsView, LiveActivityView, ReportSubscriptionView, ShopEventType } from '@/lib/view-models';
 import { currentStore } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
 import { ROLE_PERMISSIONS } from '@/lib/permissions';
-import { formatDate, formatNumber, formatPercent, formatPoints } from '@/lib/format';
+import { formatDate, formatNumber, formatPercent, formatPoints, formatRelative } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
 import { Shell } from '@/components/dashboard/chrome';
 import { ErrorNote, Funnel, Loading, MiniChart, PageHead, Panel, Stat } from '@/components/dashboard/ui';
@@ -70,6 +70,7 @@ export default function Analytics() {
                 </button>
               ))}
             </div>
+            {data?.level === 'full' && <AppLink href="/dashboard/analytics/visits" className="btn btn-ghost">{t('الزيارات', 'Visits')}</AppLink>}
             <button type="button" className="btn btn-ghost" onClick={exportCsv} disabled={!canExport || exporting || data?.level === 'basic'}
               title={data?.level === 'basic' ? t('التصدير ضمن التحليلات الكاملة (باقة النمو فأعلى)', 'Export is part of full analytics (Growth and up)')
                 : canExport ? undefined : t('التصدير للمالك والمسؤول والمحلّل', 'Export is for owners, admins and analysts')}>
@@ -185,6 +186,8 @@ export default function Analytics() {
             </div>
 
             <div className="grid" style={{ gap: 18 }}>
+              {data.level === 'full' && <LivePanel />}
+
               <Panel title={t('الأجهزة', 'Devices')}>
                 {data.byDevice.map((row) => (
                   <div className="usage-row" key={row.device}>
@@ -231,6 +234,83 @@ export default function Analytics() {
         </>
       )}
     </Shell>
+  );
+}
+
+const LIVE_EVERY_MS = 30_000;
+const EVENT_LABEL: Record<ShopEventType, { ar: string; en: string }> = {
+  product_view: { ar: 'مشاهدة منتج', en: 'Product view' },
+  ar_open: { ar: 'فتح العرض', en: 'AR opened' },
+  ar_place: { ar: 'وضع المنتج في المكان', en: 'Placed in the room' },
+  ar_close: { ar: 'إغلاق العرض', en: 'AR closed' },
+  tryon_start: { ar: 'بدء تجربة افتراضية', en: 'Try-on started' },
+  tryon_capture: { ar: 'حفظ إطلالة', en: 'Look saved' },
+  tryon_share: { ar: 'مشاركة إطلالة', en: 'Look shared' },
+  add_to_cart: { ar: 'إضافة للسلة', en: 'Added to cart' },
+  purchase: { ar: 'شراء', en: 'Purchase' },
+};
+
+/**
+ * P4.9 — the shop right now: visits in the last five minutes, the last half hour minute by minute,
+ * and the latest events. Asked again every half minute while the tab is in view; a failed refresh
+ * keeps the last answer on screen and says so.
+ */
+function LivePanel() {
+  const { t, lang } = useLang();
+  const source = useData();
+  const [view, setView] = useState<LiveActivityView | null>(null);
+  const [failure, setFailure] = useState<Error | null>(null);
+  useEffect(() => {
+    let live = true;
+    const load = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      source.liveActivity().then((next) => { if (live) { setView(next); setFailure(null); } }).catch((e: Error) => { if (live) setFailure(e); });
+    };
+    load();
+    const timer = setInterval(load, LIVE_EVERY_MS);
+    document.addEventListener('visibilitychange', load);
+    return () => { live = false; clearInterval(timer); document.removeEventListener('visibilitychange', load); };
+  }, [source]);
+
+  const peak = Math.max(1, ...(view?.minutes ?? []).map((m) => m.views + m.opens));
+  const views = (view?.minutes ?? []).reduce((sum, m) => sum + m.views, 0);
+  const device = (d: LiveActivityView['latest'][number]['device']) => (d === 'mobile' ? t('جوال', 'Mobile') : d === 'tablet' ? t('لوحي', 'Tablet') : d === 'desktop' ? t('حاسب', 'Desktop') : null);
+  return (
+    <Panel title={t('الآن في متجرك', 'In your shop right now')} sub={t('يتجدد كل نصف دقيقة', 'Refreshed every half minute')}>
+      {!view && !failure && <Loading rows={2} />}
+      {view && (
+        <div data-live>
+          <p style={{ margin: 0, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <strong className="num" style={{ fontSize: 30, lineHeight: 1 }}>{formatNumber(view.activeVisits, lang)}</strong>
+            <span style={{ color: 'var(--text-2)' }}>{t('زيارة في آخر 5 دقائق', view.activeVisits === 1 ? 'visit in the last 5 minutes' : 'visits in the last 5 minutes')}</span>
+          </p>
+          <div role="img" aria-label={t(`${formatNumber(views, lang)} مشاهدة منتج في آخر 30 دقيقة`, `${formatNumber(views, lang)} product views in the last 30 minutes`)}
+            style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 44, marginTop: 14 }} dir="ltr">
+            {view.minutes.map((m) => (
+              <i key={m.at} style={{ flex: 1, minWidth: 0, height: `${Math.max(4, ((m.views + m.opens) / peak) * 100)}%`, borderRadius: 2, background: m.views + m.opens ? 'var(--aqua)' : 'var(--tint)' }} />
+            ))}
+          </div>
+          <p className="hint" style={{ marginTop: 6 }}>{t(`${formatNumber(views, lang)} مشاهدة منتج في آخر 30 دقيقة`, `${formatNumber(views, lang)} product views in the last 30 minutes`)}</p>
+          {view.latest.length === 0
+            ? <p className="hint">{t('لا نشاط في آخر نصف ساعة.', 'Nothing in the last half hour.')}</p>
+            : (
+              <ul style={{ listStyle: 'none', margin: '12px 0 0', padding: 0, display: 'grid', gap: 8, fontSize: 13.5 }}>
+                {view.latest.map((e, i) => (
+                  <li key={`${e.at}-${i}`} style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                    <span style={{ minWidth: 0, flex: 1 }}>
+                      <strong style={{ fontWeight: 600 }}>{EVENT_LABEL[e.type][lang]}</strong>
+                      {e.product && <> · <bdi>{e.product}</bdi></>}
+                      {[device(e.device), e.country].filter(Boolean).length > 0 && <span style={{ color: 'var(--text-3)' }}> · {[device(e.device), e.country].filter(Boolean).join(' · ')}</span>}
+                    </span>
+                    <span style={{ color: 'var(--text-3)', fontSize: 12.5, whiteSpace: 'nowrap' }}>{formatRelative(e.at, lang, new Date(view.asOf).getTime())}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+        </div>
+      )}
+      {failure && <ErrorNote error={failure} />}
+    </Panel>
   );
 }
 

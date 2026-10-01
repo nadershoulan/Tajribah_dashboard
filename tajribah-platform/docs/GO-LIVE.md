@@ -138,11 +138,15 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
 - **Check:** a published watch's button on a shop page opens the studio with that watch; a QR photo
   left unclaimed is gone a minute after its 30 minutes (the sweep logs only failures).
 
-## 5. Analytics collector (`ev.tajribah.com`, P4.2 — the write-side session)
+## 5. Analytics collector (`ev.tajribah.com`, P4.2)
 
-- [ ] When P4.2 exists: route **`ev.tajribah.com/v1/e`** to it (`widget/src/main.ts` `DEFAULT_EVENTS`).
-- **Check:** after a real product view on a shop page, the setup guide's last step ticks and the
-  analytics screen counts the view.
+- [ ] Route **`ev.tajribah.com/v1/e`** to the **dashboard Worker** (a custom domain or route on it): the
+      collector is served there at `/v1/e` (and at `/api/analytics/collect`) — the address the widget
+      ships with (`widget/src/main.ts` `DEFAULT_EVENTS`). No CORS is needed: the widget sends beacons.
+- **Check:** open a shop page with a published button on a phone; within a few seconds of leaving the
+  page the event is in `analytics_events` (staging); within five minutes (the roll-up window) the
+  analytics screen counts the view, "In your shop right now" shows it at once, and the setup guide's
+  last step ticks. A request from `curl` is answered 204 and stored nowhere (robots are dropped).
 
 ## 6. DNS summary
 

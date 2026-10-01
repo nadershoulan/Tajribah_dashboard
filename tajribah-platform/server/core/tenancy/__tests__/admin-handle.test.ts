@@ -49,6 +49,7 @@ const ADMIN_ALLOWED: Record<string, string> = {
   'server/modules/ai-jobs/guardrails.ts': 'the AI spend guardrails (P6.7): the platform limits are an admin-role-only row, and the daily spend cap sums every store’s cost; a store’s own count is filtered by tenant explicitly',
   'server/modules/connections/grants.ts': 'a store’s access can arrive before any account has the store (store_grants, admin only — Salla by webhook, Zid at its callback), and which account a store is linked to is looked up by the store the platform vouched for — the same platform lookup a webhook makes (T61)',
   'server/modules/domains/activation.ts': 'the activation sweep finds stores’ addresses that are ready across tenants (ids only), then handles each inside its own store (T62)',
+  'server/modules/analytics/ingest.ts': 'the collector resolves a shop’s public store key before any store’s scope exists — the platform lookup a webhook makes; the events are then written inside the store (P4.2)',
   'server/modules/analytics/report.ts': 'the weekly-report sweep finds the members who asked for it across stores and their addresses (users are global), then builds each summary inside its store as that member (P4.8)',
   'server/modules/connections/health.ts': 'the health sweep lists connections across tenants (ids only), then scores and notifies inside withTenant (P6.16)',
   'server/modules/admin/ai-ops.ts': 'AI operations read jobs, costs and credits across stores for staff (A9); a cancel goes through cancelAiJob inside the store',

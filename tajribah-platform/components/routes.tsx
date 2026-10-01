@@ -49,6 +49,7 @@ import AdminCompliance from '@/components/pages/admin/AdminCompliance';
 import AdminAnnouncements from '@/components/pages/admin/AdminAnnouncements';
 import SallaApp from '@/components/pages/SallaApp';
 import AgencyStores from '@/components/pages/AgencyStores';
+import AnalyticsSessions from '@/components/pages/AnalyticsSessions';
 import NotFound from '@/components/pages/NotFound';
 
 export const ROUTES: Record<string, () => ReactElement> = {
@@ -60,6 +61,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/dashboard/tryon': TryOn, // MD-070, P5.10
   '/dashboard/connections': Connections,
   '/dashboard/analytics': Analytics,
+  '/dashboard/analytics/visits': AnalyticsSessions, // MD-121, P4.10
   '/dashboard/billing': Billing,
   '/dashboard/team': Team,
   '/dashboard/settings': SettingsPage,

@@ -118,6 +118,52 @@ export type CustomDomainView = {
   pointsTo: string | null;
 };
 
+/** The kinds of event a shop page reports (`db/schema/analytics.ts` `EVENT_TYPE`). */
+export type ShopEventType = 'product_view' | 'ar_open' | 'ar_place' | 'ar_close' | 'tryon_start' | 'tryon_capture' | 'tryon_share' | 'add_to_cart' | 'purchase';
+
+/** P4.9 — what is happening in the shop now, from the raw events (API-123). */
+export type LiveActivityView = {
+  asOf: string;
+  /** Visits with any event in the last five minutes. */
+  activeVisits: number;
+  /** The last half hour, oldest first, one entry per minute: product views, and AR or try-on openings. */
+  minutes: { at: string; views: number; opens: number }[];
+  /** The latest events, newest first. `product` is the product's name; null when the event named none of the store's. */
+  latest: { at: string; type: ShopEventType; product: string | null; device: 'mobile' | 'tablet' | 'desktop' | 'unknown'; country: string | null }[];
+};
+
+/** P4.10 — the visits of one Riyadh day (API-124). A visit's id is a daily hash: it names nobody. */
+export type SessionListView = {
+  day: string;
+  /** Today in Riyadh, and the oldest day whose raw events are still kept. */
+  today: string; oldest: string;
+  /** False when `day` is outside what is kept: there is nothing to read, which is not "a quiet day". */
+  kept: boolean;
+  filter: 'all' | 'opened' | 'bought';
+  offset: number;
+  more: boolean;
+  sessions: {
+    id: string; firstAt: string; lastAt: string; events: number; products: number;
+    /** Opened AR or the try-on · added to cart · reported a purchase. */
+    opened: boolean; carted: boolean; bought: boolean;
+    device: 'mobile' | 'tablet' | 'desktop' | 'unknown'; country: string | null;
+  }[];
+};
+
+/** P4.10 — one visit's events in order (API-125). */
+export type SessionPathView = {
+  id: string; firstAt: string; lastAt: string;
+  device: 'mobile' | 'tablet' | 'desktop' | 'unknown'; os: string | null; browser: string | null; country: string | null; region: string | null;
+  /** The host of the shop page that reported the visit. */
+  page: string | null;
+  /** True when the visit has more events than are shown. */
+  truncated: boolean;
+  events: {
+    at: string; type: ShopEventType; productId: string | null; product: string | null;
+    durationMs: number | null; valueMinor: number | null; currency: string | null; properties: Record<string, string>;
+  }[];
+};
+
 /** P4.8 — the signed-in member's weekly summary by email, for this store (API-092). */
 export type ReportSubscriptionView = {
   weekly: boolean;

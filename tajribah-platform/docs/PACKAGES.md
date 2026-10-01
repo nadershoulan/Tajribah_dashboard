@@ -244,7 +244,7 @@ P8 Enterprise (12) · Track A Admin (15). Track M has its own table above.
 **Note for the owner of P4.2 / P4.3 (the rollup writer)** — P5.13 (2026-09-28) reads `daily_product_stats.tryon_sessions` per product per Riyadh day (the agreed read contract): the try-on screen's "last 30 days" and the Try-ons column in top products stay at zero until the rollup fills that column from `tryon_start` events.
 **P0.20 ✅ database connection** (2026-09-30, T60): `db/postgres.ts` (`pg` via Hyperdrive, two logins), `db/client.ts` `withDbConnection` (a connection per role per request or pass), `scripts/db/migrate.mjs` (the update runner), `docs/DATABASE.md`; the app run end to end on a local PostgreSQL with a browser sign-in.
 
-**P8 custom domains ◐** (2026-10-01, T62): migration 0031, `server/core/dns/doh.ts`, `server/modules/domains/` (API-089, API-091), Settings → "Your own address". Left: activation through Cloudflare for SaaS and serving the AR/try-on pages on the address (needs Cloudflare).
+**P8 custom domains ◐** (2026-10-01, T62): migrations 0031–0032, `server/core/dns/doh.ts`, `server/modules/domains/` (API-089, API-091; `activation.ts` sweep), `server/core/edge/custom-hostnames.ts` (Cloudflare for SaaS), config `host` → the widget's `tryOnBase`, the website's `lib/store-host.ts`. Left: a real address served by Tajribah's Cloudflare zone (GO-LIVE).
 
 **P8 agency accounts ◐** (2026-10-01, T62): `server/modules/agency/` (`storesOverview`, API-088), `/dashboard/stores`, the switcher's link. The accounts part of the plan's "partner & reseller program"; commissions and reseller prices are Nader's to set.
 

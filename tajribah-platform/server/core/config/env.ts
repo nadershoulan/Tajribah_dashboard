@@ -104,6 +104,14 @@ export const REGISTRY = {
     schema: z.string().regex(/^[a-z0-9.-]+\.[a-z]{2,}$/, 'a hostname').optional(), scope: 'runtime',
     doc: 'Where Enterprise stores point their own address (CNAME) — the Cloudflare for SaaS fallback origin (T62). Default domains.tajribah.sa.',
   }),
+  CLOUDFLARE_SAAS_ZONE_ID: entry({
+    schema: z.string().regex(/^[0-9a-f]{32}$/, 'a Cloudflare zone id (32 hex characters)').optional(), scope: 'runtime',
+    doc: 'The Cloudflare zone that serves stores’ own addresses (Cloudflare for SaaS, T62). Unset: a ready address stays ready.',
+  }),
+  CLOUDFLARE_SAAS_API_TOKEN: entry({
+    schema: z.string().optional(), scope: 'runtime', secret: true,
+    doc: 'A Cloudflare API token allowed to edit that zone’s custom hostnames (SSL and Certificates: Edit).',
+  }),
   ZID_CLIENT_ID: entry({
     schema: z.string().regex(/^\d{1,20}$/, 'the numeric client id from the Zid Partner dashboard').optional(), scope: 'runtime',
     doc: 'The Tajribah app in the Zid Partner dashboard (T61). Unset: Zid stores cannot be connected yet.',
@@ -193,6 +201,7 @@ const envSchema = z.object(shape).superRefine((value, ctx) => {
   need(!!v.SALLA_CLIENT_ID, 'SALLA_CLIENT_SECRET', 'required when SALLA_CLIENT_ID is set');
   need(!!v.SHOPIFY_CLIENT_ID, 'SHOPIFY_CLIENT_SECRET', 'required when SHOPIFY_CLIENT_ID is set');
   need(!!v.ZID_CLIENT_ID, 'ZID_CLIENT_SECRET', 'required when ZID_CLIENT_ID is set');
+  need(!!v.CLOUDFLARE_SAAS_ZONE_ID, 'CLOUDFLARE_SAAS_API_TOKEN', 'required when CLOUDFLARE_SAAS_ZONE_ID is set');
   need(!!v.DATABASE_APP_URL, 'DATABASE_ADMIN_URL', 'required when DATABASE_APP_URL is set — one login per role');
   need(!!v.DATABASE_ADMIN_URL, 'DATABASE_APP_URL', 'required when DATABASE_ADMIN_URL is set — one login per role');
   // §12.6: the API must not boot in production pretending it can send an OTP.

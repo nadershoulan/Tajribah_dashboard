@@ -201,6 +201,8 @@ export const customDomains = pgTable('custom_domains', {
   checkedAt: ts('checked_at'),
   /** What the last check found missing, for the merchant: `txt`, `cname` or `cname_elsewhere:<target>`. */
   lastProblem: text('last_problem'),
+  /** The custom hostname's id at Cloudflare for SaaS, once it has been asked to serve the address (0032). */
+  providerId: text('provider_id'),
   ...timestamps(),
 }, (t) => [
   uniqueIndex('custom_domains_hostname_unq').on(t.hostname),

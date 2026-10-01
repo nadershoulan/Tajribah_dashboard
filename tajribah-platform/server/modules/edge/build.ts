@@ -11,6 +11,8 @@
  *    cut-outs, the case width, the SKU and finish; `onMe` from the plan (`virtual_tryon`, T33).
  *  - **Brand** (T61, white-label — Enterprise): the store's name and logo, which the try-on page
  *    and its phone page show in Tajribah's place. Only with a try-on; null on every other plan.
+ *  - **Host** (T62, custom domains — Enterprise): the store's own address, once it is switched on
+ *    (`active`); the shop's widget then opens the try-on there instead of on Tajribah's address.
  *  - Nothing to open (no model, no try-on) or a product that is archived, deleted, or in a store
  *    that is suspended or closed → no config, with the reason.
  *
@@ -18,7 +20,7 @@
  * shop cannot read never leaves: the contract has one definition, not two that drift.
  */
 import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
-import { arConfigs, modelFiles, models3d, products, tenantSettings, tryonConfigs } from '@/db/schema';
+import { arConfigs, customDomains, modelFiles, models3d, products, tenantSettings, tryonConfigs } from '@/db/schema';
 import { DEFAULT_BUTTON_COLOR, DEFAULT_BUTTON_RADIUS } from '@/lib/contracts/settings';
 import type { Entitlements } from '@/server/core/billing/entitlements';
 import { configKey } from '@/server/core/edge/configs';
@@ -61,10 +63,11 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
   const key = configKey(tenant.slug, product.externalId ?? product.id);
   if (CLOSED.has(tenant.status)) return { ok: false, key, reason: 'store_closed' };
 
-  const [ar, tryon, settings] = await Promise.all([
+  const [ar, tryon, settings, domain] = await Promise.all([
     db.findOne(arConfigs, eq(arConfigs.productId, productId)),
     db.findOne(tryonConfigs, eq(tryonConfigs.productId, productId)),
     db.findOne(tenantSettings),
+    entitlements.has('custom_domain') ? db.findOne(customDomains, eq(customDomains.status, 'active')) : null,
   ]);
   const button = arViewOf(product, ar ?? null);
   const files = forTenant(ctx.tenantId);
@@ -101,6 +104,7 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
     shadow: button.shadow,
     tryon: watch,
     brand: watch && entitlements.has('white_label') ? brandOf(tenant, settings?.branding?.logoUrl) : null,
+    host: watch && domain ? domain.hostname : null,
   };
   const body = JSON.stringify(config);
   if (!parseConfig(JSON.parse(body))) {

@@ -105,11 +105,15 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
       product in Zid → it updates within a minute (the webhook). Then confirm the four details in DECISIONS T61
       (page size, unpublished products, a missing price, a refused refresh) and capture Zid's uninstall
       message to handle it.
-- [ ] Custom domains (P8, T62), with the Cloudflare account: Cloudflare for SaaS on the zone that serves
-      the AR and try-on pages; its fallback origin **`domains.tajribah.sa`** (or set **`CUSTOM_DOMAIN_TARGET`**
-      to the one chosen). Switching a store's address on (a custom hostname per `ready` store) and serving the
-      pages on it are still to build — they need this account. **Check:** an Enterprise test store adds the
-      two records, "Check now" says ready.
+- [ ] Custom domains (P8, T62), with the Cloudflare account: enable **Cloudflare for SaaS** on the zone
+      that serves the website (`tajribah.sa`); its fallback origin **`domains.tajribah.sa`** (or set
+      **`CUSTOM_DOMAIN_TARGET`** on the dashboard Worker to the one chosen). On the dashboard Worker set
+      **`CLOUDFLARE_SAAS_ZONE_ID`** and **`CLOUDFLARE_SAAS_API_TOKEN`** (a token that may edit that zone's
+      custom hostnames) — ready addresses are then switched on by the minute's pass. On the **website**
+      Worker set **`SITE_HOSTS=tajribah.sa,www.tajribah.sa`**, so a store's address serves only its try-on.
+      **Check** with an Enterprise test store and a real subdomain: add the two records → "Check now" says
+      ready → within minutes "Live"; the shop's try-on button opens on the store's address; `https://<the
+      address>/pricing` lands on tajribah.sa; remove the CNAME and check → the button opens on tajribah.sa again.
 - [ ] Smoke test (P0.20): with a test store's account (no two-step sign-in),
       `node scripts/smoke/smoke.mjs --base https://app.tajribah.sa --email … --password …` — every read and a
       merchant's usual changes; it must end "passed".

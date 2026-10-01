@@ -39,6 +39,12 @@ export type ViewerConfig = {
    */
   /** `onMe` (T33): the shopper may also try it on their own photo — Pro and up; anything but `true` is off. */
   tryon: { worn: string; flat: string; caseMm: number; sku: string | null; onMe: boolean } | null;
+  /**
+   * T62 (custom domains): the store's own address for the try-on, once it is switched on — the frame
+   * opens there instead of on Tajribah's. Optional, added without a version bump; anything but a
+   * plain hostname is ignored (the try-on then opens on Tajribah's address, as before).
+   */
+  host: string | null;
 };
 
 /** A config with a 3D model — what AR and the in-page viewer need. */
@@ -55,6 +61,16 @@ const httpsUrl = (v: unknown): v is string => {
   if (!str(v, 2048)) return false;
   try { return new URL(v).protocol === 'https:'; } catch { return false; }
 };
+
+/**
+ * A plain hostname of three labels or more (a store's subdomain), or null. Never a URL, a path or a
+ * port. No look-behind in the pattern: older Safari cannot parse one, and the whole script would fail.
+ */
+const LABEL = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
+const HOSTNAME = new RegExp(`^(?:${LABEL}\\.){2,}${LABEL}$`);
+export function hostOf(v: unknown): string | null {
+  return typeof v === 'string' && v.length <= 253 && HOSTNAME.test(v) && !/^\d+$/.test(v.slice(v.lastIndexOf('.') + 1)) ? v : null;
+}
 
 /** The try-on block, or null when it is absent or anything about it is wrong. */
 function tryOnOf(v: unknown): ViewerConfig['tryon'] {
@@ -94,6 +110,7 @@ export function parseConfig(input: unknown): ViewerConfig | null {
       autoRotate: input.autoRotate,
       shadow: input.shadow,
       tryon,
+      host: hostOf(input.host),
     };
   } catch {
     return null;

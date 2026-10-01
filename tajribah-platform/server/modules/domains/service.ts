@@ -10,8 +10,11 @@
  *  - **One name per store; one store per name**: a name another store has claimed is refused (the
  *    database's global unique index — the other store stays invisible). Changing the name starts over
  *    with a new token.
- *  - **Switching it on** is Cloudflare's (for SaaS custom hostnames): until Tajribah's account serves
- *    the name, a store with both records in place is `ready` (T62).
+ *  - **Switching it on** is Cloudflare's (for SaaS custom hostnames, `activation.ts`): until
+ *    Tajribah's zone serves the name, a store with both records in place is `ready`. Once `active`,
+ *    the store's published configs name the address and its shoppers' try-on opens there; leaving
+ *    `active` (the records gone, the name changed or removed) takes it out of the configs at once and
+ *    asks Cloudflare to stop serving the old name.
  */
 import { customDomains, type CUSTOM_DOMAIN_STATUS } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
@@ -20,6 +23,9 @@ import { auditedDelete, auditedInsert, auditedUpdate } from '@/server/core/audit
 import { assertFeature, entitlementsOf } from '@/server/core/billing/entitlements';
 import { loadEnv } from '@/server/core/config/env';
 import { lookup } from '@/server/core/dns/doh';
+import { customHostnames } from '@/server/core/edge/custom-hostnames';
+import { log } from '@/server/core/observability/log';
+import { enqueueEdgeRefresh } from '@/server/modules/edge/publish';
 import { errors, isUniqueViolation } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
 
@@ -46,6 +52,17 @@ export function hostnameOf(input: string): string {
 }
 
 type Row = typeof customDomains.$inferSelect;
+
+/** The name is no longer this store's address: out of its configs, and no longer served. Best effort at the edge. */
+async function retire(ctx: TenantContext, row: Row): Promise<void> {
+  if (row.status === 'active') await enqueueEdgeRefresh(ctx.tenantId);
+  const edge = customHostnames();
+  if (row.providerId && edge) {
+    try { await edge.remove(row.providerId); } catch (error) {
+      log.warn('custom hostname not removed at the edge', { hostname: row.hostname, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+}
 
 function viewOf(row: Row, seen: { txt: boolean; cname: boolean; pointsTo: string | null } | null): CustomDomainView {
   const status = row.status;
@@ -76,11 +93,12 @@ export async function setCustomDomain(ctx: TenantContext, input: string): Promis
   const token = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('');
   const current = await ctx.db.findOne(customDomains);
   if (current?.hostname === hostname) return viewOf(current, null);
-  const fresh = { hostname, token, status: 'pending' as const, verifiedAt: null, checkedAt: null, lastProblem: null };
+  const fresh = { hostname, token, status: 'pending' as const, verifiedAt: null, checkedAt: null, lastProblem: null, providerId: null };
   try {
     const row = current
       ? await auditedUpdate(ctx, customDomains, current.id, fresh, { resourceType: 'custom_domain' })
       : await auditedInsert(ctx, customDomains, { id: uuidv7(), tenantId: ctx.tenantId, ...fresh }, { resourceType: 'custom_domain' });
+    if (current) await retire(ctx, current);
     return viewOf(row as Row, null);
   } catch (error) {
     if (isUniqueViolation(error)) throw errors.conflict('this address is already used by another Tajribah store');
@@ -92,7 +110,9 @@ export async function setCustomDomain(ctx: TenantContext, input: string): Promis
 export async function removeCustomDomain(ctx: TenantContext): Promise<void> {
   ctx.require('settings:write');
   const current = await ctx.db.findOne(customDomains);
-  if (current) await auditedDelete(ctx, customDomains, current.id, { resourceType: 'custom_domain' });
+  if (!current) return;
+  await auditedDelete(ctx, customDomains, current.id, { resourceType: 'custom_domain' });
+  await retire(ctx, current);
 }
 
 /**
@@ -120,5 +140,8 @@ export async function checkCustomDomain(ctx: TenantContext, deps: { fetch?: type
   };
   // Every check is someone pressing "Check now": on the trail, with what it found.
   const updated = await auditedUpdate(ctx, customDomains, row.id, patch, { resourceType: 'custom_domain' });
+  // No longer in place: shoppers go back to Tajribah's own address at once (the edge keeps the name
+  // for when the records return).
+  if (row.status === 'active' && status !== 'active') await enqueueEdgeRefresh(ctx.tenantId);
   return viewOf(updated as Row, { txt, cname, pointsTo });
 }

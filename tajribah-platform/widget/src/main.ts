@@ -22,7 +22,7 @@ import { hasModel, parseConfig, type ModelConfig, type ViewerConfig } from './co
 import { arPath, detectDevice, VIEWER_AR_MODES } from './ar';
 import { LIMITS, type TrackInput } from './events';
 import { createTracker, privacySignal, randomToken, sessionToken, type Consent, type Tracker } from './track';
-import { DEFAULT_TRYON, openTryOn, tryOnUrl, warmTryOn } from './tryon';
+import { DEFAULT_TRYON, openTryOn, tryOnBase, tryOnUrl, warmTryOn } from './tryon';
 
 export const WIDGET_VERSION = '1.0.0';
 export const CONFIG_TIMEOUT_MS = 3000;
@@ -319,7 +319,7 @@ export async function mount(doc: Document, settings: Settings, fetchImpl: typeof
       // P5 (T26): a watch with try-on set up opens the owner's studio, in a frame.
       if (config.placement === 'wrist' && config.tryon) {
         tracker?.track({ type: 'tryon_start', productId: product });
-        openTryOn(host.shadowRoot!, tryOnUrl(settings.tryon, settings.store, product, lang), lang, lang === 'ar' ? config.product.nameAr ?? config.product.name : config.product.name);
+        openTryOn(host.shadowRoot!, tryOnUrl(tryOnBase(settings.tryon, config.host), settings.store, product, lang), lang, lang === 'ar' ? config.product.nameAr ?? config.product.name : config.product.name);
         return;
       }
       if (!hasModel(config)) return; // unreachable: a config without a model is a wrist try-on (parseConfig)
@@ -327,7 +327,7 @@ export async function mount(doc: Document, settings: Settings, fetchImpl: typeof
       tracker?.track({ type: 'ar_open', productId: product, arSupported: hasNativeAr() });
       return openAr(host, config, lang, settings);
     });
-    if (config.placement === 'wrist' && config.tryon) warmTryOn(doc, settings.tryon);
+    if (config.placement === 'wrist' && config.tryon) warmTryOn(doc, tryOnBase(settings.tryon, config.host));
     host.setAttribute(READY, 'yes');
     tracker?.track({ type: 'product_view', productId: product });
     drawn += 1;

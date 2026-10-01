@@ -14,6 +14,14 @@ export const DEFAULT_TRYON = 'https://tajribah.sa/embed/try-on';
 /** What the frame posts when the shopper closes it. Only the frame's own origin is listened to. */
 export const CLOSE_MESSAGE = 'tajribah:tryon:close';
 
+/**
+ * Where the studio is opened from: the address the shop's script names (a test or a preview), else the
+ * store's own address when its config carries one (T62), else Tajribah's.
+ */
+export function tryOnBase(configured: string, host: string | null): string {
+  return configured === DEFAULT_TRYON && host ? `https://${host}/embed/try-on` : configured;
+}
+
 /** The frame's address for one product. */
 export function tryOnUrl(base: string, store: string, product: string, lang: 'ar' | 'en'): string {
   const url = new URL(base);

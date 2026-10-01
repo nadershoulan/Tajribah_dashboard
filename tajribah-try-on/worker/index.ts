@@ -2,14 +2,21 @@
  * The try-on site's worker: vinext's own fetch handler, unchanged, plus a scheduled sweep of
  * expired QR photo-transfer sessions (P5.7, `lib/pair-sweep.ts`). vinext documents delegating to
  * its handler from a custom worker exactly like this.
+ *
+ * T62: on a store's own address only the try-on is served; any other path is sent to Tajribah's own
+ * site (`lib/store-host.ts`, the `SITE_HOSTS` variable — unset, nothing is restricted).
  */
 import handler from 'vinext/server/fetch-handler';
 import { sweepExpiredPairs } from '../lib/pair-sweep';
+import { siteHosts, storeHostRedirect } from '../lib/store-host';
 
 type Ctx = { waitUntil(promise: Promise<unknown>): void };
 
 const worker = {
-  fetch: (request: Request, env: unknown, ctx: Ctx) => handler.fetch(request, env, ctx),
+  fetch(request: Request, env: unknown, ctx: Ctx) {
+    const elsewhere = storeHostRedirect(new URL(request.url), siteHosts((env as { SITE_HOSTS?: string } | null)?.SITE_HOSTS));
+    return elsewhere ? Response.redirect(elsewhere, 302) : handler.fetch(request, env, ctx);
+  },
   async scheduled(_event: unknown, _env: unknown, ctx: Ctx) {
     ctx.waitUntil(sweepExpiredPairs().catch((error) => console.error('QR photo sweep failed', error instanceof Error ? error.message : 'unknown')));
   },

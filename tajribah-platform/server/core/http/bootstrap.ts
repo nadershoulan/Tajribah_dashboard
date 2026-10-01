@@ -15,6 +15,7 @@ import { loadEnv, type Env } from '../config/env';
 import { configureNotify } from '../notify/notify';
 import { configureStorage } from '../storage/storage';
 import { configureConfigStore, type KvBinding } from '../edge/configs';
+import { configureCustomHostnames } from '../edge/custom-hostnames';
 import { configureRateLimiter, type RateLimitKv } from '../ratelimit/limiter';
 import { configureJobs, type JobsQueue } from '../jobs/nudge';
 import { registerWebhookSource } from '../../modules/webhooks/sources';
@@ -44,6 +45,7 @@ export function bootstrap(bindings: Record<string, unknown>, fallback: Record<st
   const admin = (bindings.HYPERDRIVE_ADMIN as Hyperdrive | undefined)?.connectionString ?? env.DATABASE_ADMIN_URL;
   if (app && admin) registerDbConnector(postgresConnector({ app, admin }));
   else if (env.NODE_ENV === 'production') throw new Error('no database: bind HYPERDRIVE_APP and HYPERDRIVE_ADMIN (or set DATABASE_APP_URL and DATABASE_ADMIN_URL)');
+  configureCustomHostnames(env); // T62: the edge that serves stores' own addresses, once the zone is set
   registerAllConnectors(); // P6: the store connectors (WooCommerce first)
   if (env.SHOPIFY_CLIENT_SECRET) registerWebhookSource(shopifySource(env.SHOPIFY_CLIENT_SECRET)); // P6: Shopify's webhooks
   if (env.SALLA_WEBHOOK_SECRET) registerWebhookSource(sallaSource(env.SALLA_WEBHOOK_SECRET)); // T61: Salla's webhooks

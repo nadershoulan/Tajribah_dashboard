@@ -48,6 +48,7 @@ const ADMIN_ALLOWED: Record<string, string> = {
   'server/modules/ai-jobs/models.ts': 'the model registry is a platform catalogue (no tenant), and each model’s outcomes are counted across every store’s jobs (P6)',
   'server/modules/ai-jobs/guardrails.ts': 'the AI spend guardrails (P6.7): the platform limits are an admin-role-only row, and the daily spend cap sums every store’s cost; a store’s own count is filtered by tenant explicitly',
   'server/modules/connections/grants.ts': 'a store’s access can arrive before any account has the store (store_grants, admin only — Salla by webhook, Zid at its callback), and which account a store is linked to is looked up by the store the platform vouched for — the same platform lookup a webhook makes (T61)',
+  'server/modules/domains/activation.ts': 'the activation sweep finds stores’ addresses that are ready across tenants (ids only), then handles each inside its own store (T62)',
   'server/modules/connections/health.ts': 'the health sweep lists connections across tenants (ids only), then scores and notifies inside withTenant (P6.16)',
   'server/modules/admin/ai-ops.ts': 'AI operations read jobs, costs and credits across stores for staff (A9); a cancel goes through cancelAiJob inside the store',
   'server/modules/admin/qa.ts': 'the model QA queue lists generated models across stores for staff (A10), then decides each inside withTenant',

@@ -40,6 +40,7 @@ import AdminBilling from '@/components/pages/admin/AdminBilling';
 import AdminInvoice from '@/components/pages/admin/AdminInvoice';
 import AdminOperations from '@/components/pages/admin/AdminOperations';
 import AdminQa from '@/components/pages/admin/AdminQa';
+import AdminProfessional from '@/components/pages/admin/AdminProfessional';
 import AdminAi from '@/components/pages/admin/AdminAi';
 import ModelEditor from '@/components/pages/ModelEditor';
 import TryOn from '@/components/pages/TryOn';
@@ -84,6 +85,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/admin/billing': AdminBilling,
   '/admin/operations': AdminOperations,
   '/admin/qa': AdminQa,
+  '/admin/professional': AdminProfessional,
   '/admin/ai': AdminAi,
   '/admin/support': AdminSupport,
   '/admin/coupons': AdminCoupons,

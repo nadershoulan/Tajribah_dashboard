@@ -6,6 +6,7 @@
  * `SELECT … FOR UPDATE SKIP LOCKED`, which is why there is no `processing` status and no
  * window where two workers hold the same job (§13.6).
  */
+import { sql } from 'drizzle-orm';
 import { index, integer, pgEnum, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { bool, createdAt, json, pk, tenantId, timestamps, ts } from './_shared';
 import { tenants } from './identity';
@@ -281,3 +282,31 @@ export const announcements = pgTable('announcements', {
 export type Job = typeof jobs.$inferSelect;
 export type Announcement = typeof announcements.$inferSelect;
 export type AiJob = typeof aiJobs.$inferSelect;
+
+/**
+ * P3.10 (0037) — a professional 3D model made by Tajribah's team for one product. The merchant asks
+ * (`requested`, with a note); staff quote a price in halalas, VAT added at checkout (`quoted`); paying
+ * — and so `accepted` and `delivered` — opens with the payment gateway (P2.3). The merchant may cancel
+ * before work starts. One open order per product (a partial unique index).
+ */
+export const PROFESSIONAL_ORDER_STATUS = ['requested', 'quoted', 'accepted', 'delivered', 'cancelled'] as const;
+export const professionalOrderStatus = pgEnum('professional_order_status', PROFESSIONAL_ORDER_STATUS);
+export const professionalOrders = pgTable('professional_orders', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  status: professionalOrderStatus('status').notNull().default('requested'),
+  note: text('note'),
+  requestedBy: uuid('requested_by'),
+  priceMinor: integer('price_minor'),
+  currency: text('currency').notNull().default('SAR'),
+  quoteNote: text('quote_note'),
+  quotedAt: ts('quoted_at'),
+  quotedBy: uuid('quoted_by'),
+  cancelledAt: ts('cancelled_at'),
+  ...timestamps(),
+}, (t) => [
+  uniqueIndex('professional_orders_open_unq').on(t.productId).where(sql`${t.status} in ('requested', 'quoted', 'accepted')`),
+  index('professional_orders_tenant_idx').on(t.tenantId, t.createdAt),
+  index('professional_orders_status_idx').on(t.status, t.createdAt),
+]);

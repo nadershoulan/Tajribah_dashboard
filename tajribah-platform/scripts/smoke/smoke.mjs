@@ -62,6 +62,10 @@ await call('read it', 'GET', `/api/products/${id}`, undefined, [200]);
 await call('change it', 'PATCH', `/api/products/${id}`, { priceMinor: 99900, arEnabled: true, tryonEnabled: true }, [200]);
 await call('try-on settings for it', 'PATCH', `/api/tryon/${id}`, { caseMm: 41, finishAr: 'ذهبي', finishEn: 'Gold', enabled: false }, [200]);
 await call('a model upload link', 'POST', '/api/models/uploads', { productId: id, filename: 'smoke.glb', contentType: 'model/gltf-binary', sizeBytes: 123456 }, [201]);
+// P3.10: ask Tajribah's team for this product's model, see it listed, cancel it before work starts.
+const order = await call('ask for a professional model', 'POST', '/api/professional', { productId: id, note: 'Smoke test — please ignore' }, [201]);
+await call('the same ask again (one open order per product)', 'POST', '/api/professional', { productId: id }, [409]);
+if (order?.id) await call('cancel it', 'DELETE', `/api/professional/${order.id}`, undefined, [200]);
 await call('the team', 'GET', '/api/team', undefined, [200]);
 const key = await call('an API key', 'POST', '/api/api-keys', { name: 'Smoke test', scopes: ['products:read', 'analytics:read'], expiresInDays: 1 }, [201, 402]);
 if (key?.key) {

@@ -980,3 +980,21 @@ first real check is a published model opened from a shop page on an iPhone (GO-L
 
 **Rollback path.** Remove the `toUsdz` call in `process.ts`; the model files simply have no USDZ again
 and iPhones use the in-page viewer, as before.
+
+## T66 · 2026-10-02 · P3.10: professional 3D models — asked and quoted in the dashboard; paying waits for the gateway
+
+**Decision (engineering default, yours to change).** The website already sells "Professional 3D
+modelling — priced per product" (with refund terms: fully refundable before work starts), but the
+dashboard had no way to order it. Built up to the payment step, the way the billing screen is:
+a merchant asks for one product's model from its page (with a note); staff see every request in the
+console (**Professional models**), oldest first, with the product's measurements and reference photos,
+and send a price in riyals before VAT plus a note; the merchant is told and sees price, 15% VAT and
+total; they may cancel before work starts. **Accept and pay** is shown but closed until the payment
+gateway (Moyasar) is connected — so nothing is charged and no work is committed before payment, which
+keeps the website's refund terms true. One open order per product (a partial unique index).
+
+**What is yours to decide** (none blocks this): the prices themselves (staff type them per product),
+whether to publish a price list, and the delivery time to promise.
+
+**Rollback path.** Remove the panel from the product page and the console page; the table
+(`professional_orders`, migration 0037) can stay empty.

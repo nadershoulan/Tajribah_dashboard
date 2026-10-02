@@ -29,6 +29,7 @@ import { DEFAULT_BUTTON_RADIUS, SettingsPatch, type StoreSettings } from './cont
 import { ArConfigInput, DEFAULT_AR_CONFIG, defaultLabelsFor, placementErrors, placementsFor, type ArConfigView, type PublishResult } from './contracts/ar-config';
 import { pageOf } from './product-list';
 import { DEFAULT_HOSTED_PAGE_BASE, HostedPageInput, hostedPageUrl, type HostedPageView } from './contracts/hosted-page';
+import { RequestInput as ProfessionalRequest, type ProfessionalOrderView } from './contracts/professional';
 import { MODEL_TARGET_BYTES } from './model-size';
 import { embedSnippet } from '../widget/src/snippet';
 import { applyEdit, editErrors, type ProductEdit } from './product-edit';
@@ -126,6 +127,10 @@ export interface DataSource {
   /** P3.8: the model's picture — the view chosen in the editor (set), and for the list (read, a Blob). */
   setModelPicture(modelId: string, picture: Blob): Promise<void>;
   modelPicture(modelId: string): Promise<Blob>;
+  /** P3.10: professional 3D models — the store's orders, asking for one, cancelling before work starts. */
+  professionalOrders(): Promise<ProfessionalOrderView[]>;
+  requestProfessional(productId: string, note: string | null): Promise<ProfessionalOrderView>;
+  cancelProfessional(orderId: string): Promise<ProfessionalOrderView>;
   /** P3.8: turn (90° steps) and/or fit a ready version; the result is the next version, processing. */
   editModel(modelId: string, edit: { fromVersionId: string; rotate?: { x?: 0 | 90 | 180 | 270; y?: 0 | 90 | 180 | 270; z?: 0 | 90 | 180 | 270 }; fit?: boolean }): Promise<{ versionId: string; version: number }>;
   team(): Promise<TeamMemberRow[]>;
@@ -315,6 +320,13 @@ export function apiSource(client: ApiClient): DataSource {
     async modelPicture(modelId) {
       return client.callBlob(`/api/models/${encodeURIComponent(modelId)}/picture`);
     },
+    async professionalOrders() { return (await client.call<{ orders: ProfessionalOrderView[] }>('/api/professional')).orders; },
+    async requestProfessional(productId, note) {
+      return client.call<ProfessionalOrderView>('/api/professional', { method: 'POST', body: { productId, note } });
+    },
+    async cancelProfessional(orderId) {
+      return client.call<ProfessionalOrderView>(`/api/professional/${encodeURIComponent(orderId)}`, { method: 'DELETE' });
+    },
     async tryOn() { return client.call<TryOnScreen>('/api/tryon'); },
     async uploadCutout(productId, slot, file) {
       const base = `/api/tryon/${encodeURIComponent(productId)}/images`;
@@ -472,6 +484,8 @@ const demoSettings: StoreSettings = {
 const demoModels: ModelRow[] = DEMO_MODELS.map((m) => ({ ...m }));
 /** P3.8: pictures set in the preview's editor, for this page load. */
 const demoPictures = new Map<string, Blob>();
+/** P3.10: the preview's professional model orders, for this page load (no staff to quote them). */
+const demoOrders: ProfessionalOrderView[] = [];
 const demoAiJobs: AiJobView[] = DEMO_AI_JOBS.map((j) => ({ ...j }));
 /**
  * P3.7 — the preview's product photos, for this page load. The preview has no storage, so the
@@ -661,6 +675,24 @@ export const demoSource: DataSource = {
     if (!demoModels.some((m) => m.id === modelId)) throw new ApiError(404, 'not_found', 'model not found');
     if (!['image/webp', 'image/png', 'image/jpeg'].includes(picture.type)) throw new ApiError(422, 'validation_failed', 'Validation failed', { picture: ['not a WebP, PNG or JPEG picture'] });
     demoPictures.set(modelId, picture);
+  },
+  async professionalOrders() { return demoOrders.map((o) => ({ ...o })); },
+  async requestProfessional(productId, note) {
+    const product = DEMO_PRODUCTS.find((p) => p.id === productId);
+    if (!product) throw new ApiError(404, 'not_found', 'product not found');
+    const parsed = ProfessionalRequest.safeParse({ productId: '00000000-0000-4000-8000-000000000000', note });
+    if (!parsed.success) throw new ApiError(422, 'validation_failed', 'Validation failed', { note: [parsed.error.issues[0]!.message] });
+    if (demoOrders.some((o) => o.productId === productId && ['requested', 'quoted', 'accepted'].includes(o.status))) throw new ApiError(409, 'conflict', 'this product already has an open request');
+    const order: ProfessionalOrderView = { id: `po-${demoOrders.length + 1}`, productId, productName: product.name, productNameAr: product.nameAr, status: 'requested', note: parsed.data.note, quote: null, createdAt: new Date().toISOString() };
+    demoOrders.unshift(order);
+    return { ...order };
+  },
+  async cancelProfessional(orderId) {
+    const order = demoOrders.find((o) => o.id === orderId);
+    if (!order) throw new ApiError(404, 'not_found', 'order not found');
+    if (order.status !== 'requested' && order.status !== 'quoted') throw new ApiError(409, 'conflict', 'this order can no longer be cancelled');
+    order.status = 'cancelled';
+    return { ...order };
   },
   async modelPicture(modelId) {
     const picture = demoPictures.get(modelId);

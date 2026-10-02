@@ -54,6 +54,7 @@ const ADMIN_ALLOWED: Record<string, string> = {
   'server/modules/connections/health.ts': 'the health sweep lists connections across tenants (ids only), then scores and notifies inside withTenant (P6.16)',
   'server/modules/admin/ai-ops.ts': 'AI operations read jobs, costs and credits across stores for staff (A9); a cancel goes through cancelAiJob inside the store',
   'server/modules/admin/qa.ts': 'the model QA queue lists generated models across stores for staff (A10), then decides each inside withTenant',
+  'server/modules/admin/professional.ts': 'professional 3D model orders across stores for staff (P3.10); a quote is written inside withTenant',
   'server/modules/ai-jobs/sweep.ts': 'the AI job sweep finds undispatched and abandoned jobs, and photo uploads never confirmed, across tenants (ids only), then acts on each inside withTenant',
   'server/modules/models/cleanup.ts': 'the draft sweep finds abandoned uploads across tenants (ids only), then fails each inside withTenant',
   'server/modules/sync/schedule.ts': 'the sync schedule reads due connections and stalled syncs across tenants (ids only), then acts inside withTenant',

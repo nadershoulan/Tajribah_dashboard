@@ -17,6 +17,7 @@ import type { ProductRow } from '@/lib/view-models';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, Empty, ErrorNote, Forward, Loading, PageHead, Panel } from '@/components/dashboard/ui';
 import ProductPhotos from '@/components/pages/ProductPhotos';
+import ProfessionalPanel from '@/components/pages/ProfessionalPanel';
 
 const TYPES: { value: ProductRow['productType']; ar: string; en: string }[] = [
   { value: 'watch', ar: 'ساعة', en: 'Watch' },
@@ -74,6 +75,7 @@ export default function ProductDetail() {
             <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
               <StorePanel product={product} />
               <ModelPanel product={product} />
+              <ProfessionalPanel product={product} />
             </div>
           </div>
           <div style={{ marginTop: 16 }}>

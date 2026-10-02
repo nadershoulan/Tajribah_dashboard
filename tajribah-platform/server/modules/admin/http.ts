@@ -20,6 +20,7 @@ import { RESPONSE_DAYS, exportDocument, fulfilErasure, fulfilExport, listPrivacy
 import { retentionState } from './retention';
 import { createAnnouncement, listAnnouncements, updateAnnouncement } from './announcements';
 import { decideQa, qaModelFile, qaQueue } from './qa';
+import { professionalQueue, quoteOrder } from './professional';
 import { aiOperations, cancelJobForStore, setGuardrails } from './ai-ops';
 import { listRegistry, registerModel, setModelActive, setSplits } from './models';
 import { currentScope } from '@/server/core/observability/scope';
@@ -495,4 +496,21 @@ export const rollbackModelHandler = route(async (request) => {
   const staff = await staffContextFor(request, config);
   await setModelActive(staff, uuidAt(request, 1, 'model'), false, (await readJson(request, REASON)).reason, true);
   return json({ models: await listRegistry() });
+});
+
+const PROFESSIONAL_STATUS = z.enum(['requested', 'quoted', 'accepted', 'delivered', 'cancelled']);
+
+/** API-A45 — GET /api/admin/professional?status=… (P3.10): professional 3D model orders. */
+export const professionalQueueHandler = route(async (request) => {
+  await staffContextFor(request);
+  const status = PROFESSIONAL_STATUS.safeParse(new URL(request.url).searchParams.get('status'));
+  return json(await professionalQueue(status.success ? status.data : 'requested'));
+});
+
+/** API-A46 — POST /api/admin/professional/[id]/quote { priceMinor, note }: quote an order. */
+export const quoteProfessionalHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  return json(await quoteOrder(staff, uuidAt(request, 1, 'order'), await readJson(request, z.unknown())));
 });

@@ -955,3 +955,28 @@ no code for it.
   per store (counted per Worker instance — Workers KV takes one write per key per second).
 - **Live view and visit paths** are full analytics (Growth and up, with the trial), like the other
   reports (T35).
+
+## T65 · 2026-10-02 · P1.13b: the iPhone file is made in TypeScript — no tool in the worker's image
+
+**Decision (engineering, within P1.13b).** The open question was which native tool to put in the
+worker's image (Blender, or `usd-core` + a converter) to turn the plain GLB into a USDZ. Neither is
+needed: `server/modules/models/usdz.ts` writes the scene as a USD text layer with UsdPreviewSurface
+materials — the layer Quick Look reads, and what three.js's exporter writes for `<model-viewer>`'s own
+Quick Look — and packs it as Pixar's USDZ requires (stored, 64-byte aligned, the layer first). It runs
+wherever the processing job runs, from the `native` document the optimiser already makes. No new
+dependency (gltf-transform was already there).
+
+**How it was checked.** The Khronos WaterBottle (CC0) converted and judged by Pixar's own
+`UsdUtils.ComplianceChecker(arkit=True)` (usd-core 24.11, the shader definitions the Windows wheel omits
+supplied from OpenUSD v24.11): 0 errors, 0 failed checks, 0 warnings, every shader judged; a
+deliberately misaligned and a compressed repack of the same files both fail it. Its vertices, through
+USD's own transform, equal the GLB's to the micrometre (the GLB's node turns it 180°). Rendered beside
+the GLB with three.js: the same materials.
+
+**Not carried** (product models in a room do not need them): texture transforms, vertex colours,
+animation, skins, morph targets, points and lines. **Texture compression (KTX2)** stays out: P3.5's
+WebP already brings real models under the 2 MB target. **Not seen** on an iPhone (none here): the
+first real check is a published model opened from a shop page on an iPhone (GO-LIVE).
+
+**Rollback path.** Remove the `toUsdz` call in `process.ts`; the model files simply have no USDZ again
+and iPhones use the in-page viewer, as before.

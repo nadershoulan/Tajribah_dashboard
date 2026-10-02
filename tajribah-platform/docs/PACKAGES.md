@@ -65,7 +65,7 @@ not marked done until it has run against the real service.
 | P1.11 ✅ | Connections UI | — (UI); connect button 🔒 | Status, last sync, errors, disconnect |
 | P1.12 ✅ | Manual 3D upload | — (memory storage); real R2 🔒 | Presigned upload, format validation (GLB magic bytes, size), versioning |
 | P1.13 ✅ | Model processing pipeline | — | Optimise (prune, dedup, weld, meshopt) as an `ai.postprocess` job; < 2 MB target reported. KTX2 and GLB→USDZ split to P1.13b |
-| P1.13b | Textures + USDZ | ❓ worker container decision | KTX2/Basis textures and GLB→USDZ need native encoders (`toktx`; Blender or `usd-core`) in the worker image — choose the image first |
+| P1.13b ◐ | Textures + USDZ | — (T65) | **USDZ done (2026-10-02):** `server/modules/models/usdz.ts` — GLB→USDZ in TypeScript, no tool in the image (T65); passes Pixar's ARKit compliance checker on a real model. KTX2 not needed while P3.5's WebP meets the 2 MB target. Left: seen on a real iPhone (GO-LIVE) |
 | P1.14 ✅ | Model library UI | — | Versions, status, publish |
 | P1.15 ◐ | **Edge viewer config ⭐⭐** | 🔒 Cloudflare KV (code done 2026-09-29) | Publish writes a versioned entry behind `ConfigStore` (KV in production); the shopper path never reads Postgres. Built: builder checked by the widget's parser, publisher, keep-true refreshes, config host. The `cfg.` Worker has its deploy config (`wrangler.config-host.jsonc`) and was run in workerd over a local KV (2026-09-29). Left: create the KV namespace (put its id in that file and bind it as `CONFIGS` to the dashboard Worker), route `cfg.tajribah.com/v1/*`, a live check |
 | P1.16 ✅ | **AR viewer widget ⭐⭐** | — | < 60 KB gzipped, loads after the page, fails closed |

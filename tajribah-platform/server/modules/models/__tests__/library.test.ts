@@ -67,7 +67,7 @@ test('the list shows the live version\'s numbers; publishing moves the live vers
     let [row] = await listModels(ctx);
     assert.deepEqual([row.productName, row.productNameAr, row.status, row.version], ['Watch', 'ساعة', 'ready', 2], 'nothing live yet: the newest version is described; both names, the screen picks');
     assert.ok(row.sizeBytes > 0);
-    assert.deepEqual(row.formats, ['glb']);
+    assert.deepEqual(row.formats, ['glb', 'usdz'], 'P1.13b: an uploaded GLB also gets its iPhone file');
 
     await publishVersion(ctx, v2.versionId);
     await publishVersion(ctx, v1.versionId); // roll back

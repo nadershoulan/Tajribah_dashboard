@@ -16,6 +16,7 @@ import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness'
 import { confirmUpload, modelVersionsOf, startUpload } from '@/server/modules/models/service';
 import { handleProcessJob, processVersion } from '@/server/modules/models/process';
 import { NATIVE_EXTENSIONS, NATIVE_MAX_TEXTURE, optimizeGlb, statsOf, TARGET_BYTES } from '@/server/modules/models/optimize';
+import { inspect } from '@/server/modules/models/inspect';
 
 setLogLevel('error');
 const admin = <T>(harness: TestDb, fn: () => Promise<T>) => harness.asAdmin(fn);
@@ -179,6 +180,13 @@ test('confirm queues processing; the worker makes an optimised file and a ready 
     assert.equal(native?.format, 'glb', 'a plain GLB for Scene Viewer, beside the web one');
     assert.ok(native.storageKey.endsWith(`/v1/native.glb`));
     assert.equal((await storage().head(native.storageKey))?.size, native.fileSizeBytes);
+    const iphone = files.find((f) => f.variant === 'optimized' && f.format === 'usdz');
+    assert.ok(iphone?.storageKey.endsWith('/v1/model.usdz'), 'P1.13b: and a USDZ for iPhone Quick Look, made from the plain one');
+    assert.equal(iphone.compression, 'none');
+    const stored = await storage().get(iphone.storageKey);
+    const head = new Uint8Array(await new Response(stored!.body).arrayBuffer());
+    assert.equal(head.byteLength, iphone.fileSizeBytes);
+    assert.equal(inspect('usdz', head, head.byteLength), null, 'a USDZ our own upload check accepts');
 
     const [version] = await modelVersionsOf(ctx, started.modelId);
     assert.deepEqual([version.status, version.isCurrent, version.polyCount, version.originalBytes, version.withinTarget],
@@ -191,6 +199,7 @@ test('confirm queues processing; the worker makes an optimised file and a ready 
     const done = trail.find((r) => r.changes?.after?.status === 'ready');
     assert.deepEqual([done.actorType, done.changes.after.withinTarget], ['system', true]);
     assert.equal(done.changes.after.nativeBytes, native.fileSizeBytes);
+    assert.equal(done.changes.after.quickLookBytes, iphone.fileSizeBytes);
   } finally { await harness.close(); }
 });
 
@@ -202,7 +211,7 @@ test('processing twice changes nothing; a file that passed the header check but 
     const { started } = await upload(ctx, await wastefulGlb());
     assert.equal(await processVersion(tenantId, started.versionId, 'r1'), 'ready');
     assert.equal(await processVersion(tenantId, started.versionId, 'r2'), 'skipped');
-    assert.equal((await admin(harness, () => harness.db.select().from(modelFiles).where(eq(modelFiles.variant, 'optimized')))).length, 2, 'web + native, each written once');
+    assert.equal((await admin(harness, () => harness.db.select().from(modelFiles).where(eq(modelFiles.variant, 'optimized')))).length, 3, 'web, native and iPhone, each written once');
 
     // A valid GLB header around JSON that is not glTF.
     const json = new TextEncoder().encode('{"not":"gltf"}  ');

@@ -24,6 +24,9 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
 - **Check:** `https://cdn.tajribah.com/w/v1/widget.js` loads; an uploaded model's public URL loads;
   the model library shows a file's size after an upload.
 
+- **Check (P1.13b, T65):** upload a GLB, publish it, and open its product page in the shop **on an iPhone**: the button opens Quick Look straight away (no viewer
+  first) and the product stands in the room at its real size. The USDZ is `v{n}/model.usdz` beside `optimized.glb`.
+
 ## 2. Viewer configs — KV and the config host (`cfg.tajribah.com`, P1.15)
 
 - [ ] Create one KV namespace. Bind it as **`CONFIGS`** to the dashboard Worker, and put its id in

@@ -2,10 +2,11 @@
  * P1.13 — the `ai.postprocess` job: turn a confirmed upload into files a phone can use.
  *
  * For a GLB: optimise (`optimize.ts`) into the files `files.ts` names — `v{n}/optimized.glb`
- * for the web and, when the model can be made plain, `v{n}/native.glb` for Scene Viewer —
+ * for the web and, when the model can be made plain, `v{n}/native.glb` for Scene Viewer and
+ * `v{n}/model.usdz` for iPhone Quick Look (P1.13b, made from the plain one — `usdz.ts`) —
  * each its own `model_files` row; record what the model is made of, and mark the version
  * `ready`. Publishing is still a separate step (P1.14): a ready version is not a live one.
- * No native file is not a failure: Android then uses the in-page viewer.
+ * No native or iPhone file is not a failure: the phone then uses the in-page viewer.
  *
  * Idempotent: only a version still `processing` is worked on, each made file has a fixed key
  * (a retry overwrites it with the same bytes), and each file row is written once.
@@ -30,6 +31,7 @@ import { withTenant } from '@/server/core/tenancy/rls';
 import { CONTENT_TYPES } from './inspect';
 import { fileFor, MADE_FILES } from './files';
 import { optimizeGlb, TARGET_BYTES, UnreadableModelError, type ModelStats, type Optimized } from './optimize';
+import { toUsdz } from './usdz';
 import type { ProductSize } from './postprocess';
 import { notifyIn } from '@/server/modules/notifications/service';
 
@@ -74,17 +76,26 @@ export async function processVersion(tenantId: string, versionId: string, reques
     if (error instanceof UnreadableModelError) return finish(ctx, versionId, { failure: error.message });
     throw error;
   }
-  const put = async (role: 'web' | 'native', data: Uint8Array): Promise<MadeFile> => {
+  const put = async (role: MadeFile['role'], data: Uint8Array): Promise<MadeFile> => {
     const key = store.key({ kind: 'model', id: version.modelId, filename: MADE_FILES[role].filename, version: version.version });
     await store.put(key, toArrayBuffer(data), { contentType: CONTENT_TYPES[MADE_FILES[role].format], immutable: true });
     return { role, key, size: data.byteLength };
   };
   const made = [await put('web', optimized.bytes)];
-  if ('bytes' in optimized.native) made.push(await put('native', optimized.native.bytes));
-  return finish(ctx, versionId, {
-    stats: optimized.stats, made, originalSize: bytes.byteLength, post: optimized.post,
-    notes: 'skipped' in optimized.native ? { native: `none: ${optimized.native.skipped}` } : {},
-  });
+  const notes: Record<string, string> = {};
+  if ('bytes' in optimized.native) {
+    made.push(await put('native', optimized.native.bytes));
+    let usdz: Uint8Array | null = null;
+    try {
+      usdz = toUsdz(optimized.native.doc);
+    } catch (error) {
+      notes.quickLook = `none: ${error instanceof Error ? error.message : String(error)}`;
+    }
+    if (usdz) made.push(await put('quickLook', usdz));
+  } else {
+    notes.native = `none: ${optimized.native.skipped}`;
+  }
+  return finish(ctx, versionId, { stats: optimized.stats, made, originalSize: bytes.byteLength, post: optimized.post, notes });
 }
 
 /** What QA needs to know about a generated model's size; null when there is nothing to say. */
@@ -143,6 +154,7 @@ async function finish(
     const report = web === undefined ? {} : {
       originalBytes: result.originalSize, optimizedBytes: web, withinTarget: web <= TARGET_BYTES,
       ...(sizeOf('native') === undefined ? {} : { nativeBytes: sizeOf('native') }),
+      ...(sizeOf('quickLook') === undefined ? {} : { quickLookBytes: sizeOf('quickLook') }),
       ...(result.post ? { post: result.post } : {}),
       ...result.notes,
     };

@@ -5,7 +5,7 @@ import type { Bi } from '@/lib/lang';
  * (tajribah-platform): the onboarding steps, the connection, 3D models and versions, the AR
  * button, the embed line, team roles, two-step sign-in, plans, the 14-day trial and what happens
  * after it, invoices with 15% VAT, AI credits, privacy requests (30 days), WooCommerce and single
- * sign-on, products' own pages (P1.19). Nothing here
+ * sign-on, products' own pages (P1.19), the iPhone file and the model's picture, professional models (P3.10). Nothing here
  * promises a feature the dashboard does not have.
  */
 export type HelpArticle = {
@@ -130,6 +130,26 @@ export const HELP_ARTICLES: HelpArticle[] = [
     body: [
       { ar: 'نستهدف أقل من 2 ميغابايت لكل نموذج، لأن حجم الملف هو زمن التحميل على جوال عميلك. الملف المرفوض يظهر مع السبب بالعربية.', en: 'We aim for under 2 MB per model, because file size is load time on your shopper’s phone. A rejected file shows the reason.' },
       { ar: 'رفع نسخة جديدة لا ينشرها تلقائيًا: النسخة المنشورة تبقى حتى تختار غيرها، ويمكنك العودة إلى نسخة أقدم بضغطة.', en: 'Uploading a new version never publishes it on its own: the published version stays until you choose another, and you can go back to an older one in one click.' },
+      // P1.13b — the iPhone file, made from every GLB.
+      { ar: 'من ملف GLB نصنع لك أيضًا ملف الآيفون (USDZ) تلقائيًا، فيفتح المنتج في غرفة العميل على الآيفون مباشرة من زر متجرك، بمقاسه الحقيقي.', en: 'From a GLB we also make the iPhone file (USDZ) for you, so the product opens in the shopper’s room on an iPhone straight from your store’s button, at its real size.' },
+      // P3.8 — the model's picture.
+      { ar: 'من «تعديل» في قائمة النماذج: أدِر النموذج وقرّبه حتى يبدو كما تريد، ثم «استخدم هذا المنظر صورةً». تظهر الصورة في قائمة النماذج، وفي معاينة رابط صفحة المنتج حين تشاركه.', en: 'From “Edit” in the model list: turn and zoom the model until it looks right, then “Use this view as the picture”. The picture shows in the model list, and in the preview of the product page’s link when you share it.' },
+    ],
+  },
+  {
+    // P3.10 (T66) — the product page's panel, as built. Paying opens with the payment gateway.
+    slug: 'professional-model', category: 'models', updated: '2026-10-02',
+    title: { ar: 'اطلب نموذجًا احترافيًا من فريق تجربة', en: 'Ask Tajribah’s team for a professional model' },
+    summary: { ar: 'حين لا تكفي الصور: نصنع نموذجًا دقيقًا لمنتجك، بسعر لكل منتج.', en: 'When photos are not enough: we build an accurate model of your product, priced per product.' },
+    steps: [
+      { ar: 'افتح صفحة المنتج، وفي «نموذج احترافي من فريق تجربة» اكتب ما يجب أن ننتبه له إن أردت، ثم «اطلب عرض سعر».', en: 'Open the product’s page; in “A professional model from Tajribah” note anything we should watch for if you like, then “Ask for a quote”.' },
+      { ar: 'يطّلع فريقنا على المنتج وصوره ومقاساته، ثم يرسل لك السعر في الصفحة نفسها، وتصلك تنبيهة.', en: 'Our team looks at the product, its photos and its measurements, then sends you the price on the same page, and you are notified.' },
+      { ar: 'ترى السعر وضريبة القيمة المضافة 15% والإجمالي.', en: 'You see the price, the 15% VAT and the total.' },
+    ],
+    body: [
+      { ar: 'كلما أضفت صورًا أوضح للمنتج من زوايا مختلفة ومقاساته بالمليمتر، كان السعر أدق والنموذج أقرب.', en: 'The clearer the photos you add from different angles, and the measurements in millimetres, the more accurate the price and the closer the model.' },
+      { ar: 'يمكنك إلغاء الطلب في أي وقت قبل بدء العمل. الدفع بالبطاقة يُفتح قريبًا؛ حتى ذلك الحين لا يُخصم منك شيء ولا يبدأ العمل.', en: 'You can cancel the request any time before work starts. Card payment opens soon; until then nothing is charged and no work starts.' },
+      { ar: 'لكل منتج طلب مفتوح واحد في الوقت نفسه.', en: 'Each product has one open request at a time.' },
     ],
   },
   {

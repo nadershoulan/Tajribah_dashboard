@@ -9,7 +9,7 @@
  * (products, team members). A counter that drifts is worse than a query that is slightly
  * slower, because a drifted counter either blocks a paying merchant or gives away the plan.
  */
-import { and, eq, gte, inArray, isNull, lt } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, isNull, lt } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
 import { creditLedger, dailyTenantStats, generationPhotos, LIMIT_KEY, modelFiles, models3d, planFeatures, planLimits, plans, products, subscriptions, tenantMemberships, tenants, tryonConfigs, type LimitKey, usageCounters } from '@/db/schema';
 import { UNLIMITED, implicitPlan, planByCode, type PlanCode, type PlanDefinition, type PlanLimits } from '@/lib/plans';
@@ -207,8 +207,10 @@ export async function storageBytesHeld(ctx: TenantContext): Promise<number> {
   const files = await ctx.db.find(modelFiles, isNull(modelFiles.bytesDeletedAt), { limit: 100_000 });
   const photos = await ctx.db.find(generationPhotos, isNull(generationPhotos.bytesDeletedAt), { limit: 100_000 });
   const tryon = await ctx.db.find(tryonConfigs, undefined, { limit: 100_000 }); // P5.10: watch cut-outs
+  const pictures = await ctx.db.find(models3d, isNotNull(models3d.pictureKey), { limit: 100_000 }); // P3.8: models' pictures
   return files.reduce((sum, file) => sum + file.fileSizeBytes, 0) + photos.reduce((sum, photo) => sum + (photo.sizeBytes ?? 0), 0)
-    + tryon.reduce((sum, c) => sum + (c.wornBytes ?? 0) + (c.flatBytes ?? 0), 0);
+    + tryon.reduce((sum, c) => sum + (c.wornBytes ?? 0) + (c.flatBytes ?? 0), 0)
+    + pictures.reduce((sum, m) => sum + (m.pictureBytes ?? 0), 0);
 }
 
 /**

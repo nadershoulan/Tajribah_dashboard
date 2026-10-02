@@ -11,6 +11,7 @@ import { useData, useResource } from '@/lib/data';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, Empty, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
+import { ModelPicture } from '@/components/dashboard/model-picture';
 import type { ModelRow, ModelVersionRow } from '@/lib/view-models';
 import { MODEL_TARGET_BYTES } from '@/lib/model-size';
 
@@ -184,7 +185,10 @@ export default function Models() {
                   <tr>
                     <td>
                       <div className="cell-main">
-                        <span className="thumb" aria-hidden><Box size={17} /></span>
+                        <span className="thumb">
+                          <ModelPicture modelId={model.id} stamp={model.thumbnailUrl} size={38}
+                            alt={(lang === 'ar' ? model.productNameAr ?? model.productName : model.productName) ?? model.name} />
+                        </span>
                         <span className="lines">
                           <strong>{(lang === 'ar' ? model.productNameAr ?? model.productName : model.productName) ?? model.name}</strong>
                           <span>{model.name} · v{model.version}</span>

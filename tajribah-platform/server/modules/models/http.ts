@@ -8,6 +8,7 @@ import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@
 import { errors } from '@/server/core/errors/problem';
 import { deleteModel, deleteVersion, listModels, publishVersion } from './library';
 import { confirmUpload, modelVersionsOf, startUpload } from './service';
+import { confirmPicture, pictureFile, startPictureUpload } from './picture';
 
 const StartUpload = z.object({
   filename: z.string().min(1).max(200),
@@ -102,4 +103,29 @@ export const deleteModelHandler = route(async (request) => {
   const ctx = await tenantContextFor(request, config);
   await deleteModel(ctx, idAt(request, 0, 'model'));
   return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+});
+
+const StartPicture = z.object({ contentType: z.string().min(1).max(100), sizeBytes: z.number().int() });
+
+/** API-127 — POST /api/models/[id]/picture → a presigned URL for the model's picture (P3.8). */
+export const startPictureHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  return json(await startPictureUpload(ctx, idAt(request, 1, 'model'), await readJson(request, StartPicture)), { status: 201 });
+});
+
+/** API-128 — POST /api/models/[id]/picture/confirm → check what arrived and use it as the picture. */
+export const confirmPictureHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  return json(await confirmPicture(ctx, idAt(request, 2, 'model'), await readJson(request, z.object({ key: z.string().min(1).max(300) }))));
+});
+
+/** API-129 — GET /api/models/[id]/picture: the model's picture, for the dashboard's list. */
+export const pictureHandler = route(async (request) => {
+  const ctx = await tenantContextFor(request);
+  const file = await pictureFile(ctx, idAt(request, 1, 'model'));
+  return new Response(file.body, { headers: { 'content-type': file.contentType, 'cache-control': 'private, no-store' } });
 });

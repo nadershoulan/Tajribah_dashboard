@@ -52,6 +52,8 @@ export type PublishedConfig = Omit<ViewerConfig, 'tryon'> & {
   tryon: (NonNullable<ViewerConfig['tryon']> & { finish: { ar: string; en: string } | null }) | null;
   brand: StoreBrand | null;
   page: PublishedPage | null;
+  /** P3.8: the live model's picture (the view chosen in the 3D editor) — the page's link preview and loading picture. */
+  picture: string | null;
 };
 
 export type StoreBrand = { name: string; nameAr: string | null; logo: string | null };
@@ -82,7 +84,8 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
   const dims = product.dimensions as { widthMm?: unknown; heightMm?: unknown } | null;
   const mm = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null);
 
-  const model = product.arEnabled ? await liveModelOf(ctx, product.id, product.primaryModelId, (k) => files.publicUrl(k)) : null;
+  const live = product.arEnabled ? await liveModelOf(ctx, product.id, product.primaryModelId, (k) => files.publicUrl(k)) : null;
+  const model = live?.files ?? null;
   const watch = tryon && tryon.enabled && tryon.wornKey && tryon.flatKey && tryon.caseTenthsMm != null && button.placement === 'wrist'
     ? {
       worn: files.publicUrl(tryon.wornKey),
@@ -111,6 +114,7 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
     autoRotate: button.autoRotate,
     shadow: button.shadow,
     tryon: watch,
+    picture: live?.pictureKey ? files.publicUrl(live.pictureKey) : null,
     brand: watch && entitlements.has('white_label') ? brandOf(tenant, settings?.branding?.logoUrl) : null,
     host: watch && domain ? domain.hostname : null,
     // No row: the page is on (every plan has it). A stored link is checked again: it reaches shoppers.
@@ -140,8 +144,8 @@ function brandOf(tenant: { name: string; nameAr: string | null; logoUrl: string 
   return { name: tenant.name.slice(0, 80), nameAr: tenant.nameAr?.slice(0, 80) || null, logo: https(settingsLogo) ?? https(tenant.logoUrl) };
 }
 
-/** The product's live 3D files, or null when it has none that the shop can show. */
-async function liveModelOf(ctx: TenantContext, productId: string, primaryModelId: string | null, url: (key: string) => string): Promise<ViewerConfig['model']> {
+/** The product's live 3D files and the model's picture, or null when it has none that the shop can show. */
+async function liveModelOf(ctx: TenantContext, productId: string, primaryModelId: string | null, url: (key: string) => string): Promise<{ files: NonNullable<ViewerConfig['model']>; pictureKey: string | null } | null> {
   const live = await ctx.db.find(models3d, and(eq(models3d.productId, productId), eq(models3d.status, 'ready'), isNotNull(models3d.currentVersionId)),
     { limit: 20, orderBy: [desc(models3d.updatedAt)] });
   const chosen = live.find((m) => m.id === primaryModelId) ?? live[0];
@@ -152,7 +156,7 @@ async function liveModelOf(ctx: TenantContext, productId: string, primaryModelId
     return file ? file.cdnUrl ?? url(file.storageKey) : null;
   };
   const glb = at('web');
-  return glb ? { glb, glbNative: at('native'), usdz: at('quickLook') } : null;
+  return glb ? { files: { glb, glbNative: at('native'), usdz: at('quickLook') }, pictureKey: chosen.pictureKey } : null;
 }
 
 async function sha256(text: string): Promise<string> {

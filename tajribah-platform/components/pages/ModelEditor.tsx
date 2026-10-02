@@ -1,9 +1,10 @@
 'use client';
 
-// P3.8 — the 3D editor: see the model, turn it so it stands and faces right, fit it to the product's size
+// P3.8 — the 3D editor: see the model, turn it so it stands and faces right, fit it to the product's size,
+// and choose the view used as the model's picture
 
 import { createElement, useEffect, useState } from 'react';
-import { Box, Maximize2, RotateCcw, RotateCw, Save } from 'lucide-react';
+import { Box, Camera, Maximize2, RotateCcw, RotateCw, Save } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { currentStore } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
@@ -15,6 +16,7 @@ import { ROLE_PERMISSIONS } from '@/lib/permissions';
 import type { ModelRow, ModelVersionRow, ProductRow } from '@/lib/view-models';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, Empty, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
+import { captureView, ModelPicture } from '@/components/dashboard/model-picture';
 
 type Loaded = { model: ModelRow; version: ModelVersionRow | null; product: ProductRow | null };
 
@@ -65,6 +67,9 @@ function Editor({ loaded, onSaved }: { loaded: Loaded; onSaved: () => void }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<number | null>(null);
   const [failure, setFailure] = useState<Error | null>(null);
+  const [viewer, setViewer] = useState<HTMLElement | null>(null); // the `<model-viewer>`, for its picture
+  const [picturing, setPicturing] = useState(false);
+  const [pictureNote, setPictureNote] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     if (!version) return;
@@ -100,6 +105,22 @@ function Editor({ loaded, onSaved }: { loaded: Loaded; onSaved: () => void }) {
     }
   };
 
+  // The view as it is now in the viewer — after the merchant turned and zoomed it with the mouse or fingers.
+  const choosePicture = async () => {
+    if (!viewer) return;
+    setPicturing(true);
+    setPictureNote(null);
+    try {
+      await source.setModelPicture(model.id, await captureView(viewer));
+      setPictureNote({ ok: true, text: t('صارت هذه الصورة صورة النموذج.', 'This is now the model’s picture.') });
+      onSaved();
+    } catch (e) {
+      setPictureNote({ ok: false, text: (e as Error).message });
+    } finally {
+      setPicturing(false);
+    }
+  };
+
   const turnButton = (axisKey: keyof Turns, label: string, hint: string, back = false) => (
     <button type="button" className="btn btn-ghost btn-sm" disabled={!canEdit || !version} title={hint}
       onClick={() => setTurns((v) => ({ ...v, [axisKey]: back ? (((v[axisKey] + 270) % 360) as Turns['x']) : next(v[axisKey]) }))}>
@@ -120,7 +141,7 @@ function Editor({ loaded, onSaved }: { loaded: Loaded; onSaved: () => void }) {
           <div className="editor-view">
             {src
               ? createElement('model-viewer', {
-                src, orientation: viewerOrientation(turns), 'camera-controls': '', 'shadow-intensity': '1', 'interaction-prompt': 'none',
+                ref: setViewer, src, orientation: viewerOrientation(turns), 'camera-controls': '', 'shadow-intensity': '1', 'interaction-prompt': 'none',
                 'camera-orbit': '30deg 75deg auto', alt: productLabel(model, lang) ?? model.name, style: { width: '100%', height: '100%' },
               })
               : viewError ? <p className="hint" style={{ padding: 16, textAlign: 'center' }}>{viewError}</p> : <Loading rows={2} />}
@@ -151,6 +172,24 @@ function Editor({ loaded, onSaved }: { loaded: Loaded; onSaved: () => void }) {
               <p className="hint">{measured
                 ? t('يُكبَّر أو يُصغَّر كله بالنسبة نفسها حتى يطابق أطول ضلع فيه أطول مقاس للمنتج — لا يُمَط.', 'Scaled evenly until its longest side matches the product’s longest measurement — never stretched.')
                 : t('أضف عرض المنتج وارتفاعه في صفحة المنتج أولًا.', 'Add the product’s width and height on its page first.')}</p>
+            </Panel>
+
+            <Panel title={t('صورة النموذج', 'The model’s picture')} sub={t('تظهر في قائمة النماذج، وفي معاينة رابط صفحة المنتج.', 'Shown in the model list, and in the preview of the product page’s link.')}>
+              <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span className="thumb" style={{ width: 72, height: 72, borderRadius: 12, display: 'grid', placeItems: 'center', background: 'var(--tint)', color: 'var(--text-3)' }}>
+                  <ModelPicture modelId={model.id} stamp={model.thumbnailUrl} alt={t('صورة النموذج الحالية', 'The model’s current picture')} size={72} />
+                </span>
+                <div style={{ display: 'grid', gap: 6, flex: '1 1 200px' }}>
+                  <button type="button" className="btn btn-ghost" onClick={() => void choosePicture()} disabled={!canEdit || !src || picturing || turned}
+                    title={turned ? t('احفظ التدوير أولًا', 'Save the turn first') : undefined}>
+                    <Camera size={16} aria-hidden />{picturing ? t('جارٍ الحفظ…', 'Saving…') : t('استخدم هذا المنظر صورةً', 'Use this view as the picture')}
+                  </button>
+                  <span className="hint" style={{ margin: 0 }}>{turned
+                    ? t('احفظ التدوير أولًا، ثم اختر المنظر.', 'Save the turn first, then choose the view.')
+                    : t('أدِر النموذج وقرّبه في العارض حتى يبدو كما تريد، ثم اضغط.', 'Turn and zoom the model in the viewer until it looks right, then press.')}</span>
+                </div>
+              </div>
+              {pictureNote && <p role="status" className={pictureNote.ok ? 'upload-note upload-done' : 'field-error'} style={{ margin: '10px 0 0' }}>{pictureNote.text}</p>}
             </Panel>
 
             {failure && <ErrorNote error={failure} />}

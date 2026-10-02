@@ -11,6 +11,7 @@
  */
 import { and, desc, eq, inArray, isNull, ne } from 'drizzle-orm';
 import { modelFiles, models3d, modelVersions, products } from '@/db/schema';
+import { forTenant } from '@/server/core/storage/storage';
 import type { ModelRow } from '@/lib/view-models';
 import { record } from '@/server/core/audit/audit';
 import { errors } from '@/server/core/errors/problem';
@@ -53,7 +54,8 @@ export async function listModels(ctx: TenantContext): Promise<ModelRow[]> {
       sizeBytes: served?.fileSizeBytes ?? 0,
       polyCount: version?.polyCount ?? null,
       formats: [...new Set(own.map((f) => f.format).filter((f): f is 'glb' | 'usdz' => f === 'glb' || f === 'usdz'))],
-      thumbnailUrl: null,
+      // P3.8: the picture's address on the file host (the public API's field); the dashboard shows it through API-129.
+      thumbnailUrl: model.pictureKey ? forTenant(ctx.tenantId).publicUrl(model.pictureKey) : null,
       updatedAt: model.updatedAt.toISOString(),
     };
   });
@@ -128,11 +130,11 @@ export async function deleteModel(ctx: TenantContext, modelId: string): Promise<
     const model = await db.lockById(models3d, modelId);
     if (model.status === 'archived') throw errors.notFound('model');
     const versions = await db.find(modelVersions, and(eq(modelVersions.modelId, modelId), ne(modelVersions.status, 'archived')), { limit: 1000 });
-    await db.updateById(models3d, modelId, { status: 'archived', currentVersionId: null, updatedAt: new Date() });
+    await db.updateById(models3d, modelId, { status: 'archived', currentVersionId: null, pictureKey: null, pictureBytes: null, updatedAt: new Date() });
     const keys = await archiveVersions(ctx, db, versions.map((v) => v.id), {
       action: 'delete', resourceType: 'model', resourceId: modelId, before: { name: model.name, currentVersionId: model.currentVersionId, versions: versions.length },
     });
-    return { keys, productId: model.productId };
+    return { keys: model.pictureKey ? [...keys, model.pictureKey] : keys, productId: model.productId }; // P3.8: its picture goes too
   });
   if (productId) await keepLive(ctx.tenantId, productId); // rebuilt before any file goes
   for (const key of keys) await retireFile(ctx.tenantId, productId, key);

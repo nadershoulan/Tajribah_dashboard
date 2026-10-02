@@ -7,7 +7,7 @@
  * deletes nothing that became a current picture again.
  */
 import { eq } from 'drizzle-orm';
-import { tryonConfigs, type Job } from '@/db/schema';
+import { models3d, tryonConfigs, type Job } from '@/db/schema';
 import { enqueue } from '@/server/core/jobs/queue';
 import { forTenant } from '@/server/core/storage/storage';
 import { TenantDb } from '@/server/core/tenancy/tenant-db';
@@ -31,5 +31,7 @@ export async function handleDeleteLater(job: Job): Promise<void> {
   if (!job.tenantId || !p?.productId || !p.key) throw new Error(`delete-later job ${job.id} is missing its tenant, product or key`);
   const config = await TenantDb.for(job.tenantId).findOne(tryonConfigs, eq(tryonConfigs.productId, p.productId));
   if (config && (config.wornKey === p.key || config.flatKey === p.key)) return; // in use again: keep it
+  const picture = await TenantDb.for(job.tenantId).findOne(models3d, eq(models3d.pictureKey, p.key)); // P3.8: a model's picture
+  if (picture) return;
   await forTenant(job.tenantId).delete(p.key); // a foreign key is refused by the tenant's storage
 }

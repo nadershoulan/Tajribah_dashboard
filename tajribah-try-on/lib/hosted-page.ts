@@ -42,8 +42,10 @@ export type HostedProduct = {
   poweredBy: boolean;
   /** Enterprise white-label: the store's logo in the bar (only published with a try-on). */
   brand: StoreBrand | null;
-  /** A picture for link previews (the watch's flat shot), when there is one. */
+  /** A picture for link previews: the watch's flat shot, else the model's picture (P3.8), when there is one. */
   image: string | null;
+  /** The model's picture (chosen in the dashboard's 3D editor): shown while the 3D view loads. */
+  picture: string | null;
   /** The store's own address (Enterprise custom domain), when it has one: the page is served there too. */
   host: string | null;
 };
@@ -106,7 +108,8 @@ export function hostedProductFrom(config: unknown, local = false): HostedProduct
     shopUrl,
     poweredBy: page.poweredBy !== false,
     brand: brandFrom(config, local),
-    image: tryon?.flat ?? null,
+    image: tryon?.flat ?? optional(config.picture),
+    picture: optional(config.picture),
     host: hostnameOf(page.host),
   };
 }

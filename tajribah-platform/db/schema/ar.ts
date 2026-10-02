@@ -46,6 +46,9 @@ export const models3d = pgTable('models_3d', {
   qaReviewedBy: uuid('qa_reviewed_by'),
   qaNotes: text('qa_notes'),
   createdBy: uuid('created_by'),
+  /** P3.8 (0036): the view the merchant chose in the 3D editor — the list's picture, the page's link preview. */
+  pictureKey: text('picture_key'),
+  pictureBytes: integer('picture_bytes'),
   ...timestamps(),
 }, (t) => [
   index('models_tenant_idx').on(t.tenantId, t.status),

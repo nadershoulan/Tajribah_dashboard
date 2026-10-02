@@ -225,7 +225,7 @@ P8 Enterprise (12) · Track A Admin (15). Track M has its own table above.
 
 **P3.6 ✅ model review** (2026-09-28, with A10; T25) — generated models reviewed by staff before they can go live; uploads never held; decisions recorded twice and told to the merchant.
 
-**P3.8 ◐ 3D editor** (2026-09-28) — turn in 90° steps with a preview that matches the saved file, real size before and after, fit to the product; saved as a new version through the upload path. Left: the model-list picture (needs the CDN); hotspots and the first camera view belong with the AR settings.
+**P3.8 ✅ 3D editor** (2026-09-28, picture 2026-10-02) — turn in 90° steps with a preview that matches the saved file, real size before and after, fit to the product; saved as a new version through the upload path. The model's picture (2026-10-02): chosen as a view in the editor (`picture.ts`, API-127–129, migration 0036), shown in the list, the product page's link preview once published. Hotspots and the first camera view belong with the AR settings.
 
 **P3.7 ◐ generation UI** (2026-09-28) — the photo part is built: `components/pages/ProductPhotos.tsx` on the product page, the three `DataSource` calls, the preview running the real check in the browser. Left for when P3.4 exists: the Generate action (needs the credits per generation from Nader), and job progress with cancel (API-140–142 are ready for it).
 

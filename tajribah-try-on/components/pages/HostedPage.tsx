@@ -163,6 +163,7 @@ function ModelStage({ product, name }: { product: HostedProduct; name: string })
       const el = document.createElement('model-viewer') as ViewerElement;
       el.setAttribute('src', model.glb);
       if (model.usdz) el.setAttribute('ios-src', model.usdz);
+      if (product.picture) el.setAttribute('poster', product.picture); // the model's picture while it loads
       el.setAttribute('alt', name);
       el.setAttribute('ar', '');
       el.setAttribute('ar-modes', VIEWER_AR_MODES);
@@ -175,7 +176,7 @@ function ModelStage({ product, name }: { product: HostedProduct; name: string })
       viewer.current = el;
     }).catch(() => { if (live) setFailed(true); });
     return () => { live = false; };
-  }, [model.glb, model.usdz, name, product.autoRotate, product.placement, product.scale, product.shadow]);
+  }, [model.glb, model.usdz, name, product.autoRotate, product.picture, product.placement, product.scale, product.shadow]);
 
   const place = async () => {
     setNote(false);

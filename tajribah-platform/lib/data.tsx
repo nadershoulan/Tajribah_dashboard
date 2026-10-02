@@ -123,6 +123,9 @@ export interface DataSource {
   cutoutImage(productId: string, slot: 'worn' | 'flat'): Promise<Blob>;
   /** P3.8: a version's web GLB, for the editor's viewer (a Blob: the viewer's own fetch has no session). */
   modelFile(versionId: string): Promise<Blob>;
+  /** P3.8: the model's picture — the view chosen in the editor (set), and for the list (read, a Blob). */
+  setModelPicture(modelId: string, picture: Blob): Promise<void>;
+  modelPicture(modelId: string): Promise<Blob>;
   /** P3.8: turn (90° steps) and/or fit a ready version; the result is the next version, processing. */
   editModel(modelId: string, edit: { fromVersionId: string; rotate?: { x?: 0 | 90 | 180 | 270; y?: 0 | 90 | 180 | 270; z?: 0 | 90 | 180 | 270 }; fit?: boolean }): Promise<{ versionId: string; version: number }>;
   team(): Promise<TeamMemberRow[]>;
@@ -302,6 +305,16 @@ export function apiSource(client: ApiClient): DataSource {
     async modelFile(versionId) {
       return client.callBlob(`/api/models/versions/${encodeURIComponent(versionId)}/file`);
     },
+    async setModelPicture(modelId, picture) {
+      const base = `/api/models/${encodeURIComponent(modelId)}/picture`;
+      const started = await client.call<{ key: string; uploadUrl: string; contentType: string }>(base, { method: 'POST', body: { contentType: picture.type, sizeBytes: picture.size } });
+      const put = await fetch(started.uploadUrl, { method: 'PUT', headers: { 'content-type': started.contentType }, body: picture });
+      if (!put.ok) throw new ApiError(put.status, 'upload_failed', 'the picture did not reach storage — try again');
+      await client.call<{ pictureBytes: number }>(`${base}/confirm`, { method: 'POST', body: { key: started.key } });
+    },
+    async modelPicture(modelId) {
+      return client.callBlob(`/api/models/${encodeURIComponent(modelId)}/picture`);
+    },
     async tryOn() { return client.call<TryOnScreen>('/api/tryon'); },
     async uploadCutout(productId, slot, file) {
       const base = `/api/tryon/${encodeURIComponent(productId)}/images`;
@@ -457,6 +470,8 @@ const demoSettings: StoreSettings = {
   nationalAddress: null, city: null, brandColor: null, buttonRadius: DEFAULT_BUTTON_RADIUS, consentTextAr: null, consentTextEn: null,
 };
 const demoModels: ModelRow[] = DEMO_MODELS.map((m) => ({ ...m }));
+/** P3.8: pictures set in the preview's editor, for this page load. */
+const demoPictures = new Map<string, Blob>();
 const demoAiJobs: AiJobView[] = DEMO_AI_JOBS.map((j) => ({ ...j }));
 /**
  * P3.7 — the preview's product photos, for this page load. The preview has no storage, so the
@@ -641,7 +656,17 @@ export const demoSource: DataSource = {
     if (!demoConnections().some((c) => c.id === connectionId)) throw new ApiError(404, 'not_found', 'store connection not found');
     demoConnectionState.status = 'revoked';
   },
-  async models() { return demoModels.map((m) => ({ ...m })); },
+  async models() { return demoModels.map((m) => ({ ...m, thumbnailUrl: demoPictures.has(m.id) ? `preview:${m.id}` : m.thumbnailUrl })); },
+  async setModelPicture(modelId, picture) {
+    if (!demoModels.some((m) => m.id === modelId)) throw new ApiError(404, 'not_found', 'model not found');
+    if (!['image/webp', 'image/png', 'image/jpeg'].includes(picture.type)) throw new ApiError(422, 'validation_failed', 'Validation failed', { picture: ['not a WebP, PNG or JPEG picture'] });
+    demoPictures.set(modelId, picture);
+  },
+  async modelPicture(modelId) {
+    const picture = demoPictures.get(modelId);
+    if (!picture) throw new ApiError(404, 'not_found', 'picture not found');
+    return picture;
+  },
   // P6: WooCommerce is Pro and up; the preview's store is on Growth, as the server would say.
   async startWooConnect() { throw new ApiError(402, 'plan_required', 'woocommerce is not included in this plan'); },
   // P6: no Shopify app is registered yet, as the server would say.

@@ -1,5 +1,4 @@
 import type { Bi } from '@/lib/lang';
-import { ANALYTICS_ON } from '../lib/analytics';
 
 /**
  * Policy texts. Written for a Saudi SaaS under the Personal Data Protection
@@ -17,7 +16,8 @@ export type Doc = { title: Bi; summary: Bi; sections: Section[] };
 const p = (ar: string, en: string): Block => ({ p: { ar, en } });
 const list = (...items: [string, string][]): Block => ({ list: items.map(([ar, en]) => ({ ar, en })) });
 
-export const PRIVACY: Doc = {
+/** T69: whether the website runs GA4 (an id is set) changes what the privacy and cookie policies say. */
+export const privacyDoc = (ANALYTICS_ON: boolean): Doc => ({
   title: { ar: 'سياسة الخصوصية', en: 'Privacy policy' },
   summary: {
     ar: 'نجمع أقل قدر ممكن من البيانات. صور المتسوّقين تُحلَّل على أجهزتهم، ولا نبيع أي بيانات شخصية.',
@@ -91,7 +91,7 @@ export const PRIVACY: Doc = {
       p('سنعدّل هذه السياسة حين يتغير ما نفعله. نغيّر تاريخ «آخر تحديث» أعلاه، ونبلغ التجار بالتغييرات الجوهرية قبل سريانها.', 'We will update this policy when what we do changes. We change the “last updated” date above and tell merchants about material changes before they take effect.'),
     ] },
   ],
-};
+});
 
 export const TRYON: Doc = {
   title: { ar: 'خصوصية الكاميرا والصور', en: 'Camera & photo privacy' },
@@ -233,7 +233,7 @@ export const REFUND: Doc = {
   ],
 };
 
-export const COOKIES: Doc = {
+export const cookiesDoc = (ANALYTICS_ON: boolean): Doc => ({
   title: { ar: 'سياسة ملفات تعريف الارتباط', en: 'Cookie policy' },
   summary: ANALYTICS_ON
     ? {
@@ -273,4 +273,4 @@ export const COOKIES: Doc = {
       p('يمكنك حذف ملفات تعريف الارتباط أو حظرها من إعدادات متصفحك. إن حذفت ملف اللغة، يعود الموقع إلى العربية.', 'You can delete or block cookies in your browser settings. If you delete the language cookie, the site returns to Arabic.'),
     ] },
   ],
-};
+});

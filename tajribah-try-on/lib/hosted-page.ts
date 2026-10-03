@@ -12,6 +12,7 @@
 import type { Bi } from './lang';
 import type { TryOnProduct } from './demo-product';
 import { brandFrom, isLocalHost, tryOnProductFrom, type StoreBrand } from './tryon-config';
+import { measurementId } from './analytics';
 
 /** The 3D viewer the shop's widget loads, from Tajribah's file host. */
 export const VIEWER_SRC = 'https://cdn.tajribah.com/vendor/model-viewer-4.0.0.min.js';
@@ -50,6 +51,8 @@ export type HostedProduct = {
   host: string | null;
   /** Products often viewed together (Pro and up): each one's reference, for a link to its own page. */
   related: { ref: string; name: Bi }[];
+  /** T69: the store's own GA4 measurement id — loaded on this page only after the shopper agrees. */
+  ga4: string | null;
 };
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -113,6 +116,7 @@ export function hostedProductFrom(config: unknown, local = false): HostedProduct
     image: tryon?.flat ?? optional(config.picture),
     picture: optional(config.picture),
     host: hostnameOf(page.host),
+    ga4: typeof page.ga4 === 'string' ? measurementId(page.ga4) : null,
     related: Array.isArray(config.related)
       ? config.related.slice(0, 4).flatMap((r: unknown) => (isObj(r) && str(r.ref) && str(r.name) && (r.nameAr == null || str(r.nameAr))
         ? [{ ref: r.ref, name: { ar: (r.nameAr as string | null | undefined) ?? r.name, en: r.name } }] : []))

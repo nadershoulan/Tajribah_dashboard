@@ -44,5 +44,6 @@ test('T68 analytics: Google may be reached only when a GA4 id is set, and never 
   assert.ok(!directives(pageCsp('x', { analytics: true, framed: true }))['connect-src']!.some((h) => h.includes('google')), 'the frame sits on a merchant’s page');
   assert.deepEqual(directives(pageCsp('x', { analytics: true }))['script-src'], ["'self'", "'nonce-x'", "'strict-dynamic'", "'wasm-unsafe-eval'"], 'the script still arrives only through the site’s own code');
   const proxy = readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'proxy.ts'), 'utf8');
-  assert.match(proxy, /analytics: ANALYTICS_ON/);
+  assert.match(proxy, /const analytics = request\.nextUrl\.pathname\.startsWith\('\/p\/'\) \|\| \(await siteGaId\(\)\) !== null;/, 'T69: the id staff set, read at run time; a product page may carry its store’s');
+  assert.match(proxy, /framed, analytics \}\)/);
 });

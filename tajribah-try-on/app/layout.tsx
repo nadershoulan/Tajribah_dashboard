@@ -4,6 +4,8 @@ import './globals.css';
 import { LangProvider } from '@/lib/i18n';
 import { langFromCookie } from '@/lib/lang';
 import { COMPANY } from '@/lib/site';
+import { AnalyticsProvider } from '@/lib/analytics-context';
+import { siteGaId } from '@/lib/site-settings';
 
 export const metadata: Metadata = {
   metadataBase: new URL(COMPANY.siteUrl),
@@ -47,6 +49,8 @@ export const viewport: Viewport = { themeColor: '#0A2237', width: 'device-width'
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   // Arabic unless this visitor has chosen English before.
   const lang = langFromCookie((await headers()).get('cookie'));
+  // T69: the GA4 id staff set in the admin console (or none — then no banner and no analytics).
+  const gaId = await siteGaId();
   return (
     <html lang={lang} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <head>
@@ -59,7 +63,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION) }} />
       </head>
       <body className="antialiased">
-        <LangProvider initial={lang}>{children}</LangProvider>
+        <LangProvider initial={lang}><AnalyticsProvider id={gaId}>{children}</AnalyticsProvider></LangProvider>
       </body>
     </html>
   );

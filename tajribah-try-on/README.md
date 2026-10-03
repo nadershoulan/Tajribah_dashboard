@@ -61,8 +61,11 @@ node scripts/qr-e2e/qr-e2e.mjs   # computer opens the QR, a phone page sends the
 
 ## Site analytics (GA4)
 
-Off until a GA4 measurement id (`G-…`) is set. With it, website pages show an Arabic-first consent
-banner; Google's script loads only after "Accept" (Consent Mode v2, ads always denied), "Cookie
-settings" in the footer reopens the choice, and the cookie and privacy policies switch to the wording
-that names Google Analytics. The try-on frame, the phone capture page and product pages never load it.
-Code: `lib/analytics.ts`, `components/site/consent.tsx`; decision T68.
+Off until a GA4 measurement id (`G-…`) is set — by staff in the dashboard's console (**Website**), which
+publishes it to the config host; this site reads it at run time (`lib/site-settings.ts`, once a minute).
+`NEXT_PUBLIC_GA_ID` is only the fallback. With an id, website pages show an Arabic-first consent banner;
+Google's script loads only after "Accept" (Consent Mode v2, ads always denied), "Cookie settings" in the
+footer reopens the choice, and the cookie and privacy policies switch to the wording that names Google
+Analytics. A product's own page (`/p/…`) never uses this id: it may load **its store's** GA4, behind a
+banner naming the store. The try-on frame and the phone capture page never load any.
+Code: `lib/analytics.ts`, `lib/site-settings.ts`, `components/site/consent.tsx`; decisions T68, T69.

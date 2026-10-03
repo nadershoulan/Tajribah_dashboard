@@ -1,0 +1,172 @@
+/**
+ * T69 — "Sign in with Google" to pick a GA4 measurement id instead of copying it by hand: for the
+ * website (staff, the admin console) and for a store's own products' pages (Store settings).
+ *
+ * Google's standard OAuth code flow, read-only (`analytics.readonly`), online access — no refresh
+ * token is asked for and **nothing of Google's is kept**: the callback exchanges the code at once,
+ * reads the person's GA4 web streams through the Analytics Admin API (account summaries, then each
+ * property's data streams), and hands the list back to the page that started it in a signed,
+ * ten-minute ticket. The access token is dropped there. The person then picks one; saving it is the
+ * ordinary settings save, which accepts a pasted id just the same.
+ *
+ * The `state` is the Zid flow's (T61): a signed payload with a nonce that must match a short-lived
+ * HttpOnly cookie, so a callback only completes in the browser that started it. It also says who
+ * started it — staff, or one person in one store — and the ticket can be opened only by them.
+ */
+import { keyedHash, timingSafeEqual } from '@/server/core/auth/crypto';
+import { Transport } from '@/server/connectors/transport';
+import { errors } from '@/server/core/errors/problem';
+import { log } from '@/server/core/observability/log';
+import { GA4_ID_RE, type Ga4Stream } from '@/lib/contracts/settings';
+
+export const GOOGLE_AUTH = 'https://accounts.google.com/o/oauth2/v2/auth';
+export const GOOGLE_TOKEN = 'https://oauth2.googleapis.com/token';
+export const GA_ADMIN = 'https://analyticsadmin.googleapis.com/v1beta';
+export const GA4_SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
+
+export type GoogleApp = { clientId: string; clientSecret: string; redirectUri: string; authSecret: string };
+/** Who started the sign-in: staff for the website, or one person in one store. */
+export type Ga4Purpose = { p: 'site'; u: string } | { p: 'store'; t: string; u: string };
+export type { Ga4Stream };
+
+export const GOOGLE_STATE_COOKIE = 'tajribah_google_state';
+export const STATE_TTL_MS = 10 * 60_000;
+export const TICKET_TTL_MS = 10 * 60_000;
+/** At most this many properties are read: a person with more pastes the id instead. */
+export const MAX_PROPERTIES = 25;
+
+/** Where each kind of sign-in returns to — the screen that started it. */
+export const RETURN_TO = { site: '/admin/site', store: '/dashboard/settings' } as const;
+
+const enc = new TextEncoder();
+const sameText = (a: string, b: string) => a.length === b.length && timingSafeEqual(enc.encode(a), enc.encode(b));
+const b64 = (text: string) => btoa(String.fromCharCode(...enc.encode(text))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64 = (text: string) => new TextDecoder().decode(Uint8Array.from(atob(text.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0)));
+const randomNonce = () => [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('');
+
+async function sign(secret: string, purpose: string, body: unknown): Promise<string> {
+  const payload = b64(JSON.stringify(body));
+  return `${payload}.${await keyedHash(secret, purpose, payload)}`;
+}
+
+async function unsign<T>(secret: string, purpose: string, signed: string): Promise<T | null> {
+  const [payload, mac] = signed.split('.');
+  if (!payload || !mac || !sameText(await keyedHash(secret, purpose, payload), mac)) return null;
+  try { return JSON.parse(unb64(payload)) as T; } catch { return null; }
+}
+
+type State = Ga4Purpose & { n: string; e: number };
+type Ticket = Ga4Purpose & { e: number; s: Ga4Stream[] };
+
+/** Google's consent screen, and the nonce the browser keeps in `GOOGLE_STATE_COOKIE`. */
+export async function startGoogle(app: GoogleApp, purpose: Ga4Purpose, now = Date.now()): Promise<{ authorizeUrl: string; nonce: string }> {
+  const nonce = randomNonce();
+  const state = await sign(app.authSecret, 'google-state', { ...purpose, n: nonce, e: now + STATE_TTL_MS } satisfies State);
+  const authorize = new URL(GOOGLE_AUTH);
+  authorize.search = new URLSearchParams({
+    client_id: app.clientId, redirect_uri: app.redirectUri, response_type: 'code', scope: GA4_SCOPE,
+    access_type: 'online', include_granted_scopes: 'false', prompt: 'select_account', state,
+  }).toString();
+  return { authorizeUrl: authorize.toString(), nonce };
+}
+
+/**
+ * Google sent the person back. Where to send them next: the screen that started it, with
+ * `#ga4=<ticket>` (the streams found) or `#ga4_error=<why>` — never an error page.
+ * In the fragment, so the ticket never reaches a server log or a Referer.
+ */
+export async function completeGoogleCallback(query: URLSearchParams, nonce: string | null, app: GoogleApp,
+  deps: { transport?: Transport; now?: number } = {}): Promise<string> {
+  const now = deps.now ?? Date.now();
+  const state = await unsign<State>(app.authSecret, 'google-state', query.get('state') ?? '');
+  const valid = state && typeof state.e === 'number' && state.e >= now && typeof state.n === 'string' && !!nonce && sameText(state.n, nonce)
+    && (state.p === 'site' || state.p === 'store');
+  // Forged, expired, or another browser's: where it came from is not known, so the store screen.
+  if (!valid) return `${RETURN_TO.store}#ga4_error=state`;
+  const back = (fragment: string) => `${RETURN_TO[state.p]}#${fragment}`;
+  if (query.get('error') || !query.get('code')) return back('ga4_error=denied');
+
+  const transport = deps.transport ?? new Transport('google', { rate: { requests: 60, perMs: 60_000 } });
+  const token = await transport.send('google-oauth', GOOGLE_TOKEN, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
+    body: new URLSearchParams({ grant_type: 'authorization_code', client_id: app.clientId, client_secret: app.clientSecret, redirect_uri: app.redirectUri, code: query.get('code')! }).toString(),
+  }).catch(() => null);
+  const granted = await token?.json().catch(() => null) as { access_token?: unknown; scope?: unknown; error?: unknown } | null;
+  if (granted?.error === 'invalid_client' || granted?.error === 'unauthorized_client') {
+    log.error('Google refused the app’s own keys — check GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET and the redirect address');
+    return back('ga4_error=setup');
+  }
+  if (!token?.ok || typeof granted?.access_token !== 'string') return back(`ga4_error=${(token?.status ?? 503) >= 500 ? 'unavailable' : 'code'}`);
+  // The person may untick the Analytics permission on Google's screen.
+  if (typeof granted.scope === 'string' && !granted.scope.split(' ').includes(GA4_SCOPE)) return back('ga4_error=scope');
+
+  let streams: Ga4Stream[];
+  try {
+    streams = await webStreams(granted.access_token, transport);
+  } catch (error) {
+    log.warn('google callback: GA4 streams could not be read', { error: error instanceof Error ? error.message : String(error) });
+    return back('ga4_error=unavailable');
+  }
+  if (!streams.length) return back('ga4_error=none');
+  const { n: _n, e: _e, ...purpose } = state;
+  void _n; void _e;
+  return back(`ga4=${await sign(app.authSecret, 'google-ticket', { ...purpose, e: now + TICKET_TTL_MS, s: streams } satisfies Ticket)}`);
+}
+
+type Summaries = { accountSummaries?: { account?: string; displayName?: string; propertySummaries?: { property?: string; displayName?: string }[] }[]; nextPageToken?: string };
+type Streams = { dataStreams?: { type?: string; displayName?: string; webStreamData?: { measurementId?: string; defaultUri?: string } }[] };
+
+const name = (v: unknown, fallback: string) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 120) : fallback);
+
+/** Every GA4 web stream the person can read, up to `MAX_PROPERTIES` properties. */
+export async function webStreams(accessToken: string, transport: Transport): Promise<Ga4Stream[]> {
+  const headers = { authorization: `Bearer ${accessToken}`, accept: 'application/json' };
+  const read = async <T>(url: string): Promise<T> => {
+    const response = await transport.send('google-analytics', url, { headers });
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw errors.upstream('google', new Error(`${new URL(url).pathname}: ${response.status}`));
+    }
+    return response.json() as Promise<T>;
+  };
+  const properties: { property: string; propertyName: string; accountName: string }[] = [];
+  let page: string | undefined;
+  do {
+    const url = new URL(`${GA_ADMIN}/accountSummaries`);
+    url.searchParams.set('pageSize', '50');
+    if (page) url.searchParams.set('pageToken', page);
+    const body = await read<Summaries>(url.toString());
+    for (const account of body.accountSummaries ?? []) {
+      for (const p of account.propertySummaries ?? []) {
+        if (typeof p.property === 'string' && /^properties\/\d{1,20}$/.test(p.property)) {
+          properties.push({ property: p.property, propertyName: name(p.displayName, p.property), accountName: name(account.displayName, '') });
+        }
+      }
+    }
+    page = typeof body.nextPageToken === 'string' && body.nextPageToken ? body.nextPageToken : undefined;
+  } while (page && properties.length < MAX_PROPERTIES);
+
+  const out: Ga4Stream[] = [];
+  for (const p of properties.slice(0, MAX_PROPERTIES)) {
+    const body = await read<Streams>(`${GA_ADMIN}/${p.property}/dataStreams?pageSize=50`);
+    for (const s of body.dataStreams ?? []) {
+      const id = s.webStreamData?.measurementId;
+      if (s.type !== 'WEB_DATA_STREAM' || typeof id !== 'string' || !GA4_ID_RE.test(id)) continue;
+      const uri = s.webStreamData?.defaultUri;
+      out.push({ measurementId: id, stream: name(s.displayName, id), property: p.propertyName, account: p.accountName, url: typeof uri === 'string' && /^https?:\/\//.test(uri) ? uri.slice(0, 200) : null });
+    }
+  }
+  return out;
+}
+
+/** The streams a ticket carries — only for the person (and store) who started the sign-in, and only for ten minutes. */
+export async function openTicket(app: Pick<GoogleApp, 'authSecret'>, ticket: string, who: Ga4Purpose, now = Date.now()): Promise<Ga4Stream[]> {
+  const t = await unsign<Ticket>(app.authSecret, 'google-ticket', ticket);
+  const mine = t && t.p === who.p && t.u === who.u && (who.p === 'site' || (t.p === 'store' && t.t === who.t));
+  if (!t || !mine || typeof t.e !== 'number' || t.e < now || !Array.isArray(t.s)) {
+    const why = 'this Google sign-in has expired or is not yours — sign in again';
+    throw errors.validation({ ticket: [why] }, why);
+  }
+  return t.s;
+}

@@ -19,6 +19,7 @@ import { endStaffView, startStaffView } from './staff-view';
 import { RESPONSE_DAYS, exportDocument, fulfilErasure, fulfilExport, listPrivacyRequests, recordPrivacyRequest, rejectPrivacyRequest } from './privacy';
 import { retentionState } from './retention';
 import { createAnnouncement, listAnnouncements, updateAnnouncement } from './announcements';
+import { siteSettingsForStaff, updateSiteSettings } from './site';
 import { decideQa, qaModelFile, qaQueue } from './qa';
 import { confirmDelivery, markPaid, professionalQueue, quoteOrder, startDelivery } from './professional';
 import { aiOperations, cancelJobForStore, setGuardrails } from './ai-ops';
@@ -371,6 +372,20 @@ export const updateAnnouncementHandler = route(async (request) => {
   const id = new URL(request.url).pathname.split('/').filter(Boolean).pop() ?? '';
   if (!z.string().uuid().safeParse(id).success) throw errors.notFound('announcement');
   return json(await updateAnnouncement(staff, id, await readJson(request, ANNOUNCEMENT.partial().required({ reason: true }))));
+});
+
+/** API-A50 — GET /api/admin/site: the website's own settings — its GA4 measurement id (T69). */
+export const siteSettingsHandler = route(async (request) => {
+  await staffContextFor(request);
+  return json(await siteSettingsForStaff());
+});
+
+/** API-A51 — PUT /api/admin/site { ga4MeasurementId, reason }: set or clear it; the website follows within minutes. */
+export const updateSiteSettingsHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  return json(await updateSiteSettings(staff, await readJson(request, z.object({ ga4MeasurementId: z.string().max(40).nullable(), reason: z.string().max(500) }))));
 });
 
 /** A path segment `fromEnd` places from the end, as a uuid, or a 404 naming `what`. */

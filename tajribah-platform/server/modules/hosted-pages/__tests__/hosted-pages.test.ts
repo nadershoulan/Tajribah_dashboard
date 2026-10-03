@@ -93,7 +93,7 @@ test('a published product has a page: its block in the config, its address on th
 
     await publishProduct(ctx, row.id);
     const config = stored(kv, 'oud/sa-77.json');
-    assert.deepEqual(config.page, { store: { name: 'Oud House', nameAr: 'بيت العود' }, shopUrl: null, poweredBy: true, host: null }, 'Starter has the page; "Made with Tajribah" shown');
+    assert.deepEqual(config.page, { store: { name: 'Oud House', nameAr: 'بيت العود' }, shopUrl: null, poweredBy: true, host: null, ga4: null }, 'Starter has the page; "Made with Tajribah" shown');
     assert.ok(parseConfig(config), 'the shop’s widget still reads the config');
     const view = (await listArConfigs(ctx)).find((c) => c.productId === row.id)!;
     assert.equal(view.page?.url, 'https://tajribah.sa/p/oud/sa-77', 'the address: the config’s own store key and product reference');

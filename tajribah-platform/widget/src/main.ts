@@ -20,7 +20,7 @@
  */
 import { hasModel, parseConfig, type ModelConfig, type ViewerConfig } from './config';
 import { arPath, detectDevice, VIEWER_AR_MODES } from './ar';
-import { LIMITS, type TrackInput } from './events';
+import { LIMITS, type EventType, type TrackInput, type WireEvent } from './events';
 import { createTracker, privacySignal, randomToken, sessionToken, type Consent, type Tracker } from './track';
 import { DEFAULT_TRYON, openTryOn, tryOnBase, tryOnUrl, warmTryOn } from './tryon';
 
@@ -291,6 +291,7 @@ export function startTracking(win: Window & typeof globalThis, settings: Setting
     fetchImpl: typeof win.fetch === 'function' ? win.fetch.bind(win) : undefined,
     doNotTrack: privacySignal(nav, win as { doNotTrack?: string | null }),
     consent: settings.consent,
+    forward: shopAnalytics(win as unknown as ShopWindow),
   });
   // A shopper who buys closes the tab; `pagehide` is the last moment anything can leave.
   const leave = () => { void guard(() => tracker.flush()); };
@@ -298,6 +299,27 @@ export function startTracking(win: Window & typeof globalThis, settings: Setting
   win.document.addEventListener('visibilitychange', () => { if (win.document.visibilityState === 'hidden') leave(); });
   win.setInterval(leave, LIMITS.flushMs);
   return tracker;
+}
+
+/** T69 — the moments only the widget sees; the shop already measures its own product views, carts and orders. */
+export const FORWARDED: readonly EventType[] = ['ar_open', 'ar_place', 'tryon_start', 'tryon_capture'];
+
+type ShopWindow = { gtag?: unknown; dataLayer?: unknown };
+
+/**
+ * T69 — the widget's moments, in the Google Analytics the shop already runs: through `gtag` when the
+ * page has it, else onto a Tag Manager `dataLayer`, else nowhere. No id is needed and nothing is
+ * loaded — the shop's own tag, under the shop's own consent settings, decides what is sent. Called only
+ * for events the tracker accepted, so Do Not Track and the shop's consent switch hold here too.
+ */
+export function shopAnalytics(win: ShopWindow): (event: WireEvent) => void {
+  return (event) => {
+    if (!FORWARDED.includes(event.type)) return;
+    const name = `tajribah_${event.type}`;
+    const params: Record<string, string> = { ...(event.properties ?? {}), ...(event.productId ? { item_id: event.productId } : {}) };
+    if (typeof win.gtag === 'function') (win.gtag as (...a: unknown[]) => void)('event', name, params);
+    else if (Array.isArray(win.dataLayer)) win.dataLayer.push({ event: name, ...params });
+  };
 }
 
 /** `sessionStorage` throws outright in some privacy modes — reading it is the risky part. */

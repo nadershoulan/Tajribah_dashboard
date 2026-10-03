@@ -136,6 +136,7 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
         shopUrl: hosted?.shopUrl && isShopUrl(hosted.shopUrl) ? hosted.shopUrl : null,
         poweredBy: !entitlements.has('white_label'),
         host: domain ? domain.hostname : null,
+        ga4: settings?.ga4MeasurementId ?? null,
       }
       : null,
   };

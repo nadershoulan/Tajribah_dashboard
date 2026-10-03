@@ -140,6 +140,14 @@ export const REGISTRY = {
     schema: z.string().optional(), scope: 'runtime', secret: true,
     doc: 'The Shopify app secret: signs the install callback (HMAC) and exchanges its code for the shop token.',
   }),
+  GOOGLE_CLIENT_ID: entry({
+    schema: z.string().regex(/^[0-9a-z-]+\.apps\.googleusercontent\.com$/, 'an OAuth client id ending .apps.googleusercontent.com').optional(), scope: 'runtime',
+    doc: 'T69: a Google Cloud OAuth client (web application) with the Google Analytics Admin API on; redirect {APP_URL}/api/google/callback. Unset: GA4 ids are pasted, not picked after a Google sign-in.',
+  }),
+  GOOGLE_CLIENT_SECRET: entry({
+    schema: z.string().optional(), scope: 'runtime', secret: true,
+    doc: 'T69: that OAuth client’s secret: exchanges the sign-in code (read-only Analytics access, used once, never stored).',
+  }),
   CDN_BASE_URL: entry({
     schema: z.string().url().optional(), scope: 'runtime',
     doc: 'Public base for R2 assets. Models and textures are served from here, never from the app.',
@@ -205,6 +213,7 @@ const envSchema = z.object(shape).superRefine((value, ctx) => {
   need(!!v.SALLA_CLIENT_ID, 'SALLA_CLIENT_SECRET', 'required when SALLA_CLIENT_ID is set');
   need(!!v.SHOPIFY_CLIENT_ID, 'SHOPIFY_CLIENT_SECRET', 'required when SHOPIFY_CLIENT_ID is set');
   need(!!v.ZID_CLIENT_ID, 'ZID_CLIENT_SECRET', 'required when ZID_CLIENT_ID is set');
+  need(!!v.GOOGLE_CLIENT_ID, 'GOOGLE_CLIENT_SECRET', 'required when GOOGLE_CLIENT_ID is set');
   need(!!v.CLOUDFLARE_SAAS_ZONE_ID, 'CLOUDFLARE_SAAS_API_TOKEN', 'required when CLOUDFLARE_SAAS_ZONE_ID is set');
   need(!!v.DATABASE_APP_URL, 'DATABASE_ADMIN_URL', 'required when DATABASE_APP_URL is set — one login per role');
   need(!!v.DATABASE_ADMIN_URL, 'DATABASE_APP_URL', 'required when DATABASE_ADMIN_URL is set — one login per role');

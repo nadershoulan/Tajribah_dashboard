@@ -27,6 +27,7 @@ export async function getSettings(ctx: TenantContext): Promise<StoreSettings> {
     brandColor: extra?.branding?.primary ?? null,
     buttonRadius: extra?.branding?.buttonRadius ?? DEFAULT_BUTTON_RADIUS,
     consentTextAr: extra?.consentTextAr ?? null, consentTextEn: extra?.consentTextEn ?? null,
+    ga4MeasurementId: extra?.ga4MeasurementId ?? null,
   };
 }
 
@@ -51,6 +52,7 @@ export async function updateSettings(ctx: TenantContext, input: unknown): Promis
       branding,
       ...('consentTextAr' in patch ? { consentTextAr: patch.consentTextAr } : {}),
       ...('consentTextEn' in patch ? { consentTextEn: patch.consentTextEn } : {}),
+      ...('ga4MeasurementId' in patch ? { ga4MeasurementId: patch.ga4MeasurementId } : {}),
     };
     const settingsAfter = current
       ? (await db.update(tenantSettings, eq(tenantSettings.tenantId, ctx.tenantId), settingsPatch))[0]
@@ -58,12 +60,13 @@ export async function updateSettings(ctx: TenantContext, input: unknown): Promis
 
     await record(ctx, {
       action: 'update', resourceType: 'store_settings', resourceId: ctx.tenantId,
-      before: { ...pick(before), branding: current?.branding ?? null, consentTextAr: current?.consentTextAr ?? null, consentTextEn: current?.consentTextEn ?? null },
-      after: { ...pick(after), branding: settingsAfter.branding, consentTextAr: settingsAfter.consentTextAr, consentTextEn: settingsAfter.consentTextEn },
+      before: { ...pick(before), branding: current?.branding ?? null, consentTextAr: current?.consentTextAr ?? null, consentTextEn: current?.consentTextEn ?? null, ga4MeasurementId: current?.ga4MeasurementId ?? null },
+      after: { ...pick(after), branding: settingsAfter.branding, consentTextAr: settingsAfter.consentTextAr, consentTextEn: settingsAfter.consentTextEn, ga4MeasurementId: settingsAfter.ga4MeasurementId },
     }, db);
   });
-  // P1.15: the button's colour and corners are in every live config; T61: so is the store's name (white-label).
-  if ('brandColor' in patch || 'buttonRadius' in patch || 'name' in patch || 'nameAr' in patch) await enqueueEdgeRefresh(ctx.tenantId);
+  // P1.15: the button's colour and corners are in every live config; T61: so is the store's name (white-label);
+  // T69: and the store's GA4 id, which its products' own pages load.
+  if ('brandColor' in patch || 'buttonRadius' in patch || 'name' in patch || 'nameAr' in patch || 'ga4MeasurementId' in patch) await enqueueEdgeRefresh(ctx.tenantId);
   return getSettings(ctx);
 }
 

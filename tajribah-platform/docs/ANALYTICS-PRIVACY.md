@@ -65,6 +65,18 @@ One row per event in `analytics_events`, and nothing else:
 | Tajribah staff | Through "view as the store" only (A4b), read-only, on the staff trail |
 | Another store | Nothing: every read is inside the store's row-level-security scope |
 
+## Google Analytics (T69)
+
+None of the above goes to Google. Separately, and only where someone chose it:
+- **The website** loads GA4 under Tajribah's own id, set by staff, after the visitor accepts.
+- **A product's own page** (`/p/…`) loads GA4 under **the store's** id, if the store set one, after the
+  shopper accepts a banner that names the store; the choice is kept per store. The store is the
+  controller of that data, as of the rest of its shoppers' data.
+- **On the shop**, the widget passes four moments (`tajribah_ar_open`, `tajribah_ar_place`,
+  `tajribah_tryon_start`, `tajribah_tryon_capture`, with the product id) to the Google tag the shop
+  already runs. It loads nothing itself, and passes nothing it would not send to its own collector.
+Ads are denied in every case, and the try-on frame and phone page never load Google Analytics.
+
 ## The privacy policy
 
 The website's privacy policy (`tajribah-try-on/content/legal.ts`) says this in public: shop-page events

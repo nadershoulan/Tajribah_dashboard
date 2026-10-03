@@ -4,7 +4,7 @@
 
 import { useWriteLock } from '@/components/dashboard/write-lock';
 import { useState, type FormEvent } from 'react';
-import { Building2, Globe, Palette, ShieldCheck } from 'lucide-react';
+import { BarChart3, Building2, Globe, Palette, ShieldCheck } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
 import { SettingsPatch, type StoreSettings } from '@/lib/contracts/settings';
 import { useData, useResource } from '@/lib/data';
@@ -13,6 +13,7 @@ import { Shell } from '@/components/dashboard/chrome';
 import { ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
 import { SsoPanel } from './SsoSettings';
 import { DomainPanel } from './DomainSettings';
+import { Ga4Field } from '@/components/dashboard/ga4-field';
 
 /** Server and contract messages are English; the ones this screen meets get their Arabic here. */
 const MESSAGE_AR: [RegExp, string][] = [
@@ -23,12 +24,13 @@ const MESSAGE_AR: [RegExp, string][] = [
   [/missing permission: settings:write/, 'دورك لا يسمح بتغيير الإعدادات'],
 ];
 
-type Form = Record<'name' | 'nameAr' | 'crNumber' | 'vatNumber' | 'nationalAddress' | 'city' | 'brandColor' | 'consentTextAr' | 'consentTextEn', string> & { buttonRadius: number };
+type Form = Record<'name' | 'nameAr' | 'crNumber' | 'vatNumber' | 'nationalAddress' | 'city' | 'brandColor' | 'consentTextAr' | 'consentTextEn' | 'ga4MeasurementId', string> & { buttonRadius: number };
 
 const formOf = (s: StoreSettings): Form => ({
   name: s.name, nameAr: s.nameAr ?? '', crNumber: s.crNumber ?? '', vatNumber: s.vatNumber ?? '',
   nationalAddress: s.nationalAddress ?? '', city: s.city ?? '', brandColor: s.brandColor ?? '',
   buttonRadius: s.buttonRadius, consentTextAr: s.consentTextAr ?? '', consentTextEn: s.consentTextEn ?? '',
+  ga4MeasurementId: s.ga4MeasurementId ?? '',
 });
 
 export default function SettingsPage() {
@@ -179,6 +181,17 @@ function SettingsForm({ settings, onSaved, wasSaved }: { settings: StoreSettings
               <ShieldCheck size={13} aria-hidden /> {t(
                 'اتركه فارغًا لاستخدام النص الافتراضي. الجملة صحيحة حرفيًا: التجربة الافتراضية تعمل داخل متصفح المتسوّق، ولا تغادر الصور جهازه.',
                 'Leave it blank for the default. That sentence is literally true: try-on runs inside the shopper’s browser, and the frames never leave their device.',
+              )}
+            </p>
+          </Panel>
+
+          <Panel title={t('Google Analytics', 'Google Analytics')}
+            sub={t('زيارات صفحات منتجاتك الخاصة في حسابك على GA4', 'Visits to your products’ own pages, in your own GA4')}>
+            <Ga4Field id="s-ga4MeasurementId" value={form.ga4MeasurementId} onChange={set('ga4MeasurementId')} error={errorOf('ga4MeasurementId')} picker={source.ga4Picker} />
+            <p className="hint" style={{ marginTop: 0 }}>
+              <BarChart3 size={13} aria-hidden /> {t(
+                'يُحمَّل على صفحات منتجاتك الخاصة (الرابط الذي تشاركه) بعد أن يوافق المتسوّق فقط. وفي متجرك، يرسل زر التجربة أحداثه إلى Google Analytics المركّب عندك أصلًا — دون أي إعداد هنا.',
+                'Loaded on your products’ own pages (the link you share) only after the shopper agrees. On your shop, the try-on button sends its events to the Google Analytics you already have there — nothing to set here.',
               )}
             </p>
           </Panel>

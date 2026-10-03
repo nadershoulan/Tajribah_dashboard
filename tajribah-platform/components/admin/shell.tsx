@@ -8,7 +8,7 @@
  * to turn it on. The server refuses the same people on every admin endpoint regardless.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Activity, ArrowLeft, Box, Cpu, FileLock2, LayoutDashboard, LifeBuoy, Megaphone, PenTool, Receipt, ScrollText, ShieldAlert, Store, Tags, TicketPercent, Users } from 'lucide-react';
+import { Activity, ArrowLeft, Box, Cpu, FileLock2, Globe, LayoutDashboard, LifeBuoy, Megaphone, PenTool, Receipt, ScrollText, ShieldAlert, Store, Tags, TicketPercent, Users } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { ApiError } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
@@ -28,6 +28,7 @@ const NAV = [
   { href: '/admin/plans', icon: Tags, label: { ar: 'الباقات', en: 'Plans' } },
   { href: '/admin/coupons', icon: TicketPercent, label: { ar: 'الكوبونات', en: 'Coupons' } },
   { href: '/admin/announcements', icon: Megaphone, label: { ar: 'الإعلانات', en: 'Announcements' } },
+  { href: '/admin/site', icon: Globe, label: { ar: 'الموقع', en: 'Website' } },
   { href: '/admin/billing', icon: Receipt, label: { ar: 'الفوترة', en: 'Billing' }, also: ['/admin/invoices/'] },
   { href: '/admin/operations', icon: Activity, label: { ar: 'التشغيل', en: 'Operations' } },
   { href: '/admin/qa', icon: Box, label: { ar: 'مراجعة النماذج', en: 'Model review' } },

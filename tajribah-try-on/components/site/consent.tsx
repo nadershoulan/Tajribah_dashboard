@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import { SiteLink } from '@/lib/site-env';
 import {
-  ANALYTICS_ON, CONSENT_DEFAULT, CONSENT_GRANTED, CONSENT_KEY, GA_CONFIG, GA_ID, GA_SCRIPT_HOST,
+  CONSENT_DEFAULT, CONSENT_GRANTED, CONSENT_KEY, GA_CONFIG, GA_SCRIPT_HOST,
   readChoice, storedChoice, type Choice,
 } from '@/lib/analytics';
+import { useGaId } from '@/lib/analytics-context';
 
 /** The footer's "Cookie settings" opens the banner again with this event. */
 export const OPEN_CONSENT = 'tajribah:consent';
@@ -23,17 +24,17 @@ function gtag(): Gtag {
 }
 
 /** Fetches Google's script only now, after the visitor accepted; once per page. */
-function startAnalytics() {
+function startAnalytics(id: string) {
   const g = gtag();
   if (document.getElementById('ga4')) { g('consent', 'update', CONSENT_GRANTED); return; }
   g('consent', 'default', CONSENT_DEFAULT);
   g('consent', 'update', CONSENT_GRANTED);
   g('js', new Date());
-  g('config', GA_ID, GA_CONFIG);
+  g('config', id, GA_CONFIG);
   const script = document.createElement('script');
   script.id = 'ga4';
   script.async = true;
-  script.src = `${GA_SCRIPT_HOST}/gtag/js?id=${encodeURIComponent(GA_ID ?? '')}`;
+  script.src = `${GA_SCRIPT_HOST}/gtag/js?id=${encodeURIComponent(id)}`;
   document.head.appendChild(script);
 }
 
@@ -47,30 +48,31 @@ function stopAnalytics() {
   }
 }
 
-function read(): Choice | null {
-  try { return readChoice(window.localStorage.getItem(CONSENT_KEY)); } catch { return null; }
+function read(key = CONSENT_KEY): Choice | null {
+  try { return readChoice(window.localStorage.getItem(key)); } catch { return null; }
 }
 
 export function ConsentBanner() {
   const { t } = useLang();
+  const id = useGaId();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!ANALYTICS_ON) return;
+    if (!id) return;
     const choice = read();
-    if (choice === 'granted') startAnalytics();
+    if (choice === 'granted') startAnalytics(id);
     // Opening after the first paint keeps the server page and the browser's first render the same.
     else if (choice === null) queueMicrotask(() => setOpen(true));
     const reopen = () => setOpen(true);
     window.addEventListener(OPEN_CONSENT, reopen);
     return () => window.removeEventListener(OPEN_CONSENT, reopen);
-  }, []);
+  }, [id]);
 
-  if (!ANALYTICS_ON || !open) return null;
+  if (!id || !open) return null;
 
   const decide = (choice: Choice) => {
     try { window.localStorage.setItem(CONSENT_KEY, storedChoice(choice)); } catch { /* private mode: asked again next visit */ }
-    if (choice === 'granted') startAnalytics(); else stopAnalytics();
+    if (choice === 'granted') startAnalytics(id); else stopAnalytics();
     setOpen(false);
   };
 
@@ -89,10 +91,52 @@ export function ConsentBanner() {
   );
 }
 
-/** For the footer: reopens the banner. Nothing when analytics is off. */
-export function ConsentLink() {
+/**
+ * T69 — a store's own GA4 on its products' own pages (`/p/…`): the store is the one measuring, so the
+ * banner says so, and the shopper's choice is kept per store (a yes to one store is not a yes to
+ * another, nor to Tajribah's website). Same rules as the website's: nothing fetched before a yes,
+ * advertising always denied. Without the store's id, nothing at all.
+ */
+export function StoreConsent({ id, store }: { id: string | null; store: { ar: string; en: string } }) {
   const { t } = useLang();
-  if (!ANALYTICS_ON) return null;
+  const key = `${CONSENT_KEY}:${id ?? ''}`;
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+    const choice = read(key);
+    if (choice === 'granted') startAnalytics(id);
+    else if (choice === null) queueMicrotask(() => setOpen(true));
+    const reopen = () => setOpen(true);
+    window.addEventListener(OPEN_CONSENT, reopen);
+    return () => window.removeEventListener(OPEN_CONSENT, reopen);
+  }, [id, key]);
+
+  if (!id || !open) return null;
+  const decide = (choice: Choice) => {
+    try { window.localStorage.setItem(key, storedChoice(choice)); } catch { /* private mode: asked again next visit */ }
+    if (choice === 'granted') startAnalytics(id); else stopAnalytics();
+    setOpen(false);
+  };
+  return (
+    <section className="consent" role="region" aria-label={t('ملفات تعريف الارتباط', 'Cookies')}>
+      <p>
+        {t(`يستخدم ${store.ar} خدمة Google Analytics ليفهم زيارات هذه الصفحة، فقط إن وافقت. لا إعلانات.`,
+          `${store.en} uses Google Analytics to understand visits to this page, only if you agree. No advertising.`)}
+      </p>
+      <div className="consent-actions">
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => decide('granted')}>{t('أوافق', 'Accept')}</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => decide('denied')}>{t('أرفض', 'Decline')}</button>
+      </div>
+    </section>
+  );
+}
+
+/** For the footer: reopens the banner. Nothing when analytics is off. */
+export function ConsentLink({ id }: { id?: string | null } = {}) {
+  const { t } = useLang();
+  const site = useGaId();
+  if (!(id === undefined ? site : id)) return null;
   return (
     <button type="button" className="foot-consent" onClick={() => window.dispatchEvent(new Event(OPEN_CONSENT))}>
       {t('إعدادات ملفات تعريف الارتباط', 'Cookie settings')}

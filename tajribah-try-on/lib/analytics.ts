@@ -4,8 +4,9 @@
  *
  * Nothing is measured until the visitor accepts in the banner: Google's script is not even fetched
  * before then (PDPL: consent for non-essential cookies). Advertising signals stay denied whatever the
- * choice. Live only once a GA4 measurement id is set (NEXT_PUBLIC_GA_ID); without one there is no
- * banner, no footer link, nothing loads, and the policy pages say there is no analytics.
+ * choice. Live only once a GA4 measurement id is set — by staff in the admin console (T69), or the
+ * NEXT_PUBLIC_GA_ID build variable as the fallback; without one there is no banner, no footer link,
+ * nothing loads, and the policy pages say there is no analytics.
  *
  * No 'use client': the page policy (`proxy.ts`) and the policy texts read these on the server too.
  */
@@ -24,8 +25,20 @@ function fromEnv(): string | undefined {
   }
 }
 
-export const GA_ID = measurementId(fromEnv());
-export const ANALYTICS_ON = GA_ID !== null;
+/**
+ * The id the build was given, if any. T69: staff set the live one in the admin console, and the website
+ * reads it at run time (`lib/site-settings.ts`) — this is only the fallback, and what the static
+ * preview uses. Pages read the live one with `useGaId()` (`lib/analytics-context.tsx`).
+ */
+export const ENV_GA_ID = measurementId(fromEnv());
+
+/** What the admin console publishes for the website (`_site/settings.json` on the config host). */
+export function gaIdFromSettings(body: unknown): string | null | undefined {
+  if (typeof body !== 'object' || body === null) return undefined;
+  const { v, ga4 } = body as { v?: unknown; ga4?: unknown };
+  if (v !== 1) return undefined;
+  return ga4 === null ? null : typeof ga4 === 'string' ? measurementId(ga4) : undefined;
+}
 
 /** Where GA4 sends and loads from — allowed by the page policy only when analytics is on. */
 export const GA_SCRIPT_HOST = 'https://www.googletagmanager.com';

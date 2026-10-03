@@ -25,7 +25,8 @@ import { ApiError, currentStore, type ApiClient } from './api-client';
 import type { Bi, Lang } from './lang';
 import type { ProductListPage, ProductListQuery } from './contracts/products';
 import type { PlanCode } from './plans';
-import { DEFAULT_BUTTON_RADIUS, SettingsPatch, type StoreSettings } from './contracts/settings';
+import { DEFAULT_BUTTON_RADIUS, SettingsPatch, type Ga4Picker, type StoreSettings } from './contracts/settings';
+import { ga4PickerFor, noGa4Picker } from './ga4-picker';
 import { ArConfigInput, DEFAULT_AR_CONFIG, defaultLabelsFor, placementErrors, placementsFor, type ArConfigView, type PublishResult } from './contracts/ar-config';
 import { pageOf } from './product-list';
 import { DEFAULT_HOSTED_PAGE_BASE, HostedPageInput, hostedPageUrl, type HostedPageView } from './contracts/hosted-page';
@@ -173,6 +174,8 @@ export interface DataSource {
   /** P1.19 — the product's own page: on or off, and the link to buy it in the shop. */
   saveHostedPage(productId: string, input: HostedPageInput): Promise<HostedPageView>;
   updateSettings(patch: Record<string, unknown>): Promise<StoreSettings>;
+  /** T69: signing in with Google to pick the store's GA4 measurement id. */
+  ga4Picker: Ga4Picker;
   analytics(range: '7d' | '30d' | '90d'): Promise<AnalyticsView>;
   /** P4.8: the range's daily figures as CSV text. */
   analyticsCsv(range: '7d' | '30d' | '90d'): Promise<string>;
@@ -398,6 +401,7 @@ export function apiSource(client: ApiClient): DataSource {
       return client.call<PublishResult>(`/api/ar-configs/${encodeURIComponent(productId)}/publish`, { method: 'DELETE' });
     },
     async updateSettings(patch) { return client.call<StoreSettings>('/api/settings', { method: 'PATCH', body: patch }); },
+    ga4Picker: ga4PickerFor(client, 'store'),
     async analytics(range) { return client.call<AnalyticsView>(`/api/analytics?range=${range}`); },
     async analyticsCsv(range) { return client.callText(`/api/analytics/export?range=${range}`); },
     async liveActivity() { return client.call<LiveActivityView>('/api/analytics/live'); },
@@ -494,6 +498,7 @@ function demoArDefault(p: ProductRow): ArConfigView {
 const demoSettings: StoreSettings = {
   slug: DEMO_DASHBOARD.tenant.slug, name: DEMO_DASHBOARD.tenant.name, nameAr: null, crNumber: null, vatNumber: null,
   nationalAddress: null, city: null, brandColor: null, buttonRadius: DEFAULT_BUTTON_RADIUS, consentTextAr: null, consentTextEn: null,
+  ga4MeasurementId: null,
 };
 const demoModels: ModelRow[] = DEMO_MODELS.map((m) => ({ ...m }));
 /** P3.8: pictures set in the preview's editor, for this page load. */
@@ -996,6 +1001,7 @@ export const demoSource: DataSource = {
     demoArConfigs.set(productId, { ...view, publishedVersion: 0, publishedAt: null, unpublishedChanges: view.saved });
     return { version: 0, publishedAt: null, outdated: false };
   },
+  ga4Picker: noGa4Picker, // the preview has no Google sign-in; an id is pasted
   async updateSettings(patch) {
     const parsed = SettingsPatch.safeParse(patch);
     if (!parsed.success) {

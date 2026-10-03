@@ -52,4 +52,6 @@ export type PublishedPage = {
   poweredBy: boolean;
   /** The store's own address (T62, once active): the page is served there, and there only its store's pages are. */
   host: string | null;
+  /** T69: the store's own GA4 measurement id (Store settings): the page loads it only after the shopper agrees. */
+  ga4: string | null;
 };

@@ -16,6 +16,7 @@ import { configBase, configUrl, isLocalHost, validRefs } from '@/lib/tryon-confi
 import { servesHere } from '@/lib/store-host';
 import { EVENTS_ENDPOINT, trackPage } from '@/lib/page-events';
 import { StoreMark } from '@/components/site/store-mark';
+import { ConsentLink, StoreConsent } from '@/components/site/consent';
 import Studio from '@/components/studio/Studio';
 
 export type HostedState = { kind: 'loading' } | { kind: 'ready'; product: HostedProduct } | { kind: 'unavailable' };
@@ -67,6 +68,8 @@ export default function HostedPage({ initial, store, product, storeHost = null }
     counted.current = true;
     trackPage(store, product, 'product_view', eventsEndpoint());
   }, [state.kind, store, product]);
+  // T69: the store's own GA4 gets the same moment — only once the shopper said yes (gtag exists only then).
+  const toStoreGa = (event: string) => { if (p?.ga4) window.gtag?.('event', event, { item_name: p.name.en }); };
   const name = p ? t(p.name.ar, p.name.en) : '';
   const storeName = p ? t(p.store.ar, p.store.en) : '';
   const size = p ? sizeParts(p, lang) : null;
@@ -105,7 +108,7 @@ export default function HostedPage({ initial, store, product, storeHost = null }
             </SiteEnvContext.Provider>
           )}
 
-          {p.model && <ModelStage product={p} name={name} onPlace={() => trackPage(store, product, 'ar_open', eventsEndpoint())} />}
+          {p.model && <ModelStage product={p} name={name} onPlace={() => { trackPage(store, product, 'ar_open', eventsEndpoint()); toStoreGa('ar_open'); }} />}
 
           {p.shopUrl && !p.tryon && (
             <a className="primary-button hosted-buy" href={p.shopUrl} target="_blank" rel="noopener">
@@ -130,10 +133,12 @@ export default function HostedPage({ initial, store, product, storeHost = null }
                 <ShieldCheck size={15} aria-hidden />{t('تُعالج صورك على جهازك', 'Your photos are processed on your device')}
               </SiteLink>
             )}
+            <ConsentLink id={p.ga4} />
             {p.poweredBy && <SiteLink href="/" className="hosted-made">{t('بتقنية تجربة', 'Powered by Tajribah')}</SiteLink>}
           </footer>
         </main>
       )}
+      {p && <StoreConsent id={p.ga4} store={p.store} />}
     </div>
   );
 }

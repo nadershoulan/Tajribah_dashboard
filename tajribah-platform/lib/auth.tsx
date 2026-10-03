@@ -14,6 +14,8 @@ import { DEMO_DASHBOARD } from './demo-data';
 import type { ConnectionSummary, TeamMemberRow } from './view-models';
 import type { PlanCode, PlanLimits } from './plans';
 import type { InvoiceDocument } from './contracts/invoices';
+import type { Ga4Picker } from './contracts/settings';
+import { ga4PickerFor, noGa4Picker } from './ga4-picker';
 
 /** `?a=1&b=2` from the set values only, or nothing. */
 const queryString = (query: Record<string, string | undefined>) => {
@@ -190,6 +192,9 @@ export type AdminRetention = {
   rules: { key: string; what: Bi2; keep: Bi2; due: number }[]; never: { what: Bi2; why: Bi2 }[]; deletedStoresForReview: number; asOf: string;
 };
 
+/** T69 — server/modules/admin/site.ts */
+export type AdminSiteSettings = { ga4MeasurementId: string | null; updatedAt: string | null };
+
 /** A13 — server/modules/admin/announcements.ts */
 export type AdminAnnouncementFields = {
   titleAr: string; titleEn: string; bodyAr: string | null; bodyEn: string | null;
@@ -272,6 +277,10 @@ export type AdminApi = {
   rejectPrivacy(id: string, reason: string): Promise<void>;
   retention(): Promise<AdminRetention>;
   announcements(): Promise<AdminAnnouncement[]>;
+  /** T69 — the website's own settings: its GA4 measurement id. */
+  site(): Promise<AdminSiteSettings>;
+  updateSite(input: { ga4MeasurementId: string | null; reason: string }): Promise<AdminSiteSettings>;
+  ga4Picker: Ga4Picker;
   createAnnouncement(fields: AdminAnnouncementFields & { reason: string }): Promise<AdminAnnouncement>;
   updateAnnouncement(id: string, patch: Partial<AdminAnnouncementFields> & { reason: string }): Promise<AdminAnnouncement>;
   qaQueue(status: AdminQaStatus): Promise<AdminQaQueue>;
@@ -373,6 +382,9 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       rejectPrivacy: async (id, reason) => { await client.call(`/api/admin/privacy/${encodeURIComponent(id)}/reject`, { body: { reason } }); },
       retention: () => client.call('/api/admin/retention'),
       announcements: async () => (await client.call<{ announcements: AdminAnnouncement[] }>('/api/admin/announcements')).announcements,
+      site: () => client.call('/api/admin/site'),
+      updateSite: (input) => client.call('/api/admin/site', { method: 'PUT', body: input }),
+      ga4Picker: ga4PickerFor(client, 'site'),
       createAnnouncement: (fields) => client.call('/api/admin/announcements', { body: fields }),
       updateAnnouncement: (id, patch) => client.call(`/api/admin/announcements/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch }),
       qaQueue: (status) => client.call(`/api/admin/qa?status=${status}`),
@@ -462,7 +474,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound, announcements: notFound, createAnnouncement: notFound, updateAnnouncement: notFound, qaQueue: notFound, professionalQueue: notFound, quoteProfessional: notFound, markProfessionalPaid: notFound, deliverProfessional: notFound, decideQa: notFound, qaModel: notFound, aiOperations: notFound, cancelAiJob: notFound, setAiGuardrails: notFound, aiModels: notFound, registerAiModel: notFound, setAiSplits: notFound, setAiModelActive: notFound, rollbackAiModel: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound, announcements: notFound, site: notFound, updateSite: notFound, ga4Picker: noGa4Picker, createAnnouncement: notFound, updateAnnouncement: notFound, qaQueue: notFound, professionalQueue: notFound, quoteProfessional: notFound, markProfessionalPaid: notFound, deliverProfessional: notFound, decideQa: notFound, qaModel: notFound, aiOperations: notFound, cancelAiJob: notFound, setAiGuardrails: notFound, aiModels: notFound, registerAiModel: notFound, setAiSplits: notFound, setAiModelActive: notFound, rollbackAiModel: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

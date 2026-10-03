@@ -1073,3 +1073,39 @@ Each choice is a working default you can change; each says why.
   source and licence. Never drawn.
 
 **Rollback path.** Each item is its own change; revert it alone.
+
+## T69 · 2026-10-04 · GA4 set up from the dashboard, with "Sign in with Google" (you asked)
+
+**Decision.** A GA4 measurement id is set on a screen, not in a build variable:
+- **The website's id** — staff console → **Website** (`/admin/site`). Saved with a reason in the staff
+  trail and published to the config host (`/v1/_site/settings.json`); the website reads it at run time
+  (at most once a minute, keeping the last answer if the host is unreachable). `NEXT_PUBLIC_GA_ID`
+  stays only as the fallback. The banner, the page policy and the policy wording follow the live id.
+- **A store's own id** — Store settings → **Google Analytics**. Published in each product's config;
+  the product's own page (`/p/…`) shows a banner naming the store and loads the store's GA4 only after
+  the shopper agrees — the choice kept per store. Consent Mode v2 and ads denied, as on the website.
+- **On the shop itself** nothing is set: the widget hands its moments (`ar_open`, `ar_place`,
+  `tryon_start`, `tryon_capture`, as `tajribah_…` events) to the `gtag` or Tag Manager `dataLayer`
+  the shop already runs, under the shop's own consent settings — and only events our own tracker
+  accepted (Do Not Track and the shop's consent switch hold).
+- **Picking with Google** — both screens can paste the id, or sign in with Google (OAuth code flow,
+  `analytics.readonly`, online access) to list the person's GA4 web streams and pick one. Nothing of
+  Google's is kept: the token is used once at the callback and dropped; the list comes back in a
+  signed ten-minute ticket that opens only for the person (and store) who started it. The button
+  appears once `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are set (a Google Cloud OAuth client — steps
+  in HOSTING.md); until then ids are pasted.
+
+**Why.** You asked to set it from the dashboard with a Google sign-in, for the website and for stores.
+A store's shoppers on its own product page are the store's (the store is the controller), so its id,
+its banner, its choice — never Tajribah's website id there, and never the other way round.
+
+**Changed from T68.** Product pages could load no analytics at all; now they may load the store's own,
+behind its banner. Their page policy therefore allows Google Analytics' hosts on `/p/…` (the script
+still arrives only through the page's own code).
+
+**No new dependency** (OAuth and the Analytics Admin API are two HTTPS calls; WebCrypto signs the state
+and the ticket). **Schema:** `drizzle/0041_analytics_settings.sql` — a `site_settings` table (admin
+role only) and `tenant_settings.ga4_measurement_id`, with its ROLLBACK.
+
+**Rollback path.** Revert the commit and run the migration's ROLLBACK; the website falls back to
+`NEXT_PUBLIC_GA_ID` and product pages to no analytics. Cost: low.

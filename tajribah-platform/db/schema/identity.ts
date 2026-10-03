@@ -71,6 +71,8 @@ export const tenantSettings = pgTable('tenant_settings', {
   consentTextAr: text('consent_text_ar'),
   consentTextEn: text('consent_text_en'),
   notificationPrefs: json<Record<string, boolean>>('notification_prefs'),
+  /** T69: the store's own GA4 measurement id (G-…), loaded on its products' own pages behind consent. */
+  ga4MeasurementId: text('ga4_measurement_id'),
   ...timestamps(),
 });
 

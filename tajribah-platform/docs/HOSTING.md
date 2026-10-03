@@ -44,3 +44,21 @@ It costs about the same as the larger shared plans.
 - The nightly backup (`DR.md`), copied off the server and encrypted
 
 Everything else stays on Cloudflare. `GO-LIVE.md` is the step-by-step list for setting both up.
+
+## Google sign-in for GA4 (optional)
+
+GA4 measurement ids can always be pasted (staff console → Website; a store's Settings → Google
+Analytics). To also offer "Pick it by signing in with Google", make one OAuth client (T69):
+
+1. console.cloud.google.com → a project for Tajribah → **APIs & Services → Library** → enable
+   **Google Analytics Admin API**.
+2. **OAuth consent screen** → External → app name Tajribah, support email, the domain; add the scope
+   `.../auth/analytics.readonly`. (Read-only Analytics is a "sensitive" scope: until Google verifies
+   the app, only test users you list can sign in — enough for you and the first stores.)
+3. **Credentials → Create OAuth client ID → Web application**; authorised redirect URI:
+   `https://app.tajribah.sa/api/google/callback` (and `http://localhost:8799/api/google/callback`
+   for this machine).
+4. Put the two values on the dashboard Worker: `GOOGLE_CLIENT_ID` (a variable) and
+   `GOOGLE_CLIENT_SECRET` (`wrangler secret put`). The button appears on both screens.
+
+Nothing of Google's is stored: the sign-in is used once to list the web streams, then dropped.

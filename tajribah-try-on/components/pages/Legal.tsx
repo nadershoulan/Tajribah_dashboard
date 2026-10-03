@@ -3,7 +3,8 @@
 import { useLang, pick } from '@/lib/i18n';
 import { SiteLink } from '@/lib/site-env';
 import { COMPANY, FOOTER } from '@/lib/site';
-import { COOKIES, PRIVACY, REFUND, TERMS, TRYON, type Doc } from '@/content/legal';
+import { cookiesDoc, privacyDoc, REFUND, TERMS, TRYON, type Doc } from '@/content/legal';
+import { useGaId } from '@/lib/analytics-context';
 import { Shell } from '@/components/site/chrome';
 
 function LegalDoc({ doc, path }: { doc: Doc; path: string }) {
@@ -57,8 +58,8 @@ function LegalDoc({ doc, path }: { doc: Doc; path: string }) {
   );
 }
 
-export const PrivacyPage = () => <LegalDoc doc={PRIVACY} path="/privacy" />;
+export const PrivacyPage = () => <LegalDoc doc={privacyDoc(useGaId() !== null)} path="/privacy" />;
 export const TryOnPrivacyPage = () => <LegalDoc doc={TRYON} path="/try-on-privacy" />;
 export const TermsPage = () => <LegalDoc doc={TERMS} path="/terms" />;
 export const RefundPage = () => <LegalDoc doc={REFUND} path="/refund" />;
-export const CookiesPage = () => <LegalDoc doc={COOKIES} path="/cookies" />;
+export const CookiesPage = () => <LegalDoc doc={cookiesDoc(useGaId() !== null)} path="/cookies" />;

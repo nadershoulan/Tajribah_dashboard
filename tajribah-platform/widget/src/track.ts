@@ -50,6 +50,8 @@ export type TrackerEnv = {
   doNotTrack?: boolean;
   /** `required` until the merchant's banner says otherwise. */
   consent?: Consent;
+  /** T69: each accepted event, handed on as well — to the shop's own Google Analytics (`shopAnalytics`). */
+  forward?: (event: WireEvent) => void;
   /** Called after a flush attempt, for the tests and for nothing else. */
   onSend?: (batch: EventBatch, delivered: boolean) => void;
 };
@@ -155,6 +157,7 @@ export function createTracker(env: TrackerEnv): Tracker {
       const event = sanitize(input, env.now() - openedAt);
       if (!event) { dropped += 1; return; }
       queue.push(event);
+      try { env.forward?.(event); } catch { /* the shop's analytics are not ours to break */ }
       // The queue cannot grow past a batch: reaching that size empties it, and a send that
       // fails empties it too (below). A shopper's analytics are not worth retrying into a loop
       // inside someone else's shop.

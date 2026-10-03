@@ -64,6 +64,7 @@ export const EXEMPT: Record<string, string> = {
   model_registry: 'Catalogue of AI models, versions and A/B splits operated by Tajribah. It holds no tenant data and is never written by a merchant.',
   coupons: 'Platform catalogue of discount codes (P2.12), the same for every store and written only by the admin console. Which store used which code is tenant data, in coupon_redemptions.',
   announcements: 'Platform notices shown on every store dashboard (A13, T23) — the same for every store, written only by the admin console, read-only to the app role.',
+  site_settings: 'The website’s own settings (T69: its GA4 measurement id) — Tajribah’s, not any store’s; written only by the admin console and published to the config store.',
   ai_guardrails: 'Platform limits on AI spend (P6.7): one row, set by staff in the admin console and read by the server through the admin role before a job is charged. It holds no tenant data; the application role has no grant at all.',
   store_grants: 'A store platform’s access for a store no Tajribah account has linked yet (T61: Salla sends it by webhook on install). There is no tenant until the merchant links the store; then the tokens move onto the tenant’s connection and the row is deleted. Admin role only — the application role has no grant at all.',
   staff_audit: 'What Tajribah staff did in the admin console (A1). Platform-wide — an action may concern no store — and read and written only by the admin role; the application role has no grant at all.',

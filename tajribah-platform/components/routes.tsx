@@ -48,6 +48,7 @@ import AdminSupport from '@/components/pages/admin/AdminSupport';
 import AdminCoupons from '@/components/pages/admin/AdminCoupons';
 import AdminCompliance from '@/components/pages/admin/AdminCompliance';
 import AdminAnnouncements from '@/components/pages/admin/AdminAnnouncements';
+import AdminSite from '@/components/pages/admin/AdminSite';
 import SallaApp from '@/components/pages/SallaApp';
 import AgencyStores from '@/components/pages/AgencyStores';
 import AnalyticsSessions from '@/components/pages/AnalyticsSessions';
@@ -91,6 +92,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/admin/coupons': AdminCoupons,
   '/admin/compliance': AdminCompliance,
   '/admin/announcements': AdminAnnouncements,
+  '/admin/site': AdminSite,
   '/admin/audit': AdminAudit,
   '/verify-email': VerifyEmail,
   '/reset-password': ResetPassword,

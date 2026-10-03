@@ -317,3 +317,15 @@ export const professionalOrders = pgTable('professional_orders', {
   index('professional_orders_tenant_idx').on(t.tenantId, t.createdAt),
   index('professional_orders_status_idx').on(t.status, t.createdAt),
 ]);
+
+/**
+ * T69 — the website's own settings, changed by staff without a deploy: today only its GA4 measurement id.
+ * One row per setting. The admin console writes it and publishes it to the config store
+ * (`_site/settings.json`), which the website reads. The app role has no access at all.
+ */
+export const siteSettings = pgTable('site_settings', {
+  key: text('key').primaryKey(),
+  value: json<unknown>('value').notNull(),
+  updatedBy: uuid('updated_by'),
+  ...timestamps(),
+});

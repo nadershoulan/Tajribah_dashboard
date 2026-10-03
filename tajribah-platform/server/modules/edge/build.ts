@@ -24,8 +24,8 @@
  * The result is checked with the widget's own parser before it can be published, so a config the
  * shop cannot read never leaves: the contract has one definition, not two that drift.
  */
-import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
-import { arConfigs, customDomains, hostedPages, modelFiles, models3d, products, tenantSettings, tryonConfigs } from '@/db/schema';
+import { and, asc, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
+import { arConfigs, customDomains, edgeConfigs, hostedPages, modelFiles, models3d, productRelations, products, tenantSettings, tryonConfigs } from '@/db/schema';
 import { isShopUrl, type PublishedPage } from '@/lib/contracts/hosted-page';
 import { DEFAULT_BUTTON_COLOR, DEFAULT_BUTTON_RADIUS } from '@/lib/contracts/settings';
 import type { Entitlements } from '@/server/core/billing/entitlements';
@@ -54,6 +54,8 @@ export type PublishedConfig = Omit<ViewerConfig, 'tryon'> & {
   page: PublishedPage | null;
   /** P3.8: the live model's picture (the view chosen in the 3D editor) — the page's link preview and loading picture. */
   picture: string | null;
+  /** Products often viewed together (recommendations, first version; Pro and up) — each one live, with its own page. */
+  related: { ref: string; name: string; nameAr: string | null }[] | null;
 };
 
 export type StoreBrand = { name: string; nameAr: string | null; logo: string | null };
@@ -115,6 +117,7 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
     shadow: button.shadow,
     tryon: watch,
     picture: live?.pictureKey ? files.publicUrl(live.pictureKey) : null,
+    related: entitlements.has('recommendations') ? await relatedLive(ctx, productId) : null,
     brand: watch && entitlements.has('white_label') ? brandOf(tenant, settings?.branding?.logoUrl) : null,
     host: watch && domain ? domain.hostname : null,
     // No row: the page is on (every plan has it). A stored link is checked again: it reaches shoppers.
@@ -133,6 +136,27 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
     return { ok: false, key, reason: 'invalid' };
   }
   return { ok: true, key, config, body, fingerprint: await sha256(body) };
+}
+
+/**
+ * The products often viewed together with this one that a shopper can open: live on the shop (a
+ * published config) and with their page switched on. At most four, in rank order.
+ */
+async function relatedLive(ctx: TenantContext, productId: string): Promise<NonNullable<PublishedConfig['related']>> {
+  const rows = await ctx.db.find(productRelations, eq(productRelations.productId, productId), { orderBy: asc(productRelations.rank), limit: 4 });
+  if (!rows.length) return [];
+  const ids = rows.map((r) => r.relatedProductId);
+  const [found, edges, pages] = await Promise.all([
+    ctx.db.find(products, inArray(products.id, ids), { limit: ids.length }),
+    ctx.db.find(edgeConfigs, and(inArray(edgeConfigs.productId, ids), isNotNull(edgeConfigs.key), isNull(edgeConfigs.withdrawnAt)), { limit: ids.length }),
+    ctx.db.find(hostedPages, inArray(hostedPages.productId, ids), { limit: ids.length }),
+  ]);
+  return rows.flatMap((r) => {
+    const p = found.find((x) => x.id === r.relatedProductId);
+    const live = edges.some((e) => e.productId === r.relatedProductId);
+    const off = pages.some((h) => h.productId === r.relatedProductId && !h.isActive);
+    return p && !p.deletedAt && p.status !== 'archived' && live && !off ? [{ ref: p.externalId ?? p.id, name: p.name.slice(0, 200), nameAr: p.nameAr?.slice(0, 200) || null }] : [];
+  });
 }
 
 /** The store's name (both languages) and logo — the Settings logo first, then the store's own; https only. */

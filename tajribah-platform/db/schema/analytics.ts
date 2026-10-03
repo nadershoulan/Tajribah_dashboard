@@ -10,8 +10,10 @@
  * cross-site identifiers, no shopper identity. `session_id` is a salted hash rotated every
  * 24 hours, which makes it useless for following a person across days — deliberately.
  */
-import { index, integer, pgEnum, pgTable, primaryKey, text, uuid, date, bigint } from 'drizzle-orm/pg-core';
-import { json, pk, ts } from './_shared';
+import { index, integer, pgEnum, pgTable, primaryKey, text, uniqueIndex, uuid, date, bigint } from 'drizzle-orm/pg-core';
+import { json, pk, tenantId, ts } from './_shared';
+import { tenants } from './identity';
+import { products } from './commerce';
 
 export const EVENT_TYPE = [
   'product_view', 'ar_open', 'ar_place', 'ar_close',
@@ -102,3 +104,29 @@ export const deviceBreakdownDaily = pgTable('device_breakdown_daily', {
 
 export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
 export type DailyTenantStat = typeof dailyTenantStats.$inferSelect;
+
+/**
+ * Recommendations, first version (0038, no AI — your choice 2026-10-03): products often viewed
+ * together. Each product's top four by visits that looked at both (a view, AR or the try-on) in the
+ * last 30 days, at least three such visits; recomputed nightly, whole, from `analytics_events`.
+ */
+export const productRelations = pgTable('product_relations', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  relatedProductId: uuid('related_product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  sessions: integer('sessions').notNull(),
+  rank: integer('rank').notNull(),
+  computedAt: ts('computed_at').notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('product_relations_pair_unq').on(t.productId, t.relatedProductId),
+  index('product_relations_tenant_idx').on(t.tenantId, t.productId, t.rank),
+]);
+
+/** When each store's relations were last computed (the Riyadh day), so the nightly pass runs once a day. */
+export const relationRuns = pgTable('relation_runs', {
+  tenantId: tenantId().primaryKey().references(() => tenants.id, { onDelete: 'cascade' }),
+  day: date('day').notNull(),
+  pairs: integer('pairs').notNull().default(0),
+  computedAt: ts('computed_at').notNull().defaultNow(),
+});

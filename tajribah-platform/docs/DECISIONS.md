@@ -998,3 +998,21 @@ whether to publish a price list, and the delivery time to promise.
 
 **Rollback path.** Remove the panel from the product page and the console page; the table
 (`professional_orders`, migration 0037) can stay empty.
+
+## T67 · 2026-10-03 · Recommendations, first version: "often viewed together", from real visits — no AI
+
+**Decision (Nader's, 2026-10-03: "Recommendations, no AI").** Every account-free package being built,
+the next step chosen was recommendations without an AI provider. Nightly per store, from the analytics
+events the collector already keeps: two products are related by the visits that looked at both — a
+product view, AR or the try-on, in one visit — over the last 30 days. Each product keeps its top four,
+and only pairs at least three visits share. The merchant sees them on the product page (every plan);
+on Pro and up (`recommendations`) the product's own page (P1.19) shows them to shoppers as "Often viewed
+together", linking only to products that are live with their page on.
+
+**What it is not.** Not AI and not sold as AI: the website's Pro line "AI recommendations and
+comparisons (coming soon)" stays as it is; the plan's embeddings (P6.1–P6.3) still need a provider.
+Not on the shop's own product page yet (that is the storefront script, which would carry the list in
+its config — a later step).
+
+**Rollback path.** Remove the pass from `server/worker/passes.ts` and the `related` field from the
+config; the tables (0038) can stay.

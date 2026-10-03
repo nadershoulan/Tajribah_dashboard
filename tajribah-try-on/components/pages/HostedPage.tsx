@@ -103,6 +103,17 @@ export default function HostedPage({ initial, store, product, storeHost = null }
             </a>
           )}
 
+          {p.related.length > 0 && (
+            <section className="hosted-related" aria-labelledby="hosted-related-h">
+              <h2 id="hosted-related-h">{t('يشاهدها العملاء معها', 'Often viewed together')}</h2>
+              <ul>
+                {p.related.map((r) => (
+                  <li key={r.ref}><a href={`/p/${encodeURIComponent(store)}/${encodeURIComponent(r.ref)}${query().get('base') ? `?base=${encodeURIComponent(query().get('base')!)}` : ''}`}>{t(r.name.ar, r.name.en)}</a></li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           <footer className="hosted-foot">
             {p.tryon && (
               <SiteLink href="/try-on-privacy" target="_blank" rel="noopener" className="embed-privacy">

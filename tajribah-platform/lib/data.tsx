@@ -131,6 +131,8 @@ export interface DataSource {
   professionalOrders(): Promise<ProfessionalOrderView[]>;
   requestProfessional(productId: string, note: string | null): Promise<ProfessionalOrderView>;
   cancelProfessional(orderId: string): Promise<ProfessionalOrderView>;
+  /** Recommendations, first version: products often viewed together with this one (last 30 days). */
+  relatedProducts(productId: string): Promise<{ related: { productId: string; name: string; nameAr: string | null; sessions: number }[]; shownToShoppers: boolean; computedAt: string | null }>;
   /** P3.8: turn (90° steps) and/or fit a ready version; the result is the next version, processing. */
   editModel(modelId: string, edit: { fromVersionId: string; rotate?: { x?: 0 | 90 | 180 | 270; y?: 0 | 90 | 180 | 270; z?: 0 | 90 | 180 | 270 }; fit?: boolean }): Promise<{ versionId: string; version: number }>;
   team(): Promise<TeamMemberRow[]>;
@@ -321,6 +323,7 @@ export function apiSource(client: ApiClient): DataSource {
       return client.callBlob(`/api/models/${encodeURIComponent(modelId)}/picture`);
     },
     async professionalOrders() { return (await client.call<{ orders: ProfessionalOrderView[] }>('/api/professional')).orders; },
+    async relatedProducts(productId) { return client.call(`/api/products/${encodeURIComponent(productId)}/related`); },
     async requestProfessional(productId, note) {
       return client.call<ProfessionalOrderView>('/api/professional', { method: 'POST', body: { productId, note } });
     },
@@ -677,6 +680,8 @@ export const demoSource: DataSource = {
     demoPictures.set(modelId, picture);
   },
   async professionalOrders() { return demoOrders.map((o) => ({ ...o })); },
+  // The preview has no visits to learn from: an honest empty list, on its Growth plan.
+  async relatedProducts() { return { related: [], shownToShoppers: false, computedAt: null }; },
   async requestProfessional(productId, note) {
     const product = DEMO_PRODUCTS.find((p) => p.id === productId);
     if (!product) throw new ApiError(404, 'not_found', 'product not found');

@@ -21,6 +21,7 @@ import { resealWebhookSecrets, sweepWebhookDeliveries } from '@/server/modules/o
 import { activateCustomDomains, watchCustomDomains } from '@/server/modules/domains/activation';
 import { sendTrialReminders } from '@/server/modules/billing/trial';
 import { sendWeeklyReports } from '@/server/modules/analytics/report';
+import { refreshRelations } from '@/server/modules/recommendations/compute';
 import { refreshConnectionHealth } from '@/server/modules/connections/health';
 
 export const WORKER_ID = `worker-${Math.random().toString(36).slice(2, 8)}`;
@@ -101,7 +102,8 @@ export const SWEEPS: [string, () => Promise<unknown>][] = [
   ['outgoing webhook deliveries', sweepWebhookDeliveries], // P8: deliveries whose queued try was lost
   ['reseal webhook secrets', resealWebhookSecrets], // P8: signing secrets under an old ENCRYPTION_KEY (T16)
   ['custom domains: watch', () => watchCustomDomains()], // T62: each address looked at again every quarter-hour (records gone → shoppers back on Tajribah's address)
-  ['custom domains', activateCustomDomains], // T62: stores' own addresses whose records are in place, switched on at the edge
+  ['custom domains', activateCustomDomains],
+  ['often viewed together', () => refreshRelations()], // recommendations, first version: nightly from 03:00 Riyadh, each store once a day // T62: stores' own addresses whose records are in place, switched on at the edge
 ];
 
 export async function scheduled(sweeps = SWEEPS): Promise<number> {

@@ -18,6 +18,7 @@ import { Shell } from '@/components/dashboard/chrome';
 import { Badge, Empty, ErrorNote, Forward, Loading, PageHead, Panel } from '@/components/dashboard/ui';
 import ProductPhotos from '@/components/pages/ProductPhotos';
 import ProfessionalPanel from '@/components/pages/ProfessionalPanel';
+import RelatedPanel from '@/components/pages/RelatedPanel';
 
 const TYPES: { value: ProductRow['productType']; ar: string; en: string }[] = [
   { value: 'watch', ar: 'ساعة', en: 'Watch' },
@@ -76,6 +77,7 @@ export default function ProductDetail() {
               <StorePanel product={product} />
               <ModelPanel product={product} />
               <ProfessionalPanel product={product} />
+              <RelatedPanel productId={product.id} />
             </div>
           </div>
           <div style={{ marginTop: 16 }}>

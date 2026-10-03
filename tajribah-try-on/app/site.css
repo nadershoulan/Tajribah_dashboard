@@ -793,3 +793,8 @@ html[lang="en"] .legal-body p { line-height: 1.75; }
 .hosted-foot .embed-privacy { margin-inline: 0; }
 .hosted-made { font-size: 13px; color: var(--text-3); }
 .hosted-made:hover { color: var(--aqua-ink); }
+
+.hosted-related h2 { font-family: var(--f-display); font-size: 1.1rem; font-weight: 600; margin: 0 0 10px; }
+.hosted-related ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; list-style: none; margin: 0; padding: 0; }
+.hosted-related a { display: block; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface, #fff); font-weight: 500; }
+.hosted-related a:hover { border-color: var(--aqua-ink); color: var(--aqua-ink); }

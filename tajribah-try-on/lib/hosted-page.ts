@@ -48,6 +48,8 @@ export type HostedProduct = {
   picture: string | null;
   /** The store's own address (Enterprise custom domain), when it has one: the page is served there too. */
   host: string | null;
+  /** Products often viewed together (Pro and up): each one's reference, for a link to its own page. */
+  related: { ref: string; name: Bi }[];
 };
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -111,6 +113,10 @@ export function hostedProductFrom(config: unknown, local = false): HostedProduct
     image: tryon?.flat ?? optional(config.picture),
     picture: optional(config.picture),
     host: hostnameOf(page.host),
+    related: Array.isArray(config.related)
+      ? config.related.slice(0, 4).flatMap((r: unknown) => (isObj(r) && str(r.ref) && str(r.name) && (r.nameAr == null || str(r.nameAr))
+        ? [{ ref: r.ref, name: { ar: (r.nameAr as string | null | undefined) ?? r.name, en: r.name } }] : []))
+      : [],
   };
 }
 

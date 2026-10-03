@@ -163,3 +163,20 @@ The portable build runs Vinext directly without a host `timeout` command. The ma
 
 - [vinext Documentation](https://github.com/cloudflare/vinext)
 - [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+
+
+## Phone hand-off (QR) on this machine
+
+The photo transfer uses the R2 binding. Locally, `wrangler dev` keeps it on disk under `--persist-to`;
+**that path must be short on Windows** — a long one (like a deep temp folder) makes every storage call
+fail with workerd's "internal error", and `/api/pair` answers 503. Use the project's own folder:
+
+```sh
+node node_modules/vinext/dist/cli.js build
+node ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local   --persist-to .wrangler/state --ip 127.0.0.1 --port 8798
+node scripts/qr-e2e/qr-e2e.mjs   # computer opens the QR, a phone page sends the real wrist photo, the computer receives it
+```
+
+Seen 2026-10-03: QR shown, photo sent from the phone page, received by the computer and placed on the
+wrist, the session deleted after (204), no security-policy violation except MediaPipe's own usage ping
+to Google, which the page policy blocks on purpose (photos and detection stay on the device).

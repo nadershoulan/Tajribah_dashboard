@@ -47,3 +47,4 @@ next-env.d.ts
 
 # static preview build (node preview/build.mjs)
 /dist-preview/
+/.qr-e2e/

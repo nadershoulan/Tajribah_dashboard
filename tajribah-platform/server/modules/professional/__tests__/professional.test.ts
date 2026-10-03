@@ -126,6 +126,16 @@ test('T68 before card payments: accept → staff record the transfer → a real 
     await assert.rejects(() => acceptQuote(ctx, order.id), (e: any) => e.code === 'conflict', 'nothing to accept before a quote');
     await quoteOrder(staff, order.id, { priceMinor: PRICE_TIERS[1]!.priceMinor });
     await assert.rejects(() => markPaid(staff, order.id, { reference: 'TRX-001' }), (e: any) => e.code === 'conflict', 'not paid before the merchant accepts');
+    // Accepting commits the store to pay: an editor or an admin may ask, only the owner (billing) agrees.
+    for (const role of ['editor', 'admin'] as const) {
+      const id = uuidv7();
+      await harness.asAdmin(async () => {
+        await harness.db.insert(users).values({ id, email: `${role}@oud.sa`, passwordHash: 'x', fullName: role } as any);
+        await harness.db.insert(tenantMemberships).values({ tenantId, userId: id, role } as any);
+      });
+      const member = await buildTenantContext({ actor: { userId: id, email: `${role}@oud.sa`, isStaff: false }, tenantId, requestId: 'r' });
+      await assert.rejects(() => acceptQuote(member, order.id), (e: any) => e.code === 'forbidden', `${role} cannot agree to a price`);
+    }
     const accepted = await acceptQuote(ctx, order.id);
     assert.ok(accepted.acceptedAt && accepted.status === 'quoted', 'accepted: waiting for the transfer');
     await assert.rejects(() => acceptQuote(ctx, order.id), (e: any) => e.code === 'conflict', 'once');
@@ -152,7 +162,7 @@ test('T68 before card payments: accept → staff record the transfer → a real 
     const model = (await harness.asAdmin(() => harness.db.select().from(models3d).where(eq(models3d.id, delivered.deliveredModelId!))))[0] as any;
     assert.deepEqual([model.productId, model.source], [product.id, 'professional_service'], 'a model of the product, made by our team');
     const bell = await harness.asAdmin(() => harness.db.select().from(notifications).where(eq(notifications.tenantId, tenantId))) as any[];
-    assert.deepEqual(bell.map((n) => n.type).filter((ty) => ty.startsWith('professional.')).sort(), ['professional.delivered', 'professional.paid', 'professional.quoted'].sort());
+    assert.deepEqual([...new Set(bell.map((n) => n.type).filter((ty) => ty.startsWith('professional.')))].sort(), ['professional.delivered', 'professional.paid', 'professional.quoted'].sort(), 'each step, to each member who may see models');
     assert.match(bell.find((n) => n.type === 'professional.paid').bodyEn, /5 working days/, 'the promised days of its tier');
   } finally { await harness.close(); }
 });

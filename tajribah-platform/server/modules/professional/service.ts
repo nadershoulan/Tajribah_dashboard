@@ -40,9 +40,11 @@ export function orderView(order: Order, product: Pick<Product, 'name' | 'nameAr'
 /**
  * API-139 — the merchant accepts the quote (T68). Before card payments open, our team then sends
  * payment details and an invoice by email; work starts when the transfer arrives (staff record it).
+ * Accepting commits the store to pay, so it is the billing permission's (the owner's), as paying for a
+ * plan is — an editor may ask for a quote, not agree to its price (pre-launch review).
  */
 export async function acceptQuote(ctx: TenantContext, orderId: string): Promise<ProfessionalOrderView> {
-  ctx.require('models:write');
+  ctx.require('billing:write');
   return withTenant(ctx.tenantId, async (db) => {
     const order = await db.findById(professionalOrders, orderId);
     if (!order) throw errors.notFound('order');

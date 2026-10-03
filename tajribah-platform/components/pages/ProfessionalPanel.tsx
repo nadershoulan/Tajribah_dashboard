@@ -10,6 +10,9 @@ import { CreditCard, PenTool } from 'lucide-react';
 import { useWriteLock } from '@/components/dashboard/write-lock';
 import { ApiError } from '@/lib/api-client';
 import { AppLink } from '@/lib/app-env';
+import { currentStore } from '@/lib/api-client';
+import { useAuth } from '@/lib/auth';
+import { ROLE_PERMISSIONS } from '@/lib/permissions';
 import { INCLUDED_REVISIONS, OPEN_STATUSES, PRICE_TIERS, STATUS_LABEL, type ProfessionalOrderView } from '@/lib/contracts/professional';
 import { useData, useResource } from '@/lib/data';
 import { formatDateTime } from '@/lib/format';
@@ -30,6 +33,9 @@ export default function ProfessionalPanel({ product }: { product: ProductRow }) 
   const { t, lang, pick } = useLang();
   const source = useData();
   const lock = useWriteLock();
+  // Accepting a price commits the store to pay: the owner's call, like paying for a plan.
+  const role = currentStore(useAuth().me)?.role;
+  const mayPay = !role || (ROLE_PERMISSIONS[role] as readonly string[] | undefined)?.includes('billing:write') === true;
   const [version, setVersion] = useState(0);
   const { data, error } = useResource((s) => s.professionalOrders(), [version]);
   const [note, setNote] = useState('');
@@ -100,10 +106,11 @@ export default function ProfessionalPanel({ product }: { product: ProductRow }) 
           {shown.quote.note && <p style={{ margin: '0 0 12px', fontSize: 14 }}>{t('من فريق تجربة: ', 'From Tajribah: ')}{shown.quote.note}</p>}
           {!shown.acceptedAt ? (
             <>
-              <button type="button" className="btn btn-primary" disabled={busy !== null || lock.locked} title={lock.title}
+              <button type="button" className="btn btn-primary" disabled={busy !== null || lock.locked || !mayPay} title={lock.title}
                 onClick={() => void act('accept', () => source.acceptProfessional(shown.id))}>
                 <CreditCard size={16} aria-hidden />{busy === 'accept' ? t('جارٍ القبول…', 'Accepting…') : t('اقبل العرض', 'Accept the quote')}
               </button>
+              {!mayPay && <p className="hint" style={{ marginBottom: 0 }}>{t('قبول السعر لمالك المتجر، كالدفع للباقة. أخبره بالعرض ليقبله.', 'Accepting a price is for the store’s owner, like paying for a plan. Let them know about the quote.')}</p>}
               <p className="hint">{t('بعد القبول نرسل لك بيانات التحويل البنكي وفاتورة بالبريد. يبدأ العمل حين يصلنا التحويل، ويمكنك الإلغاء قبل ذلك.', 'Once you accept, we email you the bank transfer details and an invoice. Work starts when the transfer arrives; you can cancel before then.')}</p>
             </>
           ) : (

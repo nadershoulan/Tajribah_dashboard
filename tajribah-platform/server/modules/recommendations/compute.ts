@@ -33,13 +33,14 @@ const rowsOf = (result: unknown): Record<string, unknown>[] =>
 export async function computeRelations(tenantId: string, now = new Date()): Promise<{ pairs: number; changed: boolean }> {
   const since = new Date(now.getTime() - WINDOW_DAYS * DAY);
   return withTenantSql(tenantId, async (tx) => {
-    const before = rowsOf(await tx.execute(sql`SELECT product_id, related_product_id, rank FROM product_relations ORDER BY product_id, rank`));
+    // RLS keeps this to the store; the filters say so too (the repo's rule: no tenant-scoped query without one).
+    const before = rowsOf(await tx.execute(sql`SELECT product_id, related_product_id, rank FROM product_relations WHERE tenant_id = ${tenantId} ORDER BY product_id, rank`));
     const fresh = rowsOf(await tx.execute(sql`
       WITH seen AS (
         SELECT DISTINCT e.session_id, e.product_id
         FROM analytics_events e
-        JOIN products p ON p.id = e.product_id AND p.deleted_at IS NULL AND p.status <> 'archived'
-        WHERE e.occurred_at >= ${since} AND e.occurred_at < ${now}
+        JOIN products p ON p.id = e.product_id AND p.tenant_id = ${tenantId} AND p.deleted_at IS NULL AND p.status <> 'archived'
+        WHERE e.tenant_id = ${tenantId} AND e.occurred_at >= ${since} AND e.occurred_at < ${now}
           AND e.event_type IN ('product_view', 'ar_open', 'tryon_start')
       ), pairs AS (
         SELECT a.product_id, b.product_id AS related_product_id, count(*)::int AS sessions
@@ -53,7 +54,7 @@ export async function computeRelations(tenantId: string, now = new Date()): Prom
       ORDER BY product_id, rank`));
     const key = (r: Record<string, unknown>) => `${r.product_id}>${r.related_product_id}#${r.rank}`;
     const changed = before.map(key).join('|') !== fresh.map(key).join('|');
-    await tx.execute(sql`DELETE FROM product_relations`);
+    await tx.execute(sql`DELETE FROM product_relations WHERE tenant_id = ${tenantId}`);
     for (const r of fresh) {
       await tx.execute(sql`INSERT INTO product_relations (id, tenant_id, product_id, related_product_id, sessions, rank, computed_at)
         VALUES (${uuidv7()}, ${tenantId}, ${r.product_id as string}, ${r.related_product_id as string}, ${r.sessions as number}, ${r.rank as number}, ${now})`);

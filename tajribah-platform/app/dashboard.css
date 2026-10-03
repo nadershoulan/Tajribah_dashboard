@@ -917,6 +917,16 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .tryon-stats span:first-child { font-weight: 600; }
 .tryon-foot { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 .field input + input { margin-top: 6px; }
+/* T68 — marking the case's edges on a try-on picture. */
+.case-edges { display: grid; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.case-edges-frame { max-width: 520px; width: 100%; }
+.case-edges-stage { display: block; overflow: visible; touch-action: none; user-select: none; }
+.case-edges-stage img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; object-fit: fill; pointer-events: none; }
+.case-edges-cut { position: absolute; top: 0; bottom: 0; background: rgba(10, 34, 55, .45); pointer-events: none; }
+.case-edges-mark { position: absolute; top: 0; bottom: 0; width: 22px; margin-left: -11px; cursor: ew-resize; touch-action: none; }
+.case-edges-mark::before { content: ""; position: absolute; top: 0; bottom: 0; left: 10px; width: 2px; background: var(--ring); box-shadow: 0 0 0 1px #fff; }
+.case-edges-mark::after { content: ""; position: absolute; top: 50%; left: 4px; width: 14px; height: 28px; margin-top: -14px; border-radius: 7px; background: #fff; border: 2px solid var(--ring); }
+.case-edges-mark:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 
 /* P6.8 — the AI jobs list. */
 .job-list { list-style: none; margin: 0; padding: 0; }

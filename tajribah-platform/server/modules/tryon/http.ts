@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { route } from '@/server/core/observability/request';
 import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@/server/core/http/api';
 import { errors } from '@/server/core/errors/problem';
-import { confirmCutout, cutoutFile, startCutoutUpload, tryOnScreen, updateTryOn } from './service';
+import { calibrateCutoutEdges, confirmCutout, cutoutFile, startCutoutUpload, tryOnScreen, updateTryOn } from './service';
 
 /** The `[productId]` segment `fromEnd` places from the end; a malformed id is a 404. */
 function productAt(request: Request, fromEnd: number): string {
@@ -58,4 +58,13 @@ export const cutoutFileHandler = route(async (request) => {
   if (!slot.success) throw errors.notFound('picture');
   const file = await cutoutFile(ctx, productAt(request, 2), slot.data);
   return new Response(file.body, { headers: { 'content-type': file.contentType, 'cache-control': 'private, no-store' } });
+});
+
+/** API-178 — POST /api/tryon/[productId]/images/calibrate { slot, key, left, right }: crop to the case's edges (T68). */
+export const calibrateCutoutHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  const body = await readJson(request, z.object({ slot: SLOT, key: z.string().max(300), left: z.number().int(), right: z.number().int() }));
+  return json(await calibrateCutoutEdges(ctx, productAt(request, 2), body));
 });

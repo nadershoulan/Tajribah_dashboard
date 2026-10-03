@@ -19,7 +19,7 @@ import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
 import { checkCutout } from '@/server/modules/tryon/cutout';
 import { CUTOUT_ISSUES } from './tryon';
-import { alphaFacts, hasMargins, qualityScore, sizeShown, type SlotQuality } from './tryon-quality';
+import { alphaFacts, CALIBRATE_MIN_PX, calibrationCrop, hasMargins, qualityScore, sizeShown, type SlotQuality } from './tryon-quality';
 import { healthOf } from './connection-health';
 import { ApiError, currentStore, type ApiClient } from './api-client';
 import type { Bi, Lang } from './lang';
@@ -120,6 +120,8 @@ export interface DataSource {
   /** P5.10: start → PUT straight to storage → the server's check of the picture (422 with the reason). */
   uploadCutout(productId: string, slot: 'worn' | 'flat', file: File): Promise<TryOnWatchView>;
   updateTryOn(productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean }): Promise<TryOnWatchView>;
+  /** T68: crop a picture to the case's marked edges (pixel columns, right exclusive); it is checked again after. */
+  calibrateCutout(productId: string, slot: 'worn' | 'flat', marks: { key: string; left: number; right: number }): Promise<TryOnWatchView>;
   /** P5.10: a stored picture, for the preview (a Blob: private until published). */
   cutoutImage(productId: string, slot: 'worn' | 'flat'): Promise<Blob>;
   /** P3.8: a version's web GLB, for the editor's viewer (a Blob: the viewer's own fetch has no session). */
@@ -347,6 +349,9 @@ export function apiSource(client: ApiClient): DataSource {
     },
     async updateTryOn(productId, patch) {
       return client.call<TryOnWatchView>(`/api/tryon/${encodeURIComponent(productId)}`, { method: 'PATCH', body: patch });
+    },
+    async calibrateCutout(productId, slot, marks) {
+      return client.call<TryOnWatchView>(`/api/tryon/${encodeURIComponent(productId)}/images/calibrate`, { method: 'POST', body: { slot, ...marks } });
     },
     async cutoutImage(productId, slot) {
       return client.callBlob(`/api/tryon/${encodeURIComponent(productId)}/images/${slot}`);
@@ -864,6 +869,23 @@ export const demoSource: DataSource = {
     const shown = demoTryOnView(p);
     if (next.enabled && shown.missing.length) { demoTryOn.set(p.id, s); throw new ApiError(409, 'conflict', `try-on cannot be switched on yet — missing: ${shown.missing.join(', ')}`); }
     return shown;
+  },
+  async calibrateCutout(productId, slot, marks) {
+    const p = DEMO_PRODUCTS.find((x) => x.id === productId && x.productType === 'watch');
+    const s = demoTryOn.get(productId);
+    const picture = s?.[slot];
+    if (!p || !s || !picture) throw new ApiError(404, 'not_found', 'picture not found');
+    if (s.quality?.[slot]?.key !== marks.key) throw new ApiError(409, 'conflict', 'the picture has changed since you marked it — mark it again');
+    const bitmap = await createImageBitmap(picture);
+    const crop = calibrationCrop(bitmap.width, bitmap.height, marks.left, marks.right);
+    if (!crop) throw new ApiError(422, 'validation_failed', 'Validation failed', { edges: [`the case’s edges, at least ${CALIBRATE_MIN_PX} pixels apart`] });
+    const cut = document.createElement('canvas');
+    cut.width = crop.width; cut.height = crop.height;
+    cut.getContext('2d')!.drawImage(bitmap, crop.left, 0, crop.width, crop.height, 0, 0, crop.width, crop.height);
+    const cropped = await new Promise<Blob>((done) => cut.toBlob((b) => done(b ?? picture), 'image/png'));
+    const checked = await demoCutoutQuality(cropped, slot);
+    demoTryOn.set(p.id, { ...s, [slot]: checked.picture, quality: { ...s.quality, [slot]: checked.quality } });
+    return demoTryOnView(p);
   },
   async cutoutImage(productId, slot) {
     const picture = demoTryOn.get(productId)?.[slot];

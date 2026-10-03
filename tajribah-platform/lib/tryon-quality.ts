@@ -78,3 +78,18 @@ export function qualityScore(worn: SlotQuality | null | undefined, flat: SlotQua
   if (!worn || !flat) return null;
   return Math.floor(Math.min(worn.sizeShown, flat.sizeShown) * 100);
 }
+
+/**
+ * T68 calibration — the merchant marks the case's left and right edges on a picture (the try-on
+ * settings screen); the picture is cropped to exactly that span, full height, so its full width is
+ * the case. The narrowest span accepted, in the picture's own pixels.
+ */
+export const CALIBRATE_MIN_PX = 20;
+
+/** The crop for marks at `left`..`right` (pixel columns, right exclusive), or null when they cannot be one. */
+export function calibrationCrop(width: number, height: number, left: number, right: number): AlphaBox | null {
+  if (![width, height, left, right].every(Number.isInteger)) return null;
+  if (left < 0 || right > width || right - left < CALIBRATE_MIN_PX) return null;
+  if (left === 0 && right === width) return null; // nothing to cut
+  return { left, top: 0, width: right - left, height };
+}

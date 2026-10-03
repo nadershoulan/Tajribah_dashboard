@@ -23,7 +23,7 @@ import { eq } from 'drizzle-orm';
 import type { Job } from '@/db/schema';
 import { products, tryonConfigs } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
-import { alphaFacts, hasMargins, qualityScore, sizeShown, type SlotQuality, type TryOnQuality } from '@/lib/tryon-quality';
+import { alphaFacts, calibrationCrop, hasMargins, qualityScore, sizeShown, type SlotQuality, type TryOnQuality } from '@/lib/tryon-quality';
 import { record } from '@/server/core/audit/audit';
 import { currentScope } from '@/server/core/observability/scope';
 import { forTenant } from '@/server/core/storage/storage';
@@ -45,9 +45,11 @@ const BYTES_OF = { worn: 'wornBytes', flat: 'flatBytes' } as const;
 export { enqueueQuality } from './quality-queue';
 
 export async function handleQualityJob(job: Job): Promise<void> {
-  const p = job.payload as { productId?: string; slot?: Slot; key?: string } | null;
+  const p = job.payload as { productId?: string; slot?: Slot; key?: string; crop?: { left?: unknown; right?: unknown } } | null;
   if (!job.tenantId || !p?.productId || (p.slot !== 'worn' && p.slot !== 'flat') || !p.key) throw new Error(`try-on quality job ${job.id} is missing its tenant, product, slot or key`);
-  await checkCutoutQuality(job.tenantId, p.productId, p.slot, p.key, currentScope()?.requestId ?? `job-${job.id}`);
+  const requestId = currentScope()?.requestId ?? `job-${job.id}`;
+  if (p.crop) await calibrateCutout(job.tenantId, p.productId, p.slot, p.key, { left: Number(p.crop.left), right: Number(p.crop.right) }, requestId);
+  else await checkCutoutQuality(job.tenantId, p.productId, p.slot, p.key, requestId);
 }
 
 async function readAll(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
@@ -123,4 +125,59 @@ export async function checkCutoutQuality(tenantId: string, productId: string, sl
     await retireCutout(tenantId, productId, replaced); // T36: kept a while if shoppers may still hold it
   }
   return cropped ? 'replaced' : 'measured';
+}
+
+/**
+ * T68 calibration — crop the picture `key` to the case's marked edges (full height; the pixels kept
+ * are copied unchanged, the format kept: WebP lossless and exact, or PNG), swap it in under the
+ * product's lock if `key` is still the picture, then check it again like any new picture. Marks that
+ * no longer fit (the picture changed size) crop nothing: the picture is simply checked again, so the
+ * screen never waits on a check that will not come.
+ */
+export async function calibrateCutout(tenantId: string, productId: string, slot: Slot, key: string, marks: { left: number; right: number }, requestId: string): Promise<QualityOutcome> {
+  const ctx = await systemContext({ tenantId, requestId, permissions: QUALITY_PERMISSIONS });
+  const current = await ctx.db.findOne(tryonConfigs, eq(tryonConfigs.productId, productId));
+  if (!current || current[KEY_OF[slot]] !== key) return 'skipped';
+  const store = forTenant(tenantId);
+  const object = await store.get(key);
+  if (!object) return 'skipped';
+  const bytes = await readAll(object.body);
+  const webp = key.endsWith('.webp');
+  let out: Uint8Array | null = null;
+  try {
+    const meta = await sharp(bytes).metadata();
+    const crop = calibrationCrop(meta.width ?? 0, meta.height ?? 0, marks.left, marks.right);
+    if (crop) {
+      const picture = sharp(bytes).extract(crop);
+      out = new Uint8Array(await (webp ? picture.webp({ lossless: true, exact: true }) : picture.png({ compressionLevel: 9 })).toBuffer());
+    }
+  } catch {
+    out = null;
+  }
+  if (!out) return checkCutoutQuality(tenantId, productId, slot, key, requestId);
+
+  const next = store.key({ kind: 'photo', id: uuidv7(), filename: `${slot}.${webp ? 'webp' : 'png'}` });
+  await store.put(next, out.slice().buffer as ArrayBuffer, { contentType: webp ? 'image/webp' : 'image/png', immutable: true });
+  const applied = await withTenant(tenantId, async (db) => {
+    await db.lockById(products, productId);
+    const before = await db.findOne(tryonConfigs, eq(tryonConfigs.productId, productId));
+    if (!before || before[KEY_OF[slot]] !== key) return false;
+    const quality: TryOnQuality = { ...(before.quality ?? {}) };
+    delete quality[slot]; // checked again just below
+    const after = await db.updateById(tryonConfigs, before.id, { [KEY_OF[slot]]: next, [BYTES_OF[slot]]: out!.length, quality, qualityScore: null } as never);
+    await record(ctx, {
+      action: 'update', resourceType: 'tryon_config', resourceId: after.id,
+      before: { [KEY_OF[slot]]: key } as never,
+      after: { [KEY_OF[slot]]: next, calibrated: { left: marks.left, right: marks.right } } as never,
+    }, db);
+    return true;
+  });
+  if (!applied) {
+    await store.delete(next).catch(() => undefined);
+    return 'skipped';
+  }
+  await keepLive(tenantId, productId); // the live config names the cropped picture before the old one goes
+  await retireCutout(tenantId, productId, key);
+  await checkCutoutQuality(tenantId, productId, slot, next, requestId);
+  return 'replaced';
 }

@@ -3,7 +3,7 @@
 // MD-070 / P5.10 — Virtual try-on: set up each watch for the try-on studio (the owner's studio, T26)
 
 import { useWriteLock } from '@/components/dashboard/write-lock';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { Camera, Lock, Watch } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import { ApiError, currentStore } from '@/lib/api-client';
@@ -13,7 +13,7 @@ import { formatBytes, formatNumber, formatPercent } from '@/lib/format';
 import { useLang } from '@/lib/i18n';
 import { ROLE_PERMISSIONS } from '@/lib/permissions';
 import { TRYON_SLOTS, sayCutout } from '@/lib/tryon';
-import { TRUE_SIZE_MIN, type SlotQuality } from '@/lib/tryon-quality';
+import { CALIBRATE_MIN_PX, TRUE_SIZE_MIN, alphaFacts, type SlotQuality } from '@/lib/tryon-quality';
 import type { TryOnWatchView } from '@/lib/view-models';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, Empty, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
@@ -66,6 +66,7 @@ function WatchCard({ initial, editable }: { initial: TryOnWatchView; editable: b
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ tone: 'ok' | 'bad'; text: { ar: string; en: string } } | null>(null);
   const [failure, setFailure] = useState<Error | null>(null);
+  const [marking, setMarking] = useState<'worn' | 'flat' | null>(null);
   // P5.9: a new picture is checked in the background; look again until its check is back.
   const checking = (!!w.worn && !w.quality.worn) || (!!w.flat && !w.quality.flat);
   useEffect(() => {
@@ -116,7 +117,8 @@ function WatchCard({ initial, editable }: { initial: TryOnWatchView; editable: b
       <div className="tryon-grid">
         {(['worn', 'flat'] as const).map((slot) => (
           <Picture key={slot} productId={w.productId} slot={slot} has={w[slot]} quality={w.quality[slot]} disabled={!editable || busy !== null}
-            busy={busy === slot} onPick={(file) => run(slot, () => source.uploadCutout(w.productId, slot, file), { ar: 'قُبلت الصورة.', en: 'Picture accepted.' })} />
+            busy={busy === slot} onPick={(file) => { setMarking(null); void run(slot, () => source.uploadCutout(w.productId, slot, file), { ar: 'قُبلت الصورة.', en: 'Picture accepted.' }); }}
+            onMark={editable && w.quality[slot] && !w.quality[slot]!.issue ? () => setMarking(slot) : undefined} />
         ))}
         <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
           <div className="field">
@@ -138,6 +140,19 @@ function WatchCard({ initial, editable }: { initial: TryOnWatchView; editable: b
         </div>
       </div>
 
+      {marking && w.quality[marking] && (
+        <CaseEdges key={w.quality[marking]!.key} productId={w.productId} slot={marking} busy={busy !== null} onCancel={() => setMarking(null)}
+          onSave={(left, right) => {
+            const key = w.quality[marking]!.key;
+            setMarking(null);
+            void run(`mark-${marking}`, async () => {
+              try { return await source.calibrateCutout(w.productId, marking, { key, left, right }); } catch (e) {
+                if (e instanceof ApiError && e.status === 409) throw new Error(t('تغيّرت الصورة منذ حدّدتها — حدّدها مرة أخرى.', 'The picture changed since you marked it — mark it again.'));
+                throw e;
+              }
+            }, { ar: 'نقصّ الصورة على حافتي العلبة ثم نفحص مقاسها من جديد.', en: 'Cropping the picture to the case’s edges, then checking its size again.' });
+          }} />
+      )}
       {stats && (
         <p className="hint tryon-stats">
           <span>{t('آخر 30 يومًا', 'Last 30 days')}</span>
@@ -159,8 +174,8 @@ function WatchCard({ initial, editable }: { initial: TryOnWatchView; editable: b
   );
 }
 
-function Picture({ productId, slot, has, quality, disabled, busy, onPick }: {
-  productId: string; slot: 'worn' | 'flat'; has: { bytes: number } | null; quality: SlotQuality | null; disabled: boolean; busy: boolean; onPick: (file: File) => void;
+function Picture({ productId, slot, has, quality, disabled, busy, onPick, onMark }: {
+  productId: string; slot: 'worn' | 'flat'; has: { bytes: number } | null; quality: SlotQuality | null; disabled: boolean; busy: boolean; onPick: (file: File) => void; onMark?: () => void;
 }) {
   const { t, pick, lang } = useLang();
   const source = useData();
@@ -188,7 +203,10 @@ function Picture({ productId, slot, has, quality, disabled, busy, onPick }: {
       {has && <QualityNote quality={quality} />}
       <span className="hint" style={{ margin: 0 }}>{pick(info.hint)}</span>
       <input ref={picker} type="file" accept="image/png,image/webp,.png,.webp" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.target.value = ''; }} />
-      <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} onClick={() => picker.current?.click()}>{has ? t('بدّل الصورة', 'Replace') : t('ارفع صورة', 'Upload')}</button>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} onClick={() => picker.current?.click()}>{has ? t('بدّل الصورة', 'Replace') : t('ارفع صورة', 'Upload')}</button>
+        {has && onMark && <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} onClick={onMark}>{t('حدّد حافتي العلبة', 'Mark the case edges')}</button>}
+      </div>
     </div>
   );
 }
@@ -210,4 +228,96 @@ function QualityNote({ quality }: { quality: SlotQuality | null }) {
     );
   }
   return <span className="quality-note quality-ok">{t('بمقاسها الحقيقي.', 'True to size.')}{trimmed}</span>;
+}
+
+/**
+ * T68 calibration — the merchant drags two markers to the case's left and right edges (the crown and
+ * any shadow outside them); the picture is cropped to that span so its full width is the case, which
+ * is what the studio draws (P5.9). The studio itself is untouched. Markers start at the visible edges;
+ * arrow keys move the focused marker a pixel (Shift: ten).
+ */
+function CaseEdges({ productId, slot, busy, onSave, onCancel }: {
+  productId: string; slot: 'worn' | 'flat'; busy: boolean; onSave: (left: number, right: number) => void; onCancel: () => void;
+}) {
+  const { t, pick, lang } = useLang();
+  const source = useData();
+  const [picture, setPicture] = useState<{ url: string; width: number; height: number } | null>(null);
+  const [edges, setEdges] = useState<[number, number]>([0, 0]);
+  const [stage, setStage] = useState<HTMLDivElement | null>(null);
+  const [dragging, setDragging] = useState<0 | 1 | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    let url: string | null = null;
+    source.cutoutImage(productId, slot).then(async (blob) => {
+      const bitmap = await createImageBitmap(blob);
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width; canvas.height = bitmap.height;
+      const g = canvas.getContext('2d')!;
+      g.drawImage(bitmap, 0, 0);
+      const box = alphaFacts(g.getImageData(0, 0, bitmap.width, bitmap.height).data, bitmap.width, bitmap.height).box;
+      if (!live) return;
+      url = URL.createObjectURL(blob);
+      setPicture({ url, width: bitmap.width, height: bitmap.height });
+      setEdges(box ? [box.left, box.left + box.width] : [0, bitmap.width]);
+    }).catch(() => undefined);
+    return () => { live = false; if (url) URL.revokeObjectURL(url); };
+  }, [source, productId, slot]);
+
+  const W = picture?.width ?? 1;
+  const move = (which: 0 | 1, to: number) => setEdges(([l, r]) => which === 0
+    ? [Math.max(0, Math.min(Math.round(to), r - CALIBRATE_MIN_PX)), r]
+    : [l, Math.min(W, Math.max(Math.round(to), l + CALIBRATE_MIN_PX))]);
+  const at = (e: PointerEvent) => {
+    const rect = stage!.getBoundingClientRect();
+    return ((e.clientX - rect.left) / rect.width) * W;
+  };
+  const onKey = (which: 0 | 1) => (e: KeyboardEvent) => {
+    const step = e.shiftKey ? 10 : 1;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); move(which, edges[which] + (e.key === 'ArrowRight' ? step : -step)); }
+  };
+  const pct = (x: number) => `${(x / W) * 100}%`;
+  const [left, right] = edges;
+  const label = pick(TRYON_SLOTS[slot].label);
+  const unchanged = left === 0 && right === W;
+
+  return (
+    <div className="case-edges">
+      <strong>{t(`حدّد حافتي العلبة — ${label}`, `Mark the case edges — ${label}`)}</strong>
+      <p className="hint" style={{ margin: 0 }}>
+        {t('اسحب الخطين إلى حافتي العلبة اليمنى واليسرى، بلا التاج. ما خارج الخطين يُقص، فيظهر عرض العلبة بمقاسه الحقيقي في الاستوديو.',
+          'Drag the two lines to the case’s left and right edges, without the crown. What lies outside them is cropped away, so the studio shows the case at its real width.')}
+      </p>
+      {!picture ? <Loading rows={2} /> : (
+        // The picture is physical left-to-right whatever the page's direction: the markers sit on it.
+        <div className="case-edges-frame" dir="ltr" style={{ width: `min(100%, ${Math.round((420 * picture.width) / picture.height)}px)` }}>
+          <div className="case-edges-stage tryon-checker" ref={setStage} style={{ aspectRatio: `${picture.width} / ${picture.height}` }}
+            onPointerMove={(e) => { if (dragging !== null) move(dragging, at(e)); }}
+            onPointerUp={() => setDragging(null)} onPointerCancel={() => setDragging(null)}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- a blob: URL of the merchant's own picture */}
+            <img src={picture.url} alt={label} draggable={false} />
+            <div className="case-edges-cut" style={{ left: 0, width: pct(left) }} aria-hidden />
+            <div className="case-edges-cut" style={{ left: pct(right), right: 0 }} aria-hidden />
+            {([0, 1] as const).map((which) => (
+              <div key={which} className="case-edges-mark" style={{ left: pct(edges[which]) }} role="slider" tabIndex={0}
+                aria-label={which === 0 ? t('الحافة اليسرى للعلبة', 'The case’s left edge') : t('الحافة اليمنى للعلبة', 'The case’s right edge')}
+                aria-valuemin={0} aria-valuemax={W} aria-valuenow={edges[which]} aria-valuetext={`${edges[which]} px`}
+                onKeyDown={onKey(which)}
+                onPointerDown={(e) => { e.currentTarget.parentElement!.setPointerCapture(e.pointerId); setDragging(which); }} />
+            ))}
+          </div>
+        </div>
+      )}
+      {picture && (
+        <p className="hint" style={{ margin: 0 }}>
+          {t(`يبقى ${formatNumber(right - left, lang)} من ${formatNumber(W, lang)} بكسل في العرض، والارتفاع كما هو.`,
+            `Keeps ${formatNumber(right - left, lang)} of ${formatNumber(W, lang)} pixels across; the height stays as it is.`)}
+        </p>
+      )}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" className="btn btn-primary btn-sm" disabled={!picture || busy || unchanged} onClick={() => onSave(left, right)}>{t('قصّ على هذين الحدّين', 'Crop to these edges')}</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>{t('إلغاء', 'Cancel')}</button>
+      </div>
+    </div>
+  );
 }

@@ -19,6 +19,8 @@
  *  - P5.9: each confirmed picture is queued for its check (`quality.ts`): empty edges cropped,
  *    the share of real size measured. The view shows a picture's check only while it is still
  *    that picture's (`quality[slot].key`), so a replaced picture shows "checking", never the old result.
+ *  - T68 calibration: the merchant marks the case's edges on a picture; it is cropped to them in the
+ *    background (`quality.ts`, sharp) and checked again — the screen shows "checking" meanwhile.
  *  - P5.13: the list shows each watch's last 30 days (views, try-on openings) from the analytics
  *    rollup — never raw events — to anyone who may read analytics.
  */
@@ -26,6 +28,7 @@ import { and, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
 import { dailyProductStats, products, tryonConfigs } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { CUTOUT_ISSUES } from '@/lib/tryon';
+import { CALIBRATE_MIN_PX } from '@/lib/tryon-quality';
 import type { TryOnScreen, TryOnWatchView } from '@/lib/view-models';
 import { record } from '@/server/core/audit/audit';
 import { assertStorageRoom, entitlementsOf } from '@/server/core/billing/entitlements';
@@ -36,7 +39,7 @@ import { withTenant } from '@/server/core/tenancy/rls';
 import { daysOf } from '@/server/modules/analytics/metrics';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { CUTOUT_MAX_BYTES, checkCutout, type CutoutIssue } from './cutout';
-import { enqueueQuality } from './quality-queue'; // not ./quality: it loads sharp
+import { enqueueCalibration, enqueueQuality } from './quality-queue'; // not ./quality: it loads sharp
 import { retireCutout } from './retire';
 import { keepLive } from '@/server/modules/edge/publish';
 
@@ -206,6 +209,31 @@ export async function updateTryOn(ctx: TenantContext, productId: string, patch: 
     return view(product, after);
   });
   await keepLive(ctx.tenantId, productId); // P1.15: switched off → gone from the shop; case width, finish → rewritten
+  return result;
+}
+
+/**
+ * API-178 — calibration: crop a picture to the case's marked edges (pixel columns of the picture as
+ * stored, `right` exclusive). `key` is the picture the merchant marked (`quality[slot].key`): if it
+ * has been replaced since, the marks are for another picture and nothing is done.
+ */
+export async function calibrateCutoutEdges(ctx: TenantContext, productId: string, input: { slot: Slot; key: string; left: number; right: number }): Promise<TryOnWatchView> {
+  await mayChange(ctx);
+  const problems: Record<string, string[]> = {};
+  if (input.slot !== 'worn' && input.slot !== 'flat') problems.slot = ['worn or flat'];
+  if (!Number.isInteger(input.left) || !Number.isInteger(input.right) || input.left < 0 || input.right - input.left < CALIBRATE_MIN_PX) problems.edges = [`the case’s edges, at least ${CALIBRATE_MIN_PX} pixels apart`];
+  if (Object.keys(problems).length) throw errors.validation(problems);
+  const result = await withTenant(ctx.tenantId, async (db) => {
+    const product = await watchOf(db, productId);
+    await db.lockById(products, productId);
+    const before = await db.findOne(tryonConfigs, eq(tryonConfigs.productId, productId));
+    if (!before || before[`${input.slot}Key`] !== input.key) throw errors.conflict('the picture has changed since you marked it — mark it again');
+    const quality = { ...(before.quality ?? {}) };
+    delete quality[input.slot]; // "checking" until the cropped picture is checked
+    const after = await db.updateById(tryonConfigs, before.id, { quality } as never);
+    return view(product, after);
+  });
+  await enqueueCalibration(ctx.tenantId, productId, input.slot, input.key, { left: input.left, right: input.right });
   return result;
 }
 

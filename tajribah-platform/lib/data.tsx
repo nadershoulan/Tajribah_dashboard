@@ -119,8 +119,8 @@ export interface DataSource {
   tryOn(): Promise<TryOnScreen>;
   /** P5.10: start → PUT straight to storage → the server's check of the picture (422 with the reason). */
   uploadCutout(productId: string, slot: 'worn' | 'flat', file: File): Promise<TryOnWatchView>;
-  /** P5.4: `ring` marks a Jewelry product as a ring (or takes it back while it has no picture). */
-  updateTryOn(productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean; ring?: boolean }): Promise<TryOnWatchView>;
+  /** P5.4/P5.5: `jewelry` marks a Jewelry product as a ring or a necklace (null takes it back while it has no picture). */
+  updateTryOn(productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean; jewelry?: 'ring' | 'necklace' | null }): Promise<TryOnWatchView>;
   /** T68: crop a picture to the case's marked edges (pixel columns, right exclusive); it is checked again after. */
   calibrateCutout(productId: string, slot: 'worn' | 'flat', marks: { key: string; left: number; right: number }): Promise<TryOnWatchView>;
   /** P5.10: a stored picture, for the preview (a Blob: private until published). */
@@ -507,7 +507,7 @@ const demoAiJobs: AiJobView[] = DEMO_AI_JOBS.map((j) => ({ ...j }));
  */
 const demoPhotos = new Map<string, { view: GenerationPhotoView; sha: string }[]>();
 /** P5.10 — the preview's try-on settings, per watch, for this page load; pictures kept as Blobs. */
-const demoTryOn = new Map<string, { worn: Blob | null; flat: Blob | null; caseMm: number | null; finish: { ar: string; en: string } | null; enabled: boolean; ring?: boolean; quality?: { worn?: SlotQuality; flat?: SlotQuality } }>();
+const demoTryOn = new Map<string, { worn: Blob | null; flat: Blob | null; caseMm: number | null; finish: { ar: string; en: string } | null; enabled: boolean; jewelry?: 'ring' | 'necklace'; quality?: { worn?: SlotQuality; flat?: SlotQuality } }>();
 /**
  * P5.9 in the preview: the worker's check, on a canvas — the same `alphaFacts`; empty edges
  * cropped away, the share of real size measured.
@@ -537,7 +537,7 @@ async function demoCutoutQuality(file: Blob, slot: 'worn' | 'flat'): Promise<{ p
 const DEMO_TRYON_ON_ME = false;
 function demoTryOnView(p: ProductRow): TryOnWatchView {
   const s = demoTryOn.get(p.id) ?? { worn: null, flat: null, caseMm: null, finish: null, enabled: false };
-  const kind = kindOf(p.productType, demoTryOn.get(p.id)?.ring ? 'ring' : null) ?? 'watch';
+  const kind = kindOf(p.productType, demoTryOn.get(p.id)?.jewelry) ?? 'watch';
   const missing: TryOnWatchView['missing'] = [];
   if (!s.worn) missing.push('worn');
   if (kind === 'watch' && !s.flat) missing.push('flat');
@@ -847,7 +847,7 @@ export const demoSource: DataSource = {
     throw new ApiError(404, 'not_found', 'the preview has no 3D files — open a model in the live dashboard to see it');
   },
   async tryOn() {
-    const isSet = (p: ProductRow) => kindOf(p.productType, demoTryOn.get(p.id)?.ring ? 'ring' : null);
+    const isSet = (p: ProductRow) => kindOf(p.productType, demoTryOn.get(p.id)?.jewelry);
     return {
       onMe: DEMO_TRYON_ON_ME,
       watches: DEMO_PRODUCTS.filter(isSet).map(demoTryOnView),
@@ -855,7 +855,7 @@ export const demoSource: DataSource = {
     };
   },
   async uploadCutout(productId, slot, file) {
-    const p = DEMO_PRODUCTS.find((x) => x.id === productId && (kindOf(x.productType, demoTryOn.get(x.id)?.ring ? 'ring' : null) || (x.productType === RING_PRODUCT_TYPE)));
+    const p = DEMO_PRODUCTS.find((x) => x.id === productId && (kindOf(x.productType, demoTryOn.get(x.id)?.jewelry) || (x.productType === RING_PRODUCT_TYPE)));
     if (!p) throw new ApiError(404, 'not_found', 'product not found');
     const verdict = checkCutout(new Uint8Array(await file.arrayBuffer()), file.size);
     if (!verdict.ok) throw new ApiError(422, 'validation_failed', 'Validation failed', { [slot]: [CUTOUT_ISSUES[verdict.issue].en] });
@@ -865,14 +865,14 @@ export const demoSource: DataSource = {
     return demoTryOnView(p);
   },
   async updateTryOn(productId, patch) {
-    const p = DEMO_PRODUCTS.find((x) => x.id === productId && (kindOf(x.productType, demoTryOn.get(x.id)?.ring ? 'ring' : null) || (x.productType === RING_PRODUCT_TYPE)));
+    const p = DEMO_PRODUCTS.find((x) => x.id === productId && (kindOf(x.productType, demoTryOn.get(x.id)?.jewelry) || (x.productType === RING_PRODUCT_TYPE)));
     if (!p) throw new ApiError(404, 'not_found', 'product not found');
     const s = demoTryOn.get(p.id) ?? { worn: null, flat: null, caseMm: null, finish: null, enabled: false };
     const next = { ...s };
-    if (patch.ring !== undefined) {
-      if (p.productType !== RING_PRODUCT_TYPE) throw new ApiError(409, 'conflict', 'only a Jewelry product can be marked as a ring');
-      if (!patch.ring && (s.worn || s.enabled)) throw new ApiError(409, 'conflict', 'remove the ring’s picture first');
-      demoTryOn.set(p.id, { ...next, ring: patch.ring });
+    if (patch.jewelry !== undefined) {
+      if (p.productType !== RING_PRODUCT_TYPE) throw new ApiError(409, 'conflict', 'only a Jewelry product can be marked as a ring or a necklace');
+      if (patch.jewelry !== (s.jewelry ?? null) && (s.worn || s.enabled)) throw new ApiError(409, 'conflict', 'remove the picture first');
+      demoTryOn.set(p.id, { ...next, jewelry: patch.jewelry ?? undefined });
       return demoTryOnView(p);
     }
     if (patch.caseMm !== undefined) next.caseMm = patch.caseMm;
@@ -884,7 +884,7 @@ export const demoSource: DataSource = {
     return shown;
   },
   async calibrateCutout(productId, slot, marks) {
-    const p = DEMO_PRODUCTS.find((x) => x.id === productId && (kindOf(x.productType, demoTryOn.get(x.id)?.ring ? 'ring' : null) || (x.productType === RING_PRODUCT_TYPE)));
+    const p = DEMO_PRODUCTS.find((x) => x.id === productId && (kindOf(x.productType, demoTryOn.get(x.id)?.jewelry) || (x.productType === RING_PRODUCT_TYPE)));
     const s = demoTryOn.get(productId);
     const picture = s?.[slot];
     if (!p || !s || !picture) throw new ApiError(404, 'not_found', 'picture not found');

@@ -25,7 +25,7 @@ export default function TryOn() {
   const auth = useAuth();
   const role = currentStore(auth.me)?.role;
   const canEdit = !role || (ROLE_PERMISSIONS[role] as readonly string[]).includes('tryon:write');
-  const [version, setVersion] = useState(0); // P5.4: a jewelry item marked as a ring moves into the list
+  const [version, setVersion] = useState(0); // P5.4/P5.5: a jewelry item marked as a ring or necklace moves into the list
   const { data, loading, error } = useResource((s) => s.tryOn(), [version]);
   const reload = () => setVersion((v) => v + 1);
   const crumbs = [{ label: t('الرئيسية', 'Home'), href: '/dashboard' }, { label: t('التجربة الافتراضية', 'Virtual try-on') }];
@@ -34,8 +34,8 @@ export default function TryOn() {
     <Shell tenant={null} crumbs={crumbs}>
       <PageHead
         title={t('التجربة الافتراضية', 'Virtual try-on')}
-        lead={t('جهّز ساعاتك ونظاراتك وخواتمك لاستوديو التجربة: يجرّبها المتسوق على معصم أو وجه أو يد حقيقية بمقاسها الحقيقي، أو بجانب أشياء يعرف حجمها.',
-          'Set your watches, glasses and rings up for the try-on studio: shoppers try each on a real wrist, face or hand at its real size, or beside things they know the size of.')}
+        lead={t('جهّز ساعاتك ونظاراتك وخواتمك وقلائدك لاستوديو التجربة: يجرّبها المتسوق على عارضة حقيقية بمقاسها الحقيقي، أو بجانب أشياء يعرف حجمها.',
+          'Set your watches, glasses, rings and necklaces up for the try-on studio: shoppers try each on a real model at its real size, or beside things they know the size of.')}
       />
       {loading && !data && <Loading rows={4} />}
       {error && <ErrorNote error={error} />}
@@ -48,8 +48,8 @@ export default function TryOn() {
         </Panel>
       )}
       {data && data.watches.length === 0 && data.jewelry.length === 0 && (
-        <Empty icon={<Watch size={22} />} title={t('لا ساعات ولا نظارات ولا خواتم بعد', 'No watches, glasses or rings yet')}
-          body={t('اجعل نوع المنتج «ساعة» أو «نظارات» أو «مجوهرات» (للخواتم) في صفحته ليظهر هنا. بقية الأنواع تأتي تباعًا.', 'Set a product’s type to Watch, Eyewear or Jewelry (for rings) on its page and it appears here. Other kinds follow.')}
+        <Empty icon={<Watch size={22} />} title={t('لا منتجات للتجربة بعد', 'Nothing to try on yet')}
+          body={t('اجعل نوع المنتج «ساعة» أو «نظارات» أو «مجوهرات» (للخواتم والقلائد) في صفحته ليظهر هنا. بقية الأنواع تأتي تباعًا.', 'Set a product’s type to Watch, Eyewear or Jewelry (for rings and necklaces) on its page and it appears here. Other kinds follow.')}
           action={<AppLink href="/dashboard/products" className="btn btn-ghost">{t('المنتجات', 'Products')}</AppLink>} />
       )}
       <div style={{ display: 'grid', gap: 16 }}>
@@ -171,10 +171,10 @@ function WatchCard({ initial, editable, onUnmarked }: { initial: TryOnWatchView;
           <span>{t('زر «جرّبها» في صفحة المنتج', 'The “Try it on” button on the product page')}</span>
         </label>
         {!w.ready && <span className="hint" style={{ margin: 0 }}>{t(`ينقصها: ${missingText}.`, `Still needed: ${missingText}.`)}</span>}
-        {w.kind === 'ring' && !w.worn && editable && (
+        {(w.kind === 'ring' || w.kind === 'necklace') && !w.worn && editable && (
           <button type="button" className="btn btn-quiet btn-sm" style={{ marginInlineStart: 'auto' }} disabled={busy !== null}
-            onClick={() => void run('unmark', async () => { const v = await source.updateTryOn(w.productId, { ring: false }); onUnmarked(); return v; })}>
-            {t('ليس خاتمًا', 'Not a ring')}
+            onClick={() => void run('unmark', async () => { const v = await source.updateTryOn(w.productId, { jewelry: null }); onUnmarked(); return v; })}>
+            {w.kind === 'ring' ? t('ليس خاتمًا', 'Not a ring') : t('ليست قلادة', 'Not a necklace')}
           </button>
         )}
       </div>
@@ -332,25 +332,30 @@ function CaseEdges({ kind, productId, slot, busy, onSave, onCancel }: {
   );
 }
 
-/** P5.4 — Jewelry is rings, earrings, bracelets…: only the merchant knows which are rings. */
+/** P5.4/P5.5 — Jewelry is rings, necklaces, earrings, bracelets…: only the merchant knows which is which. */
 function JewelryPanel({ items, editable, onMarked }: { items: TryOnScreen['jewelry']; editable: boolean; onMarked: () => void }) {
   const { t, lang } = useLang();
   const source = useData();
   const [busy, setBusy] = useState<string | null>(null);
   const [failure, setFailure] = useState<Error | null>(null);
-  const mark = async (productId: string) => {
+  const mark = async (productId: string, jewelry: 'ring' | 'necklace') => {
     setBusy(productId); setFailure(null);
-    try { await source.updateTryOn(productId, { ring: true }); onMarked(); } catch (e) { setFailure(e as Error); } finally { setBusy(null); }
+    try { await source.updateTryOn(productId, { jewelry }); onMarked(); } catch (e) { setFailure(e as Error); } finally { setBusy(null); }
   };
   return (
-    <Panel title={t('مجوهراتك', 'Your jewelry')} sub={t('الخواتم تُجرَّب على يد حقيقية. حدّد أيّها خواتم — الأقراط والقلائد تأتي لاحقًا.', 'Rings are tried on a real hand. Say which of these are rings — earrings and necklaces come later.')}>
+    <Panel title={t('مجوهراتك', 'Your jewelry')} sub={t('الخواتم تُجرَّب على يد حقيقية والقلائد على عارضة. حدّد ما كل قطعة — الأقراط تأتي لاحقًا.', 'Rings are tried on a real hand and necklaces on a model. Say which each piece is — earrings come later.')}>
       <ul className="jewelry-list">
         {items.map((item) => (
           <li key={item.productId}>
             <span><strong>{lang === 'ar' ? item.nameAr ?? item.name : item.name}</strong>{item.sku && <span className="hint" style={{ margin: 0 }}> · <span dir="ltr">{item.sku}</span></span>}</span>
-            <button type="button" className="btn btn-ghost btn-sm" disabled={!editable || busy !== null} onClick={() => void mark(item.productId)}>
-              {busy === item.productId ? t('جارٍ…', 'Working…') : t('هذا خاتم', 'It’s a ring')}
-            </button>
+            <span style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className="btn btn-ghost btn-sm" disabled={!editable || busy !== null} onClick={() => void mark(item.productId, 'ring')}>
+                {busy === item.productId ? t('جارٍ…', 'Working…') : t('هذا خاتم', 'It’s a ring')}
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" disabled={!editable || busy !== null} onClick={() => void mark(item.productId, 'necklace')}>
+                {t('هذه قلادة', 'It’s a necklace')}
+              </button>
+            </span>
           </li>
         ))}
       </ul>

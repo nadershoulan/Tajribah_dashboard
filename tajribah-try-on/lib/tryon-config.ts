@@ -54,8 +54,9 @@ export function tryOnProductFrom(config: unknown, local = false): TryOnProduct |
   // P5.2/P5.4 (T68): `category` 'glasses' (a frame, 100–170 mm) or 'ring' (14–30 mm); absent — a watch's case (5–80 mm), as the widget reads it.
   const glasses = tryon.category === 'glasses';
   const ring = tryon.category === 'ring';
-  if (tryon.category !== undefined && !glasses && !ring) return null;
-  const [lo, hi] = glasses ? [100, 170] : ring ? [14, 30] : [5, 80];
+  const necklace = tryon.category === 'necklace'; // P5.5: 60–300 mm across at the neck
+  if (tryon.category !== undefined && !glasses && !ring && !necklace) return null;
+  const [lo, hi] = glasses ? [100, 170] : ring ? [14, 30] : necklace ? [60, 300] : [5, 80];
   if (typeof tryon.caseMm !== 'number' || !Number.isFinite(tryon.caseMm) || tryon.caseMm < lo || tryon.caseMm > hi) return null;
   if (!(tryon.sku == null || str(tryon.sku, 64))) return null;
   const name: Bi = { ar: (product.nameAr as string | null) ?? product.name, en: product.name };
@@ -76,8 +77,8 @@ export function tryOnProductFrom(config: unknown, local = false): TryOnProduct |
     storeLink: null, // the shopper is already on the store's page
     demo: false,
     // T33: the shopper's own photo — Pro and up (a watch, glasses and a ring alike)
-    onMe: tryon.onMe === true,
-    ...(glasses ? { category: 'eyewear' as const } : ring ? { category: 'ring' as const } : {}),
+    onMe: !necklace && tryon.onMe === true, // finding the neck in a photo is not built
+    ...(glasses ? { category: 'eyewear' as const } : ring ? { category: 'ring' as const } : necklace ? { category: 'necklace' as const } : {}),
   };
 }
 

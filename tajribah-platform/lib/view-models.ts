@@ -453,7 +453,7 @@ export type GenerationPhotoSet = {
 export type TryOnWatchView = {
   productId: string;
   /** P5.2 (T68): a watch (two pictures, case width) or glasses (one picture, frame width). */
-  kind: 'watch' | 'glasses' | 'ring'; // P5.4: a ring, one picture like glasses
+  kind: 'watch' | 'glasses' | 'ring' | 'necklace'; // P5.4/P5.5: one picture, like glasses
   name: string;
   nameAr: string | null;
   sku: string | null;
@@ -486,6 +486,6 @@ export type TryOnScreen = {
    */
   onMe: boolean;
   watches: TryOnWatchView[];
-  /** P5.4: Jewelry products not marked as rings yet — "It's a ring" sets one up. */
+  /** P5.4/P5.5: Jewelry products not marked yet — "It's a ring" / "It's a necklace" sets one up. */
   jewelry: { productId: string; name: string; nameAr: string | null; sku: string | null }[];
 };

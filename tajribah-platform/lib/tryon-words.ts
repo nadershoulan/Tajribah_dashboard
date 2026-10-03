@@ -53,6 +53,23 @@ export const KIND_WORDS: Record<TryOnKind, KindWords> = {
       en: `The glasses show at about ${pct} of their real size: a soft shadow or glow at the sides widens the picture, not the frame. Crop it to the frame’s edges, with a clean edge.`,
     }),
   },
+  necklace: {
+    trueSize: { ar: 'بحجمها الحقيقي.', en: 'True to size.' },
+    widthHint: { ar: 'عرض القلادة من طرف إلى طرف عند الرقبة، كما تظهر من الأمام (60–300 مم).', en: 'The necklace’s width across at the neck, end to end, as seen from the front (60–300 mm).' },
+    finish: { ar: 'ذهب · لؤلؤ', en: 'Gold · pearls' },
+    markButton: { ar: 'حدّد طرفي القلادة', en: 'Mark the necklace’s ends' },
+    markTitle: (label) => ({ ar: `حدّد طرفي القلادة — ${label}`, en: `Mark the necklace’s ends — ${label}` }),
+    markHelp: {
+      ar: 'اسحب الخطين إلى طرفي القلادة عند الرقبة. ما خارج الخطين يُقص، فتظهر القلادة بعرضها الحقيقي في الاستوديو.',
+      en: 'Drag the two lines to the necklace’s ends at the neck. What lies outside them is cropped away, so the studio shows the necklace at its real width.',
+    },
+    cropping: { ar: 'نقصّ الصورة على طرفي القلادة ثم نفحص مقاسها من جديد.', en: 'Cropping the picture to the necklace’s ends, then checking its size again.' },
+    empty: { ar: 'لا يظهر شيء في هذه الصورة. ارفع صورة القلادة.', en: 'Nothing is visible in this picture. Upload the necklace.' },
+    undersized: (pct) => ({
+      ar: `تظهر القلادة بنحو ${pct} من حجمها الحقيقي: ظل أو توهج خفيف على الجانبين يوسّع الصورة دون القلادة. قصّها على طرفيها بحدّ واضح.`,
+      en: `The necklace shows at about ${pct} of its real size: a soft shadow or glow at the sides widens the picture, not the necklace. Crop it to its ends, with a clean edge.`,
+    }),
+  },
   ring: {
     trueSize: { ar: 'بمقاسه الحقيقي.', en: 'True to size.' },
     widthHint: { ar: 'عرض الخاتم من طرف إلى طرف كما يظهر على الإصبع: القطر الداخلي وسماكة الحلقة من الجهتين (14–30 مم).', en: 'The ring’s width end to end as it sits on a finger: the inner diameter plus the band on both sides (14–30 mm).' },

@@ -25,6 +25,7 @@ import { tryOnProductFrom } from '../../../../../tajribah-try-on/lib/tryon-confi
 setLogLevel('error');
 const FRAME = new Uint8Array(readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'public', 'assets', 'glasses-front.png')));
 const RING = new Uint8Array(readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'public', 'assets', 'ring-top.webp')));
+const NECKLACE = new Uint8Array(readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'public', 'assets', 'necklace-front.webp')));
 class CdnStorage extends MemoryStorage { publicUrl(k: string) { return `https://cdn.example.test/${k}`; } }
 
 async function store(harness: TestDb, name: string) {
@@ -110,9 +111,9 @@ test('P5.4 a Jewelry product the merchant marks as a ring: one picture, 14–30 
     const before = await tryOnScreen(ctx);
     assert.deepEqual(before.jewelry.map((j) => j.productId).sort(), [ring, earrings].sort(), 'jewelry waits to be told which are rings');
     assert.ok(!before.watches.some((w) => w.productId === ring));
-    await assert.rejects(() => startCutoutUpload(ctx, ring, { slot: 'worn', filename: 'r.webp', contentType: 'image/webp', sizeBytes: RING.length }), (e: any) => e.code === 'conflict' && /ring first/.test(e.message));
-    await updateTryOn(ctx, ring, { ring: true });
-    await assert.rejects(() => updateTryOn(ctx, glasses, { ring: true }), (e: any) => e.code === 'conflict', 'only jewelry');
+    await assert.rejects(() => startCutoutUpload(ctx, ring, { slot: 'worn', filename: 'r.webp', contentType: 'image/webp', sizeBytes: RING.length }), (e: any) => e.code === 'conflict' && /a ring or a necklace first/.test(e.message));
+    await updateTryOn(ctx, ring, { jewelry: 'ring' });
+    await assert.rejects(() => updateTryOn(ctx, glasses, { jewelry: 'ring' }), (e: any) => e.code === 'conflict', 'only jewelry');
     const after = await tryOnScreen(ctx);
     assert.deepEqual(after.jewelry.map((j) => j.productId), [earrings], 'earrings stay where they were');
     const listed = after.watches.find((w) => w.productId === ring)!;
@@ -121,7 +122,7 @@ test('P5.4 a Jewelry product the merchant marks as a ring: one picture, 14–30 
     const started = await startCutoutUpload(ctx, ring, { slot: 'worn', filename: 'ring.webp', contentType: 'image/webp', sizeBytes: RING.length });
     await forTenant(tenantId).put(started.key, RING.slice().buffer as ArrayBuffer);
     await confirmCutout(ctx, ring, { slot: 'worn', key: started.key });
-    await assert.rejects(() => updateTryOn(ctx, ring, { ring: false }), (e: any) => e.code === 'conflict', 'not taken back once it has a picture');
+    await assert.rejects(() => updateTryOn(ctx, ring, { jewelry: null }), (e: any) => e.code === 'conflict', 'not taken back once it has a picture');
     await assert.rejects(() => updateTryOn(ctx, ring, { caseMm: 38 }), (e: any) => !!e.errors?.caseMm, 'a watch-sized ring');
     const ready = await updateTryOn(ctx, ring, { caseMm: 20.5, enabled: true });
     assert.deepEqual([ready.ready, ready.enabled], [true, true]);
@@ -148,4 +149,33 @@ test('P5.4 the ring range is the same on all sides, and a ring is never on a fac
     assert.equal(!!parseConfig(config), ok, `widget ${caseMm}`);
     assert.equal(!!tryOnProductFrom(config), ok, `try-on page ${caseMm}`);
   }
+});
+
+test('P5.5 a Jewelry product marked as a necklace: one picture, 60–300 mm, on the shop as a necklace', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, tenantId, kv } = await store(harness, 'pearl');
+    const necklace = uuidv7();
+    await harness.asAdmin(() => harness.db.insert(products).values({ id: necklace, tenantId, name: 'Gold pendant necklace', productType: 'jewelry', externalId: 'neck-3' } as any));
+    await updateTryOn(ctx, necklace, { jewelry: 'necklace' });
+    const listed = (await tryOnScreen(ctx)).watches.find((w) => w.productId === necklace)!;
+    assert.deepEqual([listed.kind, listed.missing], ['necklace', ['worn', 'case']]);
+    const started = await startCutoutUpload(ctx, necklace, { slot: 'worn', filename: 'n.webp', contentType: 'image/webp', sizeBytes: NECKLACE.length });
+    await forTenant(tenantId).put(started.key, NECKLACE.slice().buffer as ArrayBuffer);
+    await confirmCutout(ctx, necklace, { slot: 'worn', key: started.key });
+    await assert.rejects(() => updateTryOn(ctx, necklace, { jewelry: 'ring' }), (e: any) => e.code === 'conflict', 'not switched to a ring once it has a picture');
+    await assert.rejects(() => updateTryOn(ctx, necklace, { caseMm: 20 }), (e: any) => !!e.errors?.caseMm, 'a ring-sized necklace');
+    await updateTryOn(ctx, necklace, { caseMm: 170, enabled: true });
+    await publishProduct(ctx, necklace);
+    const config = JSON.parse([...kv.entries.values()].find((e) => e.body.includes('Gold pendant'))!.body);
+    assert.deepEqual([config.placement, config.tryon.category, config.tryon.caseMm], ['wrist', 'necklace', 170]);
+    assert.equal(parseConfig(config)?.tryon?.category, 'necklace');
+    assert.deepEqual([tryOnProductFrom(config)?.category, tryOnProductFrom(config)?.onMe], ['necklace', false], 'no neck finding in the shopper’s photo yet');
+    assert.deepEqual([...TRYON_WIDTH_MM.necklace], [WIDTH_MM.necklace.min, WIDTH_MM.necklace.max]);
+    for (const [caseMm, ok] of [[59, false], [60, true], [300, true], [301, false]] as const) {
+      const c = { ...config, tryon: { ...config.tryon, caseMm } };
+      assert.equal(!!parseConfig(c), ok, `widget ${caseMm}`);
+      assert.equal(!!tryOnProductFrom(c), ok, `try-on page ${caseMm}`);
+    }
+  } finally { await harness.close(); }
 });

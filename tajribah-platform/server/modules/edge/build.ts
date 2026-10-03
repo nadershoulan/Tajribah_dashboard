@@ -92,11 +92,11 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
   // P5.2/P5.4 (T68): glasses (face) and rings (wrist — the hand) publish their one picture as both, with
   // their `category`; absent = a watch.
   const kind = kindOf(product.productType, tryon?.category);
-  const single = kind === 'glasses' || kind === 'ring';
+  const single = kind !== null && kind !== 'watch';
   const flatKey = single ? tryon?.wornKey : tryon?.flatKey;
   const watch = tryon && tryon.enabled && tryon.wornKey && flatKey && tryon.caseTenthsMm != null && button.placement === (kind === 'glasses' ? 'face' : 'wrist')
     ? {
-      ...(kind === 'glasses' || kind === 'ring' ? { category: kind } : {}),
+      ...(single ? { category: kind } : {}),
       worn: files.publicUrl(tryon.wornKey),
       flat: files.publicUrl(flatKey),
       caseMm: tryon.caseTenthsMm / 10,

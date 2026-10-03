@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Info } from 'lucide-react';
-import { DEMO_GLASSES, DEMO_RING } from '@/lib/demo-product';
+import { DEMO_GLASSES, DEMO_NECKLACE, DEMO_RING } from '@/lib/demo-product';
 import { useLang } from '@/lib/i18n';
 import { SiteLink } from '@/lib/site-env';
 import Studio from '@/components/studio/Studio';
@@ -12,8 +12,8 @@ import { CtaBand } from '@/components/site/ui';
 export default function Demo() {
   const { t } = useLang();
   // T68: the same studio on glasses — a real face and a real frame (ASSETS.md).
-  const [kind, setKind] = useState<'watch' | 'glasses' | 'ring'>('watch');
-  const kinds = [{ id: 'watch', label: t('ساعة', 'Watch') }, { id: 'glasses', label: t('نظارة', 'Glasses') }, { id: 'ring', label: t('خاتم', 'Ring') }] as const;
+  const [kind, setKind] = useState<'watch' | 'glasses' | 'ring' | 'necklace'>('watch');
+  const kinds = [{ id: 'watch', label: t('ساعة', 'Watch') }, { id: 'glasses', label: t('نظارة', 'Glasses') }, { id: 'ring', label: t('خاتم', 'Ring') }, { id: 'necklace', label: t('قلادة', 'Necklace') }] as const;
   return (
     <Shell current="/demo">
       <section className="demo-head">
@@ -45,12 +45,14 @@ export default function Demo() {
                 </button>
               ))}
             </div>
+            {kind === 'necklace' && <span className="cycle-save">{t('قلادة مثال وصور حقيقية مرخّصة. على العارضة وبجانب أشياء تعرف حجمها؛ تجربتها على صورتك تأتي لاحقًا.',
+              'An example necklace and real, licensed photos. On the model and beside things you know; on your own photo comes later.')}</span>}
             {kind === 'ring' && <span className="cycle-save">{t('خاتم مثال وصور حقيقية مرخّصة. على النموذج وبجانب الريال؛ تجربته على صورتك تأتي لاحقًا.',
               'An example ring and real, licensed photos. On the model and beside a riyal; on your own photo comes later.')}</span>}
             {kind === 'glasses' && <span className="cycle-save">{t('إطار مثال وصور حقيقية مرخّصة. على النموذج وبجانب أشياء تعرف حجمها؛ تجربتها على صورتك تأتي لاحقًا.',
               'An example frame and real, licensed photos. On the model and beside things you know; on your own photo comes later.')}</span>}
           </div>
-          {kind === 'glasses' ? <Studio key="glasses" product={DEMO_GLASSES} /> : kind === 'ring' ? <Studio key="ring" product={DEMO_RING} /> : <Studio key="watch" />}
+          {kind === 'glasses' ? <Studio key="glasses" product={DEMO_GLASSES} /> : kind === 'ring' ? <Studio key="ring" product={DEMO_RING} /> : kind === 'necklace' ? <Studio key="necklace" product={DEMO_NECKLACE} /> : <Studio key="watch" />}
         </div>
       </section>
 

@@ -36,3 +36,12 @@ Scale on the hand photo is measured: 953 px across the knuckles in the photo, ta
 ## Face detection for glasses (T68, 2026-10-03)
 
 - `face-landmarker.task`: MediaPipe's official Face Landmarker model (float16, Apache-2.0) from https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task — 3,758,596 bytes, SHA-256 `64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff`. Runs in the shopper's browser (like the hand model): the photo never leaves the device. Its two iris centres (landmarks 468 and 473), taken as 62 mm apart, size the frame. On the demo's own portrait it puts the frame at −2°, as measured by hand (−2.3°).
+
+## Necklace (T68, 2026-10-03)
+
+Real photographs under the [Pexels License](https://www.pexels.com/license/) (credited here anyway). The model wears a hijab — a modest choice for a Saudi audience; long necklaces are worn over it.
+
+- `model-neck.webp` (and `model-neck-thumb.webp`): a portrait in a black hijab by Abdulkadir Muhammad Sani — https://www.pexels.com/photo/34900678/ (4480 × 6720). Cropped to y 2560–6480 (from the lips down) and scaled to the 1200 × 1050 stage; nothing else changed.
+- `necklace-front.webp`: a gold pendant necklace on a teal display bust by sinu sony — https://www.pexels.com/photo/20768279/ (3889 × 5835). The bust holds the chains as worn. Cut out by `scripts/cut-necklace.mjs`: what is warm (gold, pearls) or bright near-white (the white stones) kept; the medallion and the two roundels filled as measured circles, keeping all but the bust's teal; teal showing through the openwork removed; the chains fade where they go behind the neck; the colours are the photo's own. Stored as WebP (quality 90, alpha lossless) — a demo asset, not a merchant's picture.
+
+Scale on the portrait is measured: the pupils are 810 px apart in the photo, taken as 62 mm → 13.07 px/mm, × 1200/4480 on the stage = 3.50 px/mm. The example necklace's width across at the neck, 170 mm, is approximate (the bust's neck taken as 100 mm); it is an example product, not a store's.

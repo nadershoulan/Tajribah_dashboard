@@ -93,7 +93,8 @@ copy('brand');
 for (const f of ['model-wrist.webp', 'model-wrist-thumb.webp', 'model-lifestyle.webp', 'model-lifestyle-thumb.webp',
   'watch-layer-0.png', 'watch-flat.png', 'iphone.png', 'airpods.webp', 'riyal.webp',
   'model-face.webp', 'model-face-thumb.webp', 'glasses-front.png',
-  'model-hand.webp', 'model-hand-thumb.webp', 'ring-top.webp']) copy(`assets/${f}`);
+  'model-hand.webp', 'model-hand-thumb.webp', 'ring-top.webp',
+  'model-neck.webp', 'model-neck-thumb.webp', 'necklace-front.webp']) copy(`assets/${f}`);
 copy('assets/hand-landmarker.task', 'assets/hand-landmarker.task.wasm'); // see RENAMED in main.tsx
 copy('assets/face-landmarker.task', 'assets/face-landmarker.task.wasm'); // T68 glasses — see RENAMED
 copy('wasm/vision_wasm_internal.js');

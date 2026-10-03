@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEMO_GLASSES, DEMO_RING, DEMO_WATCH, FACE_MODELS, HAND_MODELS, MODELS, constrainToModel, modelsFor } from '../../../tajribah-try-on/lib/demo-product';
+import { DEMO_GLASSES, DEMO_NECKLACE, DEMO_RING, DEMO_WATCH, FACE_MODELS, HAND_MODELS, MODELS, NECK_MODELS, constrainToModel, modelsFor } from '../../../tajribah-try-on/lib/demo-product';
 
 const site = (p: string) => join(process.cwd(), '..', 'tajribah-try-on', p);
 
@@ -70,4 +70,21 @@ test('a ring sits on a real hand at a measured scale: 79 mm across the knuckles,
   assert.match(assets, /pexels\.com\/photo\/20805371/);
   assert.match(assets, /pexels\.com\/photo\/12194367/);
   assert.deepEqual([constrainToModel('hand', { x: 0, y: 0, width: 135, angle: 0 }).x], [600]);
+});
+
+test('a necklace hangs on a real model at a measured scale: 62 mm between pupils 810 px apart in the photo', () => {
+  const { models, baseMm } = modelsFor(DEMO_NECKLACE);
+  assert.equal(models, NECK_MODELS);
+  assert.equal(baseMm, DEMO_NECKLACE.caseMm);
+  const pxPerMm = (810 / 62) * (1200 / 4480);
+  assert.ok(Math.abs(models[0]!.pose.width - DEMO_NECKLACE.caseMm * pxPerMm) < 2, `${models[0]!.pose.width} px for ${DEMO_NECKLACE.caseMm} mm`);
+  assert.equal(models[0]!.pose.angle, 0, 'a necklace hangs straight');
+  assert.equal(DEMO_NECKLACE.onMe, false, 'finding the neck in the shopper’s photo is not built: the tab is hidden');
+  const assets = readFileSync(site('ASSETS.md'), 'utf8');
+  for (const file of ['model-neck.webp', 'model-neck-thumb.webp', 'necklace-front.webp']) {
+    assert.ok(existsSync(site(`public/assets/${file}`)) && statSync(site(`public/assets/${file}`)).size > 3_000, file);
+    assert.match(assets, new RegExp(file.replace('.', '\\.')), `${file} in ASSETS.md`);
+  }
+  assert.match(assets, /pexels\.com\/photo\/34900678/);
+  assert.match(assets, /pexels\.com\/photo\/20768279/);
 });

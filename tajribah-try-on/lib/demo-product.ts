@@ -35,7 +35,7 @@ export type TryOnProduct = {
    * T68 — what is tried on. Left out: a watch, exactly as before. `eyewear`: the frame on a face photo,
    * `caseMm` then being the frame's front width. The studio's modes and controls are the same.
    */
-  category?: 'watch' | 'eyewear' | 'ring';
+  category?: 'watch' | 'eyewear' | 'ring' | 'necklace';
 };
 
 /**
@@ -58,7 +58,7 @@ export const DEMO_WATCH: TryOnProduct = {
   demo: true,
 };
 
-export type ModelId = 'wrist' | 'lifestyle' | 'face' | 'hand';
+export type ModelId = 'wrist' | 'lifestyle' | 'face' | 'hand' | 'neck';
 
 export type ModelPhoto = { id: ModelId; label: Bi; stageLabel: Bi; src: string; thumb: string; pose: Pose };
 
@@ -154,8 +154,45 @@ export const HAND_MODELS: ModelPhoto[] = [
   },
 ];
 
+/**
+ * Necklaces: a real portrait in a black hijab (Pexels, Abdulkadir Muhammad Sani) and a real gold pendant
+ * necklace on a display bust (Pexels, sinu sony), so the chains hang as they are worn. Measured: the
+ * model's pupils are 810 px apart in the photo, taken as 62 mm → 13.07 px/mm, × 1200/4480 on the stage
+ * = 3.50 px/mm. The necklace is about 170 mm across at the neck (the bust's neck taken as 100 mm), drawn
+ * 595 px wide, its chains starting just below the chin, hanging straight.
+ */
+export const DEMO_NECKLACE: TryOnProduct = {
+  sku: 'EX-NECK-03',
+  collection: { ar: 'قلائد', en: 'Necklaces' },
+  headLead: { ar: 'قلادة', en: 'A necklace' },
+  headEm: { ar: 'بحجمها الحقيقي.', en: 'at its real size.' },
+  name: { ar: 'قلادة ذهبية بدلّاية مستديرة', en: 'Gold necklace with a round pendant' },
+  finish: { ar: 'ذهب · لؤلؤ وفصوص', en: 'Gold · pearls and stones' },
+  caseMm: 170,
+  worn: '/assets/necklace-front.webp',
+  flat: '/assets/necklace-front.webp',
+  storeUrl: '',
+  alt: { ar: 'قلادة ذهبية بثلاث سلاسل ودلّاية مستديرة تتدلى منها لآلئ', en: 'A three-strand gold necklace with a round pendant and pearl drops' },
+  storeLink: null,
+  demo: false,
+  onMe: false, // finding the neck in the shopper's photo is not built yet
+  category: 'necklace',
+};
+
+export const NECK_MODELS: ModelPhoto[] = [
+  {
+    id: 'neck',
+    label: { ar: 'من الأمام', en: 'From the front' },
+    stageLabel: { ar: 'على الصدر', en: 'Worn' },
+    src: '/assets/model-neck.webp',
+    thumb: '/assets/model-neck-thumb.webp',
+    pose: { x: 696, y: 591, width: 595, angle: 0 },
+  },
+];
+
 /** The model photos for this product, and the width their poses were set for. */
 export function modelsFor(product: TryOnProduct): { models: ModelPhoto[]; baseMm: number } {
+  if (product.category === 'necklace') return { models: NECK_MODELS, baseMm: DEMO_NECKLACE.caseMm };
   if (product.category === 'eyewear') return { models: FACE_MODELS, baseMm: DEMO_GLASSES.caseMm };
   if (product.category === 'ring') return { models: HAND_MODELS, baseMm: DEMO_RING.caseMm };
   return { models: MODELS, baseMm: DEMO_WATCH.caseMm };
@@ -173,6 +210,7 @@ const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 
 /** Keep the watch on the wrist in each photo — tuned to the two model shots. */
 export function constrainToModel(model: ModelId, p: Pose): Pose {
+  if (model === 'neck') return { ...p, x: clamp(p.x, 640, 750), y: clamp(p.y, 560, 640) }; // hanging from the neck
   if (model === 'hand') return { ...p, x: clamp(p.x, 600, 690), y: clamp(p.y, 520, 640) }; // along the ring finger's base
   if (model === 'face') return { ...p, x: clamp(p.x, 555, 635), y: clamp(p.y, 495, 565) }; // across the eyes
   if (model === 'wrist') {

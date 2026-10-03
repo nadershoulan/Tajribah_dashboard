@@ -114,7 +114,7 @@ export const INDUSTRIES: Record<IndustrySlug, Industry> = {
     nav: { ar: 'متاجر الحقائب', en: 'Bag stores' },
     hero: {
       title: { ar: 'لمتاجر الحقائب الصغيرة: «هل يدخل جوالي؟»', en: 'For small-bag stores: “Will my phone fit?”' },
-      lead: { ar: 'اليوم: الحقائب الصغيرة والمحافظ بجانب آيفون بالمقياس نفسه. تجربة الحقيبة على الجسم لم تُبنَ بعد.', en: 'Today: small bags, clutches and wallets beside an iPhone at one scale. On-body bag try-on is not built yet.' },
+      lead: { ar: 'اليوم: حقيبتك تحملها عارضة حقيقية بحجمها الحقيقي، وبجانب آيفون بالمقياس نفسه — تجهّزها من لوحة التحكم بصورة واحدة وعرض الحقيبة.', en: 'Today: your bag carried by a real model at its real size, and beside an iPhone on the same scale — set up in the dashboard with one picture and the bag’s width.' },
     },
     question: { ar: '«هل يتسع لجوالي ومفاتيحي؟»', en: '“Does it fit my phone and keys?”' },
     problem: [
@@ -122,7 +122,7 @@ export const INDUSTRIES: Record<IndustrySlug, Industry> = {
     ],
     modes: [
       { feature: 'true-size', label: { ar: 'قارن الحجم', en: 'Compare size' }, status: 'now', note: { ar: 'الحقائب الصغيرة والمحافظ وحقائب اليد الصغيرة بجانب آيفون.', en: 'Small bags, wallets and clutches beside an iPhone.' } },
-      { feature: null, label: { ar: 'الحقيبة على الجسم', en: 'The bag on the body' }, status: 'soon', note: { ar: 'في آخر خطة التوسّع، بعد الساعات والمجوهرات والنظارات.', en: 'Last in the expansion plan, after watches, jewellery and eyewear.' } },
+      { feature: null, label: { ar: 'الحقيبة باليد', en: 'The bag in hand' }, status: 'now', note: { ar: 'عارضة حقيقية تحمل الحقيبة بيدها، والمقياس من طولها. على صورة العميل نفسه يأتي لاحقًا.', en: 'A real model holds the bag in her hand, sized from her height. On the shopper’s own photo comes later.' } },
     ],
     measure: [
       { ar: 'العرض والارتفاع من الأمام بالمليمتر', en: 'Front width and height in millimetres' },

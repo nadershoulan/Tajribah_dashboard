@@ -25,6 +25,7 @@
  *    published as both pictures; the width is the frame's (100–170 mm, a watch's case 5–80).
  *  - P5.4/P5.5: rings and necklaces too — a Jewelry product the merchant marks as one (`jewelry`;
  *    Jewelry is also earrings and bracelets) — one picture as worn; a ring 14–30 mm, a necklace 60–300.
+ *  - P5.6: bags (product type Bag) — one picture, the bag from the front; 100–600 mm across.
  *  - P5.13: the list shows each watch's last 30 days (views, try-on openings) from the analytics
  *    rollup — never raw events — to anyone who may read analytics.
  */
@@ -91,7 +92,7 @@ function view(product: Product, config: Config | null, last30: Last30 = null): T
 async function watchOf(db: TenantDb, productId: string): Promise<Product> {
   const product = await db.findById(products, productId);
   if (!product || product.deletedAt) throw errors.notFound('product');
-  if (!(TRYON_LISTED_TYPES as readonly string[]).includes(product.productType)) throw errors.conflict('try-on is for watches, glasses and rings for now — set this product’s type to Watch, Eyewear or Jewelry first');
+  if (!(TRYON_LISTED_TYPES as readonly string[]).includes(product.productType)) throw errors.conflict('try-on is for watches, glasses, jewelry and bags for now — set this product’s type to Watch, Eyewear, Jewelry or Bag first');
   return product;
 }
 

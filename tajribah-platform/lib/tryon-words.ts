@@ -70,6 +70,23 @@ export const KIND_WORDS: Record<TryOnKind, KindWords> = {
       en: `The necklace shows at about ${pct} of its real size: a soft shadow or glow at the sides widens the picture, not the necklace. Crop it to its ends, with a clean edge.`,
     }),
   },
+  bag: {
+    trueSize: { ar: 'بحجمها الحقيقي.', en: 'True to size.' },
+    widthHint: { ar: 'عرض الحقيبة من جانب إلى جانب، بلا المقابض (100–600 مم).', en: 'The bag’s width side to side, without the handles (100–600 mm).' },
+    finish: { ar: 'جلد بني · تطريز', en: 'Tan leather · embroidery' },
+    markButton: { ar: 'حدّد جانبي الحقيبة', en: 'Mark the bag’s sides' },
+    markTitle: (label) => ({ ar: `حدّد جانبي الحقيبة — ${label}`, en: `Mark the bag’s sides — ${label}` }),
+    markHelp: {
+      ar: 'اسحب الخطين إلى جانبي الحقيبة. ما خارج الخطين يُقص، فتظهر الحقيبة بعرضها الحقيقي في الاستوديو.',
+      en: 'Drag the two lines to the bag’s sides. What lies outside them is cropped away, so the studio shows the bag at its real width.',
+    },
+    cropping: { ar: 'نقصّ الصورة على جانبي الحقيبة ثم نفحص مقاسها من جديد.', en: 'Cropping the picture to the bag’s sides, then checking its size again.' },
+    empty: { ar: 'لا يظهر شيء في هذه الصورة. ارفع صورة الحقيبة.', en: 'Nothing is visible in this picture. Upload the bag.' },
+    undersized: (pct) => ({
+      ar: `تظهر الحقيبة بنحو ${pct} من حجمها الحقيقي: ظل أو توهج خفيف على الجانبين يوسّع الصورة دون الحقيبة. قصّها على جانبيها بحدّ واضح.`,
+      en: `The bag shows at about ${pct} of its real size: a soft shadow or glow at the sides widens the picture, not the bag. Crop it to its sides, with a clean edge.`,
+    }),
+  },
   ring: {
     trueSize: { ar: 'بمقاسه الحقيقي.', en: 'True to size.' },
     widthHint: { ar: 'عرض الخاتم من طرف إلى طرف كما يظهر على الإصبع: القطر الداخلي وسماكة الحلقة من الجهتين (14–30 مم).', en: 'The ring’s width end to end as it sits on a finger: the inner diameter plus the band on both sides (14–30 mm).' },

@@ -26,6 +26,7 @@ setLogLevel('error');
 const FRAME = new Uint8Array(readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'public', 'assets', 'glasses-front.png')));
 const RING = new Uint8Array(readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'public', 'assets', 'ring-top.webp')));
 const NECKLACE = new Uint8Array(readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'public', 'assets', 'necklace-front.webp')));
+const BAG = new Uint8Array(readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'public', 'assets', 'bag-front.webp')));
 class CdnStorage extends MemoryStorage { publicUrl(k: string) { return `https://cdn.example.test/${k}`; } }
 
 async function store(harness: TestDb, name: string) {
@@ -173,6 +174,35 @@ test('P5.5 a Jewelry product marked as a necklace: one picture, 60–300 mm, on 
     assert.deepEqual([tryOnProductFrom(config)?.category, tryOnProductFrom(config)?.onMe], ['necklace', true], 'on Pro, the shopper’s own photo too');
     assert.deepEqual([...TRYON_WIDTH_MM.necklace], [WIDTH_MM.necklace.min, WIDTH_MM.necklace.max]);
     for (const [caseMm, ok] of [[59, false], [60, true], [300, true], [301, false]] as const) {
+      const c = { ...config, tryon: { ...config.tryon, caseMm } };
+      assert.equal(!!parseConfig(c), ok, `widget ${caseMm}`);
+      assert.equal(!!tryOnProductFrom(c), ok, `try-on page ${caseMm}`);
+    }
+  } finally { await harness.close(); }
+});
+
+test('P5.6 a Bag product: one picture, 100–600 mm, on the shop as a bag — wherever a bag’s button goes, never on a wrist or face', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, tenantId, kv } = await store(harness, 'leather');
+    const bag = uuidv7();
+    await harness.asAdmin(() => harness.db.insert(products).values({ id: bag, tenantId, name: 'Embroidered handbag', productType: 'bag', externalId: 'bag-5' } as any));
+    const listed = (await tryOnScreen(ctx)).watches.find((w) => w.productId === bag)!;
+    assert.deepEqual([listed.kind, listed.missing], ['bag', ['worn', 'case']], 'no marking needed: the product type says it');
+    const started = await startCutoutUpload(ctx, bag, { slot: 'worn', filename: 'b.webp', contentType: 'image/webp', sizeBytes: BAG.length });
+    await forTenant(tenantId).put(started.key, BAG.slice().buffer as ArrayBuffer);
+    await confirmCutout(ctx, bag, { slot: 'worn', key: started.key });
+    await assert.rejects(() => updateTryOn(ctx, bag, { caseMm: 50 }), (e: any) => !!e.errors?.caseMm);
+    await updateTryOn(ctx, bag, { caseMm: 280, enabled: true });
+    await publishProduct(ctx, bag);
+    const config = JSON.parse([...kv.entries.values()].find((e) => e.body.includes('Embroidered handbag'))!.body);
+    assert.equal(config.tryon.category, 'bag');
+    assert.ok(config.placement !== 'face' && config.placement !== 'wrist', config.placement);
+    assert.equal(parseConfig(config)?.tryon?.category, 'bag');
+    assert.equal(parseConfig({ ...config, placement: 'wrist' }), null, 'a bag on a wrist: nothing to open');
+    assert.deepEqual([tryOnProductFrom(config)?.category, tryOnProductFrom(config)?.onMe], ['bag', false]);
+    assert.deepEqual([...TRYON_WIDTH_MM.bag], [WIDTH_MM.bag.min, WIDTH_MM.bag.max]);
+    for (const [caseMm, ok] of [[99, false], [100, true], [600, true], [601, false]] as const) {
       const c = { ...config, tryon: { ...config.tryon, caseMm } };
       assert.equal(!!parseConfig(c), ok, `widget ${caseMm}`);
       assert.equal(!!tryOnProductFrom(c), ok, `try-on page ${caseMm}`);

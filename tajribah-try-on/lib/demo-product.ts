@@ -249,7 +249,7 @@ const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 
 /** Keep the watch on the wrist in each photo — tuned to the two model shots. */
 export function constrainToModel(model: ModelId, p: Pose): Pose {
-  if (model === 'bag') return { ...p, x: clamp(p.x, 645, 661), y: clamp(p.y, 690, 704) }; // the handles stay in her hand
+  if (model === 'bag') return { ...p, x: clamp(p.x, 620, 690), y: clamp(p.y, 600, 820) }; // the handles near her hand (a merchant's bag may be taller or shorter)
   if (model === 'neck') return { ...p, x: clamp(p.x, 640, 750), y: clamp(p.y, 560, 640) }; // hanging from the neck
   if (model === 'hand') return { ...p, x: clamp(p.x, 600, 690), y: clamp(p.y, 520, 640) }; // along the ring finger's base
   if (model === 'face') return { ...p, x: clamp(p.x, 555, 635), y: clamp(p.y, 495, 565) }; // across the eyes

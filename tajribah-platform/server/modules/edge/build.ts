@@ -94,7 +94,9 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
   const kind = kindOf(product.productType, tryon?.category);
   const single = kind !== null && kind !== 'watch';
   const flatKey = single ? tryon?.wornKey : tryon?.flatKey;
-  const watch = tryon && tryon.enabled && tryon.wornKey && flatKey && tryon.caseTenthsMm != null && button.placement === (kind === 'glasses' ? 'face' : 'wrist')
+  // where each kind may be published: glasses on the face; a bag wherever a bag's button goes (not face or wrist); the rest on the wrist
+  const placementFits = kind === 'glasses' ? button.placement === 'face' : kind === 'bag' ? button.placement !== 'face' && button.placement !== 'wrist' : button.placement === 'wrist';
+  const watch = tryon && tryon.enabled && tryon.wornKey && flatKey && tryon.caseTenthsMm != null && placementFits
     ? {
       ...(single ? { category: kind } : {}),
       worn: files.publicUrl(tryon.wornKey),

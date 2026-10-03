@@ -453,7 +453,7 @@ export type GenerationPhotoSet = {
 export type TryOnWatchView = {
   productId: string;
   /** P5.2 (T68): a watch (two pictures, case width) or glasses (one picture, frame width). */
-  kind: 'watch' | 'glasses' | 'ring' | 'necklace'; // P5.4/P5.5: one picture, like glasses
+  kind: 'watch' | 'glasses' | 'ring' | 'necklace' | 'bag'; // all but a watch take one picture
   name: string;
   nameAr: string | null;
   sku: string | null;

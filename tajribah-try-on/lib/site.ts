@@ -37,7 +37,7 @@ export const COMPANY = {
    * WIDGET_SRC in tajribah-platform — its test checks this line). Services stay on tajribah.com (T29).
    */
   widgetSrc: 'https://cdn.tajribah.com/w/v1/widget.js',
-  legalUpdated: { ar: '22 سبتمبر 2026', en: '22 September 2026' } as Bi,
+  legalUpdated: { ar: '3 أكتوبر 2026', en: '3 October 2026' } as Bi,
 };
 
 export type NavItem = { href: string; label: Bi };

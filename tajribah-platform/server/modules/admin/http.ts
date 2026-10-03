@@ -20,7 +20,7 @@ import { RESPONSE_DAYS, exportDocument, fulfilErasure, fulfilExport, listPrivacy
 import { retentionState } from './retention';
 import { createAnnouncement, listAnnouncements, updateAnnouncement } from './announcements';
 import { decideQa, qaModelFile, qaQueue } from './qa';
-import { professionalQueue, quoteOrder } from './professional';
+import { confirmDelivery, markPaid, professionalQueue, quoteOrder, startDelivery } from './professional';
 import { aiOperations, cancelJobForStore, setGuardrails } from './ai-ops';
 import { listRegistry, registerModel, setModelActive, setSplits } from './models';
 import { currentScope } from '@/server/core/observability/scope';
@@ -513,4 +513,29 @@ export const quoteProfessionalHandler = route(async (request) => {
   assertSameOrigin(request, config);
   const staff = await staffContextFor(request, config);
   return json(await quoteOrder(staff, uuidAt(request, 1, 'order'), await readJson(request, z.unknown())));
+});
+
+/** API-A47 — POST /api/admin/professional/[id]/paid { reference }: the bank transfer arrived (T68). */
+export const professionalPaidHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  return json(await markPaid(staff, uuidAt(request, 1, 'order'), await readJson(request, z.unknown())));
+});
+
+/** API-A48 — POST /api/admin/professional/[id]/delivery { filename, sizeBytes }: where to upload the finished model. */
+export const professionalDeliveryHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const body = await readJson(request, z.object({ filename: z.string().min(1).max(200), sizeBytes: z.number().int() }));
+  return json(await startDelivery(staff, uuidAt(request, 1, 'order'), body), { status: 201 });
+});
+
+/** API-A49 — POST /api/admin/professional/[id]/delivery/confirm { versionId }: the file arrived; the order is delivered. */
+export const professionalDeliveredHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  return json(await confirmDelivery(staff, uuidAt(request, 2, 'order'), await readJson(request, z.object({ versionId: z.string().uuid() }))));
 });

@@ -17,7 +17,7 @@ export default function Pricing() {
 
   const addons = [
     { h: t('أرصدة الذكاء الاصطناعي', 'AI credits'), p: t('لتوليد نماذج ثلاثية الأبعاد من الصور: 10 أرصدة لكل نموذج. تُحتسب لكل عملية توليد.', 'For generating 3D models from photos: 10 credits per model. Charged per generation.') },
-    { h: t('نمذجة ثلاثية الأبعاد احترافية', 'Professional 3D modelling'), p: t('ينفذ فريقنا نموذجًا دقيقًا للمنتج حين لا تكفي الصور. تُسعَّر لكل منتج.', 'Our team builds an accurate model when photos are not enough. Priced per product.') },
+    { h: t('نمذجة ثلاثية الأبعاد احترافية', 'Professional 3D modelling'), p: t('ينفذ فريقنا نموذجًا دقيقًا للمنتج حين لا تكفي الصور. من 349 ريالًا للمنتج قبل الضريبة، مع جولتي تعديل.', 'Our team builds an accurate model when photos are not enough. From 349 riyals per product before VAT, with two rounds of changes.') }, // T68: PRICE_TIERS
   ];
 
   return (

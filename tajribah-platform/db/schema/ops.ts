@@ -304,6 +304,13 @@ export const professionalOrders = pgTable('professional_orders', {
   quotedAt: ts('quoted_at'),
   quotedBy: uuid('quoted_by'),
   cancelledAt: ts('cancelled_at'),
+  /** T68 (0039): before card payments — accepted by the merchant, the transfer recorded by staff, delivered. */
+  acceptedAt: ts('accepted_at'),
+  paidAt: ts('paid_at'),
+  paymentReference: text('payment_reference'),
+  deliveredModelId: uuid('delivered_model_id'),
+  deliveredVersionId: uuid('delivered_version_id'),
+  deliveredAt: ts('delivered_at'),
   ...timestamps(),
 }, (t) => [
   uniqueIndex('professional_orders_open_unq').on(t.productId).where(sql`${t.status} in ('requested', 'quoted', 'accepted')`),

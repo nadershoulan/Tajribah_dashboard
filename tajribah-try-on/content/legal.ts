@@ -33,7 +33,7 @@ export const PRIVACY: Doc = {
       list(
         ['بيانات حساب التاجر: الاسم، البريد الإلكتروني، رقم الجوال، اسم المتجر ورابطه، وبيانات الفوترة.', 'Merchant account data: name, email, phone number, store name and URL, and billing details.'],
         ['بيانات المتجر عبر التكامل: المنتجات والصور والأسعار والمخزون، وبيانات الطلبات فقط إذا فعّل التاجر قياس التحويل.', 'Store data through integrations: products, images, prices and stock — and order data only if the merchant enables conversion measurement.'],
-        ['بيانات الاستخدام في الاستوديو: أحداث مجهولة الهوية مثل فتح الاستوديو والطريقة المستخدمة ومدة الجلسة، ونوع الجهاز والمتصفح.', 'Studio usage data: anonymous events such as opening the studio, the mode used and session length, plus device and browser type.'],
+        ['بيانات الاستخدام في صفحات المتاجر، نيابةً عن التاجر: أحداث مجهولة الهوية مثل مشاهدة منتج، وفتح العرض ثلاثي الأبعاد أو التجربة، والإضافة إلى السلة وقيمة الشراء، مع نوع الجهاز ونظام التشغيل وعائلة المتصفح والدولة وعنوان صفحة المتجر. لا نخزّن عناوين IP ولا معرّفات المتصفح؛ ولكل زيارة معرّف يتغيّر كل يوم وفي كل متجر.', 'Shop-page usage, on the merchant’s behalf: anonymous events such as viewing a product, opening the 3D view or the try-on, adding to cart and a purchase’s value, with device type, operating system, browser family, country and the shop page’s address. We do not store IP addresses or browser identifiers; each visit has an id that changes every day and in every shop.'],
         ['زوار الموقع: تفضيل اللغة فقط. رسائل نموذج التواصل تُرسل من تطبيق بريدك مباشرة، فنستلمها كرسالة بريد عادية.', 'Website visitors: your language preference only. Contact-form messages are sent from your own mail app, so we receive them as ordinary email.'],
       ),
       p('لا نجمع أرقام البطاقات البنكية؛ يتولى مزوّد الدفع معالجتها مباشرة.', 'We do not collect card numbers; our payment provider processes them directly.'),
@@ -68,7 +68,7 @@ export const PRIVACY: Doc = {
     { id: 'retention', h: { ar: 'مدة الاحتفاظ', en: 'Retention' }, body: [
       list(
         ['بيانات حساب التاجر: طوال مدة الاشتراك، ثم للمدة التي تفرضها الأنظمة، كالأنظمة الضريبية.', 'Merchant account data: for the life of the subscription, then as long as the law requires, for example tax rules.'],
-        ['إحصاءات الاستخدام: تُجمَّع ولا تُربط بأشخاص.', 'Usage statistics: aggregated and not tied to individuals.'],
+        ['أحداث صفحات المتاجر: 90 يومًا ثم تُحذف؛ وتبقى المجاميع اليومية التي لا ترتبط بأحد.', 'Shop-page events: 90 days, then deleted; daily totals that are not tied to anyone are kept.'],
         ['الصور المنقولة عبر رمز QR: حتى استلامها، ولا تتجاوز 30 دقيقة.', 'Photos transferred by QR code: until received, never more than 30 minutes.'],
       ),
     ] },

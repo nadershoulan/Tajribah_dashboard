@@ -37,6 +37,8 @@ export type StartUploadInput = {
   sizeBytes: number;
   productId?: string | null;
   modelId?: string | null;
+  /** T68: a model our team made (professional service) — set by the staff console, never by the merchant's API. */
+  source?: 'uploaded' | 'professional_service';
 };
 
 export type StartedUpload = {
@@ -71,7 +73,7 @@ export async function startUpload(ctx: TenantContext, input: StartUploadInput): 
       if (!product || product.deletedAt) throw errors.notFound('product');
       model = await db.findOne(models3d, and(eq(models3d.productId, product.id), ne(models3d.status, 'archived'))); // T46: a deleted one starts afresh
       if (!model) {
-        model = await db.insert(models3d, { id: uuidv7(), tenantId: ctx.tenantId, productId: product.id, name: product.name, source: 'uploaded', createdBy: ctx.actor.userId });
+        model = await db.insert(models3d, { id: uuidv7(), tenantId: ctx.tenantId, productId: product.id, name: product.name, source: input.source ?? 'uploaded', createdBy: ctx.actor.userId });
         await record(ctx, { action: 'create', resourceType: 'model', resourceId: model.id, after: model }, db);
       }
     }

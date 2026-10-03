@@ -277,6 +277,8 @@ export type AdminApi = {
   qaQueue(status: AdminQaStatus): Promise<AdminQaQueue>;
   professionalQueue(status: import('./contracts/professional').ProfessionalStatus): Promise<AdminProfessionalQueue>;
   quoteProfessional(orderId: string, input: { priceMinor: number; note: string | null }): Promise<void>;
+  markProfessionalPaid(orderId: string, reference: string): Promise<void>;
+  deliverProfessional(orderId: string, file: File): Promise<void>;
   decideQa(modelId: string, input: { decision: 'approved' | 'rejected'; versionId: string; notes?: string }): Promise<void>;
   /** The version's web GLB, for the reviewer's viewer (a Blob: the viewer's own fetch has no session). */
   qaModel(versionId: string): Promise<Blob>;
@@ -376,6 +378,14 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       qaQueue: (status) => client.call(`/api/admin/qa?status=${status}`),
       professionalQueue: (status) => client.call(`/api/admin/professional?status=${status}`),
       quoteProfessional: async (orderId, input) => { await client.call(`/api/admin/professional/${encodeURIComponent(orderId)}/quote`, { body: input }); },
+      markProfessionalPaid: async (orderId, reference) => { await client.call(`/api/admin/professional/${encodeURIComponent(orderId)}/paid`, { body: { reference } }); },
+      deliverProfessional: async (orderId, file) => {
+        const base = `/api/admin/professional/${encodeURIComponent(orderId)}/delivery`;
+        const started = await client.call<{ versionId: string; uploadUrl: string; contentType: string }>(base, { body: { filename: file.name, sizeBytes: file.size } });
+        const put = await fetch(started.uploadUrl, { method: 'PUT', headers: { 'content-type': started.contentType }, body: file });
+        if (!put.ok) throw new Error('the file did not reach storage — try again');
+        await client.call(`${base}/confirm`, { body: { versionId: started.versionId } });
+      },
       decideQa: async (modelId, input) => { await client.call(`/api/admin/qa/${encodeURIComponent(modelId)}`, { body: input }); },
       qaModel: (versionId) => client.callBlob(`/api/admin/qa/versions/${encodeURIComponent(versionId)}/model`),
       aiOperations: (days) => client.call(`/api/admin/ai?days=${days}`),
@@ -452,7 +462,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound, announcements: notFound, createAnnouncement: notFound, updateAnnouncement: notFound, qaQueue: notFound, professionalQueue: notFound, quoteProfessional: notFound, decideQa: notFound, qaModel: notFound, aiOperations: notFound, cancelAiJob: notFound, setAiGuardrails: notFound, aiModels: notFound, registerAiModel: notFound, setAiSplits: notFound, setAiModelActive: notFound, rollbackAiModel: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound, announcements: notFound, createAnnouncement: notFound, updateAnnouncement: notFound, qaQueue: notFound, professionalQueue: notFound, quoteProfessional: notFound, markProfessionalPaid: notFound, deliverProfessional: notFound, decideQa: notFound, qaModel: notFound, aiOperations: notFound, cancelAiJob: notFound, setAiGuardrails: notFound, aiModels: notFound, registerAiModel: notFound, setAiSplits: notFound, setAiModelActive: notFound, rollbackAiModel: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

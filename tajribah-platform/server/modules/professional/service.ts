@@ -30,8 +30,27 @@ export function orderView(order: Order, product: Pick<Product, 'name' | 'nameAr'
     quote: quoted
       ? { priceMinor: order.priceMinor!, vatMinor: vatOf(order.priceMinor!), totalMinor: order.priceMinor! + vatOf(order.priceMinor!), currency: order.currency, note: order.quoteNote, quotedAt: order.quotedAt!.toISOString() }
       : null,
+    acceptedAt: order.acceptedAt?.toISOString() ?? null,
+    paidAt: order.paidAt?.toISOString() ?? null,
+    deliveredModelId: order.deliveredModelId,
     createdAt: order.createdAt.toISOString(),
   };
+}
+
+/**
+ * API-139 — the merchant accepts the quote (T68). Before card payments open, our team then sends
+ * payment details and an invoice by email; work starts when the transfer arrives (staff record it).
+ */
+export async function acceptQuote(ctx: TenantContext, orderId: string): Promise<ProfessionalOrderView> {
+  ctx.require('models:write');
+  return withTenant(ctx.tenantId, async (db) => {
+    const order = await db.findById(professionalOrders, orderId);
+    if (!order) throw errors.notFound('order');
+    if (order.status !== 'quoted' || order.acceptedAt) throw errors.conflict('only a quote not yet accepted can be accepted');
+    const after = await db.updateById(professionalOrders, orderId, { acceptedAt: new Date(), updatedAt: new Date() }) as Order;
+    await record(ctx, { action: 'update', resourceType: 'professional_order', resourceId: orderId, before: { acceptedAt: null }, after: { acceptedAt: after.acceptedAt, priceMinor: order.priceMinor } }, db);
+    return orderView(after, await db.findById(products, order.productId) ?? undefined);
+  });
 }
 
 /** API-135 — the store's orders, newest first. */

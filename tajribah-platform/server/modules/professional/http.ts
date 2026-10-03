@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { route } from '@/server/core/observability/request';
 import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@/server/core/http/api';
 import { errors } from '@/server/core/errors/problem';
-import { cancelOrder, listOrders, requestOrder } from './service';
+import { acceptQuote, cancelOrder, listOrders, requestOrder } from './service';
 
 /** API-135 — GET /api/professional: the store's orders. */
 export const listProfessionalHandler = route(async (request) => {
@@ -29,4 +29,15 @@ export const cancelProfessionalHandler = route(async (request) => {
   const id = new URL(request.url).pathname.split('/').filter(Boolean).pop() ?? '';
   if (!z.string().uuid().safeParse(id).success) throw errors.notFound('order');
   return json(await cancelOrder(ctx, id));
+});
+
+/** API-139 — POST /api/professional/[id]/accept: accept the quote (T68: payment by bank transfer follows). */
+export const acceptProfessionalHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  const parts = new URL(request.url).pathname.split('/').filter(Boolean);
+  const id = parts[parts.length - 2] ?? '';
+  if (!z.string().uuid().safeParse(id).success) throw errors.notFound('order');
+  return json(await acceptQuote(ctx, id));
 });

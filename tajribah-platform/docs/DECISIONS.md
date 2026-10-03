@@ -1016,3 +1016,40 @@ its config — a later step).
 
 **Rollback path.** Remove the pass from `server/worker/passes.ts` and the `related` field from the
 config; the tables (0038) can stay.
+
+## T68 · 2026-10-03 · Your open questions, decided by me as you asked ("you choose, as real as possible, Saudi audience")
+
+Each choice is a working default you can change; each says why.
+
+- **Privacy wording** — the analytics session's proposal (docs/ANALYTICS-PRIVACY.md) applied to the
+  website's policy as written: shop-page events per visit for 90 days, no IP or browser identifiers,
+  a visit id that changes daily and per shop. Date moved to 3 October 2026. The note that the legal
+  pages await Saudi-licensed counsel stays.
+- **Professional model prices** (before 15% VAT), from Saudi freelance and studio rates for product
+  3D models: **Simple** 349 SAR (a box, a bottle, a bag without hardware) · **Standard** 649 SAR (a
+  watch, glasses, a shoe, a piece of furniture) · **Detailed** 1,149 SAR (jewellery, polished metal,
+  stones, fine hardware). Two rounds of changes included; 5 working days (Detailed: 7). Staff pick a
+  tier or type another price; the website says "from 349 SAR".
+- **Before card payments open** — the usual Saudi B2B route: the merchant accepts the quote in the
+  dashboard; our team sends payment details and an invoice by email (bank transfer); staff mark the
+  payment received with its reference; only then does work start; the finished model is delivered
+  into the product by staff and the merchant is told. No bank details are written into the product:
+  they are a business fact Nader supplies (Invent nothing).
+- **Partner and reseller terms** (drafts, published on the website marked as such until counsel
+  reviews): **Referral partners** earn 20% of the subscription payments of stores they refer, for the
+  stores' first 12 months, paid monthly in SAR by bank transfer once the store's payment is 30 days
+  old. **Agencies** managing 5 or more stores get 20% off plan prices for those stores, billed to the
+  agency. Applications by email; commission tracking arrives with card payments.
+- **Site analytics** — **Google Analytics 4**, the standard in Saudi e-commerce, with **Consent Mode
+  v2**: nothing is measured until the visitor accepts in an Arabic-first banner (PDPL: consent for
+  non-essential cookies); a choice can be changed from the footer. Live once a GA4 measurement id is
+  set (`NEXT_PUBLIC_GA_ID`); without it there is no banner and nothing loads.
+- **Calibration tool** — built in the **dashboard, not in the studio**: on the try-on settings page
+  the merchant drags two markers to the case's left and right edges on their uploaded picture; the
+  picture is cropped so its full width is exactly the case (what the studio already assumes, P5.9).
+  The studio is not touched.
+- **New try-on types** — real photographs only, under licences that allow commercial use without
+  permission (Unsplash, Pexels, Wikimedia CC0/public domain), each recorded in ASSETS.md with its
+  source and licence. Never drawn.
+
+**Rollback path.** Each item is its own change; revert it alone.

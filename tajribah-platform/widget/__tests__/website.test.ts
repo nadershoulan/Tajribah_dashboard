@@ -11,6 +11,7 @@ import { ATTR, WIDGET_SRC } from '../src/main';
 import { embedSnippet } from '../src/snippet';
 import { PLANS } from '@/lib/plans';
 import { CREDITS_PER_3D_GENERATION } from '@/lib/ai-credits';
+import { INCLUDED_REVISIONS, PRICE_TIERS } from '@/lib/contracts/professional';
 import { COMPANY } from '../../../tajribah-try-on/lib/site';
 import { MATRIX, PLANS as SITE_PLANS } from '../../../tajribah-try-on/lib/plans';
 
@@ -85,6 +86,14 @@ test('T34: the dashboard\'s plan cards mark what is not built as coming, as the 
       if (/return/i.test(h.en)) assert.equal(h.soon, true, `${plan.code}: returns are not reported yet`);
     }
   }
+});
+
+test('T68: the website’s "from" price for a professional model is the dashboard’s lowest tier', () => {
+  const lowest = Math.min(...PRICE_TIERS.map((tier) => tier.priceMinor)) / 100;
+  const page = site('components/pages/Pricing.tsx');
+  assert.ok(page.includes(`من ${lowest} ريالًا`) && page.includes(`From ${lowest} riyals`), `both languages say ${lowest}`);
+  assert.equal(INCLUDED_REVISIONS, 2);
+  assert.ok(page.includes('جولتي تعديل') && page.includes('two rounds of changes'));
 });
 
 test('T39: the website says the catalogue sync brings what the connector contract carries — no stock, no cart inside the studio', () => {

@@ -131,6 +131,8 @@ export interface DataSource {
   professionalOrders(): Promise<ProfessionalOrderView[]>;
   requestProfessional(productId: string, note: string | null): Promise<ProfessionalOrderView>;
   cancelProfessional(orderId: string): Promise<ProfessionalOrderView>;
+  /** T68: accept the quote; payment by bank transfer follows. */
+  acceptProfessional(orderId: string): Promise<ProfessionalOrderView>;
   /** Recommendations, first version: products often viewed together with this one (last 30 days). */
   relatedProducts(productId: string): Promise<{ related: { productId: string; name: string; nameAr: string | null; sessions: number }[]; shownToShoppers: boolean; computedAt: string | null }>;
   /** P3.8: turn (90° steps) and/or fit a ready version; the result is the next version, processing. */
@@ -329,6 +331,9 @@ export function apiSource(client: ApiClient): DataSource {
     },
     async cancelProfessional(orderId) {
       return client.call<ProfessionalOrderView>(`/api/professional/${encodeURIComponent(orderId)}`, { method: 'DELETE' });
+    },
+    async acceptProfessional(orderId) {
+      return client.call<ProfessionalOrderView>(`/api/professional/${encodeURIComponent(orderId)}/accept`, { method: 'POST' });
     },
     async tryOn() { return client.call<TryOnScreen>('/api/tryon'); },
     async uploadCutout(productId, slot, file) {
@@ -688,8 +693,14 @@ export const demoSource: DataSource = {
     const parsed = ProfessionalRequest.safeParse({ productId: '00000000-0000-4000-8000-000000000000', note });
     if (!parsed.success) throw new ApiError(422, 'validation_failed', 'Validation failed', { note: [parsed.error.issues[0]!.message] });
     if (demoOrders.some((o) => o.productId === productId && ['requested', 'quoted', 'accepted'].includes(o.status))) throw new ApiError(409, 'conflict', 'this product already has an open request');
-    const order: ProfessionalOrderView = { id: `po-${demoOrders.length + 1}`, productId, productName: product.name, productNameAr: product.nameAr, status: 'requested', note: parsed.data.note, quote: null, createdAt: new Date().toISOString() };
+    const order: ProfessionalOrderView = { id: `po-${demoOrders.length + 1}`, productId, productName: product.name, productNameAr: product.nameAr, status: 'requested', note: parsed.data.note, quote: null, acceptedAt: null, paidAt: null, deliveredModelId: null, createdAt: new Date().toISOString() };
     demoOrders.unshift(order);
+    return { ...order };
+  },
+  async acceptProfessional(orderId) {
+    const order = demoOrders.find((o) => o.id === orderId);
+    if (!order || order.status !== 'quoted' || order.acceptedAt) throw new ApiError(409, 'conflict', 'only a quote not yet accepted can be accepted');
+    order.acceptedAt = new Date().toISOString();
     return { ...order };
   },
   async cancelProfessional(orderId) {

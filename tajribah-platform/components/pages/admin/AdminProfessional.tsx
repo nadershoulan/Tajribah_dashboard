@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { PenTool, Send } from 'lucide-react';
 import { useAuth, type AdminProfessionalQueue, type AdminProfessionalRow } from '@/lib/auth';
-import { STATUS_LABEL, type ProfessionalStatus } from '@/lib/contracts/professional';
+import { PRICE_TIERS, STATUS_LABEL, type ProfessionalStatus } from '@/lib/contracts/professional';
 import { formatDateTime, formatNumber } from '@/lib/format';
 import { useLang } from '@/lib/i18n';
 import { foldDigits, formatMoney } from '@/lib/money';
@@ -64,12 +64,19 @@ function Order({ row, onQuoted }: { row: AdminProfessionalRow; onQuoted: () => v
   const [note, setNote] = useState(row.quote?.note ?? '');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const [reference, setReference] = useState('');
   const name = lang === 'ar' ? row.productNameAr ?? row.productName : row.productName;
   const store = lang === 'ar' ? row.store.nameAr ?? row.store.name : row.store.name;
   const d = row.product.dimensions;
   const size = d && (d.widthMm || d.heightMm) ? `${d.widthMm ?? '—'} × ${d.heightMm ?? '—'} × ${d.depthMm ?? '—'}` : null;
-  const quotable = row.status === 'requested' || row.status === 'quoted';
+  const quotable = row.status === 'requested' || (row.status === 'quoted' && !row.acceptedAt);
   const money = (minor: number) => formatMoney(minor, 'SAR', lang === 'ar' ? 'ar' : 'en');
+
+  const run = async (action: () => Promise<void>) => {
+    setBusy(true);
+    setProblem(null);
+    try { await action(); onQuoted(); } catch (e) { setProblem((e as Error).message); } finally { setBusy(false); }
+  };
 
   const send = async () => {
     const value = Number(foldDigits(riyals).replace(',', '.'));
@@ -93,6 +100,13 @@ function Order({ row, onQuoted }: { row: AdminProfessionalRow; onQuoted: () => v
       {row.note && <p style={{ margin: '0 0 12px', fontSize: 14 }}><strong>{t('ملاحظة التاجر: ', 'The merchant’s note: ')}</strong>{row.note}</p>}
       {quotable && (
         <div style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }} role="group" aria-label={t('أسعار القائمة', 'List prices')}>
+            {PRICE_TIERS.map((tier) => (
+              <button key={tier.key} type="button" className="btn btn-ghost btn-sm" onClick={() => { setRiyals(String(tier.priceMinor / 100)); if (!note) setNote(t(`جاهز خلال ${tier.days} أيام عمل.`, `Ready in ${tier.days} working days.`)); }}>
+                {pick(tier.label)} · {money(tier.priceMinor)}
+              </button>
+            ))}
+          </div>
           <div className="brand-row">
             <div className="field">
               <label htmlFor={`price-${row.id}`}>{t('السعر قبل الضريبة (ريال)', 'Price before VAT (SAR)')}</label>
@@ -106,6 +120,25 @@ function Order({ row, onQuoted }: { row: AdminProfessionalRow; onQuoted: () => v
           <div><button type="button" className="btn btn-primary" onClick={() => void send()} disabled={busy}>
             <Send size={15} aria-hidden />{busy ? t('جارٍ الإرسال…', 'Sending…') : row.status === 'quoted' ? t('عدّل السعر', 'Revise the quote') : t('أرسل السعر', 'Send the quote')}
           </button></div>
+        </div>
+      )}
+      {row.status === 'quoted' && row.acceptedAt && (
+        <div style={{ display: 'grid', gap: 8 }}>
+          <p style={{ margin: 0, fontSize: 14 }}><strong>{t('قبل التاجر العرض', 'The merchant accepted')}</strong> · {formatDateTime(row.acceptedAt, lang === 'ar' ? 'ar' : 'en')} — {t('أرسل له بيانات التحويل والفاتورة بالبريد، ثم سجّل التحويل حين يصل.', 'email them the transfer details and invoice, then record the transfer when it arrives.')}</p>
+          <div className="field" style={{ margin: 0 }}>
+            <label htmlFor={`ref-${row.id}`}>{t('مرجع التحويل', 'Transfer reference')}</label>
+            <input id={`ref-${row.id}`} dir="ltr" value={reference} onChange={(e) => setReference(e.target.value)} maxLength={100} />
+          </div>
+          <div><button type="button" className="btn btn-primary" disabled={busy || reference.trim().length < 3}
+            onClick={() => void run(() => auth.admin.markProfessionalPaid(row.id, reference.trim()))}>{t('وصل التحويل — ابدأ العمل', 'Transfer received — start work')}</button></div>
+        </div>
+      )}
+      {row.status === 'accepted' && (
+        <div className="field" style={{ margin: 0 }}>
+          <label htmlFor={`file-${row.id}`}>{t('سلّم النموذج (GLB أو USDZ)', 'Deliver the model (GLB or USDZ)')}</label>
+          <input id={`file-${row.id}`} type="file" accept=".glb,.usdz" disabled={busy}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void run(() => auth.admin.deliverProfessional(row.id, f)); }} />
+          <span className="field-hint">{t('يصبح إصدارًا جديدًا لنموذج المنتج ويُجهَّز كأي رفع؛ ينشره التاجر بنفسه.', 'It becomes a new version of the product’s model and is processed like any upload; the merchant publishes it.')}</span>
         </div>
       )}
       {problem && <p className="field-error" role="alert" style={{ marginTop: 10 }}>{problem}</p>}

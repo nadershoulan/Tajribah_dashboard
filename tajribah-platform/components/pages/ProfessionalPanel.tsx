@@ -9,7 +9,8 @@ import { useState } from 'react';
 import { CreditCard, PenTool } from 'lucide-react';
 import { useWriteLock } from '@/components/dashboard/write-lock';
 import { ApiError } from '@/lib/api-client';
-import { OPEN_STATUSES, STATUS_LABEL, type ProfessionalOrderView } from '@/lib/contracts/professional';
+import { AppLink } from '@/lib/app-env';
+import { INCLUDED_REVISIONS, OPEN_STATUSES, PRICE_TIERS, STATUS_LABEL, type ProfessionalOrderView } from '@/lib/contracts/professional';
 import { useData, useResource } from '@/lib/data';
 import { formatDateTime } from '@/lib/format';
 import { useLang } from '@/lib/i18n';
@@ -18,6 +19,7 @@ import type { ProductRow } from '@/lib/view-models';
 import { Badge, ErrorNote, Panel } from '@/components/dashboard/ui';
 
 const MESSAGE_AR: [RegExp, string][] = [
+  [/only a quote not yet accepted/, 'قُبل هذا العرض بالفعل.'],
   [/already has an open request/, 'لهذا المنتج طلب مفتوح بالفعل.'],
   [/can no longer be cancelled/, 'لا يمكن إلغاء الطلب بعد بدء العمل.'],
   [/at most 1000/, '1000 حرف على الأكثر'],
@@ -31,7 +33,7 @@ export default function ProfessionalPanel({ product }: { product: ProductRow }) 
   const [version, setVersion] = useState(0);
   const { data, error } = useResource((s) => s.professionalOrders(), [version]);
   const [note, setNote] = useState('');
-  const [busy, setBusy] = useState<'ask' | 'cancel' | null>(null);
+  const [busy, setBusy] = useState<'ask' | 'cancel' | 'accept' | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const say = (m: string) => (lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(m))?.[1] ?? m : m);
 
@@ -39,7 +41,7 @@ export default function ProfessionalPanel({ product }: { product: ProductRow }) 
   const open = mine.find((o) => OPEN_STATUSES.includes(o.status)) ?? null;
   const shown: ProfessionalOrderView | null = open ?? mine.find((o) => o.status === 'delivered') ?? null;
 
-  const act = async (kind: 'ask' | 'cancel', run: () => Promise<unknown>) => {
+  const act = async (kind: 'ask' | 'cancel' | 'accept', run: () => Promise<unknown>) => {
     setBusy(kind);
     setProblem(null);
     try { await run(); setNote(''); setVersion((v) => v + 1); } catch (e) {
@@ -59,6 +61,15 @@ export default function ProfessionalPanel({ product }: { product: ProductRow }) 
             'يطّلع فريقنا على المنتج وصوره ومقاساته، ثم يرسل لك هنا سعرًا لهذا المنتج قبل أي عمل. يمكنك الإلغاء في أي وقت قبل بدء العمل.',
             'Our team looks at the product, its photos and its measurements, then sends you a price for it here before any work starts. You can cancel any time before work starts.',
           )}</p>
+          <table className="qa-sizes" style={{ marginBottom: 8 }}>
+            <tbody>
+              {PRICE_TIERS.map((tier) => (
+                <tr key={tier.key}><th scope="row">{pick(tier.label)}<span className="hint" style={{ display: 'block', margin: 0, fontWeight: 400 }}>{pick(tier.examples)}</span></th>
+                  <td className="num">{money(tier.priceMinor)}<span className="hint" style={{ display: 'block', margin: 0 }}>{t(`${tier.days} أيام عمل`, `${tier.days} working days`)}</span></td></tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="hint" style={{ marginTop: 0 }}>{t(`أسعار تقريبية قبل الضريبة، تشمل ${INCLUDED_REVISIONS} جولتي تعديل. السعر النهائي يصلك في عرض السعر.`, `Typical prices before VAT, with ${INCLUDED_REVISIONS} rounds of changes included. Your quote gives the final price.`)}</p>
           <div className="field">
             <label htmlFor={`pro-note-${product.id}`}>{t('ما الذي يجب أن ننتبه له؟ (اختياري)', 'Anything we should watch for? (optional)')}</label>
             <textarea id={`pro-note-${product.id}`} rows={3} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)}
@@ -87,13 +98,23 @@ export default function ProfessionalPanel({ product }: { product: ProductRow }) 
             </tbody>
           </table>
           {shown.quote.note && <p style={{ margin: '0 0 12px', fontSize: 14 }}>{t('من فريق تجربة: ', 'From Tajribah: ')}{shown.quote.note}</p>}
-          <button type="button" className="btn btn-primary" disabled title={t('يفتح الدفع حين تُربط بوابة الدفع', 'Opens when card payments are connected')}>
-            <CreditCard size={16} aria-hidden />{t('اقبل وادفع', 'Accept and pay')}
-          </button>
-          <p className="hint">{t('الدفع بالبطاقة يُفتح قريبًا؛ نخبرك حين يصبح متاحًا. لن يُخصم منك شيء الآن.', 'Card payment opens soon; we will tell you when it does. Nothing is charged now.')}</p>
+          {!shown.acceptedAt ? (
+            <>
+              <button type="button" className="btn btn-primary" disabled={busy !== null || lock.locked} title={lock.title}
+                onClick={() => void act('accept', () => source.acceptProfessional(shown.id))}>
+                <CreditCard size={16} aria-hidden />{busy === 'accept' ? t('جارٍ القبول…', 'Accepting…') : t('اقبل العرض', 'Accept the quote')}
+              </button>
+              <p className="hint">{t('بعد القبول نرسل لك بيانات التحويل البنكي وفاتورة بالبريد. يبدأ العمل حين يصلنا التحويل، ويمكنك الإلغاء قبل ذلك.', 'Once you accept, we email you the bank transfer details and an invoice. Work starts when the transfer arrives; you can cancel before then.')}</p>
+            </>
+          ) : (
+            <p style={{ margin: 0, fontSize: 14 }}>{t(`قبلت العرض ${formatDateTime(shown.acceptedAt, 'ar')}. أرسلنا بيانات التحويل إلى بريدك؛ يبدأ العمل حين يصلنا التحويل.`, `You accepted ${formatDateTime(shown.acceptedAt, 'en')}. We have emailed the transfer details; work starts when the transfer arrives.`)}</p>
+          )}
         </>
       )}
-      {shown?.status === 'accepted' && <p style={{ margin: 0, fontSize: 14 }}>{t('يعمل فريقنا على النموذج؛ يصلك تنبيه حين يكتمل.', 'Our team is working on the model; you are notified when it is done.')}</p>}
+      {shown?.status === 'accepted' && <p style={{ margin: 0, fontSize: 14 }}>{t('وصل التحويل ويعمل فريقنا على النموذج؛ يصلك تنبيه حين يكتمل.', 'The transfer arrived and our team is working on the model; you are notified when it is done.')}</p>}
+      {shown?.status === 'delivered' && (
+        <p style={{ margin: 0, fontSize: 14 }}>{t('نموذجك جاهز. راجعه وانشره من ', 'Your model is ready. Review it and publish it from ')}<AppLink href="/dashboard/models">{t('النماذج ثلاثية الأبعاد', '3D models')}</AppLink>.</p>
+      )}
       {(shown?.status === 'requested' || shown?.status === 'quoted') && (
         <button type="button" className="btn btn-quiet btn-sm" style={{ marginTop: 8 }} disabled={busy !== null || lock.locked} title={lock.title}
           onClick={() => void act('cancel', () => source.cancelProfessional(shown.id))}>

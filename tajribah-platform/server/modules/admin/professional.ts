@@ -6,9 +6,10 @@
  */
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
-import { generationPhotos, products, professionalOrders, tenants } from '@/db/schema';
+import { generationPhotos, models3d, modelVersions, products, professionalOrders, tenants } from '@/db/schema';
 import { formatMoney } from '@/lib/money';
-import { QuoteInput, type ProfessionalOrderView, type ProfessionalStatus } from '@/lib/contracts/professional';
+import { PaidInput, PRICE_TIERS, QuoteInput, type ProfessionalOrderView, type ProfessionalStatus } from '@/lib/contracts/professional';
+import { confirmUpload, startUpload } from '@/server/modules/models/service';
 import { record } from '@/server/core/audit/audit';
 import { errors, fieldErrorsFrom } from '@/server/core/errors/problem';
 import { withTenant } from '@/server/core/tenancy/rls';
@@ -63,6 +64,7 @@ export async function quoteOrder(staff: StaffContext, orderId: string, input: un
   const view = await withTenant(found.tenant.id, async (tdb) => {
     const before = await tdb.lockById(professionalOrders, orderId);
     if (before.status !== 'requested' && before.status !== 'quoted') throw errors.conflict('only an order waiting for a quote, or quoted and not yet paid, can be quoted');
+    if (before.acceptedAt) throw errors.conflict('the merchant accepted this quote — it can no longer change');
     const after = await tdb.updateById(professionalOrders, orderId, { status: 'quoted', priceMinor, quoteNote: note, quotedAt: new Date(), quotedBy: staff.userId, updatedAt: new Date() });
     await record(ctx, { action: 'update', resourceType: 'professional_order', resourceId: orderId, before: { status: before.status, priceMinor: before.priceMinor }, after: { status: 'quoted', priceMinor, quoteNote: note } }, tdb);
     const product = await tdb.findById(products, before.productId);
@@ -75,5 +77,76 @@ export async function quoteOrder(staff: StaffContext, orderId: string, input: un
     return orderView(after as typeof professionalOrders.$inferSelect, product ?? undefined);
   });
   await staffLog(staff, { action: 'professional.quote', targetType: 'professional_order', targetId: orderId, storeId: found.tenant.id, reason: note, detail: { priceMinor } });
+  return view;
+}
+
+type StaffAct = { order: typeof professionalOrders.$inferSelect; tenant: typeof tenants.$inferSelect };
+async function orderOf(orderId: string): Promise<StaffAct> {
+  const [found] = await unsafeAdminDb().select({ order: professionalOrders, tenant: tenants }).from(professionalOrders)
+    .innerJoin(tenants, eq(tenants.id, professionalOrders.tenantId)).where(eq(professionalOrders.id, orderId)).limit(1);
+  if (!found) throw errors.notFound('order');
+  return found;
+}
+
+/** The days the price list promises for this price (the tier it matches, else the longest). */
+const promisedDays = (priceMinor: number | null) => PRICE_TIERS.find((t) => t.priceMinor === priceMinor)?.days ?? Math.max(...PRICE_TIERS.map((t) => t.days));
+
+/** API-A47 — the bank transfer arrived (T68): record its reference; work starts; the merchant is told. */
+export async function markPaid(staff: StaffContext, orderId: string, input: unknown): Promise<ProfessionalOrderView> {
+  const parsed = PaidInput.safeParse(input);
+  if (!parsed.success) throw errors.validation(fieldErrorsFrom(parsed.error.issues));
+  const { tenant } = await orderOf(orderId);
+  const ctx = staffActingContext(tenant, staff, ['models:read', 'models:write']);
+  const view = await withTenant(tenant.id, async (tdb) => {
+    const before = await tdb.lockById(professionalOrders, orderId);
+    if (before.status !== 'quoted' || !before.acceptedAt) throw errors.conflict('only a quote the merchant accepted can be marked paid');
+    const after = await tdb.updateById(professionalOrders, orderId, { status: 'accepted', paidAt: new Date(), paymentReference: parsed.data.reference, updatedAt: new Date() });
+    await record(ctx, { action: 'update', resourceType: 'professional_order', resourceId: orderId, before: { status: before.status }, after: { status: 'accepted', paymentReference: parsed.data.reference } }, tdb);
+    const product = await tdb.findById(products, before.productId);
+    const days = promisedDays(before.priceMinor);
+    await notifyIn(tdb, {
+      type: 'professional.paid', permission: 'models:read', level: 'success', href: `/dashboard/products/${before.productId}`,
+      title: { ar: `وصلت دفعتك — بدأ العمل على نموذج «${product?.nameAr ?? product?.name ?? ''}»`, en: `Payment received — work started on “${product?.name ?? ''}”’s model` },
+      body: { ar: `يجهز خلال ${days} أيام عمل.`, en: `Ready in ${days} working days.` },
+    });
+    return orderView(after as typeof professionalOrders.$inferSelect, product ?? undefined);
+  });
+  await staffLog(staff, { action: 'professional.paid', targetType: 'professional_order', targetId: orderId, storeId: tenant.id, reason: parsed.data.reference, detail: null });
+  return view;
+}
+
+/** API-A48 — where to upload the finished model: a new version of the product's model, made by our team. */
+export async function startDelivery(staff: StaffContext, orderId: string, input: { filename: string; sizeBytes: number }) {
+  const { order, tenant } = await orderOf(orderId);
+  if (order.status !== 'accepted') throw errors.conflict('only a paid order in progress can be delivered');
+  const ctx = staffActingContext(tenant, staff, ['models:read', 'models:write']);
+  return startUpload(ctx, { filename: input.filename, sizeBytes: input.sizeBytes, productId: order.productId, source: 'professional_service' });
+}
+
+/** API-A49 — the file arrived: checked like any upload, then the order is delivered and the merchant told. */
+export async function confirmDelivery(staff: StaffContext, orderId: string, input: { versionId: string }): Promise<ProfessionalOrderView> {
+  const { order, tenant } = await orderOf(orderId);
+  if (order.status !== 'accepted') throw errors.conflict('only a paid order in progress can be delivered');
+  const ctx = staffActingContext(tenant, staff, ['models:read', 'models:write']);
+  const owned = await withTenant(tenant.id, async (tdb) => {
+    const version = await tdb.findById(modelVersions, input.versionId);
+    const model = version ? await tdb.findById(models3d, version.modelId) : null;
+    return version && model && model.productId === order.productId ? { version, model } : null;
+  });
+  if (!owned) throw errors.conflict('that file is not for this order’s product');
+  const confirmed = await confirmUpload(ctx, input.versionId);
+  if (confirmed.status === 'failed') throw errors.validation({ file: [confirmed.error ?? 'the file was refused'] });
+  const view = await withTenant(tenant.id, async (tdb) => {
+    const after = await tdb.updateById(professionalOrders, orderId, { status: 'delivered', deliveredModelId: owned.model.id, deliveredVersionId: owned.version.id, deliveredAt: new Date(), updatedAt: new Date() });
+    await record(ctx, { action: 'update', resourceType: 'professional_order', resourceId: orderId, before: { status: 'accepted' }, after: { status: 'delivered', modelId: owned.model.id, versionId: owned.version.id } }, tdb);
+    const product = await tdb.findById(products, order.productId);
+    await notifyIn(tdb, {
+      type: 'professional.delivered', permission: 'models:read', level: 'success', href: '/dashboard/models',
+      title: { ar: `نموذج «${product?.nameAr ?? product?.name ?? ''}» الاحترافي جاهز`, en: `“${product?.name ?? ''}”’s professional model is ready` },
+      body: { ar: 'راجعه وانشره من «النماذج ثلاثية الأبعاد».', en: 'Review it and publish it from “3D models”.' },
+    });
+    return orderView(after as typeof professionalOrders.$inferSelect, product ?? undefined);
+  });
+  await staffLog(staff, { action: 'professional.deliver', targetType: 'professional_order', targetId: orderId, storeId: tenant.id, reason: null, detail: { versionId: input.versionId } });
   return view;
 }

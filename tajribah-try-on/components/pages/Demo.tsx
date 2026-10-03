@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { Info } from 'lucide-react';
+import { DEMO_GLASSES } from '@/lib/demo-product';
 import { useLang } from '@/lib/i18n';
 import { SiteLink } from '@/lib/site-env';
 import Studio from '@/components/studio/Studio';
@@ -9,6 +11,9 @@ import { CtaBand } from '@/components/site/ui';
 
 export default function Demo() {
   const { t } = useLang();
+  // T68: the same studio on glasses — a real face and a real frame (ASSETS.md).
+  const [kind, setKind] = useState<'watch' | 'glasses'>('watch');
+  const kinds = [{ id: 'watch', label: t('ساعة', 'Watch') }, { id: 'glasses', label: t('نظارة', 'Glasses') }] as const;
   return (
     <Shell current="/demo">
       <section className="demo-head">
@@ -31,7 +36,20 @@ export default function Demo() {
       </section>
 
       <section className="demo-body">
-        <div className="wrap"><Studio /></div>
+        <div className="wrap">
+          <div className="cycle demo-kind">
+            <div className="cycle-toggle" role="group" aria-label={t('ما تجرّبه', 'What to try on')}>
+              {kinds.map((k) => (
+                <button key={k.id} type="button" aria-pressed={kind === k.id} className={'cycle-btn' + (kind === k.id ? ' on' : '')} onClick={() => setKind(k.id)}>
+                  {k.label}
+                </button>
+              ))}
+            </div>
+            {kind === 'glasses' && <span className="cycle-save">{t('إطار مثال وصور حقيقية مرخّصة. على النموذج وبجانب أشياء تعرف حجمها؛ تجربتها على صورتك تأتي لاحقًا.',
+              'An example frame and real, licensed photos. On the model and beside things you know; on your own photo comes later.')}</span>}
+          </div>
+          {kind === 'glasses' ? <Studio key="glasses" product={DEMO_GLASSES} /> : <Studio key="watch" />}
+        </div>
       </section>
 
       <section className="sec sec-tint">

@@ -810,3 +810,8 @@ html[lang="en"] .legal-body p { line-height: 1.75; }
 .consent-actions { display: flex; gap: 10px; }
 .foot-consent { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .foot-consent:hover { color: #fff; }
+
+/* T68 — the demo's watch / glasses switch */
+.demo-kind { margin: 0 0 18px; }
+.product-image-wide img { height: auto; width: 100%; max-width: 300px; transform: rotate(-3deg); }
+@media (max-width: 1100px) { .product-image-wide img { height: auto; width: 100%; max-width: 220px; } }

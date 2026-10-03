@@ -31,6 +31,11 @@ export type TryOnProduct = {
    * model and the size comparison, which every plan has. Left out (the demo), all three modes.
    */
   onMe?: boolean;
+  /**
+   * T68 — what is tried on. Left out: a watch, exactly as before. `eyewear`: the frame on a face photo,
+   * `caseMm` then being the frame's front width. The studio's modes and controls are the same.
+   */
+  category?: 'watch' | 'eyewear';
 };
 
 /**
@@ -53,11 +58,11 @@ export const DEMO_WATCH: TryOnProduct = {
   demo: true,
 };
 
-export type ModelId = 'wrist' | 'lifestyle';
+export type ModelId = 'wrist' | 'lifestyle' | 'face';
 
-export const MODELS: {
-  id: ModelId; label: Bi; stageLabel: Bi; src: string; thumb: string; pose: Pose;
-}[] = [
+export type ModelPhoto = { id: ModelId; label: Bi; stageLabel: Bi; src: string; thumb: string; pose: Pose };
+
+export const MODELS: ModelPhoto[] = [
   {
     id: 'wrist',
     label: { ar: 'المعصم عن قرب', en: 'Wrist close-up' },
@@ -76,6 +81,49 @@ export const MODELS: {
   },
 ];
 
+/**
+ * T68 — glasses: a real front-facing portrait (Unsplash, Meital Anlen) and a real round metal frame
+ * (Unsplash, Konsepta Studio), provenance in ASSETS.md. The pose is measured, not tuned by eye: the
+ * pupils are 324 px apart on the 1200 × 1050 photo, taken as 62 mm (an adult's average), so 5.23 px a
+ * millimetre; the demo frame, 132 mm across, is 690 px wide, centred between the pupils, tilted as
+ * the eyes are (−2.3°). Another frame is drawn in proportion to its width, as watches are.
+ */
+export const DEMO_GLASSES: TryOnProduct = {
+  sku: 'EX-ROUND-01',
+  collection: { ar: 'نظارات طبية', en: 'Optical frames' },
+  headLead: { ar: 'إطار', en: 'A frame' },
+  headEm: { ar: 'يناسب وجهك.', en: 'that fits your face.' },
+  name: { ar: 'نظارة بإطار معدني دائري', en: 'Round metal frame glasses' },
+  finish: { ar: 'معدن أسود · عدسات شفافة', en: 'Black metal · clear lenses' },
+  caseMm: 132,
+  worn: '/assets/glasses-front.png',
+  flat: '/assets/glasses-front.png',
+  storeUrl: '',
+  alt: { ar: 'نظارة بإطار معدني أسود دائري', en: 'Glasses with a round black metal frame' },
+  storeLink: null,
+  demo: false,
+  onMe: false, // finding a face in the shopper's photo is not built yet
+  category: 'eyewear',
+};
+
+export const FACE_MODELS: ModelPhoto[] = [
+  {
+    id: 'face',
+    label: { ar: 'الوجه من الأمام', en: 'Face, front' },
+    stageLabel: { ar: 'على الوجه', en: 'On a face' },
+    src: '/assets/model-face.webp',
+    thumb: '/assets/model-face-thumb.webp',
+    pose: { x: 595, y: 528, width: 690, angle: -2.3 },
+  },
+];
+
+/** The model photos for this product, and the width their poses were set for. */
+export function modelsFor(product: TryOnProduct): { models: ModelPhoto[]; baseMm: number } {
+  return product.category === 'eyewear'
+    ? { models: FACE_MODELS, baseMm: DEMO_GLASSES.caseMm }
+    : { models: MODELS, baseMm: DEMO_WATCH.caseMm };
+}
+
 export type ReferenceId = 'iphone' | 'airpods' | 'riyal';
 
 export const REFERENCES: Record<ReferenceId, { name: Bi; src: string; w: number; h: number }> = {
@@ -88,6 +136,7 @@ const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 
 /** Keep the watch on the wrist in each photo — tuned to the two model shots. */
 export function constrainToModel(model: ModelId, p: Pose): Pose {
+  if (model === 'face') return { ...p, x: clamp(p.x, 555, 635), y: clamp(p.y, 495, 565) }; // across the eyes
   if (model === 'wrist') {
     const x = clamp(p.x, 240, 440);
     return { ...p, x, y: clamp(p.y, 540 + (x - 350) * 0.025, 565 + (x - 350) * 0.025) };

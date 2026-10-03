@@ -87,7 +87,7 @@ export const INDUSTRIES: Record<IndustrySlug, Industry> = {
     nav: { ar: 'متاجر النظارات', en: 'Eyewear stores' },
     hero: {
       title: { ar: 'لمتاجر النظارات: عرض الإطار بحجمه الحقيقي', en: 'For eyewear stores: frame width at its true size' },
-      lead: { ar: 'اليوم: مقارنة عرض الإطار بأشياء يعرفها الجميع. التجربة على الوجه لم تُبنَ بعد، ونقولها بوضوح.', en: 'Today: comparing the frame’s width with familiar objects. Face try-on is not built yet — and we say so plainly.' },
+      lead: { ar: 'في العرض التجريبي الآن: الإطار على وجه حقيقي بعرضه الحقيقي، وبجانب أشياء يعرفها الجميع. تجهيز إطاراتك من لوحة التحكم يأتي تاليًا، والتجربة على صورة العميل بعده.', en: 'In the live demo now: the frame on a real face at its real width, and beside familiar objects. Setting up your own frames in the dashboard comes next, the shopper’s own photo after that.' },
     },
     question: { ar: '«هل الإطار عريض على وجهي؟»', en: '“Is this frame too wide for my face?”' },
     problem: [
@@ -95,7 +95,8 @@ export const INDUSTRIES: Record<IndustrySlug, Industry> = {
     ],
     modes: [
       { feature: 'true-size', label: { ar: 'قارن الحجم', en: 'Compare size' }, status: 'now', note: { ar: 'الإطار بعرضه الحقيقي بجانب آيفون وسماعات إيربودز.', en: 'The frame at its true width beside an iPhone and AirPods.' } },
-      { feature: null, label: { ar: 'التجربة على الوجه', en: 'Try-on on the face' }, status: 'soon', note: { ar: 'تتبّع الوجه ضمن خطة التوسّع. لا نعرضه قبل أن يكون دقيقًا وخاصًا على جهاز العميل.', en: 'Face tracking is in the expansion plan. We will not show it before it is accurate and private on the shopper’s device.' } },
+      { feature: null, label: { ar: 'على وجه النموذج', en: 'On a model’s face' }, status: 'soon', note: { ar: 'جرّبه الآن في العرض التجريبي: صورة حقيقية، والمقياس من المسافة بين الحدقتين. تجهيز إطاراتك من لوحة التحكم يأتي تاليًا.', en: 'Try it now in the live demo: a real photo, sized from the distance between the pupils. Setting up your own frames in the dashboard comes next.' } },
+      { feature: null, label: { ar: 'على صورة العميل', en: 'On the shopper’s photo' }, status: 'soon', note: { ar: 'تحديد الوجه في صورة العميل ضمن خطة التوسّع. لا نعرضه قبل أن يكون دقيقًا وخاصًا على جهاز العميل.', en: 'Finding the face in the shopper’s photo is in the expansion plan. We will not show it before it is accurate and private on the shopper’s device.' } },
     ],
     measure: [
       { ar: 'العرض الكلي للإطار بالمليمتر', en: 'Total frame width in millimetres' },
@@ -103,7 +104,7 @@ export const INDUSTRIES: Record<IndustrySlug, Industry> = {
       { ar: 'صورة أمامية للإطار بخلفية شفافة', en: 'A front cut-out of the frame' },
     ],
     faq: [
-      { q: { ar: 'لماذا لا تبدأون بالتجربة على الوجه؟', en: 'Why not start with face try-on?' }, a: { ar: 'لأن تجربة على الوجه بحجم غير دقيق تعطي العميل ثقة في نتيجة خاطئة. نبدأ بما نستطيع قياسه بدقة: عرض الإطار.', en: 'Because face try-on at an inaccurate size gives the shopper confidence in a wrong answer. We start with what we can measure exactly: frame width.' } },
+      { q: { ar: 'كيف يكون الإطار بحجمه الحقيقي على الوجه؟', en: 'How is the frame its real size on the face?' }, a: { ar: 'نقيس صورة النموذج من المسافة بين حدقتي العينين (نحو 62 مم عند البالغين)، ثم نرسم الإطار بعرضه بالمليمتر على المقياس نفسه. تجربة بحجم غير دقيق تعطي العميل ثقة في نتيجة خاطئة، ولذلك نقيس ولا نقدّر بالعين.', en: 'We measure the model photo from the distance between the pupils (about 62 mm in adults), then draw the frame at its width in millimetres on the same scale. Try-on at an inaccurate size gives the shopper confidence in a wrong answer, so we measure rather than judge by eye.' } },
     ],
   },
   bags: {

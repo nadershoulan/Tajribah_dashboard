@@ -14,3 +14,12 @@ The Failet product cutouts, model photography, and comparison reference images w
 Case width is approximate, inferred from the reference widget's watch/iPhone relative sizes. This is photo-based 2D try-on with optional client-side wrist detection and guided two-edge calibration. No live 3D AR, backend product catalog, checkout, or Tangiblee service access is included.
 
 QR sessions use random 128-bit tokens. Photos are compressed in the browser, transferred through R2, and deleted on successful receipt or explicit session closure. Expired sessions are inaccessible after 30 minutes and removed opportunistically on polling or new session creation. All access to the first deployment is controlled by the private Sites gateway.
+
+## Glasses (T68, 2026-10-03)
+
+Real photographs only, under the [Unsplash License](https://unsplash.com/license) — free for commercial use, no permission or attribution required (credited here anyway).
+
+- `model-face.webp` (and `model-face-thumb.webp`): front-facing portrait by Meital Anlen — https://unsplash.com/photos/KTQN0UWNwS4 (published 2020-05-11). Cropped to 2000 × 1750 from the top of the 2000 px download (y 450) and scaled to the 1200 × 1050 stage; nothing else changed.
+- `glasses-front.png`: round black metal frame by Konsepta Studio — https://unsplash.com/photos/62rTkfxLTDg (published 2020-06-11). Cut out by `scripts/cut-glasses.mjs`: the front frame only; each lens's inner edge fitted as an ellipse and made transparent (clear lenses — the arms seen through them in the flat photo would not be seen when worn); alpha from how dark each pixel is; the colours are the photo's own. No brand is shown or named.
+
+Scale on the face photo is measured, not tuned by eye: pupils at (433, 527) and (757, 514) on the stage, 324 px apart, taken as 62 mm (an adult's average interpupillary distance) → 5.23 px/mm. The example frame's width, 132 mm, is approximate (a typical round metal frame); it is an example product, not a store's.

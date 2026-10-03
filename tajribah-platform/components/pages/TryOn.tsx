@@ -12,7 +12,7 @@ import { useData, useResource } from '@/lib/data';
 import { formatBytes, formatNumber, formatPercent } from '@/lib/format';
 import { useLang } from '@/lib/i18n';
 import { ROLE_PERMISSIONS } from '@/lib/permissions';
-import { TRYON_SLOTS, sayCutout } from '@/lib/tryon';
+import { SLOTS_OF, WIDTH_LABEL, sayCutout, slotInfo, type TryOnKind } from '@/lib/tryon';
 import { CALIBRATE_MIN_PX, TRUE_SIZE_MIN, alphaFacts, type SlotQuality } from '@/lib/tryon-quality';
 import type { TryOnWatchView } from '@/lib/view-models';
 import { Shell } from '@/components/dashboard/chrome';
@@ -31,8 +31,8 @@ export default function TryOn() {
     <Shell tenant={null} crumbs={crumbs}>
       <PageHead
         title={t('التجربة الافتراضية', 'Virtual try-on')}
-        lead={t('جهّز ساعاتك لاستوديو التجربة: يجرّب المتسوق الساعة على معصم بمقاسها الحقيقي، أو على صورته، أو بجانب أشياء يعرف حجمها.',
-          'Set your watches up for the try-on studio: shoppers try the watch on a wrist at its real size, on their own photo, or beside things they know the size of.')}
+        lead={t('جهّز ساعاتك ونظاراتك لاستوديو التجربة: يجرّب المتسوق الساعة على معصم والنظارة على وجه بمقاسها الحقيقي، أو بجانب أشياء يعرف حجمها.',
+          'Set your watches and glasses up for the try-on studio: shoppers try a watch on a wrist and glasses on a face at their real size, or beside things they know the size of.')}
       />
       {loading && !data && <Loading rows={4} />}
       {error && <ErrorNote error={error} />}
@@ -45,8 +45,8 @@ export default function TryOn() {
         </Panel>
       )}
       {data && data.watches.length === 0 && (
-        <Empty icon={<Watch size={22} />} title={t('لا ساعات بعد', 'No watches yet')}
-          body={t('اجعل نوع المنتج «ساعة» في صفحته لتظهر هنا. التجربة للساعات أولًا، وبقية الأنواع تأتي تباعًا.', 'Set a product’s type to Watch on its page and it appears here. Try-on starts with watches; other kinds follow.')}
+        <Empty icon={<Watch size={22} />} title={t('لا ساعات ولا نظارات بعد', 'No watches or glasses yet')}
+          body={t('اجعل نوع المنتج «ساعة» أو «نظارات» في صفحته ليظهر هنا. بقية الأنواع تأتي تباعًا.', 'Set a product’s type to Watch or Eyewear on its page and it appears here. Other kinds follow.')}
           action={<AppLink href="/dashboard/products" className="btn btn-ghost">{t('المنتجات', 'Products')}</AppLink>} />
       )}
       <div style={{ display: 'grid', gap: 16 }}>
@@ -93,7 +93,7 @@ function WatchCard({ initial, editable }: { initial: TryOnWatchView; editable: b
       if (e instanceof ApiError && e.fields) {
         const lines = Object.values(e.fields).flat().map(sayCutout);
         // A picture's refusal names the picture: "The watch as worn — has no transparency…".
-        const name = what === 'worn' || what === 'flat' ? TRYON_SLOTS[what].label : null;
+        const name = what === 'worn' || what === 'flat' ? slotInfo(w.kind, what).label : null;
         const joined = { ar: lines.map((l) => l.ar).join(' '), en: lines.map((l) => l.en).join(' ') };
         setNote({ tone: 'bad', text: name ? { ar: `${name.ar}: ${joined.ar}`, en: `${name.en} ${joined.en}` } : joined });
       } else setFailure(e as Error);
@@ -110,38 +110,40 @@ function WatchCard({ initial, editable }: { initial: TryOnWatchView; editable: b
       : <Badge tone="warn">{t('ناقصة', 'Incomplete')}</Badge>;
   // P5.13 — from the screen's list only: an upload or a save returns the settings, not the numbers.
   const stats = initial.last30;
-  const missingText = w.missing.map((m) => (m === 'case' ? t('عرض العلبة', 'case width') : pick(TRYON_SLOTS[m].label))).join(t('، ', ', '));
+  const missingText = w.missing.map((m) => (m === 'case' ? pick(WIDTH_LABEL[w.kind]) : pick(slotInfo(w.kind, m).label))).join(t('، ', ', '));
 
   return (
     <Panel title={lang === 'ar' ? w.nameAr ?? w.name : w.name} sub={w.sku ? `${t('الرمز', 'SKU')} ${w.sku}` : undefined} actions={status}>
       <div className="tryon-grid">
-        {(['worn', 'flat'] as const).map((slot) => (
-          <Picture key={slot} productId={w.productId} slot={slot} has={w[slot]} quality={w.quality[slot]} disabled={!editable || busy !== null}
+        {SLOTS_OF[w.kind].map((slot) => (
+          <Picture key={slot} kind={w.kind} productId={w.productId} slot={slot} has={w[slot]} quality={w.quality[slot]} disabled={!editable || busy !== null}
             busy={busy === slot} onPick={(file) => { setMarking(null); void run(slot, () => source.uploadCutout(w.productId, slot, file), { ar: 'قُبلت الصورة.', en: 'Picture accepted.' }); }}
             onMark={editable && w.quality[slot] && !w.quality[slot]!.issue ? () => setMarking(slot) : undefined} />
         ))}
         <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
           <div className="field">
-            <label htmlFor={`case-${w.productId}`}>{t('عرض العلبة', 'Case width')}</label>
+            <label htmlFor={`case-${w.productId}`}>{pick(WIDTH_LABEL[w.kind])}</label>
             <div className="input-unit">
               <input id={`case-${w.productId}`} inputMode="decimal" dir="ltr" value={caseMm} disabled={!editable} onChange={(e) => setCaseMm(e.target.value)} />
               <span aria-hidden>{t('مم', 'mm')}</span>
             </div>
-            <span className="field-hint">{w.productWidthMm && !w.caseMm
-              ? t(`عرض المنتج المسجّل ${w.productWidthMm} مم — تأكد أنه عرض العلبة وحدها.`, `The product’s width on record is ${w.productWidthMm} mm — make sure it is the case alone.`)
-              : t('عرض العلبة وحدها بلا تاج، كما تقيسه أنت.', 'The case alone, without the crown, as you measure it.')}</span>
+            <span className="field-hint">{w.kind === 'glasses'
+              ? t('عرض الإطار من الأمام، من مفصل إلى مفصل (100–170 مم).', 'The frame’s front width, hinge to hinge (100–170 mm).')
+              : w.productWidthMm && !w.caseMm
+                ? t(`عرض المنتج المسجّل ${w.productWidthMm} مم — تأكد أنه عرض العلبة وحدها.`, `The product’s width on record is ${w.productWidthMm} mm — make sure it is the case alone.`)
+                : t('عرض العلبة وحدها بلا تاج، كما تقيسه أنت.', 'The case alone, without the crown, as you measure it.')}</span>
           </div>
           <div className="field">
             <label htmlFor={`fin-ar-${w.productId}`}>{t('وصف اللون (اختياري)', 'Finish (optional)')}</label>
-            <input id={`fin-ar-${w.productId}`} dir="rtl" placeholder="ذهبي · مينا أخضر" value={finishAr} disabled={!editable} onChange={(e) => setFinishAr(e.target.value)} />
-            <input dir="ltr" placeholder="Gold · green dial" value={finishEn} disabled={!editable} onChange={(e) => setFinishEn(e.target.value)} aria-label={t('وصف اللون بالإنجليزية', 'Finish in English')} />
+            <input id={`fin-ar-${w.productId}`} dir="rtl" placeholder={w.kind === 'glasses' ? 'معدن أسود · عدسات شفافة' : 'ذهبي · مينا أخضر'} value={finishAr} disabled={!editable} onChange={(e) => setFinishAr(e.target.value)} />
+            <input dir="ltr" placeholder={w.kind === 'glasses' ? 'Black metal · clear lenses' : 'Gold · green dial'} value={finishEn} disabled={!editable} onChange={(e) => setFinishEn(e.target.value)} aria-label={t('وصف اللون بالإنجليزية', 'Finish in English')} />
           </div>
           <button type="button" className="btn btn-primary btn-sm" onClick={save} disabled={!editable || busy !== null}>{busy === 'save' ? t('جارٍ الحفظ…', 'Saving…') : t('احفظ', 'Save')}</button>
         </div>
       </div>
 
       {marking && w.quality[marking] && (
-        <CaseEdges key={w.quality[marking]!.key} productId={w.productId} slot={marking} busy={busy !== null} onCancel={() => setMarking(null)}
+        <CaseEdges key={w.quality[marking]!.key} kind={w.kind} productId={w.productId} slot={marking} busy={busy !== null} onCancel={() => setMarking(null)}
           onSave={(left, right) => {
             const key = w.quality[marking]!.key;
             setMarking(null);
@@ -150,7 +152,9 @@ function WatchCard({ initial, editable }: { initial: TryOnWatchView; editable: b
                 if (e instanceof ApiError && e.status === 409) throw new Error(t('تغيّرت الصورة منذ حدّدتها — حدّدها مرة أخرى.', 'The picture changed since you marked it — mark it again.'));
                 throw e;
               }
-            }, { ar: 'نقصّ الصورة على حافتي العلبة ثم نفحص مقاسها من جديد.', en: 'Cropping the picture to the case’s edges, then checking its size again.' });
+            }, w.kind === 'glasses'
+              ? { ar: 'نقصّ الصورة على حافتي الإطار ثم نفحص مقاسها من جديد.', en: 'Cropping the picture to the frame’s edges, then checking its size again.' }
+              : { ar: 'نقصّ الصورة على حافتي العلبة ثم نفحص مقاسها من جديد.', en: 'Cropping the picture to the case’s edges, then checking its size again.' });
           }} />
       )}
       {stats && (
@@ -174,8 +178,8 @@ function WatchCard({ initial, editable }: { initial: TryOnWatchView; editable: b
   );
 }
 
-function Picture({ productId, slot, has, quality, disabled, busy, onPick, onMark }: {
-  productId: string; slot: 'worn' | 'flat'; has: { bytes: number } | null; quality: SlotQuality | null; disabled: boolean; busy: boolean; onPick: (file: File) => void; onMark?: () => void;
+function Picture({ kind, productId, slot, has, quality, disabled, busy, onPick, onMark }: {
+  kind: TryOnKind; productId: string; slot: 'worn' | 'flat'; has: { bytes: number } | null; quality: SlotQuality | null; disabled: boolean; busy: boolean; onPick: (file: File) => void; onMark?: () => void;
 }) {
   const { t, pick, lang } = useLang();
   const source = useData();
@@ -190,7 +194,7 @@ function Picture({ productId, slot, has, quality, disabled, busy, onPick, onMark
     source.cutoutImage(productId, slot).then((blob) => { if (live) { url = URL.createObjectURL(blob); setSrc(url); } }).catch(() => undefined);
     return () => { live = false; if (url) URL.revokeObjectURL(url); };
   }, [source, productId, slot, bytes]);
-  const info = TRYON_SLOTS[slot];
+  const info = slotInfo(kind, slot);
   return (
     <div className="tryon-picture">
       <strong>{pick(info.label)}</strong>
@@ -200,30 +204,34 @@ function Picture({ productId, slot, has, quality, disabled, busy, onPick, onMark
         {busy && <span className="photo-slot-busy" role="status">{t('جارٍ الرفع والفحص…', 'Uploading and checking…')}</span>}
       </div>
       {has && <span className="hint" style={{ margin: 0 }}><span dir="ltr">{formatBytes(has.bytes, lang)}</span></span>}
-      {has && <QualityNote quality={quality} />}
+      {has && <QualityNote quality={quality} kind={kind} />}
       <span className="hint" style={{ margin: 0 }}>{pick(info.hint)}</span>
       <input ref={picker} type="file" accept="image/png,image/webp,.png,.webp" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.target.value = ''; }} />
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} onClick={() => picker.current?.click()}>{has ? t('بدّل الصورة', 'Replace') : t('ارفع صورة', 'Upload')}</button>
-        {has && onMark && <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} onClick={onMark}>{t('حدّد حافتي العلبة', 'Mark the case edges')}</button>}
+        {has && onMark && <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} onClick={onMark}>{kind === 'glasses' ? t('حدّد حافتي الإطار', 'Mark the frame edges') : t('حدّد حافتي العلبة', 'Mark the case edges')}</button>}
       </div>
     </div>
   );
 }
 
 /** P5.9 — what the check found: the studio draws the picture's full width as the case width. */
-function QualityNote({ quality }: { quality: SlotQuality | null }) {
+function QualityNote({ quality, kind }: { quality: SlotQuality | null; kind: TryOnKind }) {
   const { t } = useLang();
+  const glasses = kind === 'glasses';
   if (!quality) return <span className="quality-note" role="status">{t('جارٍ فحص المقاس…', 'Checking the size…')}</span>;
-  if (quality.issue === 'empty') return <span className="quality-note quality-bad">{t('لا يظهر شيء في هذه الصورة. ارفع صورة الساعة.', 'Nothing is visible in this picture. Upload the watch.')}</span>;
+  if (quality.issue === 'empty') return <span className="quality-note quality-bad">{glasses ? t('لا يظهر شيء في هذه الصورة. ارفع صورة الإطار.', 'Nothing is visible in this picture. Upload the frame.') : t('لا يظهر شيء في هذه الصورة. ارفع صورة الساعة.', 'Nothing is visible in this picture. Upload the watch.')}</span>;
   if (quality.issue === 'unreadable') return <span className="quality-note quality-bad">{t('تعذّرت قراءة الصورة. ارفعها مرة أخرى.', 'The picture could not be read. Upload it again.')}</span>;
   const pct = `${Math.floor(quality.sizeShown * 100)}%`;
   const trimmed = quality.trimmed ? t(' قصصنا الحواف الفارغة لتظهر بمقاسها.', ' We cropped away the empty edges so it shows at its size.') : '';
   if (quality.sizeShown < TRUE_SIZE_MIN) {
     return (
       <span className="quality-note quality-warn">
-        {t(`تظهر الساعة بنحو ${pct} من مقاسها الحقيقي: ظل أو توهج خفيف على الجانبين يوسّع الصورة دون الساعة. قصّها على حافتي العلبة بحدّ واضح.`,
-          `The watch shows at about ${pct} of its real size: a soft shadow or glow at the sides widens the picture, not the watch. Crop it to the case’s edges, with a clean edge.`)}{trimmed}
+        {glasses
+          ? t(`تظهر النظارة بنحو ${pct} من مقاسها الحقيقي: ظل أو توهج خفيف على الجانبين يوسّع الصورة دون الإطار. قصّها على حافتي الإطار بحدّ واضح.`,
+            `The glasses show at about ${pct} of their real size: a soft shadow or glow at the sides widens the picture, not the frame. Crop it to the frame’s edges, with a clean edge.`)
+          : t(`تظهر الساعة بنحو ${pct} من مقاسها الحقيقي: ظل أو توهج خفيف على الجانبين يوسّع الصورة دون الساعة. قصّها على حافتي العلبة بحدّ واضح.`,
+            `The watch shows at about ${pct} of its real size: a soft shadow or glow at the sides widens the picture, not the watch. Crop it to the case’s edges, with a clean edge.`)}{trimmed}
       </span>
     );
   }
@@ -236,8 +244,8 @@ function QualityNote({ quality }: { quality: SlotQuality | null }) {
  * is what the studio draws (P5.9). The studio itself is untouched. Markers start at the visible edges;
  * arrow keys move the focused marker a pixel (Shift: ten).
  */
-function CaseEdges({ productId, slot, busy, onSave, onCancel }: {
-  productId: string; slot: 'worn' | 'flat'; busy: boolean; onSave: (left: number, right: number) => void; onCancel: () => void;
+function CaseEdges({ kind, productId, slot, busy, onSave, onCancel }: {
+  kind: TryOnKind; productId: string; slot: 'worn' | 'flat'; busy: boolean; onSave: (left: number, right: number) => void; onCancel: () => void;
 }) {
   const { t, pick, lang } = useLang();
   const source = useData();
@@ -278,15 +286,19 @@ function CaseEdges({ productId, slot, busy, onSave, onCancel }: {
   };
   const pct = (x: number) => `${(x / W) * 100}%`;
   const [left, right] = edges;
-  const label = pick(TRYON_SLOTS[slot].label);
+  const label = pick(slotInfo(kind, slot).label);
+  const glasses = kind === 'glasses';
   const unchanged = left === 0 && right === W;
 
   return (
     <div className="case-edges">
-      <strong>{t(`حدّد حافتي العلبة — ${label}`, `Mark the case edges — ${label}`)}</strong>
+      <strong>{glasses ? t(`حدّد حافتي الإطار — ${label}`, `Mark the frame edges — ${label}`) : t(`حدّد حافتي العلبة — ${label}`, `Mark the case edges — ${label}`)}</strong>
       <p className="hint" style={{ margin: 0 }}>
-        {t('اسحب الخطين إلى حافتي العلبة اليمنى واليسرى، بلا التاج. ما خارج الخطين يُقص، فيظهر عرض العلبة بمقاسه الحقيقي في الاستوديو.',
-          'Drag the two lines to the case’s left and right edges, without the crown. What lies outside them is cropped away, so the studio shows the case at its real width.')}
+        {glasses
+          ? t('اسحب الخطين إلى طرفي الإطار عند المفصلين. ما خارج الخطين يُقص، فيظهر الإطار بعرضه الحقيقي في الاستوديو.',
+            'Drag the two lines to the frame’s ends at the hinges. What lies outside them is cropped away, so the studio shows the frame at its real width.')
+          : t('اسحب الخطين إلى حافتي العلبة اليمنى واليسرى، بلا التاج. ما خارج الخطين يُقص، فيظهر عرض العلبة بمقاسه الحقيقي في الاستوديو.',
+            'Drag the two lines to the case’s left and right edges, without the crown. What lies outside them is cropped away, so the studio shows the case at its real width.')}
       </p>
       {!picture ? <Loading rows={2} /> : (
         // The picture is physical left-to-right whatever the page's direction: the markers sit on it.

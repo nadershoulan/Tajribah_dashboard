@@ -316,18 +316,18 @@ export async function mount(doc: Document, settings: Settings, fetchImpl: typeof
     const config = product ? await loadConfig(configUrl(settings.configBase, settings.store, product), fetchImpl) : null;
     if (!config) { host.setAttribute(READY, 'none'); return; } // fail closed: nothing drawn
     renderButton(host, config, lang, () => {
-      // P5 (T26): a watch with try-on set up opens the owner's studio, in a frame.
-      if (config.placement === 'wrist' && config.tryon) {
+      // P5 (T26): a watch — or (P5.2) glasses — with try-on set up opens the owner's studio, in a frame.
+      if (config.tryon) {
         tracker?.track({ type: 'tryon_start', productId: product });
         openTryOn(host.shadowRoot!, tryOnUrl(tryOnBase(settings.tryon, config.host), settings.store, product, lang), lang, lang === 'ar' ? config.product.nameAr ?? config.product.name : config.product.name);
         return;
       }
-      if (!hasModel(config)) return; // unreachable: a config without a model is a wrist try-on (parseConfig)
+      if (!hasModel(config)) return; // unreachable: a config without a model is a try-on (parseConfig)
       // The tap is the event; what it opens depends on the device (P1.18).
       tracker?.track({ type: 'ar_open', productId: product, arSupported: hasNativeAr() });
       return openAr(host, config, lang, settings);
     });
-    if (config.placement === 'wrist' && config.tryon) warmTryOn(doc, tryOnBase(settings.tryon, config.host));
+    if (config.tryon) warmTryOn(doc, tryOnBase(settings.tryon, config.host));
     host.setAttribute(READY, 'yes');
     // Whether this device could show AR goes with the view, so "devices that support AR" counts
     // every visit — not only the ones that tapped the button.

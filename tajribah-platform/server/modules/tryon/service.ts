@@ -21,13 +21,15 @@
  *    that picture's (`quality[slot].key`), so a replaced picture shows "checking", never the old result.
  *  - T68 calibration: the merchant marks the case's edges on a picture; it is cropped to them in the
  *    background (`quality.ts`, sharp) and checked again — the screen shows "checking" meanwhile.
+ *  - P5.2 (T68): glasses too (product type Eyewear) — one picture, the frame from the front, which is
+ *    published as both pictures; the width is the frame's (100–170 mm, a watch's case 5–80).
  *  - P5.13: the list shows each watch's last 30 days (views, try-on openings) from the analytics
  *    rollup — never raw events — to anyone who may read analytics.
  */
 import { and, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
 import { dailyProductStats, products, tryonConfigs } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
-import { CUTOUT_ISSUES } from '@/lib/tryon';
+import { CUTOUT_ISSUES, SLOTS_OF, TRYON_PRODUCT_TYPES, WIDTH_MM, kindOf, type TryOnKind } from '@/lib/tryon';
 import { CALIBRATE_MIN_PX } from '@/lib/tryon-quality';
 import type { TryOnScreen, TryOnWatchView } from '@/lib/view-models';
 import { record } from '@/server/core/audit/audit';
@@ -56,14 +58,16 @@ export const ISSUE_TEXT = Object.fromEntries(Object.entries(CUTOUT_ISSUES).map((
 type Last30 = TryOnWatchView['last30'];
 
 function view(product: Product, config: Config | null, last30: Last30 = null): TryOnWatchView {
+  const kind: TryOnKind = kindOf(product.productType) ?? 'watch';
   const caseMm = config?.caseTenthsMm != null ? config.caseTenthsMm / 10 : null;
   const missing: TryOnWatchView['missing'] = [];
   if (!config?.wornKey) missing.push('worn');
-  if (!config?.flatKey) missing.push('flat');
+  if (kind === 'watch' && !config?.flatKey) missing.push('flat');
   if (caseMm === null) missing.push('case');
+  const wornQuality = config?.wornKey && config.quality?.worn?.key === config.wornKey ? config.quality.worn : null;
   const dims = product.dimensions as { widthMm?: number } | null;
   return {
-    productId: product.id, name: product.name, nameAr: product.nameAr, sku: product.sku,
+    productId: product.id, kind, name: product.name, nameAr: product.nameAr, sku: product.sku,
     productWidthMm: typeof dims?.widthMm === 'number' ? dims.widthMm : null,
     caseMm,
     worn: config?.wornKey ? { bytes: config.wornBytes ?? 0 } : null,
@@ -71,9 +75,10 @@ function view(product: Product, config: Config | null, last30: Last30 = null): T
     finish: config?.finishAr && config.finishEn ? { ar: config.finishAr, en: config.finishEn } : null,
     enabled: !!config?.enabled && missing.length === 0,
     quality: {
-      worn: config?.wornKey && config.quality?.worn?.key === config.wornKey ? config.quality.worn : null,
-      flat: config?.flatKey && config.quality?.flat?.key === config.flatKey ? config.quality.flat : null,
-      score: config?.qualityScore ?? null,
+      worn: wornQuality,
+      flat: kind === 'watch' && config?.flatKey && config.quality?.flat?.key === config.flatKey ? config.quality.flat : null,
+      // glasses have one picture: its share of real size is the score
+      score: kind === 'glasses' ? (wornQuality && !wornQuality.issue ? Math.floor(wornQuality.sizeShown * 100) : null) : config?.qualityScore ?? null,
     },
     ready: missing.length === 0,
     missing,
@@ -84,7 +89,7 @@ function view(product: Product, config: Config | null, last30: Last30 = null): T
 async function watchOf(db: TenantDb, productId: string): Promise<Product> {
   const product = await db.findById(products, productId);
   if (!product || product.deletedAt) throw errors.notFound('product');
-  if (product.productType !== 'watch') throw errors.conflict('try-on is for watches for now — set this product’s type to Watch first');
+  if (!kindOf(product.productType)) throw errors.conflict('try-on is for watches and glasses for now — set this product’s type to Watch or Eyewear first');
   return product;
 }
 
@@ -98,7 +103,7 @@ export async function tryOnScreen(ctx: TenantContext, now = new Date()): Promise
   const onMe = (await entitlementsOf(ctx)).has('virtual_tryon');
   const days = daysOf('30d', now);
   return withTenant(ctx.tenantId, async (db) => {
-    const watches = await db.find(products, and(eq(products.productType, 'watch'), isNull(products.deletedAt)), { limit: 500 });
+    const watches = await db.find(products, and(inArray(products.productType, Object.keys(TRYON_PRODUCT_TYPES) as Product['productType'][]), isNull(products.deletedAt)), { limit: 500 });
     const ids = watches.map((p) => p.id);
     const configs = ids.length ? await db.find(tryonConfigs, inArray(tryonConfigs.productId, ids), { limit: 500 }) : [];
     const stats = ids.length && ctx.can('analytics:read')
@@ -123,7 +128,8 @@ export async function startCutoutUpload(ctx: TenantContext, productId: string, i
   if (!Number.isInteger(input.sizeBytes) || input.sizeBytes <= 0) problems.sizeBytes = ['the file is empty'];
   else if (input.sizeBytes > CUTOUT_MAX_BYTES) problems.sizeBytes = [ISSUE_TEXT.too_large_file];
   if (Object.keys(problems).length) throw errors.validation(problems);
-  await withTenant(ctx.tenantId, (db) => watchOf(db, productId));
+  const product = await withTenant(ctx.tenantId, (db) => watchOf(db, productId));
+  if (!SLOTS_OF[kindOf(product.productType)!].includes(input.slot)) throw errors.validation({ slot: ['glasses take one picture: the frame from the front'] });
   await assertStorageRoom(ctx, input.sizeBytes);
   const store = forTenant(ctx.tenantId);
   const key = store.key({ kind: 'photo', id: uuidv7(), filename: `${input.slot}.${format}` });
@@ -163,7 +169,7 @@ export async function confirmCutout(ctx: TenantContext, productId: string, input
     const values = input.slot === 'worn' ? { wornKey: input.key, wornBytes: stored.size } : { flatKey: input.key, flatBytes: stored.size };
     const after = before
       ? await db.updateById(tryonConfigs, before.id, values as never)
-      : await db.insert(tryonConfigs, { id: uuidv7(), productId, category: 'watch', ...values } as never);
+      : await db.insert(tryonConfigs, { id: uuidv7(), productId, category: kindOf(product.productType) ?? 'watch', ...values } as never);
     await record(ctx, { action: before ? 'update' : 'create', resourceType: 'tryon_config', resourceId: after.id, before: before ? { [`${input.slot}Key`]: before[`${input.slot}Key`] } as never : undefined, after: { [`${input.slot}Key`]: input.key } as never }, db);
     const old = before?.[`${input.slot}Key`];
     return { result: view(product, after), replaced: old && old !== input.key ? old : null };
@@ -178,7 +184,7 @@ export async function confirmCutout(ctx: TenantContext, productId: string, input
 export async function updateTryOn(ctx: TenantContext, productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean }): Promise<TryOnWatchView> {
   await mayChange(ctx);
   const problems: Record<string, string[]> = {};
-  if (patch.caseMm != null && (!Number.isFinite(patch.caseMm) || patch.caseMm < 5 || patch.caseMm > 80)) problems.caseMm = ['between 5 and 80 mm'];
+
   const finish = [patch.finishAr, patch.finishEn];
   if (finish.some((f) => f !== undefined) && finish.filter((f) => f && f.trim()).length === 1) problems.finish = ['in both Arabic and English, or neither'];
   if (finish.some((f) => f && f.trim().length > 80)) problems.finish = ['80 characters at most'];
@@ -186,6 +192,8 @@ export async function updateTryOn(ctx: TenantContext, productId: string, patch: 
 
   const result = await withTenant(ctx.tenantId, async (db) => {
     const product = await watchOf(db, productId);
+    const range = WIDTH_MM[kindOf(product.productType)!];
+    if (patch.caseMm != null && (!Number.isFinite(patch.caseMm) || patch.caseMm < range.min || patch.caseMm > range.max)) throw errors.validation({ caseMm: [`between ${range.min} and ${range.max} mm`] });
     await db.lockById(products, productId);
     const before = await db.findOne(tryonConfigs, eq(tryonConfigs.productId, productId));
     const values: Partial<Config> = {};
@@ -204,7 +212,7 @@ export async function updateTryOn(ctx: TenantContext, productId: string, patch: 
     }
     const after = before
       ? await db.updateById(tryonConfigs, before.id, values as never)
-      : await db.insert(tryonConfigs, { id: uuidv7(), productId, category: 'watch', ...values } as never);
+      : await db.insert(tryonConfigs, { id: uuidv7(), productId, category: kindOf(product.productType) ?? 'watch', ...values } as never);
     await record(ctx, { action: before ? 'update' : 'create', resourceType: 'tryon_config', resourceId: after.id, before: before as never, after: after as never }, db);
     return view(product, after);
   });

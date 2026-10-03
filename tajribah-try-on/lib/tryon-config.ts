@@ -51,7 +51,11 @@ export function tryOnProductFrom(config: unknown, local = false): TryOnProduct |
   const { product, tryon } = config;
   if (!str(product.name) || !(product.nameAr == null || str(product.nameAr))) return null;
   if (!httpsUrl(tryon.worn, local) || !httpsUrl(tryon.flat, local)) return null;
-  if (typeof tryon.caseMm !== 'number' || !Number.isFinite(tryon.caseMm) || tryon.caseMm < 5 || tryon.caseMm > 80) return null;
+  // P5.2 (T68): `category: 'glasses'` — a frame's width (100–170 mm); absent — a watch's case (5–80 mm), as the widget reads it.
+  const glasses = tryon.category === 'glasses';
+  if (tryon.category !== undefined && !glasses) return null;
+  const [lo, hi] = glasses ? [100, 170] : [5, 80];
+  if (typeof tryon.caseMm !== 'number' || !Number.isFinite(tryon.caseMm) || tryon.caseMm < lo || tryon.caseMm > hi) return null;
   if (!(tryon.sku == null || str(tryon.sku, 64))) return null;
   const name: Bi = { ar: (product.nameAr as string | null) ?? product.name, en: product.name };
   return {
@@ -70,7 +74,9 @@ export function tryOnProductFrom(config: unknown, local = false): TryOnProduct |
     alt: name,
     storeLink: null, // the shopper is already on the store's page
     demo: false,
-    onMe: tryon.onMe === true, // T33: the shopper's own photo — Pro and up; anything else is off
+    // T33: the shopper's own photo — Pro and up; glasses not yet (finding a face is not built)
+    onMe: !glasses && tryon.onMe === true,
+    ...(glasses ? { category: 'eyewear' as const } : {}),
   };
 }
 

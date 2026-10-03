@@ -24,6 +24,7 @@
  * The result is checked with the widget's own parser before it can be published, so a config the
  * shop cannot read never leaves: the contract has one definition, not two that drift.
  */
+import { kindOf } from '@/lib/tryon';
 import { and, asc, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import { arConfigs, customDomains, edgeConfigs, hostedPages, modelFiles, models3d, productRelations, products, tenantSettings, tryonConfigs } from '@/db/schema';
 import { isShopUrl, type PublishedPage } from '@/lib/contracts/hosted-page';
@@ -88,10 +89,15 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
 
   const live = product.arEnabled ? await liveModelOf(ctx, product.id, product.primaryModelId, (k) => files.publicUrl(k)) : null;
   const model = live?.files ?? null;
-  const watch = tryon && tryon.enabled && tryon.wornKey && tryon.flatKey && tryon.caseTenthsMm != null && button.placement === 'wrist'
+  // P5.2 (T68): glasses publish their one picture as both, with `category: 'glasses'` (absent = a watch).
+  const kind = kindOf(product.productType);
+  const glasses = kind === 'glasses';
+  const flatKey = glasses ? tryon?.wornKey : tryon?.flatKey;
+  const watch = tryon && tryon.enabled && tryon.wornKey && flatKey && tryon.caseTenthsMm != null && button.placement === (glasses ? 'face' : 'wrist')
     ? {
+      ...(glasses ? { category: 'glasses' as const } : {}),
       worn: files.publicUrl(tryon.wornKey),
-      flat: files.publicUrl(tryon.flatKey),
+      flat: files.publicUrl(flatKey),
       caseMm: tryon.caseTenthsMm / 10,
       sku: product.sku && product.sku.length <= 64 ? product.sku : null,
       onMe: entitlements.has('virtual_tryon'),

@@ -87,7 +87,7 @@ export const INDUSTRIES: Record<IndustrySlug, Industry> = {
     nav: { ar: 'متاجر النظارات', en: 'Eyewear stores' },
     hero: {
       title: { ar: 'لمتاجر النظارات: عرض الإطار بحجمه الحقيقي', en: 'For eyewear stores: frame width at its true size' },
-      lead: { ar: 'في العرض التجريبي الآن: الإطار على وجه حقيقي بعرضه الحقيقي، وبجانب أشياء يعرفها الجميع. تجهيز إطاراتك من لوحة التحكم يأتي تاليًا، والتجربة على صورة العميل بعده.', en: 'In the live demo now: the frame on a real face at its real width, and beside familiar objects. Setting up your own frames in the dashboard comes next, the shopper’s own photo after that.' },
+      lead: { ar: 'اليوم: إطارك على وجه حقيقي بعرضه الحقيقي، وبجانب أشياء يعرفها الجميع — تجهّزه من لوحة التحكم بصورة واحدة وعرض الإطار. التجربة على صورة العميل تأتي لاحقًا.', en: 'Today: your frame on a real face at its real width, and beside familiar objects — set up in the dashboard with one picture and the frame’s width. The shopper’s own photo comes later.' },
     },
     question: { ar: '«هل الإطار عريض على وجهي؟»', en: '“Is this frame too wide for my face?”' },
     problem: [
@@ -95,7 +95,7 @@ export const INDUSTRIES: Record<IndustrySlug, Industry> = {
     ],
     modes: [
       { feature: 'true-size', label: { ar: 'قارن الحجم', en: 'Compare size' }, status: 'now', note: { ar: 'الإطار بعرضه الحقيقي بجانب آيفون وسماعات إيربودز.', en: 'The frame at its true width beside an iPhone and AirPods.' } },
-      { feature: null, label: { ar: 'على وجه النموذج', en: 'On a model’s face' }, status: 'soon', note: { ar: 'جرّبه الآن في العرض التجريبي: صورة حقيقية، والمقياس من المسافة بين الحدقتين. تجهيز إطاراتك من لوحة التحكم يأتي تاليًا.', en: 'Try it now in the live demo: a real photo, sized from the distance between the pupils. Setting up your own frames in the dashboard comes next.' } },
+      { feature: null, label: { ar: 'على وجه النموذج', en: 'On a model’s face' }, status: 'now', note: { ar: 'صورة وجه حقيقية، والمقياس من المسافة بين الحدقتين. ارفع صورة الإطار من الأمام وأدخل عرضه.', en: 'A real face photo, sized from the distance between the pupils. Upload the frame from the front and enter its width.' } },
       { feature: null, label: { ar: 'على صورة العميل', en: 'On the shopper’s photo' }, status: 'soon', note: { ar: 'تحديد الوجه في صورة العميل ضمن خطة التوسّع. لا نعرضه قبل أن يكون دقيقًا وخاصًا على جهاز العميل.', en: 'Finding the face in the shopper’s photo is in the expansion plan. We will not show it before it is accurate and private on the shopper’s device.' } },
     ],
     measure: [

@@ -18,7 +18,7 @@ import type {
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
 import { checkCutout } from '@/server/modules/tryon/cutout';
-import { CUTOUT_ISSUES } from './tryon';
+import { CUTOUT_ISSUES, kindOf } from './tryon';
 import { alphaFacts, CALIBRATE_MIN_PX, calibrationCrop, hasMargins, qualityScore, sizeShown, type SlotQuality } from './tryon-quality';
 import { healthOf } from './connection-health';
 import { ApiError, currentStore, type ApiClient } from './api-client';
@@ -536,19 +536,20 @@ async function demoCutoutQuality(file: Blob, slot: 'worn' | 'flat'): Promise<{ p
 const DEMO_TRYON_ON_ME = false;
 function demoTryOnView(p: ProductRow): TryOnWatchView {
   const s = demoTryOn.get(p.id) ?? { worn: null, flat: null, caseMm: null, finish: null, enabled: false };
+  const kind = kindOf(p.productType) ?? 'watch';
   const missing: TryOnWatchView['missing'] = [];
   if (!s.worn) missing.push('worn');
-  if (!s.flat) missing.push('flat');
+  if (kind === 'watch' && !s.flat) missing.push('flat');
   if (s.caseMm === null) missing.push('case');
   return {
-    productId: p.id, name: p.name, nameAr: p.nameAr, sku: p.sku, productWidthMm: p.dimensions?.widthMm ?? null, caseMm: s.caseMm,
+    productId: p.id, kind, name: p.name, nameAr: p.nameAr, sku: p.sku, productWidthMm: p.dimensions?.widthMm ?? null, caseMm: s.caseMm,
     worn: s.worn ? { bytes: s.worn.size } : null, flat: s.flat ? { bytes: s.flat.size } : null, finish: s.finish,
     enabled: s.enabled && missing.length === 0, ready: missing.length === 0, missing,
     last30: { views: p.views30, tryonSessions: demoTryonSessions30(p) },
     quality: {
       worn: s.worn ? s.quality?.worn ?? null : null,
       flat: s.flat ? s.quality?.flat ?? null : null,
-      score: s.worn && s.flat ? qualityScore(s.quality?.worn, s.quality?.flat) : null,
+      score: kind === 'glasses' ? (s.worn && s.quality?.worn ? qualityScore(s.quality.worn, s.quality.worn) : null) : s.worn && s.flat ? qualityScore(s.quality?.worn, s.quality?.flat) : null,
     },
   };
 }
@@ -845,10 +846,10 @@ export const demoSource: DataSource = {
     throw new ApiError(404, 'not_found', 'the preview has no 3D files — open a model in the live dashboard to see it');
   },
   async tryOn() {
-    return { onMe: DEMO_TRYON_ON_ME, watches: DEMO_PRODUCTS.filter((p) => p.productType === 'watch').map(demoTryOnView) };
+    return { onMe: DEMO_TRYON_ON_ME, watches: DEMO_PRODUCTS.filter((p) => kindOf(p.productType)).map(demoTryOnView) };
   },
   async uploadCutout(productId, slot, file) {
-    const p = DEMO_PRODUCTS.find((x) => x.id === productId && x.productType === 'watch');
+    const p = DEMO_PRODUCTS.find((x) => x.id === productId && kindOf(x.productType));
     if (!p) throw new ApiError(404, 'not_found', 'product not found');
     const verdict = checkCutout(new Uint8Array(await file.arrayBuffer()), file.size);
     if (!verdict.ok) throw new ApiError(422, 'validation_failed', 'Validation failed', { [slot]: [CUTOUT_ISSUES[verdict.issue].en] });
@@ -858,7 +859,7 @@ export const demoSource: DataSource = {
     return demoTryOnView(p);
   },
   async updateTryOn(productId, patch) {
-    const p = DEMO_PRODUCTS.find((x) => x.id === productId && x.productType === 'watch');
+    const p = DEMO_PRODUCTS.find((x) => x.id === productId && kindOf(x.productType));
     if (!p) throw new ApiError(404, 'not_found', 'product not found');
     const s = demoTryOn.get(p.id) ?? { worn: null, flat: null, caseMm: null, finish: null, enabled: false };
     const next = { ...s };
@@ -871,7 +872,7 @@ export const demoSource: DataSource = {
     return shown;
   },
   async calibrateCutout(productId, slot, marks) {
-    const p = DEMO_PRODUCTS.find((x) => x.id === productId && x.productType === 'watch');
+    const p = DEMO_PRODUCTS.find((x) => x.id === productId && kindOf(x.productType));
     const s = demoTryOn.get(productId);
     const picture = s?.[slot];
     if (!p || !s || !picture) throw new ApiError(404, 'not_found', 'picture not found');

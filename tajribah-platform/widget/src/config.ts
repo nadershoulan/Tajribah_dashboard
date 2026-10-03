@@ -38,7 +38,8 @@ export type ViewerConfig = {
    * try-on off, the AR button still works.
    */
   /** `onMe` (T33): the shopper may also try it on their own photo — Pro and up; anything but `true` is off. */
-  tryon: { worn: string; flat: string; caseMm: number; sku: string | null; onMe: boolean } | null;
+  /** P5.2 (T68): `category` 'glasses' (placement `face`, the frame's width 100–170 mm); absent = a watch (5–80 mm). */
+  tryon: { category?: 'glasses'; worn: string; flat: string; caseMm: number; sku: string | null; onMe: boolean } | null;
   /**
    * T62 (custom domains): the store's own address for the try-on, once it is switched on — the frame
    * opens there instead of on Tajribah's. Optional, added without a version bump; anything but a
@@ -72,11 +73,19 @@ export function hostOf(v: unknown): string | null {
   return typeof v === 'string' && v.length <= 253 && HOSTNAME.test(v) && !/^\d+$/.test(v.slice(v.lastIndexOf('.') + 1)) ? v : null;
 }
 
-/** The try-on block, or null when it is absent or anything about it is wrong. */
-function tryOnOf(v: unknown): ViewerConfig['tryon'] {
-  if (!isObj(v) || !httpsUrl(v.worn) || !httpsUrl(v.flat) || !num(v.caseMm, 5, 80)) return null;
+/** The try-on widths a config may carry: a watch's case, or (P5.2) a frame's front. */
+export const TRYON_WIDTH_MM = { watch: [5, 80], glasses: [100, 170] } as const;
+
+/** The try-on block, or null when it is absent, wrong, or not for this placement. */
+function tryOnOf(v: unknown, placement: unknown): ViewerConfig['tryon'] {
+  if (!isObj(v) || !httpsUrl(v.worn) || !httpsUrl(v.flat)) return null;
+  const glasses = v.category === 'glasses';
+  if (v.category !== undefined && !glasses) return null; // a kind this widget does not know
+  if (placement !== (glasses ? 'face' : 'wrist')) return null;
+  const [lo, hi] = TRYON_WIDTH_MM[glasses ? 'glasses' : 'watch'];
+  if (!num(v.caseMm, lo, hi)) return null;
   if (!(v.sku === null || v.sku === undefined || str(v.sku, 64))) return null;
-  return { worn: v.worn, flat: v.flat, caseMm: v.caseMm, sku: (v.sku as string | null | undefined) ?? null, onMe: v.onMe === true };
+  return { ...(glasses ? { category: 'glasses' as const } : {}), worn: v.worn, flat: v.flat, caseMm: v.caseMm, sku: (v.sku as string | null | undefined) ?? null, onMe: v.onMe === true };
 }
 
 /** The config, or null when anything about it is wrong. Never throws. */
@@ -97,9 +106,9 @@ export function parseConfig(input: unknown): ViewerConfig | null {
     if (!num(button.radius, 0, 24) || (button.variant !== 'solid' && button.variant !== 'outline') || typeof button.icon !== 'boolean') return null;
     if (typeof input.placement !== 'string' || !PLACEMENTS.includes(input.placement)) return null;
     if (!num(input.scale, 0.5, 2) || !num(input.shadow, 0, 2) || typeof input.autoRotate !== 'boolean') return null;
-    const tryon = tryOnOf(input.tryon);
-    // No model: only a watch whose try-on is set up — otherwise the button would open nothing.
-    if (model === null && (!tryon || input.placement !== 'wrist')) return null;
+    const tryon = tryOnOf(input.tryon, input.placement);
+    // No model: only a watch or glasses whose try-on is set up — otherwise the button would open nothing.
+    if (model === null && !tryon) return null;
     return {
       v: 1,
       product: { name: product.name, nameAr: (product.nameAr as string | null) ?? null, widthMm, heightMm },

@@ -35,7 +35,7 @@ export type TryOnProduct = {
    * T68 — what is tried on. Left out: a watch, exactly as before. `eyewear`: the frame on a face photo,
    * `caseMm` then being the frame's front width. The studio's modes and controls are the same.
    */
-  category?: 'watch' | 'eyewear' | 'ring' | 'necklace';
+  category?: 'watch' | 'eyewear' | 'ring' | 'necklace' | 'bag';
 };
 
 /**
@@ -58,9 +58,10 @@ export const DEMO_WATCH: TryOnProduct = {
   demo: true,
 };
 
-export type ModelId = 'wrist' | 'lifestyle' | 'face' | 'hand' | 'neck';
+export type ModelId = 'wrist' | 'lifestyle' | 'face' | 'hand' | 'neck' | 'bag';
 
-export type ModelPhoto = { id: ModelId; label: Bi; stageLabel: Bi; src: string; thumb: string; pose: Pose };
+/** `front`: an optional layer of the same photo drawn over the product — the model's own fingers over a bag's handles. */
+export type ModelPhoto = { id: ModelId; label: Bi; stageLabel: Bi; src: string; thumb: string; pose: Pose; front?: string };
 
 export const MODELS: ModelPhoto[] = [
   {
@@ -190,8 +191,46 @@ export const NECK_MODELS: ModelPhoto[] = [
   },
 ];
 
+/**
+ * Bags: a real full-length portrait in an abaya (Pexels, Kazys Photography) and a real embroidered
+ * handbag (Pexels, Amjed wani). Measured: the model is 5300 px from the top of her hijab to her feet,
+ * taken as 160 cm (an adult Saudi woman's average height) → 3.31 px/mm, × 1200/4160 on the stage = 0.956.
+ * The bag is about 280 mm wide, drawn 268 px, its handles in her left hand — her own fingers, cut from
+ * the same photo (`front`), are drawn over them, so she holds it.
+ */
+export const DEMO_BAG: TryOnProduct = {
+  sku: 'EX-BAG-05',
+  collection: { ar: 'حقائب يد', en: 'Handbags' },
+  headLead: { ar: 'حقيبة', en: 'A bag' },
+  headEm: { ar: 'بحجمها معك.', en: 'at its size, with you.' },
+  name: { ar: 'حقيبة يد مطرّزة بالزهور', en: 'Embroidered floral handbag' },
+  finish: { ar: 'جلد بني فاتح · تطريز يدوي', en: 'Tan leather · hand embroidery' },
+  caseMm: 280,
+  worn: '/assets/bag-front.webp',
+  flat: '/assets/bag-front.webp',
+  storeUrl: '',
+  alt: { ar: 'حقيبة يد بنية فاتحة مطرّزة بزهور برتقالية وحمراء', en: 'A tan handbag embroidered with orange and red flowers' },
+  storeLink: null,
+  demo: false,
+  onMe: false, // a bag on the shopper's own photo is not built
+  category: 'bag',
+};
+
+export const BAG_MODELS: ModelPhoto[] = [
+  {
+    id: 'bag',
+    label: { ar: 'باليد', en: 'In hand' },
+    stageLabel: { ar: 'باليد', en: 'Carried' },
+    src: '/assets/model-bag.webp',
+    thumb: '/assets/model-bag-thumb.webp',
+    pose: { x: 653, y: 697, width: 268, angle: 0 },
+    front: '/assets/model-bag-hand.webp',
+  },
+];
+
 /** The model photos for this product, and the width their poses were set for. */
 export function modelsFor(product: TryOnProduct): { models: ModelPhoto[]; baseMm: number } {
+  if (product.category === 'bag') return { models: BAG_MODELS, baseMm: DEMO_BAG.caseMm };
   if (product.category === 'necklace') return { models: NECK_MODELS, baseMm: DEMO_NECKLACE.caseMm };
   if (product.category === 'eyewear') return { models: FACE_MODELS, baseMm: DEMO_GLASSES.caseMm };
   if (product.category === 'ring') return { models: HAND_MODELS, baseMm: DEMO_RING.caseMm };
@@ -210,6 +249,7 @@ const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 
 /** Keep the watch on the wrist in each photo — tuned to the two model shots. */
 export function constrainToModel(model: ModelId, p: Pose): Pose {
+  if (model === 'bag') return { ...p, x: clamp(p.x, 645, 661), y: clamp(p.y, 690, 704) }; // the handles stay in her hand
   if (model === 'neck') return { ...p, x: clamp(p.x, 640, 750), y: clamp(p.y, 560, 640) }; // hanging from the neck
   if (model === 'hand') return { ...p, x: clamp(p.x, 600, 690), y: clamp(p.y, 520, 640) }; // along the ring finger's base
   if (model === 'face') return { ...p, x: clamp(p.x, 555, 635), y: clamp(p.y, 495, 565) }; // across the eyes

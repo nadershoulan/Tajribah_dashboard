@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEMO_GLASSES, DEMO_NECKLACE, DEMO_RING, DEMO_WATCH, FACE_MODELS, HAND_MODELS, MODELS, NECK_MODELS, constrainToModel, modelsFor } from '../../../tajribah-try-on/lib/demo-product';
+import { BAG_MODELS, DEMO_BAG, DEMO_GLASSES, DEMO_NECKLACE, DEMO_RING, DEMO_WATCH, FACE_MODELS, HAND_MODELS, MODELS, NECK_MODELS, constrainToModel, modelsFor } from '../../../tajribah-try-on/lib/demo-product';
 
 const site = (p: string) => join(process.cwd(), '..', 'tajribah-try-on', p);
 
@@ -87,4 +87,21 @@ test('a necklace hangs on a real model at a measured scale: 62 mm between pupils
   }
   assert.match(assets, /pexels\.com\/photo\/34900678/);
   assert.match(assets, /pexels\.com\/photo\/20768279/);
+});
+
+test('a bag is carried by a real model at a measured scale, her own fingers over the handles', () => {
+  const { models, baseMm } = modelsFor(DEMO_BAG);
+  assert.equal(models, BAG_MODELS);
+  assert.equal(baseMm, DEMO_BAG.caseMm);
+  const pxPerMm = (5300 / 1600) * (1200 / 4160);
+  assert.ok(Math.abs(models[0]!.pose.width - DEMO_BAG.caseMm * pxPerMm) < 2, `${models[0]!.pose.width} px for ${DEMO_BAG.caseMm} mm`);
+  assert.equal(models[0]!.front, '/assets/model-bag-hand.webp', 'the fingers drawn over the bag');
+  assert.equal(MODELS.some((m) => m.front), false, 'a watch has no layer over it — as before');
+  const assets = readFileSync(site('ASSETS.md'), 'utf8');
+  for (const file of ['model-bag.webp', 'model-bag-thumb.webp', 'model-bag-hand.webp', 'bag-front.webp']) {
+    assert.ok(existsSync(site(`public/assets/${file}`)) && statSync(site(`public/assets/${file}`)).size > 3_000, file);
+    assert.match(assets, new RegExp(file.replace('.', '[.]')), `${file} in ASSETS.md`);
+  }
+  assert.match(assets, /pexels[.]com[/]photo[/]32279506/);
+  assert.match(assets, /pexels[.]com[/]photo[/]26610519/);
 });

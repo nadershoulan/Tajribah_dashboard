@@ -45,3 +45,13 @@ Real photographs under the [Pexels License](https://www.pexels.com/license/) (cr
 - `necklace-front.webp`: a gold pendant necklace on a teal display bust by sinu sony — https://www.pexels.com/photo/20768279/ (3889 × 5835). The bust holds the chains as worn. Cut out by `scripts/cut-necklace.mjs`: what is warm (gold, pearls) or bright near-white (the white stones) kept; the medallion and the two roundels filled as measured circles, keeping all but the bust's teal; teal showing through the openwork removed; the chains fade where they go behind the neck; the colours are the photo's own. Stored as WebP (quality 90, alpha lossless) — a demo asset, not a merchant's picture.
 
 Scale on the portrait is measured: the pupils are 810 px apart in the photo, taken as 62 mm → 13.07 px/mm, × 1200/4480 on the stage = 3.50 px/mm. The example necklace's width across at the neck, 170 mm, is approximate (the bust's neck taken as 100 mm); it is an example product, not a store's.
+
+## Bag (T68, 2026-10-03)
+
+Real photographs under the [Pexels License](https://www.pexels.com/license/) (credited here anyway). The model wears an abaya and hijab — a modest choice for a Saudi audience.
+
+- `model-bag.webp` (and `model-bag-thumb.webp`): a full-length portrait in a black abaya by Kazys Photography — https://www.pexels.com/photo/32279506/ (4160 × 6240). Cropped to y 2100–5740 (shoulders to below the knees) and scaled to the 1200 × 1050 stage; nothing else changed.
+- `model-bag-hand.webp`: the same photo's fingers of her left hand, cut by skin colour from a 140 × 120 box around the hand (alpha softened), drawn over the bag so the handles pass behind her fingers.
+- `bag-front.webp`: an embroidered tan handbag on a grey sweep by Amjed wani — https://www.pexels.com/photo/26610519/ (6000 × 4000). Cut out by `scripts/cut-bag.mjs`: warm or dark kept, the neutral sweep and its shadow dropped everywhere (the light through the handles too), the largest piece kept; the colours are the photo's own. Stored as WebP (quality 90, alpha lossless).
+
+Scale on the portrait is measured: 5300 px from the top of her hijab to her feet, taken as 160 cm (an adult Saudi woman's average height, approximately) → 3.31 px/mm, × 1200/4160 on the stage = 0.956 px/mm. The example bag's width, 280 mm, is approximate; it is an example product, not a store's.

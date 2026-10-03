@@ -175,7 +175,7 @@ export const DEMO_NECKLACE: TryOnProduct = {
   alt: { ar: 'قلادة ذهبية بثلاث سلاسل ودلّاية مستديرة تتدلى منها لآلئ', en: 'A three-strand gold necklace with a round pendant and pearl drops' },
   storeLink: null,
   demo: false,
-  onMe: false, // finding the neck in the shopper's photo is not built yet
+  // T68: on the shopper's own photo too — the face found on their device, the necklace hung below the chin
   category: 'necklace',
 };
 

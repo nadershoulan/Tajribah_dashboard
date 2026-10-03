@@ -79,7 +79,7 @@ test('a necklace hangs on a real model at a measured scale: 62 mm between pupils
   const pxPerMm = (810 / 62) * (1200 / 4480);
   assert.ok(Math.abs(models[0]!.pose.width - DEMO_NECKLACE.caseMm * pxPerMm) < 2, `${models[0]!.pose.width} px for ${DEMO_NECKLACE.caseMm} mm`);
   assert.equal(models[0]!.pose.angle, 0, 'a necklace hangs straight');
-  assert.equal(DEMO_NECKLACE.onMe, false, 'finding the neck in the shopper’s photo is not built: the tab is hidden');
+  assert.notEqual(DEMO_NECKLACE.onMe, false, 'the demo offers the shopper’s own photo: the face found, the necklace hung below the chin');
   const assets = readFileSync(site('ASSETS.md'), 'utf8');
   for (const file of ['model-neck.webp', 'model-neck-thumb.webp', 'necklace-front.webp']) {
     assert.ok(existsSync(site(`public/assets/${file}`)) && statSync(site(`public/assets/${file}`)).size > 3_000, file);

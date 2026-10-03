@@ -18,6 +18,7 @@ import Home from '@/components/pages/Home';
 import Demo from '@/components/pages/Demo';
 import EmbedTryOn from '@/components/pages/EmbedTryOn';
 import HostedPage from '@/components/pages/HostedPage';
+import PartnersPage from '@/components/pages/Partners';
 import Features from '@/components/pages/Features';
 import HowItWorks from '@/components/pages/HowItWorks';
 import Integrations from '@/components/pages/Integrations';
@@ -61,6 +62,7 @@ const ROUTES: Record<string, ComponentType> = {
   '/blog': BlogIndex,
   '/customers': StoriesPage,
   '/careers': CareersPage,
+  '/partners': PartnersPage,
 };
 
 /** Pages with a slug (help articles, blog posts): the component and the title for a path, or null. */

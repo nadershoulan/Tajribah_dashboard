@@ -79,6 +79,7 @@ export const FOOTER: { title: Bi; links: NavItem[] }[] = [
       { href: '/about', label: { ar: 'من نحن', en: 'About' } },
       { href: '/faq', label: { ar: 'الأسئلة الشائعة', en: 'FAQ' } },
       { href: '/careers', label: { ar: 'الوظائف', en: 'Careers' } },
+      { href: '/partners', label: { ar: 'الشركاء', en: 'Partners' } },
       { href: '/contact', label: { ar: 'تواصل معنا', en: 'Contact' } },
     ],
   },
@@ -117,6 +118,7 @@ export const TITLES: Record<string, Bi> = {
   '/blog': { ar: 'المدونة', en: 'Blog' },
   '/customers': { ar: 'قصص الاستخدام', en: 'Customer stories' },
   '/careers': { ar: 'الوظائف', en: 'Careers' },
+  '/partners': { ar: 'برنامج الشركاء', en: 'Partner programme' },
   // M5 — a page per way to try; the titles come from content/features.ts.
   '/features/on-model': { ar: 'العرض على العارضة', en: 'On model' },
   '/features/on-me': { ar: 'التجربة على صورتك', en: 'On your own photo' },

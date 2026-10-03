@@ -35,3 +35,14 @@ test('only the try-on frame may be framed, by https pages; local test servers on
   assert.match(proxy, /local = isLocalHost\(request\.nextUrl\.hostname\)/, 'local means the page is on this machine');
   assert.match(proxy, /headers\.set\('content-security-policy', csp\)/, 'on the request too: that is where the renderer reads the nonce');
 });
+
+test('T68 analytics: Google may be reached only when a GA4 id is set, and never from the try-on frame', () => {
+  const off = directives(pageCsp('x'))['connect-src']!;
+  assert.ok(!off.some((h) => h.includes('google')), 'no id, no Google');
+  const on = directives(pageCsp('x', { analytics: true }))['connect-src']!;
+  assert.ok(on.includes('https://*.google-analytics.com') && on.includes('https://*.analytics.google.com'));
+  assert.ok(!directives(pageCsp('x', { analytics: true, framed: true }))['connect-src']!.some((h) => h.includes('google')), 'the frame sits on a merchant’s page');
+  assert.deepEqual(directives(pageCsp('x', { analytics: true }))['script-src'], ["'self'", "'nonce-x'", "'strict-dynamic'", "'wasm-unsafe-eval'"], 'the script still arrives only through the site’s own code');
+  const proxy = readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'proxy.ts'), 'utf8');
+  assert.match(proxy, /analytics: ANALYTICS_ON/);
+});

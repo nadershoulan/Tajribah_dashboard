@@ -180,3 +180,7 @@ node scripts/qr-e2e/qr-e2e.mjs   # computer opens the QR, a phone page sends the
 Seen 2026-10-03: QR shown, photo sent from the phone page, received by the computer and placed on the
 wrist, the session deleted after (204), no security-policy violation except MediaPipe's own usage ping
 to Google, which the page policy blocks on purpose (photos and detection stay on the device).
+
+## Site analytics (GA4)
+
+Off until `NEXT_PUBLIC_GA_ID` (a GA4 measurement id, `G-…`) is set at build time. With it, website pages show an Arabic-first consent banner; Google's script loads only after "Accept" (Consent Mode v2, ads always denied), "Cookie settings" in the footer reopens the choice, and the cookie and privacy policies switch to the wording that names Google Analytics. The try-on frame, the phone capture page and product pages never load it. Code: `lib/analytics.ts`, `components/site/consent.tsx`; decision T68.

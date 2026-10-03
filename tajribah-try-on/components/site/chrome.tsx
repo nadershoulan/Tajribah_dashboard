@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, Globe, Menu, X } from 'lucide-react';
 import { useLang, pick } from '@/lib/i18n';
 import { SiteLink, useSiteEnv } from '@/lib/site-env';
+import { ConsentBanner, ConsentLink } from './consent';
 import { COMPANY, FOOTER, NAV } from '@/lib/site';
 
 /** The Tajribah lockup. Always a link home — the logo is the site's front door. */
@@ -91,6 +92,7 @@ export function Footer() {
         {COMPANY.crNumber && <span>{t('السجل التجاري', 'CR')} <bdi>{COMPANY.crNumber}</bdi></span>}
         {COMPANY.vatNumber && <span>{t('الرقم الضريبي', 'VAT')} <bdi>{COMPANY.vatNumber}</bdi></span>}
         {address && <span>{address}</span>}
+        <ConsentLink />
       </div>
     </footer>
   );
@@ -107,6 +109,7 @@ export function Shell({ current, children }: { current?: string; children: React
       <Header current={current} />
       <main id="main" tabIndex={-1}>{children}</main>
       <Footer />
+      <ConsentBanner />
     </div>
   );
 }

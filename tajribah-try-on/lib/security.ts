@@ -13,21 +13,27 @@
  *  - 'wasm-unsafe-eval' compiles WebAssembly (MediaPipe's hand detection, the meshopt decoder); it
  *    does not allow eval of JavaScript. Workers from blob: (MediaPipe).
  *  - the camera is the studio's own (Permissions-Policy, `next.config.ts`).
+ *  - analytics (T68, only when a GA4 id is set): Google's script arrives through 'strict-dynamic' — the
+ *    site's own code adds it after the visitor accepts — and it may send to Google's collection hosts.
  *  - frame-ancestors: the try-on frame opens over merchants' https pages; nothing else is framed.
  * On this machine (`local`) the local test servers are allowed too; a public page never is local.
  */
+import { GA_CONNECT } from './analytics';
+
 export const CONFIG_HOST = 'https://cfg.tajribah.com';
 export const FILE_HOST = 'https://cdn.tajribah.com';
 
-export function pageCsp(nonce: string, { dev = false, local = false, framed = false }: { dev?: boolean; local?: boolean; framed?: boolean } = {}): string {
+export function pageCsp(nonce: string, { dev = false, local = false, framed = false, analytics = false }: { dev?: boolean; local?: boolean; framed?: boolean; analytics?: boolean } = {}): string {
   const here = local ? ' http://localhost:* http://127.0.0.1:*' : '';
+  // T68: GA4 sends only where analytics is on (a measurement id is set), and never from the try-on frame.
+  const ga = analytics && !framed ? ` ${GA_CONNECT.join(' ')}` : '';
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${dev ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     `img-src 'self' data: blob: https:${here}`,
-    `connect-src 'self' blob: data: ${CONFIG_HOST} ${FILE_HOST}${here}${dev ? ' ws: wss:' : ''}`,
+    `connect-src 'self' blob: data: ${CONFIG_HOST} ${FILE_HOST}${ga}${here}${dev ? ' ws: wss:' : ''}`,
     "media-src 'self' blob:",
     "worker-src 'self' blob:",
     "object-src 'none'",

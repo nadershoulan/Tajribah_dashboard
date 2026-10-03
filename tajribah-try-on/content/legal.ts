@@ -1,4 +1,5 @@
 import type { Bi } from '@/lib/lang';
+import { ANALYTICS_ON } from '../lib/analytics';
 
 /**
  * Policy texts. Written for a Saudi SaaS under the Personal Data Protection
@@ -34,7 +35,9 @@ export const PRIVACY: Doc = {
         ['بيانات حساب التاجر: الاسم، البريد الإلكتروني، رقم الجوال، اسم المتجر ورابطه، وبيانات الفوترة.', 'Merchant account data: name, email, phone number, store name and URL, and billing details.'],
         ['بيانات المتجر عبر التكامل: المنتجات والصور والأسعار والمخزون، وبيانات الطلبات فقط إذا فعّل التاجر قياس التحويل.', 'Store data through integrations: products, images, prices and stock — and order data only if the merchant enables conversion measurement.'],
         ['بيانات الاستخدام في صفحات المتاجر، نيابةً عن التاجر: أحداث مجهولة الهوية مثل مشاهدة منتج، وفتح العرض ثلاثي الأبعاد أو التجربة، والإضافة إلى السلة وقيمة الشراء، مع نوع الجهاز ونظام التشغيل وعائلة المتصفح والدولة وعنوان صفحة المتجر. لا نخزّن عناوين IP ولا معرّفات المتصفح؛ ولكل زيارة معرّف يتغيّر كل يوم وفي كل متجر.', 'Shop-page usage, on the merchant’s behalf: anonymous events such as viewing a product, opening the 3D view or the try-on, adding to cart and a purchase’s value, with device type, operating system, browser family, country and the shop page’s address. We do not store IP addresses or browser identifiers; each visit has an id that changes every day and in every shop.'],
-        ['زوار الموقع: تفضيل اللغة فقط. رسائل نموذج التواصل تُرسل من تطبيق بريدك مباشرة، فنستلمها كرسالة بريد عادية.', 'Website visitors: your language preference only. Contact-form messages are sent from your own mail app, so we receive them as ordinary email.'],
+        ANALYTICS_ON
+          ? ['زوار الموقع: تفضيل اللغة، وإن وافقت فقط، إحصاءات استخدام عبر Google Analytics (الصفحات التي تزورها ونوع جهازك وموقعك التقريبي). رسائل نموذج التواصل تُرسل من تطبيق بريدك مباشرة، فنستلمها كرسالة بريد عادية.', 'Website visitors: your language preference and, only if you agree, usage statistics through Google Analytics (the pages you visit, your device type and approximate location). Contact-form messages are sent from your own mail app, so we receive them as ordinary email.']
+          : ['زوار الموقع: تفضيل اللغة فقط. رسائل نموذج التواصل تُرسل من تطبيق بريدك مباشرة، فنستلمها كرسالة بريد عادية.', 'Website visitors: your language preference only. Contact-form messages are sent from your own mail app, so we receive them as ordinary email.'],
       ),
       p('لا نجمع أرقام البطاقات البنكية؛ يتولى مزوّد الدفع معالجتها مباشرة.', 'We do not collect card numbers; our payment provider processes them directly.'),
     ] },
@@ -232,10 +235,15 @@ export const REFUND: Doc = {
 
 export const COOKIES: Doc = {
   title: { ar: 'سياسة ملفات تعريف الارتباط', en: 'Cookie policy' },
-  summary: {
-    ar: 'نستخدم ملفًا واحدًا لتذكّر لغتك. لا ملفات إعلانية ولا تتبّع من أطراف ثالثة.',
-    en: 'We use one cookie to remember your language. No advertising cookies and no third-party tracking.',
-  },
+  summary: ANALYTICS_ON
+    ? {
+      ar: 'نستخدم ملفًا لتذكّر لغتك، وملفات Google Analytics فقط إن وافقت عليها. لا ملفات إعلانية.',
+      en: 'We use a cookie to remember your language, and Google Analytics cookies only if you agree to them. No advertising cookies.',
+    }
+    : {
+      ar: 'نستخدم ملفًا واحدًا لتذكّر لغتك. لا ملفات إعلانية ولا تتبّع من أطراف ثالثة.',
+      en: 'We use one cookie to remember your language. No advertising cookies and no third-party tracking.',
+    },
   sections: [
     { id: 'what', h: { ar: 'ما هي ملفات تعريف الارتباط', en: 'What cookies are' }, body: [
       p('ملفات صغيرة يحفظها المتصفح ليتذكّر معلومات بين الزيارات. ويشبهها «التخزين المحلي» في المتصفح، ونشملهما معًا في هذه السياسة.', 'Small files your browser keeps to remember information between visits. Browser “local storage” works similarly, and this policy covers both.'),
@@ -245,8 +253,19 @@ export const COOKIES: Doc = {
         ['tajribah-lang: يتذكّر لغتك المفضّلة (العربية أو الإنجليزية) لمدة 12 شهرًا. ضروري لعرض الموقع بلغتك.', 'tajribah-lang: remembers your preferred language (Arabic or English) for 12 months. Needed to show the site in your language.'],
         ['ملفات أمان ضرورية قد يضعها مزوّد الاستضافة لحماية الموقع من الهجمات.', 'Strictly necessary security cookies our hosting provider may set to protect the site from attack.'],
       ),
-      p('لا نستخدم حاليًا ملفات للإعلانات أو لتحليلات أطراف ثالثة. وإن أضفناها لاحقًا، سنطلب موافقتك أولًا ونحدّث هذه السياسة.', 'We do not currently use advertising or third-party analytics cookies. If we add any, we will ask for your consent first and update this policy.'),
+      ANALYTICS_ON
+        ? p('لا نستخدم ملفات للإعلانات. ملفات التحليلات الموضحة أدناه لا تُوضع إلا بموافقتك.', 'We use no advertising cookies. The analytics cookies described below are set only with your consent.')
+        : p('لا نستخدم حاليًا ملفات للإعلانات أو لتحليلات أطراف ثالثة. وإن أضفناها لاحقًا، سنطلب موافقتك أولًا ونحدّث هذه السياسة.', 'We do not currently use advertising or third-party analytics cookies. If we add any, we will ask for your consent first and update this policy.'),
     ] },
+    ...(ANALYTICS_ON ? [{ id: 'analytics', h: { ar: 'التحليلات (بموافقتك)', en: 'Analytics (with your consent)' }, body: [
+      p('إن وافقت في شريط الموافقة، نحمّل Google Analytics 4 من Google لنعرف الصفحات الأكثر زيارة وكيف يصل الزوار إلينا. قبل موافقتك لا يُحمَّل شيء منه.', 'If you agree in the consent banner, we load Google Analytics 4 from Google to learn which pages are visited most and how visitors find us. Before you agree, none of it loads.'),
+      list(
+        ['_ga و _ga_<المعرّف>: تميّز زيارات المتصفح نفسه، لمدة 12 شهرًا.', '_ga and _ga_<id>: tell visits from the same browser apart, for 12 months.'],
+        ['tajribah-consent (تخزين محلي): يتذكّر اختيارك في الشريط، لمدة 12 شهرًا ثم نسألك مجددًا.', 'tajribah-consent (local storage): remembers your choice in the banner, for 12 months, then we ask again.'],
+      ),
+      p('عطّلنا إشارات Google والتخصيص الإعلاني، فلا تُستخدم هذه البيانات للإعلانات. لا يحفظ Google Analytics 4 عناوين IP. قد تُعالج Google البيانات خارج المملكة وفق نظام حماية البيانات الشخصية.', 'We have turned off Google signals and ad personalisation, so this data is not used for advertising. Google Analytics 4 does not store IP addresses. Google may process the data outside the Kingdom, under the PDPL’s transfer rules.'),
+      p('يمكنك تغيير اختيارك في أي وقت من «إعدادات ملفات تعريف الارتباط» أسفل كل صفحة؛ إن سحبت موافقتك نتوقف عن القياس ونحذف ملفات Google Analytics من متصفحك.', 'You can change your choice at any time from “Cookie settings” at the foot of every page; if you withdraw consent we stop measuring and delete the Google Analytics cookies from your browser.'),
+    ] } satisfies Section] : []),
     { id: 'fonts', h: { ar: 'الخطوط', en: 'Fonts' }, body: [
       p('نحمّل خطوط الموقع من خدمة Google Fonts، فيتلقى خادمها عنوان IP الخاص بجهازك ليرسل ملفات الخط. لا تضع هذه الخدمة ملفات تعريف ارتباط على موقعنا.', 'We load the site’s fonts from Google Fonts, whose server receives your device’s IP address in order to send the font files. The service does not set cookies on our site.'),
     ] },

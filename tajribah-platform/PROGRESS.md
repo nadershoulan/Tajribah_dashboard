@@ -3,10 +3,10 @@
 _Last updated: 2026-10-03 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: one on analytics (now end to end), store connections, enterprise features and security; the other on the website and the shop-facing pages.
-> **Just finished (2026-10-03):** **your open questions, decided as you asked (T68)**. The privacy policy now says what analytics keeps (90 days, anonymous, no IP addresses). Professional models have a price list — Simple 349, Standard 649, Detailed 1,149 SAR before VAT, two rounds of changes, 5–7 working days — shown to the merchant before asking and as quick picks for your team; the website says "from 349 SAR". Until card payments open, a merchant **accepts the quote**, your team emails the bank-transfer details and invoice, records the transfer when it arrives, and **delivers the model into the product** from the staff console; the merchant is told at each step. No bank details are written into the product (your team sends them). Next: partner terms page, site analytics with a cookie banner, the calibration tool, visits to product pages, fresh related lists, hardening, then new try-on types · before that: the website security policy
+> **Just finished (2026-10-03):** **site analytics with a cookie banner (T68: Google Analytics 4, the standard choice)**. Visitors to the website see an Arabic-first banner — "Accept" and "Decline" side by side; nothing from Google loads until they accept, advertising stays off whatever they choose, and "Cookie settings" at the foot of every page changes the choice (declining deletes Google's cookies). The cookie and privacy policies switch to the wording that names Google Analytics only when it is on. Shoppers on merchants' pages (the try-on frame, the phone page, product pages) never see it. **It is off until you create a GA4 property and give its measurement id** (`NEXT_PUBLIC_GA_ID`, G-…): without it nothing shows. Before that: the partner and reseller terms page (drafts for counsel) and the phone QR hand-off, now checked end to end on this machine. Next: the calibration tool, visits to product pages, fresh related lists, hardening, then new try-on types
 > **Next:** what is left needs an account or your decision. One small one below (the privacy-policy wording).
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
-> **Waiting on you:** **the website's privacy policy** still says shop statistics are only kept as totals; since today each visit's events are kept for 90 days (anonymous). Proposed new wording is in `docs/ANALYTICS-PRIVACY.md` (last section) — say yes or change it, and it goes onto the site. **The short domain** (when you buy the domains): products' own pages and QR codes go on it — until then the links read `tajribah.sa/p/…`, and nothing is shared before launch, so one setting changes them all (`HOSTED_PAGE_BASE`, GO-LIVE §4). Then the **Hetzner server**, and the accounts below — Salla, Zid, Cloudflare, the domain, Moyasar and a 3D-generation provider.
+> **Waiting on you:** **a GA4 measurement id** when you want website analytics on (analytics.google.com → a property for tajribah.sa → a web stream → its id, `G-…`). **The short domain** (when you buy the domains): products' own pages and QR codes go on it — until then the links read `tajribah.sa/p/…`, and nothing is shared before launch, so one setting changes them all (`HOSTED_PAGE_BASE`, GO-LIVE §4). Then the **Hetzner server**, and the accounts below — Salla, Zid, Cloudflare, the domain, Moyasar and a 3D-generation provider.
 
 ```
 P0 Foundation     ██████████████████████████████░░  21 / 22   (1 blocked: staging server)
@@ -18,9 +18,9 @@ P5 Try-on         ████████████████░░░░�
 P6 AI+connectors  ██████████████░░░░░░░░░░░░░░░░░░   7 / 16   (+ recommendations without AI) · the rest needs AI providers or store accounts
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ security, safe updates, rate limits, database speed, monitoring, load tests, backups: the code-level parts done)
 P8 Enterprise     ███████████████████░░░░░░░░░░░░░   7 / 12
-M  Marketing      ████████████████████████░░░░░░░░   9 / 12   (+ 3 partly) · the website, in tajribah-try-on
+M  Marketing      ███████████████████████████░░░░░  10 / 12   (+ 2 partly) · the website, in tajribah-try-on
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
-                                            overall 104 / 169
+                                            overall 105 / 169
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -150,7 +150,7 @@ The public site that sells Tajribah, Arabic first.
 | ✅ | M8 Help centre | 17 articles written against the real dashboard — new: connecting WooCommerce, and signing in with your company account (SSO) |
 | ✅ | M10 Company & careers | About and careers pages |
 | ✅ | M11 Legal pages | Privacy, terms, refunds, cookies — need a lawyer's review before launch |
-| ◐ | M1 Site setup | Built; the cookie consent and site analytics wait on which analytics tool you choose |
+| ✅ | M1 Site setup | Built; site analytics (Google Analytics 4) behind an Arabic-first consent banner — nothing loads before "Accept", ads always off; on once you give a GA4 id |
 | ◐ | M9 Customer stories | The page exists, with its stories clearly marked as examples; real ones need real customers |
 | ◐ | M12 Search engines & conversion | Sitemap, page titles and share cards done, all on **tajribah.sa** (T29). **Conversion (T32):** "Start with this plan" now opens the dashboard's sign-up at app.tajribah.sa with the plan (Enterprise: talk to sales); the install lines on the Integrations page fixed (wrong script address, no store key) and a claim of a feature that is not built removed. **Left:** the domains themselves (DNS) |
 
@@ -484,3 +484,6 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-10-03 | Recommendations, first version — "often viewed together" from real visits, nightly; the product page shows them, Pro's product pages show them to shoppers | relations 3; mutants below; full gate below |
 | 2026-10-03 | Website security policy: scripts only by each page's nonce, framing only for the try-on frame — every page and studio mode walked in Chrome on the built site, nothing refused; an injected script refused | website-security 2; full gate below |
 | 2026-10-03 | T68 decisions: privacy wording applied; professional price list (349/649/1,149 SAR) on the panel, staff quick picks and the website; accept → transfer recorded → model delivered by staff | professional 4, website 8; full gate 871 / 0 fail |
+| 2026-10-03 | Partner and reseller terms on the website (20% referral for 12 months; 20% off for agencies with 5+ stores) — drafts awaiting counsel | website 8 |
+| 2026-10-03 | Phone QR hand-off checked end to end here: the phone's photo reaches the computer and the watch is placed | walked in Chrome; recipe in the README |
+| 2026-10-03 | Site analytics (GA4) with an Arabic-first consent banner: nothing from Google before Accept, ads always denied, the footer reopens the choice, decline deletes the cookies; off without an id | website-analytics 5, website-security 3; 3 breakages each caught; walked in Chrome with and without an id; full gate 874 / 0 fail |

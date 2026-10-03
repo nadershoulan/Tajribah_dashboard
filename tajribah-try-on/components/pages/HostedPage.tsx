@@ -14,12 +14,15 @@ import { SiteEnvContext, SiteLink, useSiteEnv } from '@/lib/site-env';
 import { arPath, detectDevice, hostedProductFrom, MESHOPT_DECODER_FILE, sizeParts, VIEWER_AR_MODES, VIEWER_SRC, type HostedProduct } from '@/lib/hosted-page';
 import { configBase, configUrl, isLocalHost, validRefs } from '@/lib/tryon-config';
 import { servesHere } from '@/lib/store-host';
+import { EVENTS_ENDPOINT, trackPage } from '@/lib/page-events';
 import { StoreMark } from '@/components/site/store-mark';
 import Studio from '@/components/studio/Studio';
 
 export type HostedState = { kind: 'loading' } | { kind: 'ready'; product: HostedProduct } | { kind: 'unavailable' };
 
 const onThisMachine = () => typeof location !== 'undefined' && isLocalHost(location.hostname);
+/** Where the page's visit events go: the collector; on this machine a local one may be named (`?events=`). */
+const eventsEndpoint = () => { const local = onThisMachine() ? query().get('events') : null; return local && /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(local) ? local : EVENTS_ENDPOINT; };
 /** The address's query (in the app), or the part after the hash's `?` (in the preview). */
 const query = () => {
   if (typeof location === 'undefined') return new URLSearchParams();
@@ -57,6 +60,13 @@ export default function HostedPage({ initial, store, product, storeHost = null }
   }), [env]);
 
   const p = state.kind === 'ready' ? state.product : null;
+  // A visit to the product's own page, counted once per page load (the merchant's Analytics).
+  const counted = useRef(false);
+  useEffect(() => {
+    if (state.kind !== 'ready' || counted.current) return;
+    counted.current = true;
+    trackPage(store, product, 'product_view', eventsEndpoint());
+  }, [state.kind, store, product]);
   const name = p ? t(p.name.ar, p.name.en) : '';
   const storeName = p ? t(p.store.ar, p.store.en) : '';
   const size = p ? sizeParts(p, lang) : null;
@@ -95,7 +105,7 @@ export default function HostedPage({ initial, store, product, storeHost = null }
             </SiteEnvContext.Provider>
           )}
 
-          {p.model && <ModelStage product={p} name={name} />}
+          {p.model && <ModelStage product={p} name={name} onPlace={() => trackPage(store, product, 'ar_open', eventsEndpoint())} />}
 
           {p.shopUrl && !p.tryon && (
             <a className="primary-button hosted-buy" href={p.shopUrl} target="_blank" rel="noopener">
@@ -157,7 +167,7 @@ function loadViewer(src: string): Promise<void> {
 }
 
 /** The product in 3D, turning in the page, and "view in your space" where the phone can. */
-function ModelStage({ product, name }: { product: HostedProduct; name: string }) {
+function ModelStage({ product, name, onPlace }: { product: HostedProduct; name: string; onPlace: () => void }) {
   const { t } = useLang();
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<ViewerElement | null>(null);
@@ -191,6 +201,7 @@ function ModelStage({ product, name }: { product: HostedProduct; name: string })
 
   const place = async () => {
     setNote(false);
+    onPlace();
     const probe = document.createElement('a');
     const device = detectDevice(navigator.userAgent, navigator.maxTouchPoints ?? 0, !!probe.relList?.supports?.('ar'));
     const path = arPath(device, { model, placement: product.placement, name: product.name.ar }, location.href);

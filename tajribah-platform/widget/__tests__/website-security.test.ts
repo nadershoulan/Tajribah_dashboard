@@ -20,7 +20,7 @@ test('scripts run only by the page’s nonce; WebAssembly compiles, JavaScript e
   assert.deepEqual(d['object-src'], ["'none'"]);
   assert.deepEqual(d['base-uri'], ["'self'"]);
   assert.deepEqual(d['form-action'], ["'self'"]);
-  assert.deepEqual(d['connect-src'], ["'self'", 'blob:', 'data:', 'https://cfg.tajribah.com', 'https://cdn.tajribah.com'], 'the config host and the file host, nothing else');
+  assert.deepEqual(d['connect-src'], ["'self'", 'blob:', 'data:', 'https://cfg.tajribah.com', 'https://cdn.tajribah.com', 'https://ev.tajribah.com'], 'the config host, the file host and the collector, nothing else');
   assert.notEqual(newNonce(), newNonce());
   assert.equal(atob(newNonce()).length, 16, '128 bits');
 });

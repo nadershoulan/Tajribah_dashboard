@@ -22,6 +22,8 @@ import { GA_CONNECT } from './analytics';
 
 export const CONFIG_HOST = 'https://cfg.tajribah.com';
 export const FILE_HOST = 'https://cdn.tajribah.com';
+/** The collector: a product page's visits go to the merchant's Analytics, as the shop widget's do. */
+export const EVENTS_HOST = 'https://ev.tajribah.com';
 
 export function pageCsp(nonce: string, { dev = false, local = false, framed = false, analytics = false }: { dev?: boolean; local?: boolean; framed?: boolean; analytics?: boolean } = {}): string {
   const here = local ? ' http://localhost:* http://127.0.0.1:*' : '';
@@ -33,7 +35,7 @@ export function pageCsp(nonce: string, { dev = false, local = false, framed = fa
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     `img-src 'self' data: blob: https:${here}`,
-    `connect-src 'self' blob: data: ${CONFIG_HOST} ${FILE_HOST}${ga}${here}${dev ? ' ws: wss:' : ''}`,
+    `connect-src 'self' blob: data: ${CONFIG_HOST} ${FILE_HOST} ${EVENTS_HOST}${ga}${here}${dev ? ' ws: wss:' : ''}`,
     "media-src 'self' blob:",
     "worker-src 'self' blob:",
     "object-src 'none'",

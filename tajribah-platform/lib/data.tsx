@@ -29,7 +29,7 @@ import { DEFAULT_BUTTON_RADIUS, SettingsPatch, type Ga4Picker, type StoreSetting
 import { ga4PickerFor, noGa4Picker } from './ga4-picker';
 import { ArConfigInput, DEFAULT_AR_CONFIG, defaultLabelsFor, placementErrors, placementsFor, type ArConfigView, type PublishResult } from './contracts/ar-config';
 import { pageOf } from './product-list';
-import { DEFAULT_HOSTED_PAGE_BASE, HostedPageInput, hostedPageUrl, type HostedPageView } from './contracts/hosted-page';
+import { DEFAULT_HOSTED_PAGE_BASE, HostedPageInput, hostedPageUrl, qrUrl, type HostedPageView, type QrScreen } from './contracts/hosted-page';
 import { RequestInput as ProfessionalRequest, type ProfessionalOrderView } from './contracts/professional';
 import { MODEL_TARGET_BYTES } from './model-size';
 import { embedSnippet } from '../widget/src/snippet';
@@ -173,6 +173,8 @@ export interface DataSource {
   unpublishArConfig(productId: string): Promise<PublishResult>;
   /** P1.19 — the product's own page: on or off, and the link to buy it in the shop. */
   saveHostedPage(productId: string, input: HostedPageInput): Promise<HostedPageView>;
+  /** P1.20: a QR code per product with a live page, and whether its address may be printed yet. */
+  qrCodes(): Promise<QrScreen>;
   updateSettings(patch: Record<string, unknown>): Promise<StoreSettings>;
   /** T69: signing in with Google to pick the store's GA4 measurement id. */
   ga4Picker: Ga4Picker;
@@ -394,6 +396,7 @@ export function apiSource(client: ApiClient): DataSource {
     async publishArConfig(productId) {
       return client.call<PublishResult>(`/api/ar-configs/${encodeURIComponent(productId)}/publish`, { method: 'POST' });
     },
+    async qrCodes() { return client.call<QrScreen>('/api/qr'); },
     async saveHostedPage(productId, input) {
       return client.call<HostedPageView>(`/api/ar-configs/${encodeURIComponent(productId)}/page`, { method: 'PUT', body: input });
     },
@@ -981,6 +984,14 @@ export const demoSource: DataSource = {
     const published = { ...view, publishedVersion: view.publishedVersion + 1, publishedAt: new Date().toISOString(), unpublishedChanges: false };
     demoArConfigs.set(productId, published);
     return { version: published.publishedVersion, publishedAt: published.publishedAt, outdated: false };
+  },
+  async qrCodes() {
+    // The preview's live product pages, on the default address — not final, so previews only (as the server says).
+    const products = DEMO_PRODUCTS.flatMap((p) => {
+      const page = withDemoPage(demoArConfigs.get(p.id) ?? demoArDefault(p)).page;
+      return page?.url && page.active ? [{ id: p.id, name: p.name, nameAr: p.nameAr ?? null, url: qrUrl(page.url) }] : [];
+    });
+    return { included: true, printable: false, base: DEFAULT_HOSTED_PAGE_BASE, products };
   },
   async saveHostedPage(productId, input) {
     const product = DEMO_PRODUCTS.find((p) => p.id === productId);

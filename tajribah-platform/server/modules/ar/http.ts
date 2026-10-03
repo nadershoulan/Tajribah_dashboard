@@ -8,6 +8,7 @@ import { errors } from '@/server/core/errors/problem';
 import { listArConfigs, saveArConfig } from './service';
 import { publishProduct, unpublishProduct } from '@/server/modules/edge/publish';
 import { saveHostedPage } from '@/server/modules/hosted-pages/service';
+import { qrCodesFor } from '@/server/modules/hosted-pages/qr';
 
 /** API-100 — GET /api/ar-configs */
 export const listArConfigsHandler = route(async (request) => {
@@ -56,4 +57,10 @@ export const saveHostedPageHandler = route(async (request) => {
   const id = parts[parts.length - 2] ?? '';
   if (!z.string().uuid().safeParse(id).success) throw errors.notFound('product');
   return json(await saveHostedPage(ctx, id, await readJson(request, z.unknown())));
+});
+
+/** API-183 — GET /api/qr (P1.20): a QR code per product with a live page, and whether the address is final enough to print. */
+export const qrCodesHandler = route(async (request) => {
+  const ctx = await tenantContextFor(request);
+  return json(await qrCodesFor(ctx));
 });

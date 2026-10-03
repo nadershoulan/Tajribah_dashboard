@@ -72,7 +72,7 @@ test('an Eyewear product: one picture, the frame’s width, then on the shop as 
     assert.equal(widget!.tryon!.category, 'glasses');
     const studio = tryOnProductFrom(config);
     assert.equal(studio?.category, 'eyewear', 'the try-on page hands the studio glasses');
-    assert.equal(studio?.onMe, false, 'no face finding in the shopper’s photo yet');
+    assert.equal(studio?.onMe, true, 'on Pro, the shopper’s own photo too — the face is found on their device');
   } finally { await harness.close(); }
 });
 

@@ -102,7 +102,7 @@ export const DEMO_GLASSES: TryOnProduct = {
   alt: { ar: 'نظارة بإطار معدني أسود دائري', en: 'Glasses with a round black metal frame' },
   storeLink: null,
   demo: false,
-  onMe: false, // finding a face in the shopper's photo is not built yet
+  // T68: on the shopper's own photo too — the face found on their device (MediaPipe), sized from the pupils
   category: 'eyewear',
 };
 

@@ -83,7 +83,7 @@ function dynamicRoute(path: string): { element: ReactElement; title: { ar: strin
 
 // Static hosts often refuse unknown extensions such as .task. The model is
 // fetched as raw bytes, so it ships under a served binary extension instead.
-const RENAMED: Record<string, string> = { '/assets/hand-landmarker.task': '/assets/hand-landmarker.task.wasm' };
+const RENAMED: Record<string, string> = { '/assets/hand-landmarker.task': '/assets/hand-landmarker.task.wasm', '/assets/face-landmarker.task': '/assets/face-landmarker.task.wasm' };
 
 const ENV: SiteEnv = {
   toHref: (p) => '#' + p,

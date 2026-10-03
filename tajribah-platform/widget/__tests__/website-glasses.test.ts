@@ -34,7 +34,8 @@ test('glasses sit on a real face at a measured scale: 62 mm between pupils 324 p
   assert.ok(Math.abs(pose.x - (pupils[0]![0]! + pupils[1]![0]!) / 2) < 1, 'centred between the pupils');
   const tilt = (Math.atan2(pupils[1]![1]! - pupils[0]![1]!, pupils[1]![0]! - pupils[0]![0]!) * 180) / Math.PI;
   assert.ok(Math.abs(pose.angle - tilt) < 0.1, 'tilted as the eyes are');
-  assert.equal(DEMO_GLASSES.onMe, false, 'no face finding in the shopper’s photo yet: the tab is hidden, not broken');
+  assert.notEqual(DEMO_GLASSES.onMe, false, 'the demo offers the shopper’s own photo: the face is found on their device');
+  assert.ok(existsSync(site('public/assets/face-landmarker.task')) && statSync(site('public/assets/face-landmarker.task')).size > 3_000_000, 'the face model is served by the site');
   assert.equal(DEMO_GLASSES.demo, false, 'not Failet: no demo-store badge');
   const kept = constrainToModel('face', { x: 0, y: 0, width: 690, angle: 0 });
   assert.deepEqual([kept.x, kept.y], [555, 495], 'kept across the eyes');

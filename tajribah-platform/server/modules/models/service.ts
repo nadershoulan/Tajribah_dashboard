@@ -96,7 +96,7 @@ export async function startUpload(ctx: TenantContext, input: StartUploadInput): 
   });
 
   const contentType = CONTENT_TYPES[format!];
-  const { url, expiresAt } = await store.presignUpload(started.storageKey, { contentType, expiresInSeconds: UPLOAD_URL_SECONDS });
+  const { url, expiresAt } = await store.presignUpload(started.storageKey, { contentType, sizeBytes: input.sizeBytes, expiresInSeconds: UPLOAD_URL_SECONDS });
   return { modelId: started.modelId, versionId: started.versionId, version: started.version, uploadUrl: url, contentType, expiresAt: expiresAt.toISOString() };
 }
 

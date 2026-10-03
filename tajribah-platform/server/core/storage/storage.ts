@@ -22,6 +22,15 @@ export type StoredObject = {
   uploadedAt: Date;
 };
 
+/** What a browser upload URL is signed for: the type and the exact size it was declared with. */
+export type PresignOptions = { contentType?: string; sizeBytes: number; expiresInSeconds?: number };
+
+/** The headers the browser must send exactly — the size always, the type when given. */
+export function signedUploadHeaders(options: PresignOptions): Record<string, string> {
+  if (!Number.isInteger(options.sizeBytes) || options.sizeBytes <= 0) throw new Error('an upload URL needs the declared size');
+  return { 'content-length': String(options.sizeBytes), ...(options.contentType ? { 'content-type': options.contentType } : {}) };
+}
+
 export interface Storage {
   put(key: string, body: ArrayBuffer | ReadableStream | string, options?: {
     contentType?: string;
@@ -32,8 +41,12 @@ export interface Storage {
   head(key: string): Promise<StoredObject | null>;
   delete(key: string): Promise<void>;
   list(prefix: string, limit?: number): Promise<StoredObject[]>;
-  /** A short-lived URL the browser can upload to directly, so bytes never pass through us. */
-  presignUpload(key: string, options?: { contentType?: string; expiresInSeconds?: number }): Promise<{ url: string; expiresAt: Date }>;
+  /**
+   * A short-lived URL the browser can upload to directly, so bytes never pass through us. The type
+   * and the size are signed into it: storage refuses any other (pre-launch review — without the size,
+   * a URL issued for a 2 MB picture took gigabytes, kept even when the upload was never confirmed).
+   */
+  presignUpload(key: string, options: PresignOptions): Promise<{ url: string; expiresAt: Date }>;
   /** The public CDN URL for an object that is meant to be public (models, images). */
   publicUrl(key: string): string;
 }
@@ -150,7 +163,7 @@ export class R2Storage implements Storage {
     }));
   }
 
-  async presignUpload(k: string, options: { contentType?: string; expiresInSeconds?: number } = {}) {
+  async presignUpload(k: string, options: PresignOptions) {
     // The S3 credentials arrive with the Cloudflare account (§12.2). Without them, uploads
     // go through a Worker route that streams to `put`.
     if (!this.s3) throw new Error('presignUpload needs R2 S3 credentials (R2_ACCESS_KEY_ID …) — not configured');
@@ -165,7 +178,7 @@ export class R2Storage implements Storage {
       secretAccessKey: this.s3.secretAccessKey,
       expiresInSeconds: expires,
       now,
-      headers: options.contentType ? { 'content-type': options.contentType } : undefined,
+      headers: signedUploadHeaders(options),
     });
     return { url, expiresAt: new Date(now.getTime() + expires * 1000) };
   }
@@ -249,13 +262,13 @@ export class S3Storage implements Storage {
     }));
   }
 
-  async presignUpload(k: string, options: { contentType?: string; expiresInSeconds?: number } = {}) {
+  async presignUpload(k: string, options: PresignOptions) {
     const expires = Math.min(options.expiresInSeconds ?? 900, MAX_PRESIGN_SECONDS);
     const now = new Date();
     const url = await presignUrl({
       method: 'PUT', host: this.base.host, path: `${this.base.pathname.replace(/\/$/, '')}/${this.config.bucket}/${k}`, region: this.config.region,
       accessKeyId: this.config.accessKeyId, secretAccessKey: this.config.secretAccessKey, expiresInSeconds: expires, now,
-      headers: options.contentType ? { 'content-type': options.contentType } : undefined,
+      headers: signedUploadHeaders(options),
       protocol: this.base.protocol === 'http:' ? 'http' : 'https',
     });
     return { url, expiresAt: new Date(now.getTime() + expires * 1000) };
@@ -302,7 +315,8 @@ export class MemoryStorage implements Storage {
       .slice(0, limit);
   }
 
-  async presignUpload(k: string, options: { expiresInSeconds?: number } = {}) {
+  async presignUpload(k: string, options: PresignOptions) {
+    if (!Number.isInteger(options.sizeBytes) || options.sizeBytes <= 0) throw new Error('presignUpload needs the declared size');
     return {
       url: `memory://upload/${k}`,
       expiresAt: new Date(Date.now() + (options.expiresInSeconds ?? 900) * 1000),
@@ -387,7 +401,7 @@ export class TenantStorage {
   async delete(k: string) { return this.backend.delete(this.own(k)); }
   /** Lists inside the tenant only; `kind` narrows it further. */
   async list(kind?: AssetKind, limit?: number) { return this.backend.list(tenantPrefix(this.tenantId, kind), limit); }
-  async presignUpload(k: string, options?: { contentType?: string; expiresInSeconds?: number }) {
+  async presignUpload(k: string, options: PresignOptions) {
     return this.backend.presignUpload(this.own(k), options);
   }
   /** Sync, because it only builds a string — it still refuses a foreign key by throwing. */

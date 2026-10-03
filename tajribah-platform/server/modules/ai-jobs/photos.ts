@@ -80,7 +80,7 @@ export async function startPhotoUpload(ctx: TenantContext, productId: string, in
   });
 
   const contentType = PHOTO_CONTENT_TYPES[format!];
-  const { url, expiresAt } = await store.presignUpload(photo.storageKey, { contentType, expiresInSeconds: PHOTO_UPLOAD_SECONDS });
+  const { url, expiresAt } = await store.presignUpload(photo.storageKey, { contentType, sizeBytes: input.sizeBytes, expiresInSeconds: PHOTO_UPLOAD_SECONDS });
   return { photoId: photo.id, uploadUrl: url, contentType, expiresAt: expiresAt.toISOString() };
 }
 

@@ -128,7 +128,7 @@ export async function startCutoutUpload(ctx: TenantContext, productId: string, i
   const store = forTenant(ctx.tenantId);
   const key = store.key({ kind: 'photo', id: uuidv7(), filename: `${input.slot}.${format}` });
   const contentType = input.contentType;
-  const { url, expiresAt } = await store.presignUpload(key, { contentType, expiresInSeconds: UPLOAD_SECONDS });
+  const { url, expiresAt } = await store.presignUpload(key, { contentType, sizeBytes: input.sizeBytes, expiresInSeconds: UPLOAD_SECONDS });
   return { key, uploadUrl: url, contentType, expiresAt: expiresAt.toISOString() };
 }
 

@@ -45,7 +45,7 @@ export async function startPictureUpload(ctx: TenantContext, modelId: string, in
   await assertStorageRoom(ctx, input.sizeBytes);
   const store = forTenant(ctx.tenantId);
   const key = store.key({ kind: 'model', id: modelId, filename: `picture-${uuidv7()}.${ext}` });
-  const { url, expiresAt } = await store.presignUpload(key, { contentType: input.contentType, expiresInSeconds: PICTURE_UPLOAD_SECONDS });
+  const { url, expiresAt } = await store.presignUpload(key, { contentType: input.contentType, sizeBytes: input.sizeBytes, expiresInSeconds: PICTURE_UPLOAD_SECONDS });
   return { key, uploadUrl: url, contentType: input.contentType, expiresAt: expiresAt.toISOString() };
 }
 

@@ -37,7 +37,11 @@ test('the S3 adapter against a real bucket', { skip: !endpoint && 'set S3_LIVE_E
 
   // The browser's upload, to a presigned address, with the type it was signed for.
   const k2 = 't/0192b000-0000-7000-8000-00000000000a/photo/p1/front.jpg';
-  const { url } = await store.presignUpload(k2, { contentType: 'image/jpeg' });
+  const { url } = await store.presignUpload(k2, { contentType: 'image/jpeg', sizeBytes: 4 });
+  // Pre-launch review: a body of another size than the one signed is refused, nothing stored.
+  const bigger = await fetch(url, { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: new Uint8Array(4096) });
+  assert.equal(bigger.status, 403, `a bigger body: ${bigger.status} ${await bigger.text()}`);
+  assert.equal(await store.head(k2), null);
   const uploaded = await fetch(url, { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: new Uint8Array([255, 216, 255, 224]) });
   assert.equal(uploaded.status, 200, await uploaded.text());
   assert.equal((await store.head(k2))?.size, 4);

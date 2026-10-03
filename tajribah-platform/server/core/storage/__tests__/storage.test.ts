@@ -99,7 +99,7 @@ for (const [name, make] of backends) {
 
     for (const attempt of [
       () => a.get(bKey), () => a.head(bKey), () => a.delete(bKey), () => a.put(bKey, 'overwrite'),
-      () => a.presignUpload(bKey), async () => a.publicUrl(bKey),
+      () => a.presignUpload(bKey, { sizeBytes: 1 }), async () => a.publicUrl(bKey),
       // Starts with A's prefix; a CDN or browser would normalise it into B's folder.
       () => a.get(`t/${A}/../${B}/model/${MODEL_ID}/secret.glb`),
       () => a.get(`t/${A}//x`),
@@ -120,21 +120,21 @@ test('keys cannot be built from unsafe parts', () => {
   assert.equal(keyBelongsTo(k, ''), false);
 });
 
-test('R2 presigns a PUT for exactly one key, with the content type bound and at most an hour', async () => {
+test('R2 presigns a PUT for exactly one key, with the content type and the size bound and at most an hour', async () => {
   const files = forTenant(A, new R2Storage(new FakeR2Bucket() as any, 'https://cdn.example.test', S3));
   const k = files.key({ kind: 'model', id: MODEL_ID, filename: 'm.glb', version: 1 });
-  const { url, expiresAt } = await files.presignUpload(k, { contentType: 'model/gltf-binary', expiresInSeconds: 999_999 });
+  const { url, expiresAt } = await files.presignUpload(k, { contentType: 'model/gltf-binary', sizeBytes: 8_966_700, expiresInSeconds: 999_999 });
   const parsed = new URL(url);
   assert.equal(parsed.host, 'acct123.r2.cloudflarestorage.com');
   assert.equal(parsed.pathname, `/tajribah-assets/${k}`);
   assert.equal(parsed.searchParams.get('X-Amz-Expires'), '3600');
-  assert.equal(parsed.searchParams.get('X-Amz-SignedHeaders'), 'content-type;host');
+  assert.equal(parsed.searchParams.get('X-Amz-SignedHeaders'), 'content-length;content-type;host', 'the size as declared, or storage refuses the upload');
   assert.match(parsed.searchParams.get('X-Amz-Credential')!, /^AKID\/\d{8}\/auto\/s3\/aws4_request$/);
   assert.ok(expiresAt.getTime() - Date.now() <= 3600_000 + 1000);
   assert.equal(files.publicUrl(k), `https://cdn.example.test/${k}`);
 
   const noCreds = forTenant(A, new R2Storage(new FakeR2Bucket() as any, 'https://cdn.example.test'));
-  await assert.rejects(() => noCreds.presignUpload(k), /S3 credentials/);
+  await assert.rejects(() => noCreds.presignUpload(k, { sizeBytes: 1 }), /S3 credentials/);
 });
 
 test('configureStorage picks the adapter, and the env refuses unsafe combinations', () => {
@@ -196,6 +196,9 @@ test('the S3 adapter: signed path-style requests, a missing object is none, a li
   assert.match(seen.at(-1)!.url, /\/tajribah\?list-type=2&prefix=t%2Fa%2F&max-keys=50$/);
   await assert.rejects(() => store.get('t/a/forbidden.glb'), /403 AccessDenied/);
   assert.equal(store.publicUrl('t/a/z.glb'), 'https://cdn.tajribah.com/t/a/z.glb');
-  const { url } = await store.presignUpload('t/a/p.jpg', { contentType: 'image/jpeg' });
+  const { url } = await store.presignUpload('t/a/p.jpg', { contentType: 'image/jpeg', sizeBytes: 4 });
   assert.match(url, /^https:\/\/acc\.r2\.cloudflarestorage\.com\/tajribah\/t\/a\/p\.jpg\?X-Amz-Algorithm=AWS4-HMAC-SHA256/);
+  // Pre-launch review: the size is signed too, so storage refuses an upload of any other size.
+  assert.equal(new URL(url).searchParams.get('X-Amz-SignedHeaders'), 'content-length;content-type;host');
+  await assert.rejects(() => store.presignUpload('t/a/p.jpg', { contentType: 'image/jpeg', sizeBytes: 0 }), /declared size/);
 });

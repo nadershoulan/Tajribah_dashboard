@@ -7,7 +7,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { analyticsEvents, dailyTenantStats, jobs, productRelations, products, relationRuns, tryonConfigs } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { MemoryConfigStore, setConfigStore } from '@/server/core/edge/configs';
@@ -17,7 +17,7 @@ import { buildTenantContext } from '@/server/core/tenancy/context';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
 import { computeRelations, refreshRelations } from '@/server/modules/recommendations/compute';
 import { relatedOf } from '@/server/modules/recommendations/service';
-import { publishProduct, refreshProduct } from '@/server/modules/edge/publish';
+import { handleEdgeJob, publishProduct, refreshProduct, unpublishProduct } from '@/server/modules/edge/publish';
 import { entitlementsOf } from '@/server/core/billing/entitlements';
 import { hostedProductFrom } from '../../../../../tajribah-try-on/lib/hosted-page';
 
@@ -131,5 +131,55 @@ test('the nightly pass: from 03:00 Riyadh, each store with visits once a day; a 
     assert.deepEqual(await refreshRelations(new Date(NOW.getTime() + 86_400_000)), { computed: 1, failed: 0 }, 'and again the next night');
     const twoAtOnce = await Promise.all([refreshRelations(new Date(NOW.getTime() + 2 * 86_400_000)), refreshRelations(new Date(NOW.getTime() + 2 * 86_400_000))]);
     assert.equal(twoAtOnce[0].computed + twoAtOnce[1].computed, 1, 'two passes at once compute a store once');
+  } finally { await harness.close(); }
+});
+
+/** Run the store's queued config refreshes as the worker would, round after round, until none are left. */
+async function drainRefreshes(harness: TestDb, tenantId: string): Promise<string[]> {
+  const ran: string[] = [];
+  for (let round = 0; round < 10; round++) {
+    const queued = await harness.asAdmin(() => harness.db.select().from(jobs).where(and(eq(jobs.queue, 'edge.publish-config'), eq(jobs.tenantId, tenantId), eq(jobs.state, 'queued')))) as any[];
+    if (queued.length === 0) return ran;
+    for (const job of queued) {
+      await harness.asAdmin(() => harness.db.update(jobs).set({ state: 'done' } as any).where(eq(jobs.id, job.id)));
+      await handleEdgeJob(job);
+      ran.push(job.payload.productId);
+    }
+  }
+  throw new Error('the refreshes never stopped');
+}
+
+test('a related product published, removed or withdrawn reaches the lists that name it at once — not the next night — and the refreshes stop', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, tenantId, kv } = await store(harness, 'oud4', 'pro');
+    const a = await watch(harness, tenantId, 'A');
+    const b = await watch(harness, tenantId, 'B');
+    const c = await watch(harness, tenantId, 'C'); // lists B too, but is not published: left alone
+    await visits(harness, tenantId, 4, [a.id, b.id]);
+    await visits(harness, tenantId, 4, [c.id, b.id]);
+    await computeRelations(tenantId, NOW);
+    await publishProduct(ctx, a.id);
+    await drainRefreshes(harness, tenantId);
+    const relatedOfA = () => JSON.parse(kv.entries.get('oud4/sa-A.json')!.body).related;
+    assert.deepEqual(relatedOfA(), [], 'B is not live yet');
+
+    await publishProduct(ctx, b.id);
+    const ran = await drainRefreshes(harness, tenantId);
+    assert.deepEqual(relatedOfA(), [{ ref: 'sa-B', name: 'B', nameAr: 'B ع' }], 'B published: A lists it now');
+    assert.ok(!ran.includes(c.id), 'a product not on the shop is not refreshed');
+    assert.ok(ran.length <= 3, `A refreshed, then B once more for A's new version, then nothing changes: ${ran.length}`);
+
+    await unpublishProduct(ctx, b.id);
+    await drainRefreshes(harness, tenantId);
+    assert.deepEqual(relatedOfA(), [], 'B removed from the shop: gone from A at once');
+
+    await publishProduct(ctx, b.id);
+    await drainRefreshes(harness, tenantId);
+    assert.equal(relatedOfA().length, 1);
+    await harness.asAdmin(() => harness.db.update(products).set({ status: 'archived' } as any).where(eq(products.id, b.id)));
+    await refreshProduct(ctx, b.id, await entitlementsOf(ctx)); // B withdrawn: archived
+    await drainRefreshes(harness, tenantId);
+    assert.deepEqual(relatedOfA(), [], 'B withdrawn: gone from A at once');
   } finally { await harness.close(); }
 });

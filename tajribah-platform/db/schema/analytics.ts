@@ -121,6 +121,7 @@ export const productRelations = pgTable('product_relations', {
 }, (t) => [
   uniqueIndex('product_relations_pair_unq').on(t.productId, t.relatedProductId),
   index('product_relations_tenant_idx').on(t.tenantId, t.productId, t.rank),
+  index('product_relations_related_idx').on(t.tenantId, t.relatedProductId), // 0040: who lists this product
 ]);
 
 /** When each store's relations were last computed (the Riyadh day), so the nightly pass runs once a day. */

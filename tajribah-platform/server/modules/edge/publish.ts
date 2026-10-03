@@ -13,6 +13,10 @@
  *    product that qualifies again (a store restored, a product back in the catalogue, AR switched
  *    back on) is published again: the merchant published it and never took that back. A product
  *    never published is never published by a refresh.
+ *  - T67 follow-up: a product's "often viewed together" list names only products live on the shop. So
+ *    whenever a product's live config is written or taken down, every published product that lists it
+ *    is queued for a refresh at once, not the next night. A refresh that changes nothing writes nothing,
+ *    so this never runs on past the products that really changed.
  *  - The status the screen shows compares what is live with what would be built now, so
  *    "shoppers see an older one" covers every source, not only the AR settings row.
  *
@@ -21,7 +25,7 @@
  * its old entry deleted, so one product never answers at two addresses.
  */
 import { and, eq, inArray, isNotNull, isNull, or } from 'drizzle-orm';
-import { edgeConfigs, products } from '@/db/schema';
+import { edgeConfigs, productRelations, products } from '@/db/schema';
 import type { Job } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import type { PublishResult } from '@/lib/contracts/ar-config';
@@ -219,7 +223,27 @@ async function write(ctx: TenantContext, productId: string, build: Extract<EdgeB
       before: locked ? { version: locked.version, key: locked.key } : undefined, after: { version, key: build.key },
     }, db);
     return saved;
-  });
+  }).then(async (saved) => { await refreshListers(ctx.tenantId, productId); return saved; });
+}
+
+/**
+ * Queue a refresh of each published product whose "often viewed together" list names this one: it has
+ * just appeared on the shop, changed (its name), or left it. A failure never fails the change itself —
+ * the nightly sweep refreshes the lists anyway.
+ */
+export async function refreshListers(tenantId: string, productId: string): Promise<number> {
+  try {
+    const db = TenantDb.for(tenantId);
+    const listers = await db.find(productRelations, eq(productRelations.relatedProductId, productId), { limit: 500 });
+    const ids = [...new Set(listers.map((r) => r.productId))].filter((id) => id !== productId);
+    if (ids.length === 0) return 0;
+    const live = await db.find(edgeConfigs, and(inArray(edgeConfigs.productId, ids), isNotNull(edgeConfigs.key), isNull(edgeConfigs.withdrawnAt)), { limit: ids.length });
+    for (const row of live) await enqueueEdgeRefresh(tenantId, row.productId);
+    return live.length;
+  } catch (error) {
+    log.warn('could not queue the refresh of related lists', { tenantId, productId, error: error instanceof Error ? error.message : String(error) });
+    return 0;
+  }
 }
 
 async function withdraw(ctx: TenantContext, row: EdgeRow, reason: EdgeBlock): Promise<void> {
@@ -233,6 +257,7 @@ async function withdraw(ctx: TenantContext, row: EdgeRow, reason: EdgeBlock): Pr
       before: { version: row.version, key: row.key }, after: { reason },
     }, db);
   });
+  await refreshListers(ctx.tenantId, row.productId);
 }
 
 /** T40: the entry deleted and the key cleared — nothing brings it back but publishing again. */
@@ -246,6 +271,7 @@ async function takeDown(ctx: TenantContext, row: EdgeRow, actor: 'user' | 'syste
       before: { version: row.version, key: row.key }, after: { reason },
     }, db);
   });
+  if (!row.withdrawnAt) await refreshListers(ctx.tenantId, row.productId); // a withdrawal already told them
 }
 
 const WITHDRAWN_BECAUSE: Record<Exclude<EdgeBlock, 'store_closed'>, { ar: string; en: string }> = {

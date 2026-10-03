@@ -3,7 +3,7 @@
  * looked at together with this one in the last 30 days (`compute.ts`), most shared visits first. Every
  * plan sees it here; showing them to shoppers (the product's own page) is Pro and up.
  */
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
 import { productRelations, products } from '@/db/schema';
 import { entitlementsOf } from '@/server/core/billing/entitlements';
 import { errors } from '@/server/core/errors/problem';

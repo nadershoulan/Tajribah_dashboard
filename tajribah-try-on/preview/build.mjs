@@ -92,7 +92,8 @@ const copy = (from, to = from) => {
 copy('brand');
 for (const f of ['model-wrist.webp', 'model-wrist-thumb.webp', 'model-lifestyle.webp', 'model-lifestyle-thumb.webp',
   'watch-layer-0.png', 'watch-flat.png', 'iphone.png', 'airpods.webp', 'riyal.webp',
-  'model-face.webp', 'model-face-thumb.webp', 'glasses-front.png']) copy(`assets/${f}`);
+  'model-face.webp', 'model-face-thumb.webp', 'glasses-front.png',
+  'model-hand.webp', 'model-hand-thumb.webp', 'ring-top.webp']) copy(`assets/${f}`);
 copy('assets/hand-landmarker.task', 'assets/hand-landmarker.task.wasm'); // see RENAMED in main.tsx
 copy('wasm/vision_wasm_internal.js');
 copy('wasm/vision_wasm_internal.wasm');

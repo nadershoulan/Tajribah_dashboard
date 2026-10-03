@@ -35,7 +35,7 @@ export type TryOnProduct = {
    * T68 — what is tried on. Left out: a watch, exactly as before. `eyewear`: the frame on a face photo,
    * `caseMm` then being the frame's front width. The studio's modes and controls are the same.
    */
-  category?: 'watch' | 'eyewear';
+  category?: 'watch' | 'eyewear' | 'ring';
 };
 
 /**
@@ -58,7 +58,7 @@ export const DEMO_WATCH: TryOnProduct = {
   demo: true,
 };
 
-export type ModelId = 'wrist' | 'lifestyle' | 'face';
+export type ModelId = 'wrist' | 'lifestyle' | 'face' | 'hand';
 
 export type ModelPhoto = { id: ModelId; label: Bi; stageLabel: Bi; src: string; thumb: string; pose: Pose };
 
@@ -117,11 +117,48 @@ export const FACE_MODELS: ModelPhoto[] = [
   },
 ];
 
+/**
+ * Rings: a real back-of-hand photo (Pexels, Vera Emilie) and a real gold ring on a display roll
+ * (Pexels, Melike B) — the roll stands in for a finger, so the band crosses it as it is worn.
+ * Measured, not tuned: the hand is 953 px across the knuckles in the photo, taken as 79 mm (an
+ * adult woman's average hand breadth), so 6.58 px a millimetre on the stage. The ring's long side —
+ * band end to band end across the finger — is about 20.5 mm (2.7 halo widths), drawn 135 px wide on
+ * the ring finger's base, leaning as the finger does (9°).
+ */
+export const DEMO_RING: TryOnProduct = {
+  sku: 'EX-RING-02',
+  collection: { ar: 'خواتم', en: 'Rings' },
+  headLead: { ar: 'خاتم', en: 'A ring' },
+  headEm: { ar: 'بمقاسه على يدك.', en: 'at its size on a hand.' },
+  name: { ar: 'خاتم ذهبي بحجرين', en: 'Two-stone gold ring' },
+  finish: { ar: 'ذهب أصفر · فصوص شفافة', en: 'Yellow gold · clear stones' },
+  caseMm: 20.5,
+  worn: '/assets/ring-top.webp',
+  flat: '/assets/ring-top.webp',
+  storeUrl: '',
+  alt: { ar: 'خاتم ذهبي بحجرين محاطين بفصوص صغيرة', en: 'A gold ring with two halo-set stones' },
+  storeLink: null,
+  demo: false,
+  onMe: false, // placing a ring on the shopper's own hand photo is not built yet
+  category: 'ring',
+};
+
+export const HAND_MODELS: ModelPhoto[] = [
+  {
+    id: 'hand',
+    label: { ar: 'ظهر اليد', en: 'Back of the hand' },
+    stageLabel: { ar: 'على الإصبع', en: 'On a finger' },
+    src: '/assets/model-hand.webp',
+    thumb: '/assets/model-hand-thumb.webp',
+    pose: { x: 643, y: 573, width: 135, angle: 9 },
+  },
+];
+
 /** The model photos for this product, and the width their poses were set for. */
 export function modelsFor(product: TryOnProduct): { models: ModelPhoto[]; baseMm: number } {
-  return product.category === 'eyewear'
-    ? { models: FACE_MODELS, baseMm: DEMO_GLASSES.caseMm }
-    : { models: MODELS, baseMm: DEMO_WATCH.caseMm };
+  if (product.category === 'eyewear') return { models: FACE_MODELS, baseMm: DEMO_GLASSES.caseMm };
+  if (product.category === 'ring') return { models: HAND_MODELS, baseMm: DEMO_RING.caseMm };
+  return { models: MODELS, baseMm: DEMO_WATCH.caseMm };
 }
 
 export type ReferenceId = 'iphone' | 'airpods' | 'riyal';
@@ -136,6 +173,7 @@ const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 
 /** Keep the watch on the wrist in each photo — tuned to the two model shots. */
 export function constrainToModel(model: ModelId, p: Pose): Pose {
+  if (model === 'hand') return { ...p, x: clamp(p.x, 600, 690), y: clamp(p.y, 520, 640) }; // along the ring finger's base
   if (model === 'face') return { ...p, x: clamp(p.x, 555, 635), y: clamp(p.y, 495, 565) }; // across the eyes
   if (model === 'wrist') {
     const x = clamp(p.x, 240, 440);

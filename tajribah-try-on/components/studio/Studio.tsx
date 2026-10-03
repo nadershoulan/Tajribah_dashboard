@@ -42,6 +42,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
   // T68: glasses use a face photo and their own few words; a watch is exactly as before.
   const { models: MODELS, baseMm } = modelsFor(product);
   const isGlasses = product.category === 'eyewear';
+  const isRing = product.category === 'ring';
   const [mode, setMode] = useState<Mode>('model');
   const [model, setModel] = useState(0);
   // On the model photos the poses are tuned to the demo watch; another watch is drawn in
@@ -55,7 +56,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
   const [zoom, setZoom] = useState(1);
   const [units, setUnits] = useState('mm');
   const [rulers, setRulers] = useState(true);
-  const [ref, setRef] = useState<ReferenceId>('iphone');
+  const [ref, setRef] = useState<ReferenceId>(isRing ? 'riyal' : 'iphone'); // a ring beside a coin; a watch, as before
   const [refPose, setRefPose] = useState({ x: 790, y: 550, angle: 0 });
   const [active, setActive] = useState<'watch' | 'object'>('watch');
   const [photo, setPhoto] = useState<string | null>(null);
@@ -439,7 +440,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
             <img src={asset(product.worn)} alt={t(product.alt.en, product.alt.ar)} />
           </div>
           <div className="product-detail"><span>{t('Reference', 'رقم المنتج')}</span><strong dir="ltr">{product.sku}</strong></div>
-          <div className="product-detail"><span>{isGlasses ? t('Approx. frame width', 'عرض الإطار التقريبي') : t('Approx. case width', 'عرض العلبة التقريبي')}</span><strong dir="ltr">{measure(product.caseMm)}</strong></div>
+          <div className="product-detail"><span>{isRing ? t('Approx. ring width', 'عرض الخاتم التقريبي') : isGlasses ? t('Approx. frame width', 'عرض الإطار التقريبي') : t('Approx. case width', 'عرض العلبة التقريبي')}</span><strong dir="ltr">{measure(product.caseMm)}</strong></div>
           {product.storeLink && (
             <a href={product.storeLink.href} className="store-link" target="_blank" rel="noreferrer">
               {t(product.storeLink.label.en, product.storeLink.label.ar)}<ChevronRight size={16} />
@@ -453,7 +454,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
           )}
         </aside>
 
-        <section className="studio-panel" aria-label={isGlasses ? t('Glasses try-on studio', 'استوديو تجربة النظارة') : t('Watch try-on studio', 'استوديو تجربة الساعة')}>
+        <section className="studio-panel" aria-label={isRing ? t('Ring try-on studio', 'استوديو تجربة الخاتم') : isGlasses ? t('Glasses try-on studio', 'استوديو تجربة النظارة') : t('Watch try-on studio', 'استوديو تجربة الساعة')}>
           <div className="studio-topbar">
             <Tabs value={mode} onValueChange={changeMode}>
               <TabsList className="mode-tabs">
@@ -477,7 +478,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
                       : t('Your personal try-on', 'تجربتك الخاصة')}
                 </div>
                 <canvas ref={canvas} width={W} height={H} tabIndex={0}
-                  aria-label={isGlasses ? t('Interactive glasses preview. Drag to position. Use arrow keys for precise movement.', 'معاينة النظارة. اسحب لتغيير موضعها أو استخدم مفاتيح الأسهم.') : t('Interactive watch preview. Drag to position. Use arrow keys for precise movement.', 'معاينة الساعة. اسحب لتغيير موضعها أو استخدم مفاتيح الأسهم.')}
+                  aria-label={isRing ? t('Interactive ring preview. Drag to position. Use arrow keys for precise movement.', 'معاينة الخاتم. اسحب لتغيير موضعه أو استخدم مفاتيح الأسهم.') : isGlasses ? t('Interactive glasses preview. Drag to position. Use arrow keys for precise movement.', 'معاينة النظارة. اسحب لتغيير موضعها أو استخدم مفاتيح الأسهم.') : t('Interactive watch preview. Drag to position. Use arrow keys for precise movement.', 'معاينة الساعة. اسحب لتغيير موضعها أو استخدم مفاتيح الأسهم.')}
                   onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerEnd} onPointerCancel={pointerEnd}
                   onLostPointerCapture={pointerEnd} onKeyDown={keyMove} className={calibrating ? 'calibrating' : ''} />
                 {!assetsReady && (
@@ -568,7 +569,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
                 </div>
                 {mode !== 'compare' && (
                   <div className="adjustment">
-                    <div className="adjustment-label"><label id="scale-label">{isGlasses ? t('Glasses size', 'حجم النظارة') : t('Watch size', 'حجم الساعة')}</label><span dir="ltr">{scale}%</span></div>
+                    <div className="adjustment-label"><label id="scale-label">{isRing ? t('Ring size', 'حجم الخاتم') : isGlasses ? t('Glasses size', 'حجم النظارة') : t('Watch size', 'حجم الساعة')}</label><span dir="ltr">{scale}%</span></div>
                     <Slider aria-labelledby="scale-label" value={[scale]} min={50} max={160} step={1} onValueChange={([v]) => setScale(v)} />
                   </div>
                 )}
@@ -587,7 +588,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
       </div>
 
       <footer className="studio-footer">
-        <span><Ruler size={15} />{isGlasses ? t('A visual guide to fit. Dimensions and placement are approximate.', 'دليل مرئي للمقاس. الأبعاد وموضع النظارة تقريبيان.') : t('A visual guide to fit. Dimensions and placement are approximate.', 'دليل مرئي للمقاس. الأبعاد وموضع الساعة تقريبيان.')}</span>
+        <span><Ruler size={15} />{isRing ? t('A visual guide to fit. Dimensions and placement are approximate.', 'دليل مرئي للمقاس. الأبعاد وموضع الخاتم تقريبيان.') : isGlasses ? t('A visual guide to fit. Dimensions and placement are approximate.', 'دليل مرئي للمقاس. الأبعاد وموضع النظارة تقريبيان.') : t('A visual guide to fit. Dimensions and placement are approximate.', 'دليل مرئي للمقاس. الأبعاد وموضع الساعة تقريبيان.')}</span>
         {showCanvas && features.download && (
           <button className="download-button" onClick={saveImage} disabled={!assetsReady || photoBusy}><Download size={16} />{t('Save your look', 'احفظ إطلالتك')}</button>
         )}
@@ -618,10 +619,10 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
 
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
         <DialogContent>
-          <DialogTitle>{isGlasses ? t('A closer look', 'طرق تجربة نظارتك') : t('A closer look, in three ways', 'ثلاث طرق لتجربة ساعتك')}</DialogTitle>
-          <DialogDescription>{isGlasses ? t('Explore the glasses from every perspective.', 'اكتشف النظارة بالطريقة التي تناسبك.') : t('Explore the watch from every perspective.', 'اكتشف الساعة بالطريقة التي تناسبك.')}</DialogDescription>
+          <DialogTitle>{isRing ? t('A closer look', 'طرق تجربة خاتمك') : isGlasses ? t('A closer look', 'طرق تجربة نظارتك') : t('A closer look, in three ways', 'ثلاث طرق لتجربة ساعتك')}</DialogTitle>
+          <DialogDescription>{isRing ? t('Explore the ring from every perspective.', 'اكتشف الخاتم بالطريقة التي تناسبك.') : isGlasses ? t('Explore the glasses from every perspective.', 'اكتشف النظارة بالطريقة التي تناسبك.') : t('Explore the watch from every perspective.', 'اكتشف الساعة بالطريقة التي تناسبك.')}</DialogDescription>
           <div className="help-steps">
-            <div><Hand /><div><strong>{t('On model', 'على النموذج')}</strong><p>{isGlasses ? t('The frame sits on a real face at its real width. Drag it and adjust its size or angle.', 'يظهر الإطار على وجه حقيقي بعرضه الحقيقي. حرّكه وعدّل حجمه وزاويته.') : t('Choose a close-up or lifestyle photo. Drag the watch along the wrist and adjust its size or angle.', 'اختر صورة المعصم أو الإطلالة اليومية. حرّك الساعة على المعصم وعدّل حجمها وزاويتها.')}</p></div></div>
+            <div><Hand /><div><strong>{t('On model', 'على النموذج')}</strong><p>{isRing ? t('The ring sits on a real hand at its real width. Drag it along the finger and adjust its size or angle.', 'يظهر الخاتم على يد حقيقية بعرضه الحقيقي. حرّكه على الإصبع وعدّل حجمه وزاويته.') : isGlasses ? t('The frame sits on a real face at its real width. Drag it and adjust its size or angle.', 'يظهر الإطار على وجه حقيقي بعرضه الحقيقي. حرّكه وعدّل حجمه وزاويته.') : t('Choose a close-up or lifestyle photo. Drag the watch along the wrist and adjust its size or angle.', 'اختر صورة المعصم أو الإطلالة اليومية. حرّك الساعة على المعصم وعدّل حجمها وزاويتها.')}</p></div></div>
             <div><Camera /><div><strong>{t('On me', 'عليّ')}</strong><p>{t('Upload a clear photo with your whole hand visible. We look for your wrist automatically; use Fit to wrist to mark its two edges if needed.', 'ارفع صورة واضحة تظهر اليد كاملة. نحاول تحديد المعصم تلقائياً، ويمكنك تحديد حافتيه باستخدام ضبط على المعصم.')}</p></div></div>
             <div><Ruler /><div><strong>{t('Compare', 'قارن الحجم')}</strong><p>{t('Compare relative sizes with an iPhone, AirPods or Saudi riyal. Drag either item and rotate it. Zoom scales both together.', 'قارن الحجم مع آيفون أو إيربودز أو ريال سعودي. حرّك أي عنصر ودوّره. التكبير يغيّر حجم العنصرين معاً.')}</p></div></div>
             <p className="privacy-note">{t('Photo-based preview, not a live 3D camera filter. A single photo cannot verify exact physical fit.', 'معاينة باستخدام صورة، وليست فلتر كاميرا ثلاثي الأبعاد. لا يمكن التحقق من المقاس الفعلي الدقيق عبر صورة واحدة.')}</p>

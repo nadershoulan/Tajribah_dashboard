@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEMO_GLASSES, DEMO_WATCH, FACE_MODELS, MODELS, constrainToModel, modelsFor } from '../../../tajribah-try-on/lib/demo-product';
+import { DEMO_GLASSES, DEMO_RING, DEMO_WATCH, FACE_MODELS, HAND_MODELS, MODELS, constrainToModel, modelsFor } from '../../../tajribah-try-on/lib/demo-product';
 
 const site = (p: string) => join(process.cwd(), '..', 'tajribah-try-on', p);
 
@@ -50,4 +50,23 @@ test('every glasses picture is a real photo in the site, recorded in ASSETS.md w
   assert.match(assets, /unsplash\.com\/photos\/62rTkfxLTDg/);
   assert.match(assets, /Unsplash License/);
   assert.match(readFileSync(site('preview/build.mjs'), 'utf8'), /'glasses-front\.png'/, 'the static preview carries them too');
+});
+
+test('a ring sits on a real hand at a measured scale: 79 mm across the knuckles, 953 px in the photo', () => {
+  const { models, baseMm } = modelsFor(DEMO_RING);
+  assert.equal(models, HAND_MODELS);
+  assert.equal(baseMm, DEMO_RING.caseMm);
+  const pxPerMm = (953 / 79) * (1200 / 2200); // the photo's scale, then the stage crop
+  assert.ok(Math.abs(models[0]!.pose.width - DEMO_RING.caseMm * pxPerMm) < 2, `${models[0]!.pose.width} px for ${DEMO_RING.caseMm} mm`);
+  assert.deepEqual([models[0]!.pose.x, models[0]!.pose.y], [Math.round((2078 - 900) * 1200 / 2200), Math.round((2400 - 1350) * 1200 / 2200)], 'on the ring finger’s base');
+  assert.equal(DEMO_RING.onMe, false);
+  assert.equal(DEMO_RING.demo, false);
+  const assets = readFileSync(site('ASSETS.md'), 'utf8');
+  for (const file of ['model-hand.webp', 'model-hand-thumb.webp', 'ring-top.webp']) {
+    assert.ok(existsSync(site(`public/assets/${file}`)) && statSync(site(`public/assets/${file}`)).size > 5_000, file);
+    assert.match(assets, new RegExp(file.replace('.', '\\.')), `${file} in ASSETS.md`);
+  }
+  assert.match(assets, /pexels\.com\/photo\/20805371/);
+  assert.match(assets, /pexels\.com\/photo\/12194367/);
+  assert.deepEqual([constrainToModel('hand', { x: 0, y: 0, width: 135, angle: 0 }).x], [600]);
 });

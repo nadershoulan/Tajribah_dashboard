@@ -23,13 +23,15 @@
  *    background (`quality.ts`, sharp) and checked again — the screen shows "checking" meanwhile.
  *  - P5.2 (T68): glasses too (product type Eyewear) — one picture, the frame from the front, which is
  *    published as both pictures; the width is the frame's (100–170 mm, a watch's case 5–80).
+ *  - P5.4: rings too — a Jewelry product the merchant marks as a ring (`ring: true`; Jewelry is also
+ *    earrings and bracelets) — one picture, the ring as worn; 14–30 mm across.
  *  - P5.13: the list shows each watch's last 30 days (views, try-on openings) from the analytics
  *    rollup — never raw events — to anyone who may read analytics.
  */
 import { and, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
 import { dailyProductStats, products, tryonConfigs } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
-import { CUTOUT_ISSUES, SLOTS_OF, TRYON_PRODUCT_TYPES, WIDTH_MM, kindOf, type TryOnKind } from '@/lib/tryon';
+import { CUTOUT_ISSUES, RING_PRODUCT_TYPE, SLOTS_OF, TRYON_LISTED_TYPES, WIDTH_MM, kindOf, type TryOnKind } from '@/lib/tryon';
 import { CALIBRATE_MIN_PX } from '@/lib/tryon-quality';
 import type { TryOnScreen, TryOnWatchView } from '@/lib/view-models';
 import { record } from '@/server/core/audit/audit';
@@ -58,7 +60,7 @@ export const ISSUE_TEXT = Object.fromEntries(Object.entries(CUTOUT_ISSUES).map((
 type Last30 = TryOnWatchView['last30'];
 
 function view(product: Product, config: Config | null, last30: Last30 = null): TryOnWatchView {
-  const kind: TryOnKind = kindOf(product.productType) ?? 'watch';
+  const kind: TryOnKind = kindOf(product.productType, config?.category) ?? 'watch';
   const caseMm = config?.caseTenthsMm != null ? config.caseTenthsMm / 10 : null;
   const missing: TryOnWatchView['missing'] = [];
   if (!config?.wornKey) missing.push('worn');
@@ -77,8 +79,8 @@ function view(product: Product, config: Config | null, last30: Last30 = null): T
     quality: {
       worn: wornQuality,
       flat: kind === 'watch' && config?.flatKey && config.quality?.flat?.key === config.flatKey ? config.quality.flat : null,
-      // glasses have one picture: its share of real size is the score
-      score: kind === 'glasses' ? (wornQuality && !wornQuality.issue ? Math.floor(wornQuality.sizeShown * 100) : null) : config?.qualityScore ?? null,
+      // glasses and rings have one picture: its share of real size is the score
+      score: kind !== 'watch' ? (wornQuality && !wornQuality.issue ? Math.floor(wornQuality.sizeShown * 100) : null) : config?.qualityScore ?? null,
     },
     ready: missing.length === 0,
     missing,
@@ -89,8 +91,16 @@ function view(product: Product, config: Config | null, last30: Last30 = null): T
 async function watchOf(db: TenantDb, productId: string): Promise<Product> {
   const product = await db.findById(products, productId);
   if (!product || product.deletedAt) throw errors.notFound('product');
-  if (!kindOf(product.productType)) throw errors.conflict('try-on is for watches and glasses for now — set this product’s type to Watch or Eyewear first');
+  if (!(TRYON_LISTED_TYPES as readonly string[]).includes(product.productType)) throw errors.conflict('try-on is for watches, glasses and rings for now — set this product’s type to Watch, Eyewear or Jewelry first');
   return product;
+}
+
+/** What this product is tried on as; Jewelry not yet marked as a ring is refused. */
+async function kindFor(db: TenantDb, product: Product): Promise<TryOnKind> {
+  const config = product.productType === RING_PRODUCT_TYPE ? await db.findOne(tryonConfigs, eq(tryonConfigs.productId, product.id)) : null;
+  const kind = kindOf(product.productType, config?.category);
+  if (!kind) throw errors.conflict('mark this jewelry as a ring first — earrings and necklaces are not built yet');
+  return kind;
 }
 
 async function mayChange(ctx: TenantContext): Promise<void> {
@@ -103,9 +113,12 @@ export async function tryOnScreen(ctx: TenantContext, now = new Date()): Promise
   const onMe = (await entitlementsOf(ctx)).has('virtual_tryon');
   const days = daysOf('30d', now);
   return withTenant(ctx.tenantId, async (db) => {
-    const watches = await db.find(products, and(inArray(products.productType, Object.keys(TRYON_PRODUCT_TYPES) as Product['productType'][]), isNull(products.deletedAt)), { limit: 500 });
+    const listed = await db.find(products, and(inArray(products.productType, [...TRYON_LISTED_TYPES]), isNull(products.deletedAt)), { limit: 500 });
+    const configs = listed.length ? await db.find(tryonConfigs, inArray(tryonConfigs.productId, listed.map((p) => p.id)), { limit: 500 }) : [];
+    const configOf = (id: string) => configs.find((c) => c.productId === id) ?? null;
+    const watches = listed.filter((p) => kindOf(p.productType, configOf(p.id)?.category));
+    const jewelry = listed.filter((p) => !kindOf(p.productType, configOf(p.id)?.category)).map((p) => ({ productId: p.id, name: p.name, nameAr: p.nameAr, sku: p.sku }));
     const ids = watches.map((p) => p.id);
-    const configs = ids.length ? await db.find(tryonConfigs, inArray(tryonConfigs.productId, ids), { limit: 500 }) : [];
     const stats = ids.length && ctx.can('analytics:read')
       ? await db.find(dailyProductStats, and(inArray(dailyProductStats.productId, ids), gte(dailyProductStats.day, days[0]!), lte(dailyProductStats.day, days[days.length - 1]!)), { limit: 100_000 })
       : null;
@@ -114,7 +127,7 @@ export async function tryOnScreen(ctx: TenantContext, now = new Date()): Promise
       const rows = stats.filter((r) => r.productId === productId);
       return { views: rows.reduce((s, r) => s + r.views, 0), tryonSessions: rows.reduce((s, r) => s + r.tryonSessions, 0) };
     };
-    return { onMe, watches: watches.map((p) => view(p, configs.find((c) => c.productId === p.id) ?? null, last30(p.id))) };
+    return { onMe, watches: watches.map((p) => view(p, configOf(p.id), last30(p.id))), jewelry };
   });
 }
 
@@ -128,8 +141,8 @@ export async function startCutoutUpload(ctx: TenantContext, productId: string, i
   if (!Number.isInteger(input.sizeBytes) || input.sizeBytes <= 0) problems.sizeBytes = ['the file is empty'];
   else if (input.sizeBytes > CUTOUT_MAX_BYTES) problems.sizeBytes = [ISSUE_TEXT.too_large_file];
   if (Object.keys(problems).length) throw errors.validation(problems);
-  const product = await withTenant(ctx.tenantId, (db) => watchOf(db, productId));
-  if (!SLOTS_OF[kindOf(product.productType)!].includes(input.slot)) throw errors.validation({ slot: ['glasses take one picture: the frame from the front'] });
+  const kind = await withTenant(ctx.tenantId, async (db) => kindFor(db, await watchOf(db, productId)));
+  if (!SLOTS_OF[kind].includes(input.slot)) throw errors.validation({ slot: ['glasses and rings take one picture'] });
   await assertStorageRoom(ctx, input.sizeBytes);
   const store = forTenant(ctx.tenantId);
   const key = store.key({ kind: 'photo', id: uuidv7(), filename: `${input.slot}.${format}` });
@@ -151,7 +164,7 @@ async function readAll(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> 
 export async function confirmCutout(ctx: TenantContext, productId: string, input: { slot: Slot; key: string }): Promise<TryOnWatchView> {
   await mayChange(ctx);
   if ((input.slot !== 'worn' && input.slot !== 'flat') || !isCutoutKey(input.key, ctx.tenantId, input.slot)) throw errors.notFound('upload');
-  await withTenant(ctx.tenantId, (db) => watchOf(db, productId));
+  await withTenant(ctx.tenantId, async (db) => kindFor(db, await watchOf(db, productId))); // unmarked jewelry: refused
   const store = forTenant(ctx.tenantId);
   const stored = await store.head(input.key);
   if (!stored) throw errors.conflict('the picture has not arrived yet — upload it to the URL you were given, then confirm');
@@ -180,8 +193,11 @@ export async function confirmCutout(ctx: TenantContext, productId: string, input
   return result;
 }
 
-/** API-153 — case width, finish, on/off. Switching on needs both pictures and a case width. */
-export async function updateTryOn(ctx: TenantContext, productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean }): Promise<TryOnWatchView> {
+/**
+ * API-153 — case width, finish, on/off. Switching on needs both pictures and a case width. P5.4:
+ * `ring: true` marks a Jewelry product as a ring; `ring: false` takes that back while it has no picture.
+ */
+export async function updateTryOn(ctx: TenantContext, productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean; ring?: boolean }): Promise<TryOnWatchView> {
   await mayChange(ctx);
   const problems: Record<string, string[]> = {};
 
@@ -190,9 +206,10 @@ export async function updateTryOn(ctx: TenantContext, productId: string, patch: 
   if (finish.some((f) => f && f.trim().length > 80)) problems.finish = ['80 characters at most'];
   if (Object.keys(problems).length) throw errors.validation(problems);
 
+  if (patch.ring !== undefined) return markRing(ctx, productId, patch.ring);
   const result = await withTenant(ctx.tenantId, async (db) => {
     const product = await watchOf(db, productId);
-    const range = WIDTH_MM[kindOf(product.productType)!];
+    const range = WIDTH_MM[await kindFor(db, product)];
     if (patch.caseMm != null && (!Number.isFinite(patch.caseMm) || patch.caseMm < range.min || patch.caseMm > range.max)) throw errors.validation({ caseMm: [`between ${range.min} and ${range.max} mm`] });
     await db.lockById(products, productId);
     const before = await db.findOne(tryonConfigs, eq(tryonConfigs.productId, productId));
@@ -242,6 +259,31 @@ export async function calibrateCutoutEdges(ctx: TenantContext, productId: string
     return view(product, after);
   });
   await enqueueCalibration(ctx.tenantId, productId, input.slot, input.key, { left: input.left, right: input.right });
+  return result;
+}
+
+/** P5.4 — "It's a ring": a Jewelry product's try-on settings are made, as a ring; or taken back while empty. */
+async function markRing(ctx: TenantContext, productId: string, ring: boolean): Promise<TryOnWatchView> {
+  const result = await withTenant(ctx.tenantId, async (db) => {
+    const product = await watchOf(db, productId);
+    if (product.productType !== RING_PRODUCT_TYPE) throw errors.conflict('only a Jewelry product can be marked as a ring');
+    await db.lockById(products, productId);
+    const before = await db.findOne(tryonConfigs, eq(tryonConfigs.productId, productId));
+    if (ring) {
+      const after = before
+        ? await db.updateById(tryonConfigs, before.id, { category: 'ring' } as never)
+        : await db.insert(tryonConfigs, { id: uuidv7(), productId, category: 'ring' } as never);
+      await record(ctx, { action: before ? 'update' : 'create', resourceType: 'tryon_config', resourceId: after.id, after: { category: 'ring' } as never }, db);
+      return view(product, after);
+    }
+    if (before?.wornKey || before?.flatKey || before?.enabled) throw errors.conflict('remove the ring’s picture first');
+    if (before) {
+      await db.deleteById(tryonConfigs, before.id);
+      await record(ctx, { action: 'delete', resourceType: 'tryon_config', resourceId: before.id, before: { category: before.category } as never }, db);
+    }
+    return view(product, null);
+  });
+  await keepLive(ctx.tenantId, productId);
   return result;
 }
 

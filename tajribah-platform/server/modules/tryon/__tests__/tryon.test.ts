@@ -49,7 +49,7 @@ async function proStore(harness: TestDb, name: string, plan: 'pro' | 'starter' =
   const ring = uuidv7();
   await harness.asAdmin(() => harness.db.insert(products).values([
     { id: watch, tenantId: seeded.tenantId, name: 'Steel field watch', nameAr: 'ساعة ميدانية', sku: 'SFW-38', productType: 'watch', dimensions: { widthMm: 38, heightMm: 46 } },
-    { id: ring, tenantId: seeded.tenantId, name: 'Ring', productType: 'jewelry' },
+    { id: ring, tenantId: seeded.tenantId, name: 'Lamp', productType: 'furniture' }, // P5.4: jewelry is a ring now; furniture has no try-on
   ] as any));
   return { ...seeded, ctx, watch, ring };
 }

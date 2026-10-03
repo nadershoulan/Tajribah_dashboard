@@ -89,13 +89,14 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
 
   const live = product.arEnabled ? await liveModelOf(ctx, product.id, product.primaryModelId, (k) => files.publicUrl(k)) : null;
   const model = live?.files ?? null;
-  // P5.2 (T68): glasses publish their one picture as both, with `category: 'glasses'` (absent = a watch).
-  const kind = kindOf(product.productType);
-  const glasses = kind === 'glasses';
-  const flatKey = glasses ? tryon?.wornKey : tryon?.flatKey;
-  const watch = tryon && tryon.enabled && tryon.wornKey && flatKey && tryon.caseTenthsMm != null && button.placement === (glasses ? 'face' : 'wrist')
+  // P5.2/P5.4 (T68): glasses (face) and rings (wrist — the hand) publish their one picture as both, with
+  // their `category`; absent = a watch.
+  const kind = kindOf(product.productType, tryon?.category);
+  const single = kind === 'glasses' || kind === 'ring';
+  const flatKey = single ? tryon?.wornKey : tryon?.flatKey;
+  const watch = tryon && tryon.enabled && tryon.wornKey && flatKey && tryon.caseTenthsMm != null && button.placement === (kind === 'glasses' ? 'face' : 'wrist')
     ? {
-      ...(glasses ? { category: 'glasses' as const } : {}),
+      ...(kind === 'glasses' || kind === 'ring' ? { category: kind } : {}),
       worn: files.publicUrl(tryon.wornKey),
       flat: files.publicUrl(flatKey),
       caseMm: tryon.caseTenthsMm / 10,

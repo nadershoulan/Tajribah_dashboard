@@ -69,11 +69,12 @@ export const INDUSTRIES: Record<IndustrySlug, Industry> = {
     modes: [
       { feature: 'on-model', label: { ar: 'الأساور على العارضة', en: 'Bracelets on model' }, status: 'now', note: { ar: 'السوار على معصم حقيقي بمقاسه.', en: 'The bracelet on a real wrist at its size.' } },
       { feature: 'on-me', label: { ar: 'الأساور على صورتك', en: 'Bracelets on your photo' }, status: 'now', note: { ar: 'على صورة يد العميل.', en: 'On a photo of the shopper’s hand.' } },
+      { feature: null, label: { ar: 'الخواتم على يد حقيقية', en: 'Rings on a real hand' }, status: 'now', note: { ar: 'الخاتم على إصبع حقيقي بعرضه الحقيقي، والمقياس من عرض اليد. حدّد في لوحة التحكم أيّ مجوهراتك خواتم، وارفع صورة واحدة.', en: 'The ring on a real finger at its real width, sized from the hand’s breadth. Mark which of your jewelry are rings in the dashboard and upload one picture.' } },
       { feature: 'true-size', label: { ar: 'قارن الحجم — أي قطعة', en: 'Compare size — any piece' }, status: 'now', note: { ar: 'خواتم وقلائد وأقراط بجانب ريال سعودي بالمقياس نفسه.', en: 'Rings, pendants and earrings beside a riyal coin at one scale.' } },
       { feature: null, label: { ar: 'القلائد والأقراط على الجسم', en: 'Necklaces and earrings on the body' }, status: 'soon', note: { ar: 'تحتاج تتبّع الرقبة والأذن، وهو ضمن خطة التوسّع وليس متاحًا اليوم.', en: 'Needs neck and ear tracking — in the expansion plan, not available today.' } },
     ],
     measure: [
-      { ar: 'للخاتم: القطر الداخلي', en: 'Rings: inner diameter' },
+      { ar: 'للخاتم: عرضه على الإصبع من طرف إلى طرف (القطر الداخلي وسماكة الحلقة)', en: 'Rings: width across the finger, end to end (inner diameter plus the band)' },
       { ar: 'للقلادة: عرض وارتفاع الدلاية (والسلسلة تُذكر في الوصف)', en: 'Pendants: pendant width and height (chain length stays in the description)' },
       { ar: 'للسوار: القطر الداخلي والعرض', en: 'Bracelets: inner diameter and width' },
     ],

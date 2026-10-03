@@ -46,7 +46,7 @@ export const updateTryOnHandler = route(async (request) => {
   const ctx = await tenantContextFor(request, config);
   const body = await readJson(request, z.object({
     caseMm: z.number().nullable().optional(), finishAr: z.string().max(200).nullable().optional(),
-    finishEn: z.string().max(200).nullable().optional(), enabled: z.boolean().optional(),
+    finishEn: z.string().max(200).nullable().optional(), enabled: z.boolean().optional(), ring: z.boolean().optional(),
   }));
   return json(await updateTryOn(ctx, productAt(request, 0), body));
 });

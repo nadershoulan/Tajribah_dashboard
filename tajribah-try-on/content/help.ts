@@ -206,6 +206,24 @@ export const HELP_ARTICLES: HelpArticle[] = [
     ],
   },
   {
+    // P5.2/P5.4/P5.5/P5.6 (T68) — glasses, rings, necklaces and bags in the try-on settings, as built.
+    slug: 'more-tryon-kinds', category: 'button', updated: '2026-10-03',
+    title: { ar: 'تجهيز النظارات والخواتم والقلائد والحقائب للتجربة', en: 'Set up glasses, rings, necklaces and bags for the try-on' },
+    summary: { ar: 'صورة واحدة بخلفية شفافة وعرض القطعة، لتظهر على عارضة حقيقية بحجمها الحقيقي.', en: 'One picture on a transparent background and the piece’s width, so it shows on a real model at its real size.' },
+    steps: [
+      { ar: 'اجعل نوع المنتج «نظارات» أو «مجوهرات» أو «حقائب» في صفحته، ثم افتح «التجربة الافتراضية».', en: 'Set the product’s type to Eyewear, Jewelry or Bag on its page, then open “Virtual try-on”.' },
+      { ar: 'المجوهرات تشمل الخواتم والقلائد والأقراط والأساور، فحدّد في قائمة «مجوهراتك» ما كل قطعة: «هذا خاتم» أو «هذه قلادة». الأقراط تأتي لاحقًا.', en: 'Jewelry covers rings, necklaces, earrings and bracelets, so in the “Your jewelry” list say which each piece is: “It’s a ring” or “It’s a necklace”. Earrings come later.' },
+      { ar: 'ارفع صورة واحدة: الإطار من الأمام بلا الذراعين، أو الخاتم من الأعلى والحلقة عرضيًا، أو القلادة على حامل والسلاسل متدلية، أو الحقيبة من الأمام والمقابض للأعلى.', en: 'Upload one picture: the frame from the front without the arms, the ring from above with the band running across, the necklace on a bust with the chains hanging, or the bag from the front with the handles up.' },
+      { ar: 'أدخل العرض بالمليمتر وفعّل زر «جرّبها». يظهر في صفحة المنتج في متجرك بعد نشر إعداداتك.', en: 'Enter the width in millimetres and switch on the “Try it on” button. It appears on the product’s page in your store once your settings are published.' },
+    ],
+    body: [
+      { ar: 'أي عرض ندخله: النظارة من مفصل إلى مفصل (100–170 مم)، والخاتم من طرف إلى طرف كما يظهر على الإصبع (14–30 مم)، والقلادة عند الرقبة من طرف إلى طرف (60–300 مم)، والحقيبة من جانب إلى جانب دون المقابض (100–600 مم).', en: 'Which width: glasses hinge to hinge (100–170 mm), a ring end to end as it sits on a finger (14–30 mm), a necklace across at the neck (60–300 mm), a bag side to side without the handles (100–600 mm).' },
+      { ar: 'العارضات صور حقيقية مرخّصة، وكل صورة مقيسة لا مقدّرة بالعين: الوجه من المسافة بين الحدقتين، واليد من عرضها، والعارضة من طولها. فتُرسم قطعتك بعرضها على المقياس نفسه.', en: 'The models are real, licensed photos, each measured rather than judged by eye: a face from the distance between the pupils, a hand from its breadth, a model from her height. Your piece is drawn at its width on the same scale.' },
+      { ar: 'نفحص الصورة كما نفحص الساعة: نقصّ الحواف الفارغة، ونريك بكم في المئة من حجمها الحقيقي تظهر، ويمكنك تحديد طرفيها بنفسك لقصّها بدقة.', en: 'We check the picture as we check a watch’s: empty edges cropped, the share of its real size shown, and you can mark its ends yourself to crop it exactly.' },
+      { ar: 'في باقتي «الاحترافية» و«المؤسسات» يجرّب المتسوق النظارة والخاتم والقلادة على صورته هو أيضًا: نحدد الوجه أو اليد على جهازه، ولا تغادر الصورة جهازه. الحقيبة على صورته تأتي لاحقًا.', en: 'On the Pro and Enterprise plans shoppers also try glasses, rings and necklaces on their own photo: we find the face or the hand on their device, and the photo never leaves it. A bag on their own photo comes later.' },
+    ],
+  },
+  {
     slug: 'trial-and-plans', category: 'billing', updated: '2026-09-26',
     title: { ar: 'التجربة المجانية وما بعدها', en: 'The free trial and what comes after' },
     summary: { ar: 'ماذا يحدث حين تنتهي الأيام الأربعة عشر.', en: 'What happens when the 14 days end.' },

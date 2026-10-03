@@ -60,7 +60,7 @@ test('a ring sits on a real hand at a measured scale: 79 mm across the knuckles,
   const pxPerMm = (953 / 79) * (1200 / 2200); // the photo's scale, then the stage crop
   assert.ok(Math.abs(models[0]!.pose.width - DEMO_RING.caseMm * pxPerMm) < 2, `${models[0]!.pose.width} px for ${DEMO_RING.caseMm} mm`);
   assert.deepEqual([models[0]!.pose.x, models[0]!.pose.y], [Math.round((2078 - 900) * 1200 / 2200), Math.round((2400 - 1350) * 1200 / 2200)], 'on the ring finger’s base');
-  assert.equal(DEMO_RING.onMe, false);
+  assert.notEqual(DEMO_RING.onMe, false, 'the demo offers the shopper’s own hand photo');
   assert.equal(DEMO_RING.demo, false);
   const assets = readFileSync(site('ASSETS.md'), 'utf8');
   for (const file of ['model-hand.webp', 'model-hand-thumb.webp', 'ring-top.webp']) {

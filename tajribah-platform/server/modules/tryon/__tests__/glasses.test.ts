@@ -130,7 +130,7 @@ test('P5.4 a Jewelry product the merchant marks as a ring: one picture, 14–30 
     assert.deepEqual([config.placement, config.tryon.category, config.tryon.caseMm, config.tryon.worn === config.tryon.flat], ['wrist', 'ring', 20.5, true]);
     assert.equal(parseConfig(config)?.tryon?.category, 'ring');
     const studio = tryOnProductFrom(config);
-    assert.deepEqual([studio?.category, studio?.onMe], ['ring', false]);
+    assert.deepEqual([studio?.category, studio?.onMe], ['ring', true], 'on Pro, the shopper’s own hand photo too');
   } finally { await harness.close(); }
 });
 

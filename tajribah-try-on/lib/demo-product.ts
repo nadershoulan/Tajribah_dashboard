@@ -139,7 +139,7 @@ export const DEMO_RING: TryOnProduct = {
   alt: { ar: 'خاتم ذهبي بحجرين محاطين بفصوص صغيرة', en: 'A gold ring with two halo-set stones' },
   storeLink: null,
   demo: false,
-  onMe: false, // placing a ring on the shopper's own hand photo is not built yet
+  // T68: on the shopper's own hand photo too — found on their device, sized from the knuckles
   category: 'ring',
 };
 

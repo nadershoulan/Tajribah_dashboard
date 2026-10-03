@@ -3,7 +3,7 @@
 _Last updated: 2026-10-03 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: one on analytics (now end to end), store connections, enterprise features and security; the other on the website and the shop-facing pages.
-> **Just finished (2026-10-03):** **merchants can set up bags** — products of type Bag appear in Virtual try-on with one picture (the bag from the front) and its width (100–600 mm); published, the shop's button opens your studio with the bag in the real model's hand at its measured size, and beside an iPhone. **All five try-on kinds in the plan now work for merchants**: watches, glasses, rings, necklaces, bags — each with real licensed photos. Glasses, rings and necklaces also work on the shopper's own photo; bags not yet. Your watch is untouched. Next: bags on the shopper's own photo is hard to do honestly (a held bag needs the hand's pose) — I will look at what else remains in the plan
+> **Just finished (2026-10-04):** **the docs, cleaned up for reading** (you asked). Start at `docs/README.md` — it says which document answers what. New: `docs/RUNNING-LOCALLY.md` (no Docker needed: Node 22, pnpm, and PostgreSQL only if you want to sign in for real) and `docs/HOSTING.md` (Cloudflare + one Hetzner **Cloud** server; Hetzner shared hosting will not work — why is written there). Updated: ARCHITECTURE (what runs where), the analytics privacy record (the policy wording is applied), DECISIONS (a table of what is in force today), both READMEs (the website's was mostly unrelated starter text). Removed: the old P0 gate report (in git history). P4.11 marked done. Next: GA4 set up from the dashboard (with Google sign-in), QR codes for product pages, cleaning up abandoned uploads, earrings, an accessibility check of the new screens
 > **Next:** what is left needs an account or your decision. One small one below (the privacy-policy wording).
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
 > **Waiting on you:** **a GA4 measurement id** when you want website analytics on (analytics.google.com → a property for tajribah.sa → a web stream → its id, `G-…`). **The short domain** (when you buy the domains): products' own pages and QR codes go on it — until then the links read `tajribah.sa/p/…`, and nothing is shared before launch, so one setting changes them all (`HOSTED_PAGE_BASE`, GO-LIVE §4). Then the **Hetzner server**, and the accounts below — Salla, Zid, Cloudflare, the domain, Moyasar and a 3D-generation provider.
@@ -13,14 +13,14 @@ P0 Foundation     ████████████████████�
 P1 Core loop      █████████████████████████░░░░░░░  20 / 26   (+ P1.19 product pages, built) ← first sellable product · the rest needs Salla / Cloudflare / domain
 P2 Billing        █████████████░░░░░░░░░░░░░░░░░░░   6 / 15   (+ 3 partly) · the rest needs Moyasar / ZATCA
 P3 3D pipeline    █████████████░░░░░░░░░░░░░░░░░░░   5 / 12   (+ P3.7 photo screen, P3.10 professional models up to payment) · the rest needs a provider, prices or caps
-P4 Analytics      ███████████████████████████░░░░░   9 / 12   (+ P4.11 partly) · P4.7 needs a store connection, P4.12 the staging server
+P4 Analytics      ███████████████████████████░░░░░  10 / 12   · P4.7 needs a store connection, P4.12 the staging server
 P5 Try-on         ███████████████████████░░░░░░░░░  10 / 14   (+ watch partly) · the rest touches your studio or needs new photography
 P6 AI+connectors  ██████████████░░░░░░░░░░░░░░░░░░   7 / 16   (+ recommendations without AI) · the rest needs AI providers or store accounts
 P7 Scale          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0 / 13   (+ security, safe updates, rate limits, database speed, monitoring, load tests, backups: the code-level parts done)
 P8 Enterprise     ███████████████████░░░░░░░░░░░░░   7 / 12
 M  Marketing      ███████████████████████████░░░░░  10 / 12   (+ 2 partly) · the website, in tajribah-try-on
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
-                                            overall 108 / 169
+                                            overall 109 / 169
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -59,7 +59,7 @@ thing it protects was broken on purpose. Code that merely exists does not count.
 **The P0 gate ran on 2026-09-22.** It re-checked every package, added 20 missing tests, and
 found and fixed 5 real bugs (Saudi weekend computed in UTC, `00966…` phone numbers refused,
 a database rollback that could not run, the dashboard breaking on phones, and the store
-switcher missing on most screens). Full report: [docs/gates/P0.md](docs/gates/P0.md).
+switcher missing on most screens). The full report is in git history.
 
 ## P1 — the first sellable product (started 2026-09-23)
 
@@ -167,7 +167,7 @@ The public site that sells Tajribah, Arabic first.
 | ✅ | P4.3 Adding them up | Every few minutes each store's day is recounted from its events into the daily figures the screens read — running it twice gives the same numbers; a day older than 85 days is never rewritten |
 | ✅ | P4.9 Right now | "In your shop right now" on the Analytics screen: visits in the last five minutes, the last half hour minute by minute, the latest events (Growth and up) |
 | ✅ | P4.10 Visits | A Visits page: one day's visits, newest first, filtered by "opened AR or try-on" or "bought", and each visit's path in order. A visit is not a person — its id changes every day and in every shop (Growth and up) |
-| ◐ | P4.11 Analytics privacy | The record of exactly what is collected, kept 90 days and shown to whom (`docs/ANALYTICS-PRIVACY.md`), held by tests. **Left:** your yes on the privacy-policy wording |
+| ✅ | P4.11 Analytics privacy | The record of exactly what is collected, kept 90 days and shown to whom (`docs/ANALYTICS-PRIVACY.md`), held by tests; the website's privacy policy says the same since 3 October |
 
 ## P3 — 3D models from photos (started 2026-09-27)
 
@@ -508,3 +508,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-10-03 | Bags in the studio and the demo: real licensed photos (a model in an abaya), the model's fingers over the handles (a new optional layer), measured scale, the comparison zoomed out; the watch unchanged | website-glasses 6; a breakage caught; walked in Chrome (Arabic, English, phone); full gate 893 / 0 fail |
 | 2026-10-03 | P5.6 bags for merchants: Bag products, one picture, 100–600 mm, published as `category: bag` on a bag's own placement (never face or wrist); widget and try-on page read it; the bags page says so | glasses 6 (bag 1); a breakage caught; full gate 894 / 0 fail |
 | 2026-10-03 | Help centre: "Set up glasses, rings, necklaces and bags for the try-on" — what each takes, marking jewelry, which width, the measured models, "on me" on Pro and up | website tests pass (894 / 0) |
+| 2026-10-04 | Docs cleaned up for reading: a reading guide, running locally (no Docker), hosting (why not shared hosting), ARCHITECTURE and READMEs brought up to date, DECISIONS summarised, the old P0 report removed; P4.11 done | privacy test passes |

@@ -37,7 +37,7 @@ Nothing user-visible ships. Everything after inherits these decisions.
 
 **P0 gate:** isolation suite green and seen to fail when broken · typecheck + lint clean ·
 every check in this table run, not assumed · `STATE.md` honest about what was skipped.
-Report: `docs/gates/P0.md`. P0.19–P0.22 are in the plan's P0 (Appendix A) and were missing
+The gate's report (2026-09-22) is in git history. P0.19–P0.22 are in the plan's P0 (Appendix A) and were missing
 from this list until the gate compared the two.
 
 ---
@@ -180,7 +180,7 @@ in-memory limiter is per isolate until P1.15).
 | P4.8 ✅ | Exports & scheduled reports | — (read side) | **CSV** (API-121 `GET /api/analytics/export`: one row per Riyadh day, empty days zero, riyals to two decimals, `analytics:export` only — viewers get the button disabled with the reason). **Weekly summary by email** (2026-10-01, T63; API-092 `GET · PUT /api/analytics/report`, migration 0033 `report_subscriptions`, `server/modules/analytics/report.ts`, sweep `sendWeeklyReports`): a member's own opt-in; Sunday→Saturday in Riyadh, sent from Sunday 08:00, once; export permission + full analytics + a confirmed address, re-checked weekly. Real delivery needs the mail provider (GO-LIVE) |
 | P4.9 ✅ | Real-time activity | — | **Built 2026-10-01** (`live.ts`, API-123): the last half hour from the raw events, cached 10 s; "In your shop right now" on MD-120 |
 | P4.10 ✅ | Session explorer | — | **Built 2026-10-01** (`sessions.ts`, API-124/125, MD-121 `/dashboard/analytics/visits`): a day's visits and one visit's path, within the 90 days |
-| P4.11 ◐ | Analytics privacy & PDPL | — | `docs/ANALYTICS-PRIVACY.md` (what is collected, derived and dropped; kept; who sees what) held by `privacy.test.ts`. Left: the website's privacy policy wording (Nader) |
+| P4.11 ✅ | Analytics privacy & PDPL | — | `docs/ANALYTICS-PRIVACY.md` (what is collected, derived and dropped; kept; who sees what) held by `privacy.test.ts`. The website's privacy policy says the same since 2026-10-03 (T68) |
 | P4.12 | Analytics load test | 🔒 staging | The plan's 2.5M events/day end to end — and the number at which Postgres stops being the right answer |
 
 ## Track M — Marketing site (12)

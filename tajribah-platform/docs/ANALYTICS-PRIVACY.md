@@ -65,17 +65,9 @@ One row per event in `analytics_events`, and nothing else:
 | Tajribah staff | Through "view as the store" only (A4b), read-only, on the staff trail |
 | Another store | Nothing: every read is inside the store's row-level-security scope |
 
-## The privacy policy — to bring in line (Nader)
+## The privacy policy
 
-The website's privacy policy (`tajribah-try-on/content/legal.ts`) describes "Studio usage data" and,
-under Retention, "Usage statistics: aggregated and not tied to individuals". Since P4.2–P4.10 that
-is incomplete: events from **product pages** are kept **per visit for 90 days** and the merchant can
-see a visit's path. Proposed wording (not applied — public legal text is Nader's to approve):
-
-- *What we collect* — replace the studio line with: "Shop-page usage, on the merchant's behalf:
-  anonymous events such as viewing a product, opening the 3D view or the try-on, adding to cart and a
-  purchase's value, with device type, operating system, browser family, country and the shop page's
-  address. We do not store IP addresses or browser identifiers; each visit has an id that changes
-  every day and in every shop."
-- *Retention* — replace the statistics line with: "Shop-page events: 90 days, then deleted; daily
-  totals that are not tied to anyone are kept."
+The website's privacy policy (`tajribah-try-on/content/legal.ts`) says this in public: shop-page events
+are kept per visit for 90 days, anonymously, with no IP addresses or browser identifiers, then deleted;
+daily totals tied to no one are kept. Applied on 2026-10-03 (DECISIONS T68). When this record changes,
+the policy changes with it.

@@ -6,6 +6,26 @@ new entry that names the one it replaces.
 
 Format: **ID · date · decision · why · rollback cost and path.**
 
+## At a glance — what is in force (2026-10-04)
+
+The log below is history, oldest first. This table is the short version of what holds today.
+
+| | In force |
+|---|---|
+| **Stack** | Two apps on Cloudflare Workers (vinext / Next 16): the dashboard + API here, the website + try-on in `../tajribah-try-on` (T2, ARCHITECTURE.md) |
+| **Database** | PostgreSQL 16 with row-level security (T9 — replaced T1's D1 and T8's sql.js); production on a Hetzner server (T11), reached through Hyperdrive with `pg` and two logins (T60) |
+| **Background work** | A `jobs` table, Cloudflare Queues + a minute cron; image and 3D work on a Node worker (T6, T57) |
+| **Passwords** | PBKDF2-SHA-256, 600k rounds — **revisit before the first real merchant password** (T3) |
+| **Money** | Integer minor units (halalas) with a currency (T5); a plan change applies to every subscriber at once (T19); SRO Company is the seller (T20) |
+| **Domains** | Website and try-on on tajribah.sa, dashboard on app.tajribah.sa, services on tajribah.com (T29) |
+| **Plans** | Every plan has the studio; "on me" is Pro and up (T33); the trial runs on Growth (T35); unbuilt features shown as coming or not at all (T34, T39) |
+| **Try-on** | Watches first with the owner's studio unchanged (T26), then glasses, rings, necklaces and bags with real licensed photos and measured scale (T68) |
+| **3D** | gltf-transform + meshopt (T14); the iPhone file made in TypeScript (T65); a generation costs 10 credits (T55); generated models reviewed by a person (T25) |
+| **Store platforms** | Salla and Zid built from their public documentation, confirmed once the apps are registered (T61); Shopify and WooCommerce built, a Shopify erasure removes access but keeps the catalogue (T58) |
+| **Privacy** | Retention and privacy requests (T22); shop analytics anonymous, 90 days (T64, ANALYTICS-PRIVACY.md); website analytics GA4 behind consent (T68) |
+| **Professional models** | Price list 349 / 649 / 1,149 SAR; paid by bank transfer until card payments open (T66, T68) |
+| **Gates** | Account-free work of every phase may be built before its gate (T12, T18, T56); gates themselves still pass only with the real accounts |
+
 ---
 
 ## Inherited from the build plan (not re-litigated)
@@ -197,7 +217,7 @@ from T9 (`tajribah_app`, `tajribah_admin`) become two login roles on that server
 ## T12 · 2026-09-23 · P1 starts before the full P0 gate passes — for account-free work only
 
 **Decision (Nader's).** The P0 gate passed for code but not for infrastructure (no CI runner,
-no staging; `docs/gates/P0.md`). Rather than wait, P1 packages that need **no external
+no staging; the P0 gate report, since removed — in git history). Rather than wait, P1 packages that need **no external
 account** may start: those whose only dependencies are this repo and the test database.
 
 **Guard rails.** Salla/Zid/Cloudflare/Moyasar-dependent packages stay closed. Every P1

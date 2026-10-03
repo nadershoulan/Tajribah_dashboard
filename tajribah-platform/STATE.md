@@ -10,16 +10,11 @@ view of the same facts for Nader — update it in the same session. Counts are d
 | Stack deviations | `docs/ARCHITECTURE.md` |
 | Decisions | `docs/DECISIONS.md` (T9: Postgres + RLS, reversing T1) |
 | Packages | `docs/PACKAGES.md` |
-| Current phase | **P0 — Foundation** (gate run: code **passed**, full gate **not passed** — `docs/gates/P0.md`) |
-| Gate not yet passed | P0 |
+| Reading guide | `docs/README.md` (what each document answers) · run locally: `docs/RUNNING-LOCALLY.md` · hosting: `docs/HOSTING.md` |
+| Where things stand | **`PROGRESS.md`'s header is the current summary** (updated after every package). The tables below are older detail. |
 
-> **Gate override in force (T12).** P0's code gate passed; its infrastructure half (CI,
-> staging) did not. Nader chose to start **account-free P1 packages** meanwhile. This is not a
-> passed gate: re-run `docs/gates/P0.md` before P1's own gate.
->
-> **Extended (T18, 2026-09-26).** With every account-free P1 package built, Nader opened
-> **account-free packages of later phases**, spine order (P2 first). No phase gate is claimed:
-> P0's re-run and P1's gate still come first.
+> **Gates (T12, T18, T56).** Account-free work of every phase is built ahead of the gates; no phase gate
+> is claimed until it passes with the real accounts (Cloudflare, the database server, the store platforms).
 
 ## Progress
 
@@ -40,13 +35,9 @@ view of the same facts for Nader — update it in the same session. Counts are d
 
 ## Next up
 
-Everything in P0 that this machine can build and verify is built and verified — including,
-since 2026-09-23, **lint, the full typecheck and the Next dev server** (portable Node 22, see
-below). What is left needs a decision or an account: a Postgres host (the dev Worker has no
-database, so sign-in → dashboard → sign-out cannot finish in a browser — the last step of
-P0.20), a CI runner (P0.21), Cloudflare (P0.22 staging).
-**P1 does not start until the full gate passes** — see `docs/gates/P0.md`.
-
+See `PROGRESS.md` → "Next" and "Waiting on you". The P0 notes that stood here (written 2026-09-22–23,
+before CI, the database runs and the later phases) are superseded and removed; the P0 table below is kept
+as the record of what was verified.
 
 **Done and verified**
 

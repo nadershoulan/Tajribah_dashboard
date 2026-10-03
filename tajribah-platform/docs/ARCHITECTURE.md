@@ -8,6 +8,22 @@ vinext (Next.js 16 on Vite) + Cloudflare Workers starter used by `tajribah-try-o
 Every difference is listed below with what it costs, what it buys, and how to get back to
 the plan's shape. Nothing here is a silent substitution.
 
+## What runs where
+
+```
+Cloudflare
+  tajribah.sa ............ the website + try-on studio        (../tajribah-try-on, a Worker)
+  app.tajribah.sa ........ dashboard, staff console, API      (this repo, a Worker; cron + queue for background work)
+  cfg.tajribah.com ....... each published product's config   (a small Worker reading KV)
+  cdn.tajribah.com ....... widget, 3D files, pictures         (R2)
+  ev.tajribah.com ........ shop analytics collector           (the dashboard Worker)
+Hetzner Cloud server
+  PostgreSQL 16 .......... all merchant data (reached through Cloudflare Hyperdrive)
+  node scripts/worker-node.mjs ... 3D optimisation + try-on picture checks (sharp cannot run on Workers)
+```
+
+Running it on your computer: `RUNNING-LOCALLY.md`. Production hosting and costs: `HOSTING.md`.
+
 ## The shape
 
 ```
@@ -25,7 +41,7 @@ tajribah-platform/            one deployable: Worker + Next 16 App Router
 
 `server/modules/*` mirrors the plan's NestJS module list one-to-one
 (`tenants users onboarding connections products models3d ar tryon ai-jobs billing
-analytics support admin`) and keeps its rule: **controllers hold no business logic,
+analytics support admin`) and keeps its rule (the folder names have grown since — `server/modules/` is the list): **controllers hold no business logic,
 repositories are the only place SQL lives, and modules never import each other's
 repositories.**
 
@@ -33,13 +49,13 @@ repositories.**
 
 | Plan | Here | Why | Cost / return path |
 |---|---|---|---|
-| PostgreSQL 16 + RLS | **Same** (T9, which reverses T1). Tests run on PGlite, in process. | — | The production host and driver are not chosen yet; nothing registers a database outside the tests. |
+| PostgreSQL 16 + RLS | **Same** (T9, which reverses T1). Tests run on PGlite, in process. | — | Production: a Hetzner server (T11), reached through Cloudflare Hyperdrive with the `pg` driver (T60). Tried end to end on a real PostgreSQL 16 on this machine (`DATABASE.md`). |
 | NestJS 11 on Fastify | Next route handlers + a service/repository layer | One runtime, one deploy, no second process to host. | Lose DI and interceptors; gain nothing to run. Module boundaries are enforced by convention and lint, not by the framework. |
-| BullMQ + Redis | Cloudflare Queues + Cron Triggers, with a `jobs` table as the source of truth | No Redis to host. Job state already has to be queryable for the merchant UI. | Fair scheduling and backpressure must be written, not configured. Until the Cloudflare account exists, the queue runs in "inline" mode behind the same interface. |
+| BullMQ + Redis | Cloudflare Queues + an every-minute Cron Trigger, with a `jobs` table as the source of truth; image and 3D jobs on a Node worker (T57) | No Redis to host. Job state already has to be queryable for the merchant UI. | Fair scheduling and backpressure are written, not configured (a flooded store cannot starve another — tested). Until the Cloudflare account exists, the queue runs "inline" behind the same interface. |
 | ClickHouse | `analytics_events` + rollup tables in Postgres, written from the edge | Keeps D5's rule (analytics never touches the transactional read path for merchants) while needing no extra store. | Fine to ~millions of rows, not to 2.5M/day. The event schema is ClickHouse-shaped from day one so the move is an exporter, not a rewrite. |
 | Redis cache | Workers KV | Already a binding. | KV is eventually consistent — never read-after-write for anything a merchant just saved. |
 | Viewer config: KV entry, 5-minute cache plus purge | KV entry behind `ConfigStore` (`server/core/edge/configs.ts`, P1.15), served by its own `cfg.` Worker (`config-worker.ts`); **60-second cache, no purge** | A change or a take-down reaches shoppers in about a minute (plus KV's own propagation) with no purge API to call or fail; a replaced picture is kept 10 minutes (T36). | More reads at the edge than a 5-minute cache — still never Postgres. Longer caching is one header in `host.ts` if the load asks for it. |
-| Monorepo (pnpm + Turborepo) | One app, folders instead of packages | pnpm is not installed on this machine and the plan's four frontends do not exist yet. | `lib/contracts`, `lib/i18n`, `server/connectors` are already written as self-contained folders with no upward imports, so extracting them into packages is a move, not a refactor. |
+| Monorepo (pnpm + Turborepo) | Two apps side by side (this one and `../tajribah-try-on`), folders instead of packages | The plan's four frontends do not exist yet; two apps are simpler to deploy. | `lib/contracts`, `lib/i18n`, `server/connectors` are self-contained folders with no upward imports, so extracting them into packages is a move, not a refactor. |
 | argon2id | PBKDF2-HMAC-SHA-256, 600k iterations, via WebCrypto | Workers have no native argon2; the WASM build is a dependency and a cold-start cost. | Weaker per-guess cost. Recorded in DECISIONS.md as **must revisit before the first real merchant password**. The hash column stores its own algorithm prefix so a rehash-on-login upgrade needs no migration. |
 | Marketing site in Astro | `tajribah-try-on` (already built, separate folder) | It exists, it is Arabic-first and it carries the live try-on demo. | Unchanged as a decision; since 2026-09-27 **Track M is built in that repo**, under its own `CLAUDE.md`. This app's code still does not touch it — which is why its plan prices are a hand-kept copy of the catalogue (filed under Track M in `docs/PACKAGES.md`). |
 
@@ -86,8 +102,9 @@ Shopper   → Worker route       → KV                               (anonymous
                                → event collector → buffered → analytics tables
 ```
 
-The shopper path never touches the merchant database, and publishing AR settings writes Postgres
-**and** enqueues a KV render keyed `cfg:{tenantId}:{productId}:{version}`. If the dashboard
+The shopper path never touches the merchant database: publishing a product writes Postgres
+**and** its config to KV (`server/modules/edge/publish.ts`), which shop pages, products' own pages
+and the try-on read. If the dashboard
 is down, storefronts keep working. That property is why the widget can be embedded in other
 people's shops.
 

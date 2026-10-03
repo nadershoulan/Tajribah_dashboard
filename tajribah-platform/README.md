@@ -1,51 +1,46 @@
 # تجربة Tajribah — platform
 
-The multi-tenant AR/AI commerce platform from `../../TAJRIBAH-BUILD-PLAN.md`, built on the
-same stack as `../tajribah-try-on`: Next.js 16 (App Router) on vinext + Vite + Cloudflare
-Workers, React 19, TypeScript, Tailwind v4, shadcn/ui, Drizzle on PostgreSQL with row-level security.
+The merchant dashboard, the staff console, the API, the shop widget and the background work, from
+`../../TAJRIBAH-BUILD-PLAN.md`. Next.js 16 (App Router) on vinext + Cloudflare Workers, React 19,
+TypeScript, Tailwind v4, shadcn/ui, Drizzle on PostgreSQL 16 with row-level security. Arabic is the
+default language and RTL the default layout.
 
-Arabic is the default language and RTL the default layout. **`../tajribah-try-on` is
-finished work and is never modified from here.**
+Its sibling `../tajribah-try-on` is the website and the try-on studio.
 
-Start with [STATE.md](STATE.md) — what is done, what is next, what is blocked.
+## Read first
 
 | | |
 |---|---|
-| [STATE.md](STATE.md) | Progress, blockers, session log. Updated every session. |
-| [CLAUDE.md](CLAUDE.md) | Working rules. Read before changing anything. |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the plan maps onto this stack, and every deviation from it. |
-| [docs/DECISIONS.md](docs/DECISIONS.md) | Decisions that would be expensive to reverse (T1–T8). |
-| [docs/PACKAGES.md](docs/PACKAGES.md) | The work packages and their definitions of done. |
+| [docs/README.md](docs/README.md) | **Where to start reading** — which document answers what |
+| [PROGRESS.md](PROGRESS.md) | Where the build is, in plain words. The top is always current. |
+| [docs/RUNNING-LOCALLY.md](docs/RUNNING-LOCALLY.md) | Running it on your computer (no Docker) |
+| [docs/HOSTING.md](docs/HOSTING.md) | Where it runs in production, and why |
+| [CLAUDE.md](CLAUDE.md) | The rules every change follows |
 
 ## Where things live
 
-- `db/schema/*` — 50 tables, split by area; `db/schema/index.ts` also exports the registry
-  the isolation suite walks
-- `server/core/*` — tenancy, auth, rbac, errors, jobs, rate limiting, billing entitlements,
-  logging. Cross-cutting; features never import it sideways.
-- `server/modules/<context>/` — one folder per bounded context; `repository.ts` is the only
-  place SQL lives
-- `server/worker/main.ts` — the worker **process** (it has an entry point, deliberately)
-- `lib/*` — isomorphic: language, money, formatters, permissions, plans, view models
-- `components/pages/*` — one component per screen, shared by the Next app and the preview
-- `components/dashboard/*` — shell and UI kit
-- `preview/*` — the static shell that renders the real screens without a server
+- `app/` — routes: the dashboard's pages, the staff console, and `app/api/**` (each a one-line file pointing at a handler)
+- `components/pages/*` — one component per screen, shared by the app and the static preview; `components/dashboard/*` — the shell and UI kit
+- `server/core/*` — what everything relies on: tenancy, sign-in, roles, errors, jobs, storage, rate limits, plans, logging
+- `server/modules/<area>/` — one folder per area (products, models, try-on, analytics, billing, connections, admin…): `http.ts` handlers, `service.ts` logic
+- `server/connectors/*` — Salla, Zid, Shopify, WooCommerce
+- `server/worker/*` — background work: the every-minute pass, the queue, the Node worker for images and 3D
+- `db/schema/*` and `drizzle/*.sql` — the tables and every migration (each with its undo)
+- `widget/` — the script shops paste, which draws the "view in your space / try it on" button
+- `lib/*` — shared by browser and server: language, money, formats, permissions, plans, contracts
+- `preview/*` — the static demo of every screen, with sample data and no server
 
-## Running things on this machine
-
-Node here is 20.15 with no pnpm; the app needs ≥22.13, so `npm run dev` and `next build`
-**cannot run**. What does run, against an external toolkit (`<tk>`):
+## Checks
 
 ```sh
-node scripts/test.mjs --modules <tk>/node_modules       # unit + isolation suites
-node preview/build.mjs --modules <tk>/node_modules      # static preview -> dist-preview/
+node scripts/test.mjs --modules node_modules     # every test (about 900)
+pnpm lint && pnpm typecheck
 ```
 
-Type-checking uses a tsconfig scoped to the files this app actually uses, with `@types/*`
-ahead of `node_modules/*` in `paths`. See CLAUDE.md.
+GitHub runs the same on every push.
 
 ## Demo data
 
-`lib/demo-data.ts` is seeded data for the preview only, and the preview says so on every
-screen. It uses Failet as an illustrative Saudi watch store — an example, not a customer.
-Nothing in the product ships with invented numbers: a metric without data renders `—`.
+`lib/demo-data.ts` is sample data for the preview only, and the preview says so on every screen. It uses
+Failet as an illustrative Saudi watch store — an example, not a customer. Nothing in the product ships
+with invented numbers: a figure without data shows `—`.

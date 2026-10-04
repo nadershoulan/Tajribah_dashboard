@@ -15,7 +15,7 @@ import { storeConnections } from '@/db/schema';
 import { connectionHealth } from './health';
 import { disconnectStore, listConnections } from './service';
 import { completeWooConnect, startWooConnect } from './woocommerce';
-import { connectFeed, importProductFile } from './feed';
+import { connectFeed, importProductFile, syncFeedNow } from './feed';
 import { completeShopifyConnect, startShopifyConnect, type ShopifyAppConfig } from './shopify';
 import { linkSallaStore, openSallaApp, type SallaLinkConfig } from './salla';
 import { completeZidCallback, linkZidStore, startZid, startZidFromDashboard, ZID_STATE_COOKIE, STATE_TTL_MS, type ZidConnectConfig } from './zid';
@@ -52,7 +52,11 @@ export const requestSyncHandler = route(async (request) => {
   assertSameOrigin(request, config);
   const ctx = await tenantContextFor(request, config);
   // Another store's id is a 404 from the row lock inside `requestSync`.
-  return json(await requestSync(ctx, idFrom(request, 1), { type: 'incremental', triggeredBy: 'user' }), { status: 202 });
+  const id = idFrom(request, 1);
+  const row = await ctx.db.findById(storeConnections, id);
+  // A product feed's link is read whole, now (feed.ts `syncFeedNow`); a file is refused by `requestSync` itself.
+  if (row?.provider === 'feed' && row.storeUrl) return json(await syncFeedNow(ctx, (await requestSync(ctx, id, { type: 'full', triggeredBy: 'user' })).id));
+  return json(await requestSync(ctx, id, { type: 'incremental', triggeredBy: 'user' }), { status: 202 });
 });
 
 /** API-062 — DELETE /api/connections/[id] → tokens forgotten, products kept */

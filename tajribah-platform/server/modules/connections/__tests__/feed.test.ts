@@ -15,7 +15,7 @@ import { setLogLevel } from '@/server/core/observability/log';
 import { buildTenantContext } from '@/server/core/tenancy/context';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
 import { RSS, workbook } from '@/server/testing/feed-fixtures';
-import { connectFeed, importProductFile } from '@/server/modules/connections/feed';
+import { connectFeed, importProductFile, syncFeedNow } from '@/server/modules/connections/feed';
 import { runSyncStep } from '@/server/modules/sync/engine';
 import { requestSync } from '@/server/modules/sync/service';
 
@@ -63,7 +63,7 @@ test('a feed’s link: checked, sealed, synced now and every 24 hours; a change 
     assert.equal(row.storeUrl, 'https://shop.example.sa', 'the store’s own address, for the install check');
     assert.ok(!JSON.stringify(row).includes('S3cretT0ken'), 'the link carries a secret: sealed');
 
-    await syncAll(tenantId, linked.sync.id);
+    assert.equal(linked.sync.status, 'done', 'synced in the request: nothing waits on a worker (none runs on a local machine)');
     let rows = await catalogue(harness, tenantId);
     assert.deepEqual(rows.map((p) => [p.externalId, p.nameAr, p.priceMinor, p.status]).sort(), [['200', null, 6000, 'active'], ['W-1', 'ساعة فولاذية', 125000, 'active']]);
     assert.equal(rows.find((p) => p.externalId === 'W-1').images.length, 2);
@@ -71,8 +71,8 @@ test('a feed’s link: checked, sealed, synced now and every 24 hours; a change 
     // The store changes a price and adds a product; the next read brings both.
     feed.body = RSS.replace('<g:price>60 SAR</g:price>', '<g:price>75 SAR</g:price>')
       .replace('</channel>', '<item><g:id>300</g:id><g:title>Bowl</g:title><g:price>20 SAR</g:price></item></channel>');
-    const again = await requestSync(ctx, linked.connection.id, { type: 'full' });
-    await syncAll(tenantId, again.id);
+    const again = await syncFeedNow(ctx, (await requestSync(ctx, linked.connection.id, { type: 'full' })).id);
+    assert.equal(again.status, 'done', '"Sync now" on a feed reads it at once');
     rows = await catalogue(harness, tenantId);
     assert.deepEqual(rows.map((p) => [p.externalId, p.priceMinor]).sort(), [['200', 7500], ['300', 2000], ['W-1', 125000]]);
 

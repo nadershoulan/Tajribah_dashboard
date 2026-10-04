@@ -18,13 +18,14 @@ import { storeConnections } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { FEED_MAX_BYTES, feedProblem, parseFeedText, parseTable, type FeedResult } from '@/lib/product-feed';
 import { readXlsx } from '@/lib/xlsx';
-import type { FeedImport } from '@/lib/view-models';
+import type { FeedImport, SyncProgress } from '@/lib/view-models';
 import { errors } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
 import { FEED_INTERVAL_MINUTES, FeedError, fetchFeed, stageFile } from '@/server/connectors/feed/connector';
 import { runSyncStep } from '@/server/modules/sync/engine';
-import { createSyncIn, requestSync, toProgress } from '@/server/modules/sync/service';
+import { createSyncIn, requestSync, syncProgress, toProgress } from '@/server/modules/sync/service';
+import { enqueueEdgeRefresh } from '@/server/modules/edge/publish';
 import { connectStore, summaryOf } from './service';
 
 const digest = async (text: string) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))].slice(0, 16).map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -54,8 +55,26 @@ export async function connectFeed(ctx: TenantContext, input: { url: string }, fe
   await withTenant(ctx.tenantId, (db) => db.updateById(storeConnections, connection.id, {
     syncIntervalMinutes: FEED_INTERVAL_MINUTES, settings: { kind: 'url', rows: result.rows, products: result.products.length },
   }));
-  const sync = await requestSync(ctx, connection.id, { type: 'full' });
+  const sync = await syncFeedNow(ctx, (await requestSync(ctx, connection.id, { type: 'full' })).id);
   return { connection: await summaryOf(ctx, connection.id), rows: result.rows, products: result.products.length, skipped: result.skipped, sync };
+}
+
+/**
+ * A feed's sync, run here and now rather than left for the worker: a whole feed reads in seconds (1,240
+ * items in under 2 s), so the merchant sees the products at once — and on a machine with no queue consumer
+ * (a local run) nothing waits forever. The every-24-hours refresh is still the scheduler's.
+ */
+export async function syncFeedNow(ctx: TenantContext, syncJobId: string): Promise<SyncProgress> {
+  let progress: SyncProgress | null = null;
+  for (let run = 0; run < 100; run++) {
+    const step = await runSyncStep({ tenantId: ctx.tenantId, syncJobId, requestId: `${ctx.requestId}:feed`, maxPages: 50 });
+    if (step.job) progress = toProgress(step.job);
+    if (step.result !== 'more') {
+      if (step.result === 'done') await enqueueEdgeRefresh(ctx.tenantId); // names and prices are in published configs
+      break;
+    }
+  }
+  return progress ?? syncProgress(ctx, syncJobId);
 }
 
 /** The file's products, whatever its kind: an Excel workbook by its zip signature, else text. */

@@ -10,7 +10,8 @@ code (imported as `@site/…`) and `app/(site)` their pages, served by the same 
 never rewrite the studio, real photography only, invent nothing — and is recorded here in `STATE.md`
 and `docs/PACKAGES.md` like any other package. The dashboard's code (`@/…`) and the website's
 (`@site/…`) stay apart: the proxy gives each its own page policy (`lib/site-paths.ts`).
-`../tajribah-try-on` is the old copy, frozen until Nader deletes it — never edit it.
+The old `tajribah-try-on` folder was deleted on 2026-10-04 at Nader's request; its zip is outside the repo
+(`Desktop/MyWork/Tajribah/tajribah-try-on-2026-10-04.zip`). This app is the only copy of the website.
 
 ## Hard rules (from §14, non-negotiable)
 

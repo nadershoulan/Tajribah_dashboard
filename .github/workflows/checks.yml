@@ -5,7 +5,7 @@
 #           and lint (errors fail).
 #           Since 2026-10-04 the website lives in the platform too (site/, app/(site)), so all of
 #           this covers it; its lint gate exempts only the owner's studio effects and vendored files.
-# website:  the old tajribah-try-on copy, kept until it is deleted: the typecheck only.
+# (The old tajribah-try-on folder and its "website" job were removed on 2026-10-04.)
 name: checks
 
 on:
@@ -34,21 +34,3 @@ jobs:
         run: pnpm install --no-frozen-lockfile
       - name: every gate check
         run: node scripts/verify.mjs --modules node_modules
-
-  website:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: tajribah-try-on
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: pnpm (the version package.json names)
-        run: corepack enable && corepack prepare pnpm@11.25.0 --activate
-      - name: install
-        run: pnpm install --frozen-lockfile
-      - name: typecheck
-        run: node node_modules/typescript/bin/tsc --noEmit -p .

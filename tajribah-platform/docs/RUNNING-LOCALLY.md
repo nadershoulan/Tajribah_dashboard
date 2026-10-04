@@ -80,7 +80,9 @@ terminal instead of being sent, since no mail provider is set up yet.
 **Optional — 3D models and try-on pictures.** Optimising an uploaded 3D model and checking a try-on
 picture run in a separate Node process (`node scripts/worker-node.mjs`) and need S3-style storage. For
 this on your computer, `DATABASE.md` → "Model and picture work on this machine" shows how with
-SeaweedFS (a single program, no Docker). Without it, uploads wait in "processing".
+SeaweedFS (a single program, no Docker). Without it, uploads wait in "processing". The dashboard's pages, when opened at
+127.0.0.1 or localhost, may upload to storage on this computer; publishing to a shop still needs https
+storage, so it is refused locally.
 
 ## The checks
 

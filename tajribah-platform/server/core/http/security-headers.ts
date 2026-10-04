@@ -40,7 +40,7 @@ export const API_CSP = "default-src 'none'; frame-ancestors 'none'";
 export const SALLA_APP_PATH = '/salla/app';
 export const SALLA_DASHBOARD = 'https://s.salla.sa';
 
-export function pageCsp(nonce: string, { dev = false, framedBy }: { dev?: boolean; framedBy?: string } = {}): string {
+export function pageCsp(nonce: string, { dev = false, framedBy, local = false }: { dev?: boolean; framedBy?: string; local?: boolean } = {}): string {
   return [
     "default-src 'self'",
     // 'wasm-unsafe-eval' lets WebAssembly compile (the meshopt decoder in the staff model review,
@@ -54,7 +54,9 @@ export function pageCsp(nonce: string, { dev = false, framedBy }: { dev?: boolea
     "img-src 'self' data: blob:",
     // 3D models upload straight to R2 with a presigned PUT (P1.12); blob: is the reviewer's model,
     // fetched with the session and handed to the viewer (P3.6).
-    `connect-src 'self' blob: https://*.r2.cloudflarestorage.com${dev ? ' ws: wss:' : ''}`,
+    // `local`: a page served from this computer may also upload to storage running on it (an S3 server
+    // such as SeaweedFS, docs/DATABASE.md); a page on a real address never is local.
+    `connect-src 'self' blob: https://*.r2.cloudflarestorage.com${local ? ' http://localhost:* http://127.0.0.1:*' : ''}${dev ? ' ws: wss:' : ''}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

@@ -27,7 +27,7 @@ export async function proxy(request: NextRequest) {
   } else {
     // T61: the Salla app page is framed by Salla's merchant dashboard, and by nothing else.
     const framedBy = pathname.replace(/\/$/, "") === SALLA_APP_PATH ? SALLA_DASHBOARD : undefined;
-    csp = pageCsp(newNonce(), { dev, framedBy });
+    csp = pageCsp(newNonce(), { dev, framedBy, local: isLocalHost(hostname) });
   }
   const headers = new Headers(request.headers);
   headers.set("content-security-policy", csp);

@@ -39,6 +39,14 @@ test('the page policy holds scripts to the nonce; dev allowances never reach a b
   const dev = pageCsp('abc123', { dev: true });
   assert.match(directive(dev, 'script-src'), /'unsafe-eval'/);
   assert.match(directive(dev, 'connect-src'), /ws:/);
+  assert.doesNotMatch(directive(csp, 'connect-src'), /127\.0\.0\.1|localhost/, 'a real address never names a local server');
+  assert.match(directive(pageCsp('abc123', { local: true }), 'connect-src'), /http:\/\/127\.0\.0\.1:\*/, 'this computer: its own storage');
+});
+
+test('only a page served from this computer may upload to storage on it', async () => {
+  const at = async (url: string) => directive((await proxy(new NextRequest(url))).headers.get('content-security-policy') ?? '', 'connect-src');
+  assert.match(await at('http://127.0.0.1:8799/dashboard/tryon'), /http:\/\/127\.0\.0\.1:\*/);
+  assert.doesNotMatch(await at('https://app.tajribah.sa/dashboard/tryon'), /127\.0\.0\.1|localhost/);
 });
 
 test('the proxy gives each page its own nonce, on the request (for the renderer) and the response', async () => {

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isSized, pageOf } from '@/lib/product-list';
+import { isSized, nextSort, pageOf } from '@/lib/product-list';
 import { DEMO_PRODUCTS } from '@/lib/demo-data';
 import type { ProductRow } from '@/lib/view-models';
 
@@ -61,4 +61,34 @@ test('paging by cursor neither skips nor repeats', () => {
 test('the demo catalogue answers through the same rules', () => {
   const page = pageOf(DEMO_PRODUCTS, {});
   assert.equal(page.counts.all, DEMO_PRODUCTS.filter((p) => p.status !== 'archived').length);
+});
+
+test('T74: the preview sorts each column exactly as the API does (same rows, same orders as its test)', () => {
+  const rows = [
+    row('01', { name: 'banana', priceMinor: 500, productType: 'watch', dimensions: { widthMm: 40, heightMm: 40 }, modelStatus: 'failed', live: true }),
+    row('02', { name: 'Apple', priceMinor: null, productType: 'furniture', modelStatus: 'ready', arEnabled: true, dimensions: { widthMm: 900, heightMm: 800 }, views30: 7 }),
+    row('03', { name: 'cherry', priceMinor: 100, productType: 'eyewear', dimensions: { widthMm: 140 }, views30: 30 }),
+    row('04', { name: 'date', priceMinor: 100, productType: 'other' }),
+  ];
+  const names = (sort: any, dir: 'asc' | 'desc' = 'asc', extra: any = {}) => pageOf(rows, { sort, dir, ...extra }).rows.map((r) => r.name);
+  assert.deepEqual(names('name'), ['Apple', 'banana', 'cherry', 'date']);
+  assert.deepEqual(names('name', 'desc'), ['date', 'cherry', 'banana', 'Apple']);
+  assert.deepEqual(names('price'), ['date', 'cherry', 'banana', 'Apple']);
+  assert.deepEqual(names('price', 'desc'), ['banana', 'date', 'cherry', 'Apple']);
+  assert.deepEqual(names('size'), ['banana', 'Apple', 'date', 'cherry']);
+  assert.deepEqual(names('model'), ['Apple', 'banana', 'date', 'cherry']);
+  assert.deepEqual(names('ar'), ['banana', 'Apple', 'date', 'cherry']);
+  assert.deepEqual(names('views', 'desc'), ['cherry', 'Apple', 'date', 'banana']);
+  assert.deepEqual(names('type'), ['cherry', 'Apple', 'date', 'banana']);
+  assert.deepEqual([...names('name', 'asc', { limit: 2, page: 1 }), ...names('name', 'asc', { limit: 2, page: 2 })], ['Apple', 'banana', 'cherry', 'date']);
+});
+
+test('T74: a header click — that column first way, then the other way, then back to newest first', () => {
+  assert.deepEqual(nextSort(null, 'name'), { by: 'name', dir: 'asc' });
+  assert.deepEqual(nextSort({ by: 'name', dir: 'asc' }, 'name'), { by: 'name', dir: 'desc' });
+  assert.equal(nextSort({ by: 'name', dir: 'desc' }, 'name'), null);
+  assert.deepEqual(nextSort(null, 'views'), { by: 'views', dir: 'desc' }, 'most viewed first');
+  assert.deepEqual(nextSort({ by: 'views', dir: 'desc' }, 'views'), { by: 'views', dir: 'asc' });
+  assert.equal(nextSort({ by: 'views', dir: 'asc' }, 'views'), null);
+  assert.deepEqual(nextSort({ by: 'name', dir: 'desc' }, 'price'), { by: 'price', dir: 'desc' }, 'another column starts fresh');
 });

@@ -41,6 +41,7 @@ export default function ProfessionalPanel({ product }: { product: ProductRow }) 
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState<'ask' | 'cancel' | 'accept' | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [asking, setAsking] = useState(false); // "are you sure?" before a request goes to the team
   const say = (m: string) => (lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(m))?.[1] ?? m : m);
 
   const mine = (data ?? []).filter((o) => o.productId === product.id);
@@ -50,7 +51,7 @@ export default function ProfessionalPanel({ product }: { product: ProductRow }) 
   const act = async (kind: 'ask' | 'cancel' | 'accept', run: () => Promise<unknown>) => {
     setBusy(kind);
     setProblem(null);
-    try { await run(); setNote(''); setVersion((v) => v + 1); } catch (e) {
+    try { await run(); setNote(''); setAsking(false); setVersion((v) => v + 1); } catch (e) {
       setProblem(say((e as ApiError).fields?.note?.[0] ?? (e as Error).message));
     } finally { setBusy(null); }
   };
@@ -81,10 +82,27 @@ export default function ProfessionalPanel({ product }: { product: ProductRow }) 
             <textarea id={`pro-note-${product.id}`} rows={3} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)}
               placeholder={t('مثل: سطح لامع، مفصل يتحرك، لون دقيق', 'Like: a reflective surface, a moving hinge, an exact colour')} />
           </div>
-          <button type="button" className="btn btn-primary" disabled={busy !== null || lock.locked} title={lock.title}
-            onClick={() => void act('ask', () => source.requestProfessional(product.id, note.trim() || null))}>
-            <PenTool size={16} aria-hidden />{busy === 'ask' ? t('جارٍ الإرسال…', 'Sending…') : t('اطلب عرض سعر', 'Ask for a quote')}
-          </button>
+          {!asking && (
+            <button type="button" className="btn btn-primary" disabled={busy !== null || lock.locked} title={lock.title} onClick={() => setAsking(true)}>
+              <PenTool size={16} aria-hidden />{t('اطلب عرض سعر', 'Ask for a quote')}
+            </button>
+          )}
+          {asking && (
+            <div className="confirm confirm-ask" role="alertdialog" aria-labelledby={`pro-ask-${product.id}`}>
+              <p id={`pro-ask-${product.id}`} style={{ margin: 0 }}>
+                <strong>{t('إرسال طلب عرض سعر لهذا المنتج؟', 'Send a quote request for this product?')}</strong>{' '}
+                {t('يصلك السعر هنا قبل أي عمل، ولا يبدأ شيء حتى تقبله. يمكنك الإلغاء في أي وقت قبل بدء العمل.',
+                  'The price arrives here before any work, and nothing starts until you accept it. You can cancel any time before work starts.')}
+              </p>
+              <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                <button type="button" className="btn btn-primary btn-sm" disabled={busy !== null || lock.locked}
+                  onClick={() => void act('ask', () => source.requestProfessional(product.id, note.trim() || null))}>
+                  {busy === 'ask' ? t('جارٍ الإرسال…', 'Sending…') : t('نعم، أرسل الطلب', 'Yes, send the request')}
+                </button>
+                <button type="button" className="btn btn-ghost btn-sm" disabled={busy === 'ask'} onClick={() => setAsking(false)}>{t('إلغاء', 'Cancel')}</button>
+              </div>
+            </div>
+          )}
         </>
       )}
       {shown?.status === 'requested' && (

@@ -3,12 +3,12 @@
 // MD-010 — Products table view
 
 import { useState } from 'react';
-import { Package, Plus, Ruler, Search, Upload } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Package, Plus, Ruler, Search, Upload } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
 import { useResource } from '@/lib/data';
-import type { ProductFilter } from '@/lib/contracts/products';
-import { isSized } from '@/lib/product-list';
+import type { ProductFilter, ProductSort } from '@/lib/contracts/products';
+import { isSized, nextSort, type ProductSortState } from '@/lib/product-list';
 import { formatNumber, formatRelative } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
 import { Shell } from '@/components/dashboard/chrome';
@@ -30,6 +30,18 @@ const TYPE_LABEL: Record<ProductRow['productType'], { ar: string; en: string }> 
 
 const PAGE_SIZE = 50;
 
+const COLUMNS: { by: ProductSort; label: { ar: string; en: string } }[] = [
+  { by: 'name', label: { ar: 'المنتج', en: 'Product' } },
+  { by: 'type', label: { ar: 'النوع', en: 'Type' } },
+  { by: 'price', label: { ar: 'السعر', en: 'Price' } },
+  { by: 'size', label: { ar: 'المقاس', en: 'Size' } },
+  { by: 'model', label: { ar: 'النموذج', en: 'Model' } },
+  { by: 'ar', label: { ar: 'العرض', en: 'AR' } },
+  { by: 'views', label: { ar: 'مشاهدات 30 يومًا', en: 'Views 30d' } },
+  { by: 'updated', label: { ar: 'آخر تحديث', en: 'Updated' } },
+];
+
+
 export default function Products() {
   const { t, pick, lang } = useLang();
   const [filter, setFilter] = useState<ProductFilter>('all');
@@ -38,10 +50,11 @@ export default function Products() {
 
   // Search, filter, counts and paging are the server's (P1.9): the screen never holds more
   // of the catalogue than one page, however large the store. T73: numbered pages.
-  const key = `${filter}|${q}`;
+  const [sort, setSort] = useState<ProductSortState>(null);
+  const key = `${filter}|${q}|${sort?.by ?? ''}|${sort?.dir ?? ''}`;
   const [paged, setPaged] = useState({ key, page: 1 });
   const page = paged.key === key ? paged.page : 1; // a new search or filter starts at page 1
-  const { data, loading, error } = useResource((s) => s.products({ q: q || undefined, filter, page, limit: PAGE_SIZE }), [q, filter, page]);
+  const { data, loading, error } = useResource((s) => s.products({ q: q || undefined, filter, page, limit: PAGE_SIZE, sort: sort?.by, dir: sort?.dir }), [q, filter, page, sort?.by, sort?.dir]);
   const rows = data?.rows ?? [];
   const counts = data?.counts;
   const pages = pageCount(counts?.[filter] ?? 0, PAGE_SIZE);
@@ -155,14 +168,17 @@ export default function Products() {
             <table className="data">
               <thead>
                 <tr>
-                  <th scope="col">{t('المنتج', 'Product')}</th>
-                  <th scope="col">{t('النوع', 'Type')}</th>
-                  <th scope="col">{t('السعر', 'Price')}</th>
-                  <th scope="col">{t('المقاس', 'Size')}</th>
-                  <th scope="col">{t('النموذج', 'Model')}</th>
-                  <th scope="col">{t('العرض', 'AR')}</th>
-                  <th scope="col">{t('مشاهدات 30 يومًا', 'Views 30d')}</th>
-                  <th scope="col">{t('آخر تحديث', 'Updated')}</th>
+                  {COLUMNS.map((c) => (
+                    <th key={c.by} scope="col"
+                      aria-sort={sort?.by === c.by ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}>
+                      <button type="button" className="th-sort" onClick={() => setSort((s) => nextSort(s, c.by))}
+                        title={t('رتّب حسب هذا العمود', 'Sort by this column')}>
+                        {pick(c.label)}
+                        {sort?.by !== c.by ? <ArrowUpDown size={13} aria-hidden className="th-sort-idle" />
+                          : sort.dir === 'asc' ? <ArrowUp size={13} aria-hidden /> : <ArrowDown size={13} aria-hidden />}
+                      </button>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>

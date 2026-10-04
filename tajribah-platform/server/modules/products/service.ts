@@ -15,7 +15,7 @@ import { and, desc, eq, gte, ilike, inArray, isNotNull, isNull, lt, ne, or, sql,
 import { dailyProductStats, edgeConfigs, models3d, products, type Product } from '@/db/schema';
 import {
   ProductCreate, ProductPatch, STORE_OWNED_FIELDS,
-  type ProductFilter, type ProductListPage, type ProductListQuery,
+  type ProductFilter, type ProductListPage, type ProductListQuery, type ProductSort,
 } from '@/lib/contracts/products';
 import { riyadhDay } from '@/lib/format';
 import type { ProductRow } from '@/lib/view-models';
@@ -40,6 +40,24 @@ const FILTER: Record<ProductFilter, SQL> = {
   draft: eq(products.status, 'draft'),
 };
 
+/**
+ * T74 — what each column sorts by, in the database (the list is paged there): the name as written; the
+ * type; the price; the width (no size last); the model's state (ready, processing, failed, none); the
+ * button (on the shop, switched on, off); the last 30 days' views; the last change. Ties: newest first.
+ */
+function sortKey(sort: ProductSort, since: string): SQL {
+  switch (sort) {
+    case 'name': return sql`lower(${products.name})`;
+    case 'type': return sql`${products.productType}::text`;
+    case 'price': return sql`${products.priceMinor}`;
+    case 'size': return sql`case when ${SIZED} then (${products.dimensions}->>'widthMm')::numeric end`;
+    case 'model': return sql`(select case ${models3d.status} when 'ready' then 0 when 'processing' then 1 when 'failed' then 2 else 3 end from ${models3d} where ${models3d.id} = ${products.primaryModelId})`;
+    case 'ar': return sql`case when exists (select 1 from ${edgeConfigs} where ${edgeConfigs.productId} = ${products.id} and ${edgeConfigs.key} is not null and ${edgeConfigs.withdrawnAt} is null) then 0 when ${products.arEnabled} then 1 else 2 end`;
+    case 'views': return sql`(select coalesce(sum(${dailyProductStats.views}), 0) from ${dailyProductStats} where ${dailyProductStats.productId} = ${products.id} and ${dailyProductStats.day} >= ${since})`;
+    case 'updated': return sql`${products.updatedAt}`;
+  }
+}
+
 /** `%` and `_` in a search box are characters, not wildcards. */
 const likeEscape = (text: string) => `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
@@ -53,10 +71,14 @@ export async function listProducts(ctx: TenantContext, query: ProductListQuery):
     : undefined;
   // Keyset paging on the id: uuid v7 is time-ordered and never changes, unlike updated_at.
   // T73: or a numbered page (the dashboard's pager), counted from the newest.
-  const after = query.cursor && !query.page ? lt(products.id, query.cursor) : undefined;
+  const after = query.cursor && !query.page && !query.sort ? lt(products.id, query.cursor) : undefined;
+  // T74: a column's order — empty values (no price, no size, no model) last whichever way.
+  const orderBy = query.sort
+    ? [sql`${sortKey(query.sort, riyadhDay(Date.now() - 29 * 24 * 3600_000))} ${sql.raw(query.dir === 'desc' ? 'desc' : 'asc')} nulls last`, desc(products.id)]
+    : desc(products.id);
 
   const page = await ctx.db.find(products, and(live, FILTER[query.filter], search, after), {
-    limit: query.limit + 1, orderBy: desc(products.id), offset: query.page ? (query.page - 1) * query.limit : undefined,
+    limit: query.limit + 1, orderBy, offset: query.page ? (query.page - 1) * query.limit : undefined,
   });
   const more = page.length > query.limit;
   const rows = more ? page.slice(0, query.limit) : page;

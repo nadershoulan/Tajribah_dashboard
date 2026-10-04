@@ -54,6 +54,10 @@ export const STORE_OWNED_FIELDS = ['name', 'nameAr', 'sku', 'priceMinor'] as con
 export const PRODUCT_FILTERS = ['all', 'ar_on', 'no_ar', 'missing_sizes', 'draft'] as const;
 export type ProductFilter = (typeof PRODUCT_FILTERS)[number];
 
+/** T74: the columns the products list sorts by — one per column it shows. */
+export const PRODUCT_SORTS = ['name', 'type', 'price', 'size', 'model', 'ar', 'views', 'updated'] as const;
+export type ProductSort = (typeof PRODUCT_SORTS)[number];
+
 export const ProductListQuery = z.object({
   q: z.string().trim().max(100).optional(),
   filter: z.enum(PRODUCT_FILTERS).default('all'),
@@ -62,6 +66,9 @@ export const ProductListQuery = z.object({
   cursor: z.string().uuid().optional(),
   /** T73: a numbered page (1 = the newest `limit`); with it the cursor is not used. */
   page: z.coerce.number().int().min(1).max(100_000).optional(),
+  /** T74: a column to sort by (default: newest first); a sorted list pages by `page`, not the cursor. */
+  sort: z.enum(PRODUCT_SORTS).optional(),
+  dir: z.enum(['asc', 'desc']).optional(),
 });
 export type ProductListQuery = z.infer<typeof ProductListQuery>;
 

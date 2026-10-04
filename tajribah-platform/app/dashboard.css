@@ -474,11 +474,11 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 
 .field { display: grid; gap: 6px; margin-bottom: 14px; }
 .field label { font-size: 13.5px; font-weight: 500; }
-.field input, .field select {
+.field input, .field select, .field textarea {
   border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px; font: inherit;
   background: var(--surface); color: var(--text); width: 100%;
 }
-.field input:focus { outline: 2px solid var(--aqua); outline-offset: 1px; border-color: var(--aqua); }
+.field input:focus, .field textarea:focus { outline: 2px solid var(--aqua); outline-offset: 1px; border-color: var(--aqua); }
 .field .field-hint { font-size: 12.5px; color: var(--text-3); }
 .field .field-error { font-size: 12.5px; color: var(--bad); }
 
@@ -550,6 +550,8 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 /* Only the running sync stacks: its text over its meter. */
 .sync-progress { display: grid; gap: 4px; }
 .confirm { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--bad); border-radius: 12px; background: var(--bad-bg, #fff5f5); font-size: 13.5px; }
+/* A question before a step that is not destructive (sending a quote request): the brand's calm colour, not the warning red. */
+.confirm.confirm-ask { border-color: var(--aqua); background: var(--tint); }
 /* T46: a one-line confirmation inside a list row (delete a model version). */
 .confirm-inline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--bad); }
 .btn-danger { background: var(--bad); color: var(--on-fill); border: 1px solid var(--bad); }
@@ -1000,3 +1002,12 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
   .pager button { min-width: 31px; height: 34px; padding: 0 5px; font-size: 13px; }
   .pager-gap { min-width: 14px; }
 }
+
+/* T74 — a column header that sorts the list */
+.th-sort { display: inline-flex; align-items: center; gap: 5px; padding: 2px 0; border: 0; background: none; color: inherit;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; white-space: nowrap; }
+.th-sort:hover { color: var(--text); }
+.th-sort:focus-visible { outline: 2px solid var(--aqua); outline-offset: 2px; border-radius: 4px; }
+.th-sort svg { flex: none; color: var(--aqua-ink); }
+.th-sort .th-sort-idle { color: var(--text-3); opacity: .7; }
+th[aria-sort] .th-sort { color: var(--text); }

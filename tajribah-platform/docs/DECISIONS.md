@@ -1215,3 +1215,21 @@ they page by cursor and have no totals. Numbered pages there need totals from th
 
 **Rollback path.** Revert the commit: "Show more" comes back, and AR settings goes back to its first 500
 products. Cost: low.
+
+## T74 · 2026-10-05 · Products sort by any column; a quote request asks first (you asked)
+
+**Decision.** Each column header on Products is a button with a sort icon (↕ when idle, ↑ or ↓ when
+active). Sorting happens in the database, because the list is paged: the sorted order carries across
+every page. One click sorts in the column's natural direction (names, types and states A→Z; price,
+size, views and last change biggest or latest first), a second click reverses it, and a third returns to
+newest first. Empty values (no price, no size, no model) always come last. Ties go newest first. Model
+sorts ready → processing → failed → none. The AR column sorts on the shop → switched on → off. Views
+count the last 30 days. `GET /api/products` takes `sort` and `dir`. A sorted list pages by `page`, not
+the cursor.
+
+**Also.** "اطلب عرض سعر" (request a quote) now asks first, in a calm blue box rather than the red delete
+box. Its wording only repeats what the panel already promised: the price comes first, nothing starts
+until you accept, and you can cancel before work starts. Note boxes (`.field textarea`) now look like
+the other inputs, so they're visible in dark mode.
+
+**Rollback path.** Revert the commit. Cost: low.

@@ -231,3 +231,37 @@ test('over HTTP: list and patch with a session; a malformed id is 404; a bad cur
     assert.equal((await listProductsHandler(new Request('http://localhost:5173/api/products'))).status, 401);
   } finally { console.log = original; await harness.close(); resetEnv(); }
 });
+
+test('T74: every column sorts both ways in the database — empty values last, ties newest first, pages follow the order', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, tenantId } = await store(harness, 'alpha');
+    const [ready] = await plant(harness, models3d, { tenantId, name: 'm1', source: 'uploaded', status: 'ready' });
+    const [failed] = await plant(harness, models3d, { tenantId, name: 'm2', source: 'uploaded', status: 'failed' });
+    const [b] = await plant(harness, products, { tenantId, name: 'banana', priceMinor: 500, productType: 'watch', dimensions: { widthMm: 40, heightMm: 40 }, primaryModelId: failed.id });
+    const [a] = await plant(harness, products, { tenantId, name: 'Apple', priceMinor: null, productType: 'furniture', primaryModelId: ready.id, arEnabled: true, dimensions: { widthMm: 900, heightMm: 800 } });
+    const [c] = await plant(harness, products, { tenantId, name: 'cherry', priceMinor: 100, productType: 'eyewear', dimensions: { widthMm: 140 } });
+    const [d] = await plant(harness, products, { tenantId, name: 'date', priceMinor: 100, productType: 'other' });
+    await plant(harness, edgeConfigs, { tenantId, productId: b.id, key: 'alpha/b.json', version: 1, publishedAt: new Date() });
+    await plant(harness, dailyProductStats, [
+      { tenantId, productId: c.id, day: riyadhDay(Date.now()), views: 30, arSessions: 0 },
+      { tenantId, productId: a.id, day: riyadhDay(Date.now()), views: 7, arSessions: 0 },
+      { tenantId, productId: d.id, day: riyadhDay(Date.now() - 40 * 24 * 3600_000), views: 999, arSessions: 0 },
+    ]);
+    const names = async (sort: any, dir: 'asc' | 'desc' = 'asc', extra: any = {}) =>
+      (await listProducts(ctx, { ...LIST, sort, dir, ...extra })).rows.map((r) => r.name);
+
+    assert.deepEqual(await names('name'), ['Apple', 'banana', 'cherry', 'date'], 'the name, whatever its case');
+    assert.deepEqual(await names('name', 'desc'), ['date', 'cherry', 'banana', 'Apple']);
+    assert.deepEqual(await names('price'), ['date', 'cherry', 'banana', 'Apple'], 'cheapest first; a tie newest first; no price last');
+    assert.deepEqual(await names('price', 'desc'), ['banana', 'date', 'cherry', 'Apple'], 'no price last this way too');
+    assert.deepEqual(await names('size'), ['banana', 'Apple', 'date', 'cherry'], 'by width; width without height is not a size — last');
+    assert.deepEqual(await names('model'), ['Apple', 'banana', 'date', 'cherry'], 'ready, failed, then none');
+    assert.deepEqual(await names('ar'), ['banana', 'Apple', 'date', 'cherry'], 'on the shop, switched on, off');
+    assert.deepEqual(await names('views', 'desc'), ['cherry', 'Apple', 'date', 'banana'], 'the last 30 days only (date’s 999 are older)');
+    assert.deepEqual(await names('type'), ['cherry', 'Apple', 'date', 'banana'], 'eyewear, furniture, other, watch — the stored type, as text');
+    assert.deepEqual([...await names('name', 'asc', { limit: 2, page: 1 }), ...await names('name', 'asc', { limit: 2, page: 2 })],
+      ['Apple', 'banana', 'cherry', 'date'], 'page 2 continues the sorted order');
+    assert.deepEqual(await names('price', 'asc', { cursor: d.id }), await names('price'), 'a sorted list ignores the newest-first cursor');
+  } finally { await harness.close(); }
+});

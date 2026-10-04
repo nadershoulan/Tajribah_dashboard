@@ -12,7 +12,7 @@
  *  3. **Deleting is soft.** The row stays (orders and analytics still point at it), hidden.
  */
 import { and, desc, eq, gte, ilike, inArray, isNotNull, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm';
-import { categories, dailyProductStats, edgeConfigs, models3d, products, type Product } from '@/db/schema';
+import { categories, dailyProductStats, edgeConfigs, models3d, products, tryonConfigs, type Product } from '@/db/schema';
 import {
   ProductCreate, ProductPatch, STORE_OWNED_FIELDS,
   type ProductCategoryCount, type ProductFilter, type ProductListPage, type ProductListQuery, type ProductSort,
@@ -173,6 +173,13 @@ const MODEL_STATUS: Record<string, ProductRow['modelStatus']> = {
   processing: 'processing', ready: 'ready', failed: 'failed',
 };
 
+/** T79: a store's description as plain text — a feed may carry HTML (`<b>`, `<br>`); a preview shows words, never markup. */
+export function plainText(text: string | null): string | null {
+  if (!text) return null;
+  const words = text.replace(/<br\s*\/?>|<\/p>/gi, '\n').replace(/<[^>]*>/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+  return words ? words.slice(0, 4000) : null;
+}
+
 /** Product rows plus what the list shows beside them: model status and the last 30 days. */
 async function toRows(ctx: TenantContext, list: Product[]): Promise<ProductRow[]> {
   if (list.length === 0) return [];
@@ -181,13 +188,16 @@ async function toRows(ctx: TenantContext, list: Product[]): Promise<ProductRow[]
   const since = riyadhDay(Date.now() - 29 * 24 * 3600_000);
 
   const categoryIds = [...new Set(list.map((p) => p.categoryId).filter((id): id is string => !!id))];
-  const [models, stats, live, named] = await Promise.all([
+  const [models, stats, live, named, tryons] = await Promise.all([
     modelIds.length ? ctx.db.find(models3d, inArray(models3d.id, modelIds), { limit: modelIds.length }) : Promise.resolve([]),
     ctx.db.find(dailyProductStats, and(inArray(dailyProductStats.productId, ids), gte(dailyProductStats.day, since)), { limit: ids.length * 30 }),
     // T42: which of these have a button on the shop now.
     ctx.db.find(edgeConfigs, and(inArray(edgeConfigs.productId, ids), isNotNull(edgeConfigs.key), isNull(edgeConfigs.withdrawnAt)), { limit: ids.length }),
     categoryIds.length ? ctx.db.find(categories, inArray(categories.id, categoryIds), { limit: categoryIds.length }) : Promise.resolve([]),
+    // T79: whether a try-on is switched on is its config's, not the products column (never written).
+    ctx.db.find(tryonConfigs, and(inArray(tryonConfigs.productId, ids), eq(tryonConfigs.enabled, true)), { limit: ids.length }),
   ]);
+  const tryonOn = new Set(tryons.map((c) => c.productId));
   const categoryName = new Map(named.map((c) => [c.id, c.nameAr ?? c.name]));
   const liveIds = new Set(live.map((row) => row.productId));
   const modelStatus = new Map(models.map((m) => [m.id, MODEL_STATUS[m.status] ?? 'none']));
@@ -210,7 +220,7 @@ async function toRows(ctx: TenantContext, list: Product[]): Promise<ProductRow[]
     productType: p.productType,
     status: p.status,
     arEnabled: p.arEnabled,
-    tryonEnabled: p.tryonEnabled,
+    tryonEnabled: p.tryonEnabled || tryonOn.has(p.id),
     live: liveIds.has(p.id),
     modelStatus: p.primaryModelId ? modelStatus.get(p.primaryModelId) ?? 'none' : 'none',
     dimensions: p.dimensions,
@@ -218,5 +228,7 @@ async function toRows(ctx: TenantContext, list: Product[]): Promise<ProductRow[]
     arSessions30: totals.get(p.id)?.ar ?? 0,
     updatedAt: p.updatedAt.toISOString(),
     category: p.categoryId && categoryName.has(p.categoryId) ? { id: p.categoryId, name: categoryName.get(p.categoryId)! } : null,
+    images: (p.images ?? []).map((i) => i.url).filter((url) => /^https:\/\//.test(url)).slice(0, 10),
+    description: plainText(p.descriptionAr ?? p.description),
   }));
 }

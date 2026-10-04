@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { auditLogs, dailyProductStats, edgeConfigs, models3d, products, storeConnections, tenantMemberships, users } from '@/db/schema';
+import { auditLogs, dailyProductStats, edgeConfigs, models3d, products, storeConnections, tenantMemberships, tryonConfigs, users } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { riyadhDay } from '@/lib/format';
 import { planByCode } from '@/lib/plans';
@@ -11,7 +11,7 @@ import { configureNotify } from '@/server/core/notify/notify';
 import { MemoryRateLimiter, setRateLimiter } from '@/server/core/ratelimit/limiter';
 import { setLogLevel } from '@/server/core/observability/log';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
-import { createProduct, deleteProduct, getProduct, listProducts, updateProduct } from '@/server/modules/products/service';
+import { createProduct, deleteProduct, getProduct, listProducts, plainText, updateProduct } from '@/server/modules/products/service';
 import { assertRoomToShow } from '@/server/core/billing/entitlements';
 import { registerHandler } from '@/server/modules/auth/http';
 import { getProductHandler, listProductsHandler, updateProductHandler } from '@/server/modules/products/http';
@@ -264,4 +264,30 @@ test('T74: every column sorts both ways in the database — empty values last, t
       ['Apple', 'banana', 'cherry', 'date'], 'page 2 continues the sorted order');
     assert.deepEqual(await names('price', 'asc', { cursor: d.id }), await names('price'), 'a sorted list ignores the newest-first cursor');
   } finally { await harness.close(); }
+});
+
+test('T79: a product carries every picture its store gives (https only), its description as words, and whether its try-on is on', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, tenantId } = await store(harness, 'alpha');
+    const [p] = await plant(harness, products, {
+      tenantId, name: 'Watch', productType: 'watch',
+      images: [{ url: 'https://cdn.salla.sa/a.png' }, { url: 'http://insecure.example/b.jpg' }, { url: 'https://cdn.salla.sa/c.png' }],
+      description: '<p>ساعة <b>فولاذ</b></p><p>قطر 38 مم</p>',
+    });
+    let row = await getProduct(ctx, p.id);
+    assert.deepEqual(row.images, ['https://cdn.salla.sa/a.png', 'https://cdn.salla.sa/c.png'], 'in order; a picture a shopper’s browser would refuse is left out');
+    assert.equal(row.description, 'ساعة فولاذ\nقطر 38 مم', 'words, never markup');
+    assert.equal(row.tryonEnabled, false);
+    await plant(harness, tryonConfigs, { id: uuidv7(), tenantId, productId: p.id, category: 'watch', enabled: true });
+    row = await getProduct(ctx, p.id);
+    assert.equal(row.tryonEnabled, true, 'the try-on’s own switch, not a column nothing writes');
+  } finally { await harness.close(); }
+});
+
+test('T79: plain text from a store’s HTML description', () => {
+  assert.equal(plainText(null), null);
+  assert.equal(plainText('<br/>  '), null);
+  assert.equal(plainText('سطر<br>سطر   ثانٍ <script>x</script>'), 'سطر\nسطر ثانٍ x', 'tags gone; a script’s text is only text');
+  assert.equal(plainText('a</p></p></p></p>b'), 'a\n\nb');
 });

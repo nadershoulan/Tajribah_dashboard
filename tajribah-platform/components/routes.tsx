@@ -8,6 +8,7 @@ import { createElement, type ReactElement } from 'react';
 import DashboardHome from '@/components/pages/DashboardHome';
 import Products from '@/components/pages/Products';
 import ProductDetail from '@/components/pages/ProductDetail';
+import ProductPreview from '@/components/pages/ProductPreview';
 import ProductNew from '@/components/pages/ProductNew';
 import InviteAccept from '@/components/pages/InviteAccept';
 import ArSettings from '@/components/pages/ArSettings';
@@ -102,6 +103,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
 
 /** Routes with an id in them: the screen reads the id from the path itself. */
 const PATTERNS: [RegExp, () => ReactElement][] = [
+  [/^\/dashboard\/products\/[^/]+\/preview$/, ProductPreview], // T79
   [/^\/dashboard\/products\/(?!new$)[^/]+$/, ProductDetail],
   [/^\/dashboard\/models\/[^/]+$/, ModelEditor], // P3.8
   [/^\/invite\/[^/]+$/, InviteAccept],

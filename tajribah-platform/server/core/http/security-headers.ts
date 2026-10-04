@@ -51,7 +51,9 @@ export function pageCsp(nonce: string, { dev = false, framedBy, local = false }:
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     // data: for the two-step QR code (drawn in the browser); blob: for CSV and JSON downloads.
-    "img-src 'self' data: blob:",
+    // T79: https: for products' own pictures, which live on each store's CDN (cdn.salla.sa, a Shopify or
+    // WooCommerce host…) — any of thousands. A picture cannot run code; scripts stay held to the nonce.
+    "img-src 'self' data: blob: https:",
     // 3D models upload straight to R2 with a presigned PUT (P1.12); blob: is the reviewer's model,
     // fetched with the session and handed to the viewer (P3.6).
     // `local`: a page served from this computer may also upload to storage running on it (an S3 server

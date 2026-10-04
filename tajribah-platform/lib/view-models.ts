@@ -265,6 +265,10 @@ export type ProductRow = {
   updatedAt: string;
   /** T77: the store's own category ("ساعات نسائية"), from its feed or platform; none when it gives none. */
   category?: { id: string; name: string } | null;
+  /** T79: every picture the store gives (its feed's image_link and additional_image_link), in its order — the preview's gallery. */
+  images?: string[];
+  /** T79: the store's description, as plain text. */
+  description?: string | null;
 };
 
 export type ModelRow = {

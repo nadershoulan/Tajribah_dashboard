@@ -1308,3 +1308,24 @@ store, so an active store is never wiped by one click. Its products are deleted 
 audit entry records the count. Any that were on your shop are taken down. `POST /api/connections/{id}/remove`.
 
 **Rollback path.** Revert the commit. Removed products stay soft-deleted in the database. Cost: low.
+
+## T79 · 2026-10-05 · Preview any product from its store's pictures, with no 3D model (you asked)
+
+**Decision.** You said 3D models come later and that every product should be previewable now from its
+feed's pictures. Every product has a **preview** (`/dashboard/products/{id}/preview`), opened from the
+eye icon on each Products row and "معاينة" on the product's page. It shows the product as a shopper sees
+it: the store's pictures (the main one large, every `additional_image_link` as a thumbnail to switch to),
+name, price, the store's category and the type, the size if set (or that it is missing), and the
+description as plain text. It ends with what the shop's button would open: the 3D view ("shows once
+this product has a model") and, for a watch, jewelry, glasses or bag, the try-on with a link to set it up.
+Nothing is published and nothing is needed.
+
+**Also.**
+- **Pictures load in the dashboard.** The page policy allowed images only from the dashboard itself, so
+  store pictures (cdn.salla.sa…) could never show. `img-src` now also allows https: (any store's CDN).
+  A picture can't run code, plain http stays out, and scripts are still held to the nonce. The Products
+  list shows each product's picture.
+- **The try-on's state is the try-on's.** `tryonEnabled` on a product was a column nothing ever wrote, so
+  it always said off, here and in the public API. It is now read from the try-on's own switch.
+
+**Rollback path.** Revert the commit. Cost: low.

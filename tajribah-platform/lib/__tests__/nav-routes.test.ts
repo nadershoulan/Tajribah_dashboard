@@ -38,3 +38,12 @@ test('every in-app link and navigation written out in a screen opens a screen', 
   assert.ok(seen > 30, `the scan finds the links (${seen})`);
   assert.deepEqual(dead, [], 'these open "page not found"');
 });
+
+test('T79: a product’s preview opens its own screen; its id is read from the path', async () => {
+  const { hasScreen } = await import('@/components/routes');
+  const { previewId } = await import('@/components/pages/ProductPreview');
+  assert.equal(hasScreen('/dashboard/products/01a10885-03e7-7fb4-9fee-1721f2403376/preview'), true);
+  assert.equal(hasScreen('/dashboard/products/x/preview/more'), false);
+  assert.equal(previewId('/dashboard/products/abc%20d/preview'), 'abc d');
+});
+

@@ -3,7 +3,7 @@
 // MD-010 — Products table view
 
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, Package, Plus, Ruler, Search, Upload } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye, Package, Plus, Ruler, Search, Upload } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
 import { useResource } from '@/lib/data';
@@ -198,6 +198,7 @@ export default function Products() {
                       </button>
                     </th>
                   ))}
+                  <th scope="col"><span className="sr-only">{t('معاينة', 'Preview')}</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -206,7 +207,7 @@ export default function Products() {
                     <td className="num row-num">{formatNumber(rowNumber(Math.min(page, pages), perPage, index), lang)}</td>
                     <td>
                       <AppLink href={`/dashboard/products/${product.id}`} className="cell-main">
-                        <span className="thumb" aria-hidden><Package size={17} /></span>
+                        <span className="thumb" aria-hidden>{product.imageUrl ? <img src={product.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <Package size={17} />}</span>
                         <span className="lines">
                           <strong>{lang === 'ar' ? (product.nameAr ?? product.name) : product.name}</strong>
                           <span>{product.sku ?? '—'}</span>
@@ -235,6 +236,7 @@ export default function Products() {
                     </td>
                     <td className="num">{formatNumber(product.views30, lang)}</td>
                     <td style={{ color: 'var(--text-3)', fontSize: 13 }}>{formatRelative(product.updatedAt, lang)}</td>
+                    <td><AppLink href={`/dashboard/products/${product.id}/preview`} className="btn btn-quiet btn-sm" aria-label={t('معاينة المنتج', 'Preview the product')} title={t('معاينة', 'Preview')}><Eye size={15} aria-hidden /></AppLink></td>
                   </tr>
                 ))}
               </tbody>

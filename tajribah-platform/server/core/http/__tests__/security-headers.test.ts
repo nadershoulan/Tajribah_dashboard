@@ -43,6 +43,13 @@ test('the page policy holds scripts to the nonce; dev allowances never reach a b
   assert.match(directive(pageCsp('abc123', { local: true }), 'connect-src'), /http:\/\/127\.0\.0\.1:\*/, 'this computer: its own storage');
 });
 
+test('T79: products’ own pictures load from any https host (their store’s CDN); never plain http, and scripts stay held to the nonce', () => {
+  const img = directive(pageCsp('abc123'), 'img-src');
+  assert.match(img, /https:/);
+  assert.doesNotMatch(img, /http:(?!\/\/)|\*/, 'not http:, not a wildcard');
+  assert.doesNotMatch(directive(pageCsp('abc123'), 'script-src'), /https:/);
+});
+
 test('only a page served from this computer may upload to storage on it', async () => {
   const at = async (url: string) => directive((await proxy(new NextRequest(url))).headers.get('content-security-policy') ?? '', 'connect-src');
   assert.match(await at('http://127.0.0.1:8799/dashboard/tryon'), /http:\/\/127\.0\.0\.1:\*/);

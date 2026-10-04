@@ -4,7 +4,7 @@
 
 import { useWriteLock } from '@/components/dashboard/write-lock';
 import { useState } from 'react';
-import { Box, Package, Ruler } from 'lucide-react';
+import { Box, Eye, Package, Ruler } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { ApiError } from '@/lib/api-client';
 import { useData, useResource } from '@/lib/data';
@@ -70,6 +70,7 @@ export default function ProductDetail() {
           <PageHead
             title={title}
             lead={product.sku ? `${t('الرمز', 'SKU')} ${product.sku}` : undefined}
+            actions={<AppLink href={`/dashboard/products/${encodeURIComponent(product.id)}/preview`} className="btn btn-ghost"><Eye size={16} aria-hidden />{t('معاينة', 'Preview')}</AppLink>}
           />
           <div className="detail-grid">
             <Editor key={`${product.id}:${product.updatedAt}`} product={product} onSaved={setSaved} wasSaved={saved?.id === id} />

@@ -13,6 +13,7 @@ import { log } from '../core/observability/log';
 import { dispatchPending } from '@/server/modules/webhooks/dispatch';
 import { scheduleSyncs } from '@/server/modules/sync/schedule';
 import { expireStaleDrafts } from '@/server/modules/models/cleanup';
+import { sweepPendingUploads } from '@/server/modules/uploads/pending';
 import { resealConnections } from '@/server/modules/connections/rotation';
 import { resealTwoFactorSecrets } from '@/server/modules/auth/two-factor';
 import { sweepRetentionHourly } from '@/server/modules/admin/retention';
@@ -98,6 +99,7 @@ export const SWEEPS: [string, () => Promise<unknown>][] = [
   ['retention', sweepRetentionHourly], // A14, T22: data past its retention period
   ['AI jobs', sweepAiJobs], // P3.2: AI jobs never dispatched, or abandoned mid-run
   ['unconfirmed photos', sweepUnconfirmedPhotos], // P3.3: photo uploads never confirmed
+  ['unconfirmed pictures', () => sweepPendingUploads()], // try-on and model pictures uploaded and never confirmed
   ['connection health', refreshConnectionHealth], // P6.16: health scores, and a word to the store when one worsens
   ['outgoing webhook deliveries', sweepWebhookDeliveries], // P8: deliveries whose queued try was lost
   ['reseal webhook secrets', resealWebhookSecrets], // P8: signing secrets under an old ENCRYPTION_KEY (T16)

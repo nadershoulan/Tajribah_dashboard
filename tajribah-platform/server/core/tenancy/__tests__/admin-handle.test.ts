@@ -59,6 +59,7 @@ const ADMIN_ALLOWED: Record<string, string> = {
   'server/modules/admin/professional.ts': 'professional 3D model orders across stores for staff (P3.10); a quote is written inside withTenant',
   'server/modules/ai-jobs/sweep.ts': 'the AI job sweep finds undispatched and abandoned jobs, and photo uploads never confirmed, across tenants (ids only), then acts on each inside withTenant',
   'server/modules/models/cleanup.ts': 'the draft sweep finds abandoned uploads across tenants (ids only), then fails each inside withTenant',
+  'server/modules/uploads/pending.ts': 'the sweep finds unconfirmed picture uploads across tenants (ids and keys only), then removes each inside withTenant',
   'server/modules/sync/schedule.ts': 'the sync schedule reads due connections and stalled syncs across tenants (ids only), then acts inside withTenant',
   'server/modules/webhooks/dispatch.ts': 'the worker lists pending events across tenants (ids and tenants only), then handles each inside withTenant',
 };

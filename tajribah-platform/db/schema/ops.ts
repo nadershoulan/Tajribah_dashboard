@@ -163,6 +163,21 @@ export const generationPhotos = pgTable('generation_photos', {
   ...timestamps(),
 }, (t) => [index('generation_photos_product_idx').on(t.tenantId, t.productId, t.status)]);
 
+/**
+ * Uploads started and not yet confirmed, for the files that have no row of their own until they are
+ * attached: try-on pictures and model pictures. Start writes the row, confirm removes it; a row left
+ * behind past a day is a tab closed mid-upload, and the sweep deletes its bytes
+ * (`server/modules/uploads/pending.ts`).
+ */
+export const pendingUploads = pgTable('pending_uploads', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  storageKey: text('storage_key').notNull(),
+  /** `tryon_cutout` or `model_picture`: says which attachment would keep the bytes. */
+  purpose: text('purpose').notNull(),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex('pending_uploads_key_idx').on(t.tenantId, t.storageKey), index('pending_uploads_created_idx').on(t.createdAt)]);
+
 /** Platform-wide by default; a row with a tenant id overrides it for that tenant only. */
 export const featureFlags = pgTable('feature_flags', {
   id: pk(),

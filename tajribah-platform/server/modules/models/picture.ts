@@ -22,6 +22,7 @@ import { withTenant } from '@/server/core/tenancy/rls';
 import { dimensions, sniff } from '@/server/modules/ai-jobs/photo-check';
 import { keepLive } from '@/server/modules/edge/publish';
 import { retireFile } from '@/server/modules/tryon/retire';
+import { EXPIRED, notePendingUpload, takePendingUpload } from '@/server/modules/uploads/pending';
 
 export const PICTURE_UPLOAD_SECONDS = 15 * 60;
 const EXT_TYPE: Record<string, string> = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg' };
@@ -45,6 +46,7 @@ export async function startPictureUpload(ctx: TenantContext, modelId: string, in
   await assertStorageRoom(ctx, input.sizeBytes);
   const store = forTenant(ctx.tenantId);
   const key = store.key({ kind: 'model', id: modelId, filename: `picture-${uuidv7()}.${ext}` });
+  await notePendingUpload(ctx.tenantId, key, 'model_picture'); // bytes never confirmed are swept
   const { url, expiresAt } = await store.presignUpload(key, { contentType: input.contentType, sizeBytes: input.sizeBytes, expiresInSeconds: PICTURE_UPLOAD_SECONDS });
   return { key, uploadUrl: url, contentType: input.contentType, expiresAt: expiresAt.toISOString() };
 }
@@ -81,11 +83,13 @@ export async function confirmPicture(ctx: TenantContext, modelId: string, input:
   const bytes = object ? new Uint8Array(await new Response(object.body).arrayBuffer()) : new Uint8Array();
   const problem = stored.size > PICTURE_MAX_BYTES ? 'at most 2 MB' : pictureProblem(bytes, input.key);
   if (problem) {
+    await withTenant(ctx.tenantId, (db) => takePendingUpload(db, input.key));
     await store.delete(input.key);
     throw errors.validation({ picture: [problem] });
   }
 
   const { productId, replaced } = await withTenant(ctx.tenantId, async (db) => {
+    if (!(await takePendingUpload(db, input.key))) throw errors.conflict(EXPIRED);
     const before = await db.lockById(models3d, modelId);
     await db.updateById(models3d, modelId, { pictureKey: input.key, pictureBytes: stored.size, updatedAt: new Date() });
     await record(ctx, { action: 'update', resourceType: 'model', resourceId: modelId, before: { pictureKey: before.pictureKey }, after: { pictureKey: input.key, pictureBytes: stored.size } }, db);

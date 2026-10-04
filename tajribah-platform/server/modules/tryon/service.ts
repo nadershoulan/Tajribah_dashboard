@@ -47,6 +47,7 @@ import { CUTOUT_MAX_BYTES, checkCutout, type CutoutIssue } from './cutout';
 import { enqueueCalibration, enqueueQuality } from './quality-queue'; // not ./quality: it loads sharp
 import { retireCutout } from './retire';
 import { keepLive } from '@/server/modules/edge/publish';
+import { EXPIRED, notePendingUpload, takePendingUpload } from '@/server/modules/uploads/pending';
 
 export type Slot = 'worn' | 'flat';
 type Config = typeof tryonConfigs.$inferSelect;
@@ -148,6 +149,7 @@ export async function startCutoutUpload(ctx: TenantContext, productId: string, i
   const store = forTenant(ctx.tenantId);
   const key = store.key({ kind: 'photo', id: uuidv7(), filename: `${input.slot}.${format}` });
   const contentType = input.contentType;
+  await notePendingUpload(ctx.tenantId, key, 'tryon_cutout'); // bytes never confirmed are swept
   const { url, expiresAt } = await store.presignUpload(key, { contentType, sizeBytes: input.sizeBytes, expiresInSeconds: UPLOAD_SECONDS });
   return { key, uploadUrl: url, contentType, expiresAt: expiresAt.toISOString() };
 }
@@ -173,11 +175,13 @@ export async function confirmCutout(ctx: TenantContext, productId: string, input
   const bytes = object ? await readAll(object.body) : new Uint8Array();
   const verdict = checkCutout(bytes, stored.size);
   if (!verdict.ok) {
+    await withTenant(ctx.tenantId, (db) => takePendingUpload(db, input.key));
     await store.delete(input.key);
     throw errors.validation({ [input.slot]: [ISSUE_TEXT[verdict.issue]] });
   }
 
   const { result, replaced } = await withTenant(ctx.tenantId, async (db) => {
+    if (!(await takePendingUpload(db, input.key))) throw errors.conflict(EXPIRED);
     const product = await db.lockById(products, productId);
     const before = await db.findOne(tryonConfigs, eq(tryonConfigs.productId, productId));
     const values = input.slot === 'worn' ? { wornKey: input.key, wornBytes: stored.size } : { flatKey: input.key, flatBytes: stored.size };

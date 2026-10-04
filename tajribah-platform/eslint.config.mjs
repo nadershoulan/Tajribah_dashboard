@@ -86,6 +86,7 @@ const eslintConfig = defineConfig([
       "server/modules/api-keys/auth.ts",
       "server/modules/outgoing-webhooks/sweep.ts",
       "server/modules/models/cleanup.ts",
+      "server/modules/uploads/pending.ts",
       "server/modules/ai-jobs/sweep.ts",
       "server/modules/sync/schedule.ts",
       "server/modules/team/service.ts",

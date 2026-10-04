@@ -9,10 +9,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseBatch } from '@/lib/contracts/analytics';
-import { EVENTS_ENDPOINT, noTracking, pageBatch, viaOf } from '../../../tajribah-try-on/lib/page-events';
-import { pageCsp } from '../../../tajribah-try-on/lib/security';
+import { EVENTS_ENDPOINT, noTracking, pageBatch, viaOf } from '@site/lib/page-events';
+import { pageCsp } from '@site/lib/security';
+import { sitePath } from './site-path';
 
-const site = (p: string) => readFileSync(join(process.cwd(), '..', 'tajribah-try-on', p), 'utf8');
+const site = (p: string) => readFileSync(sitePath(p), 'utf8');
 
 test('the page’s batch is one the collector accepts: the product, the page, how it was reached', () => {
   const batch = pageBatch('oud', 'sa-123', 'product_view', 'qr', 'AbCdEfGhIjKlMnOpQrSt', 1_790_000_000_000);

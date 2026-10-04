@@ -12,14 +12,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { CONSENT_DEFAULT, CONSENT_GRANTED, ENV_GA_ID, GA_CONFIG, gaIdFromSettings, measurementId, readChoice, storedChoice } from '../../../tajribah-try-on/lib/analytics';
-import { forgetSiteSettings, siteGaId, SITE_SETTINGS_URL } from '../../../tajribah-try-on/lib/site-settings';
-import { cookiesDoc, privacyDoc } from '../../../tajribah-try-on/content/legal';
-import { hostedProductFrom } from '../../../tajribah-try-on/lib/hosted-page';
+import { CONSENT_DEFAULT, CONSENT_GRANTED, ENV_GA_ID, GA_CONFIG, gaIdFromSettings, measurementId, readChoice, storedChoice } from '@site/lib/analytics';
+import { forgetSiteSettings, siteGaId, SITE_SETTINGS_URL } from '@site/lib/site-settings';
+import { cookiesDoc, privacyDoc } from '@site/content/legal';
+import { hostedProductFrom } from '@site/lib/hosted-page';
 import { createTracker } from '../src/track';
 import { FORWARDED, shopAnalytics } from '../src/main';
+import { sitePath } from './site-path';
 
-const site = (p: string) => readFileSync(join(process.cwd(), '..', 'tajribah-try-on', p), 'utf8');
+const site = (p: string) => readFileSync(sitePath(p), 'utf8');
 
 test('only a real GA4 measurement id turns analytics on', () => {
   assert.equal(measurementId('G-AB12CD34EF'), 'G-AB12CD34EF');
@@ -91,11 +92,11 @@ test('Google’s script is fetched only after the visitor accepts — the websit
   assert.match(store, /store\.ar\} خدمة Google Analytics/, 'it names the store that measures');
   assert.match(site('components/site/chrome.tsx'), /<ConsentBanner \/>/);
   assert.match(site('app/layout.tsx'), /<AnalyticsProvider id=\{gaId\}>/);
-  assert.match(site('proxy.ts'), /pathname\.startsWith\('\/p\/'\) \|\| \(await siteGaId\(\)\) !== null/);
+  assert.match(site('proxy.ts'), /pathname\.startsWith\(["']\/p\/["']\) \|\| \(await siteGaId\(\)\) !== null/);
 
   // The try-on frame and the phone page never load analytics; a product's page loads only its store's.
   for (const shopper of ['app/embed', 'app/capture', 'app/p']) {
-    const files = (readdirSync(join(process.cwd(), '..', 'tajribah-try-on', shopper), { recursive: true }) as string[]).filter((f) => f.endsWith('.tsx'));
+    const files = (readdirSync(sitePath(shopper), { recursive: true }) as string[]).filter((f) => f.endsWith('.tsx'));
     assert.ok(files.length > 0, shopper);
     for (const f of files) assert.ok(!/Shell|consent|analytics|ConsentBanner/.test(site(`${shopper}/${f}`)), `${shopper}/${f} is a merchant's shopper page`);
   }

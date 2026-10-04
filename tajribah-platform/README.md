@@ -5,7 +5,7 @@ The merchant dashboard, the staff console, the API, the shop widget and the back
 TypeScript, Tailwind v4, shadcn/ui, Drizzle on PostgreSQL 16 with row-level security. Arabic is the
 default language and RTL the default layout.
 
-Its sibling `../tajribah-try-on` is the website and the try-on studio.
+The website and the try-on studio are here too (`site/`, `app/(site)`) since 2026-10-04; `../tajribah-try-on` is the old copy, kept only until it is deleted.
 
 ## Read first
 

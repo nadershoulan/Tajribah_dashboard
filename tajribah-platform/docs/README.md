@@ -33,5 +33,5 @@ you open when you need them.
 
 - [`../STATE.md`](../STATE.md) — the builders' working log, session by session. Detailed and long; PROGRESS.md is the readable version.
 - [`../CLAUDE.md`](../CLAUDE.md) — the rules every change follows.
-- [`../../tajribah-try-on/README.md`](../../tajribah-try-on/README.md) — the website and the try-on studio; its [`ASSETS.md`](../../tajribah-try-on/ASSETS.md) records where every photo came from and its licence.
+- [`../site/README.md`](../site/README.md) — the website and the try-on studio (moved into the platform 2026-10-04); its [`ASSETS.md`](../site/ASSETS.md) records where every photo came from and its licence.
 - `../../TAJRIBAH-BUILD-PLAN.md` — the original specification everything is built from.

@@ -1,3 +1,5 @@
+> **Moved (2026-10-04).** This website now lives in the platform: `tajribah-platform/site/` (code, with these rules in `site/CLAUDE.md`) and `tajribah-platform/app/(site)/` (pages), served by the platform's Worker. This folder is the old copy, frozen until it is deleted — **do not edit it**; change the platform's copy.
+
 # Tajribah — working rules for this repo
 
 Read this before touching anything. Rules 1 and 2 are the ones that were broken

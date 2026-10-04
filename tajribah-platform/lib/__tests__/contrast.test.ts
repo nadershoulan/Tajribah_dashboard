@@ -33,7 +33,7 @@ test('small text in the dashboard reads at 4.5:1 or more on every light surface'
 });
 
 test('small text on the website reads at 4.5:1 or more on every light surface', () => {
-  const css = readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'app', 'site.css'), 'utf8');
+  const css = readFileSync(join(process.cwd(), 'site', 'styles', 'site.css'), 'utf8');
   const surfaces = ['#ffffff', token(css, 'bg'), token(css, 'tint')];
   for (const ink of ['text-3', 'aqua-ink', 'teal-ink']) {
     const colour = token(css, ink, '.site {');
@@ -43,7 +43,7 @@ test('small text on the website reads at 4.5:1 or more on every light surface', 
 });
 
 test("the try-on studio's small text takes the same ink shades (T61)", () => {
-  const css = readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'app', 'site.css'), 'utf8');
+  const css = readFileSync(join(process.cwd(), 'site', 'styles', 'site.css'), 'utf8');
   const surfaces = ['#ffffff', token(css, 'bg'), token(css, 'tint')];
   for (const ink of ['text-3', 'aqua-ink', 'teal-ink']) {
     const colour = token(css, ink, '.studio-root {');

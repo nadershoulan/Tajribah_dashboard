@@ -1,3 +1,5 @@
+> **Moved (2026-10-04).** This website now lives in the platform: `tajribah-platform/site/` (code, with these rules in `site/CLAUDE.md`) and `tajribah-platform/app/(site)/` (pages), served by the platform's Worker. This folder is the old copy, frozen until it is deleted — **do not edit it**; change the platform's copy.
+
 # تجربة Tajribah — website and try-on studio
 
 The Arabic-first website that sells Tajribah (tajribah.sa), and the try-on studio that shoppers open

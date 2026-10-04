@@ -19,7 +19,7 @@ import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness'
 import { publishProduct, unpublishProduct } from '@/server/modules/edge/publish';
 import { saveHostedPage } from '@/server/modules/hosted-pages/service';
 import { qrCodesFor } from '@/server/modules/hosted-pages/qr';
-import { viaOf } from '../../../../../tajribah-try-on/lib/page-events';
+import { viaOf } from '@site/lib/page-events';
 
 setLogLevel('error');
 const ENV = { APP_URL: 'http://localhost:5173', AUTH_SECRET: 'a'.repeat(40), ENCRYPTION_KEY: 'b'.repeat(40) };

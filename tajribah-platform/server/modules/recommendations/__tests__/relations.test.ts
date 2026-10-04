@@ -19,7 +19,7 @@ import { computeRelations, refreshRelations } from '@/server/modules/recommendat
 import { relatedOf } from '@/server/modules/recommendations/service';
 import { handleEdgeJob, publishProduct, refreshProduct, unpublishProduct } from '@/server/modules/edge/publish';
 import { entitlementsOf } from '@/server/core/billing/entitlements';
-import { hostedProductFrom } from '../../../../../tajribah-try-on/lib/hosted-page';
+import { hostedProductFrom } from '@site/lib/hosted-page';
 
 setLogLevel('error');
 const NOW = new Date('2026-10-03T06:00:00Z'); // 09:00 Riyadh

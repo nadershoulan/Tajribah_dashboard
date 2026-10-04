@@ -23,8 +23,8 @@ import { publishProduct, unpublishProduct } from '@/server/modules/edge/publish'
 import { getHostedPage, saveHostedPage } from '@/server/modules/hosted-pages/service';
 import { parseConfig } from '@/widget/src/config';
 import { arPath as widgetArPath, detectDevice as widgetDetect, sceneViewerIntent as widgetIntent } from '@/widget/src/ar';
-import { arPath, detectDevice, hostedProductFrom, sceneViewerIntent, shopLink, sizeLine } from '../../../../../tajribah-try-on/lib/hosted-page';
-import { servesHere } from '../../../../../tajribah-try-on/lib/store-host';
+import { arPath, detectDevice, hostedProductFrom, sceneViewerIntent, shopLink, sizeLine } from '@site/lib/hosted-page';
+import { servesHere } from '@site/lib/store-host';
 
 setLogLevel('error');
 const ENV = { APP_URL: 'http://localhost:5173', AUTH_SECRET: 'a'.repeat(40), ENCRYPTION_KEY: 'b'.repeat(40) };

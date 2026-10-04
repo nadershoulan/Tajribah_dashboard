@@ -1,0 +1,6 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "../../vendor/shadcn-tailwind-4.13.0.css";
+/* Split so the static preview build can compile the same styles without Next. */
+@import "./theme.css";
+@import "./site.css";

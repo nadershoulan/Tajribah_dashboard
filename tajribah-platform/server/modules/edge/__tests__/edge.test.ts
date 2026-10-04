@@ -26,7 +26,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseConfig } from '@/widget/src/config';
 import { configUrl } from '@/widget/src/main';
-import { tryOnProductFrom } from '../../../../../tajribah-try-on/lib/tryon-config';
+import { tryOnProductFrom } from '@site/lib/tryon-config';
 
 setLogLevel('error');
 const admin = <T>(harness: TestDb, fn: () => Promise<T>) => harness.asAdmin(fn);

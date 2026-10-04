@@ -12,8 +12,9 @@ the plan's shape. Nothing here is a silent substitution.
 
 ```
 Cloudflare
-  tajribah.sa ............ the website + try-on studio        (../tajribah-try-on, a Worker)
-  app.tajribah.sa ........ dashboard, staff console, API      (this repo, a Worker; cron + queue for background work)
+  tajribah.sa ............ the website + try-on studio (`/`), dashboard (`/dashboard`), staff console, API
+                           (this repo, one Worker; cron + queue for background work — T70: the website moved in)
+  app.tajribah.sa ........ the same Worker (optional, for old links)
   cfg.tajribah.com ....... each published product's config   (a small Worker reading KV)
   cdn.tajribah.com ....... widget, 3D files, pictures         (R2)
   ev.tajribah.com ........ shop analytics collector           (the dashboard Worker)
@@ -55,9 +56,9 @@ repositories.**
 | ClickHouse | `analytics_events` + rollup tables in Postgres, written from the edge | Keeps D5's rule (analytics never touches the transactional read path for merchants) while needing no extra store. | Fine to ~millions of rows, not to 2.5M/day. The event schema is ClickHouse-shaped from day one so the move is an exporter, not a rewrite. |
 | Redis cache | Workers KV | Already a binding. | KV is eventually consistent — never read-after-write for anything a merchant just saved. |
 | Viewer config: KV entry, 5-minute cache plus purge | KV entry behind `ConfigStore` (`server/core/edge/configs.ts`, P1.15), served by its own `cfg.` Worker (`config-worker.ts`); **60-second cache, no purge** | A change or a take-down reaches shoppers in about a minute (plus KV's own propagation) with no purge API to call or fail; a replaced picture is kept 10 minutes (T36). | More reads at the edge than a 5-minute cache — still never Postgres. Longer caching is one header in `host.ts` if the load asks for it. |
-| Monorepo (pnpm + Turborepo) | Two apps side by side (this one and `../tajribah-try-on`), folders instead of packages | The plan's four frontends do not exist yet; two apps are simpler to deploy. | `lib/contracts`, `lib/i18n`, `server/connectors` are self-contained folders with no upward imports, so extracting them into packages is a move, not a refactor. |
+| Monorepo (pnpm + Turborepo) | One app since T70 (the website in `site/` + `app/(site)`), folders instead of packages | The plan's four frontends do not exist yet; two apps are simpler to deploy. | `lib/contracts`, `lib/i18n`, `server/connectors` are self-contained folders with no upward imports, so extracting them into packages is a move, not a refactor. |
 | argon2id | PBKDF2-HMAC-SHA-256, 600k iterations, via WebCrypto | Workers have no native argon2; the WASM build is a dependency and a cold-start cost. | Weaker per-guess cost. Recorded in DECISIONS.md as **must revisit before the first real merchant password**. The hash column stores its own algorithm prefix so a rehash-on-login upgrade needs no migration. |
-| Marketing site in Astro | `tajribah-try-on` (already built, separate folder) | It exists, it is Arabic-first and it carries the live try-on demo. | Unchanged as a decision; since 2026-09-27 **Track M is built in that repo**, under its own `CLAUDE.md`. This app's code still does not touch it — which is why its plan prices are a hand-kept copy of the catalogue (filed under Track M in `docs/PACKAGES.md`). |
+| Marketing site in Astro | The vinext website, now inside this app (`site/`, T70, 2026-10-04) | It exists, it is Arabic-first and it carries the live try-on demo. | Since 2026-10-04 it lives here (T70); before that, since 2026-09-27 **Track M is built in that repo**, under its own `CLAUDE.md`. This app's code still does not touch it — which is why its plan prices are a hand-kept copy of the catalogue (filed under Track M in `docs/PACKAGES.md`). |
 
 ## How tenant isolation works
 

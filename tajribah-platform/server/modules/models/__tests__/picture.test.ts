@@ -20,7 +20,7 @@ import { deleteModel, listModels } from '@/server/modules/models/library';
 import { confirmPicture, pictureFile, pictureProblem, startPictureUpload } from '@/server/modules/models/picture';
 import { publishProduct } from '@/server/modules/edge/publish';
 import { handleDeleteLater } from '@/server/modules/tryon/retire';
-import { hostedProductFrom } from '../../../../../tajribah-try-on/lib/hosted-page';
+import { hostedProductFrom } from '@site/lib/hosted-page';
 
 setLogLevel('error');
 

@@ -65,6 +65,9 @@ function routeFiles() {
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir)) {
       const full = join(dir, entry);
+      // The website's QR photo transfer (moved in from tajribah-try-on): its own private bucket only,
+      // never the database or a module — so no boot, and no handler in the route map.
+      if (full === join(root, 'pair')) continue;
       if (statSync(full).isDirectory()) { walk(full); continue; }
       if (entry !== 'route.ts') continue;
       const source = readFileSync(full, 'utf8');

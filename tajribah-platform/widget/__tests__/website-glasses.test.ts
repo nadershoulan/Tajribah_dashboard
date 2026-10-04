@@ -7,9 +7,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { BAG_MODELS, DEMO_BAG, DEMO_GLASSES, DEMO_NECKLACE, DEMO_RING, DEMO_WATCH, FACE_MODELS, HAND_MODELS, MODELS, NECK_MODELS, constrainToModel, modelsFor } from '../../../tajribah-try-on/lib/demo-product';
+import { BAG_MODELS, DEMO_BAG, DEMO_GLASSES, DEMO_NECKLACE, DEMO_RING, DEMO_WATCH, FACE_MODELS, HAND_MODELS, MODELS, NECK_MODELS, constrainToModel, modelsFor } from '@site/lib/demo-product';
+import { sitePath } from './site-path';
 
-const site = (p: string) => join(process.cwd(), '..', 'tajribah-try-on', p);
+const site = (p: string) => sitePath(p);
 
 test('a watch is exactly as before: the same two photos, poses and base width', () => {
   const { models, baseMm } = modelsFor(DEMO_WATCH);

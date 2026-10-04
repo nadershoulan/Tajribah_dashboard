@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isStorePath, markStoreHost, servesHere, siteHosts, STORE_HOST_HEADER, storeHostOf, storeHostRedirect } from '../../../tajribah-try-on/lib/store-host';
+import { isStorePath, markStoreHost, servesHere, siteHosts, STORE_HOST_HEADER, storeHostOf, storeHostRedirect } from '@site/lib/store-host';
 
 const HOSTS = siteHosts(' tajribah.sa, WWW.tajribah.sa ,');
 const to = (address: string, hosts = HOSTS) => storeHostRedirect(new URL(address), hosts);

@@ -2,12 +2,9 @@
 
 **No Docker is needed** for any of it. Everything below has been run on this Windows machine.
 
-There are two apps, side by side:
-
-| Folder | What it is |
-|---|---|
-| `tajribah-try-on` | The website (tajribah.sa) and the try-on studio shoppers open |
-| `tajribah-platform` | The merchant dashboard, the staff console, the API and the shop widget |
+Everything is one app, `tajribah-platform`: the website (tajribah.sa) and the try-on studio shoppers
+open (`site/`, pages at `/`), the merchant dashboard (`/dashboard`), the staff console (`/admin`), the
+API and the shop widget. (`tajribah-try-on` is the website's old copy, kept only until it is deleted.)
 
 ## What to install, once
 
@@ -18,26 +15,19 @@ There are two apps, side by side:
    below). The Windows installer from postgresql.org (EnterpriseDB) is the simplest; no Docker.
 4. Git Bash (comes with Git for Windows) for the commands below.
 
-Then, in each of the two folders:
+Then, in `tajribah-platform`:
 
 ```sh
-pnpm install
+pnpm install --no-lockfile   # the platform keeps no lockfile
 ```
 
 ## A. The website and the try-on studio
 
-```sh
-cd tajribah-try-on
-pnpm dev                 # → http://localhost:5173
-```
-
-Every page works, including the live demo (watch, glasses, ring, necklace, bag) and "on me" with your
-own photo. To see it exactly as it will run on Cloudflare:
-
-```sh
-pnpm build
-pnpm start               # the real Worker, run locally
-```
+They are served by the same app as the dashboard: run step C (or, without a database, step C's build
+and start with any values — the website's pages need no database) and open http://127.0.0.1:8799/ —
+the home page, `/demo` with the live studio (watch, glasses, ring, necklace, bag) and "on me" with your
+own photo, `/pricing`, and the rest. The website's static preview, for screenshots:
+`node site/preview/build.mjs` → `dist-site-preview/`.
 
 ## B. The dashboard, with demo data (no database)
 

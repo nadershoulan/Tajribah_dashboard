@@ -131,12 +131,18 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
 - **Check:** sign in; the setup guide loads; `/api/auth/me` answers; eleven wrong passwords for one
   email in a row → the eleventh answers 429 with a `retry-after` header.
 
-## 4. The website and try-on (`tajribah.sa`, `tajribah-try-on`)
+## 4. The website and try-on (`tajribah.sa` — the same Worker as the dashboard since 2026-10-04)
 
-- [ ] Deploy its Worker (`tajribah-try-on/vite.config.ts`): entry `worker/index.ts`, the
-      **every-minute cron** that deletes expired phone-to-computer photos (P5.7, `lib/pair-sweep.ts`),
-      and its R2 binding for those photos.
-- [ ] Point **`tajribah.sa`** at it. Shops open the try-on at **`https://tajribah.sa/embed/try-on`**
+The website moved into the platform (`site/`, `app/(site)`); there is no second Worker to deploy.
+- [ ] Give the dashboard Worker a second R2 binding, **`PAIR_BUCKET`** — a **private** bucket (no public
+      access, no custom domain) for the phone-to-computer photos (`site/lib/pair-store.ts`). Never the
+      public `BUCKET`: a shopper's photo must not be reachable by a URL. The every-minute cron already
+      runs the sweep that deletes expired ones (P5.7, `site/lib/pair-sweep.ts`).
+- [ ] Set **`SITE_HOSTS`** on the Worker to Tajribah's own hosts, the website's first:
+      `tajribah.sa,app.tajribah.sa` (T62: any other host is a store's own address, which serves only
+      its try-on and products' own pages).
+- [ ] Point **`tajribah.sa`** at the dashboard Worker (the website is `/`, the dashboard `/dashboard`,
+      sign-in `/login`). `app.tajribah.sa` may stay pointed at it too, for old links. Shops open the try-on at **`https://tajribah.sa/embed/try-on`**
       (`widget/src/tryon.ts` `DEFAULT_TRYON`), which reads configs from `cfg.tajribah.com`.
 - [ ] **Products' own pages (P1.19)** are this Worker's `/p/{store}/{product}`, reading the same
       configs. The dashboard shows each published product's link from **`HOSTED_PAGE_BASE`**
@@ -163,8 +169,8 @@ the website and the try-on on **tajribah.sa**, the dashboard on **app.tajribah.s
 
 | Name | Serves |
 |---|---|
-| `tajribah.sa` | website + try-on (`tajribah-try-on`) |
-| `app.tajribah.sa` | dashboard Worker |
+| `tajribah.sa` | the one Worker: website + try-on (`/`) and dashboard (`/dashboard`) |
+| `app.tajribah.sa` | the same Worker (optional, for old links) |
 | `cdn.tajribah.com` | R2, public |
 | `cfg.tajribah.com` | config host Worker |
 | `ev.tajribah.com` | event collector (P4.2) |

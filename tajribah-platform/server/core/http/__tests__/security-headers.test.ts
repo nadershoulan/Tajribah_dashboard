@@ -41,9 +41,9 @@ test('the page policy holds scripts to the nonce; dev allowances never reach a b
   assert.match(directive(dev, 'connect-src'), /ws:/);
 });
 
-test('the proxy gives each page its own nonce, on the request (for the renderer) and the response', () => {
-  const first = proxy(new NextRequest('https://app.tajribah.sa/dashboard'));
-  const second = proxy(new NextRequest('https://app.tajribah.sa/dashboard'));
+test('the proxy gives each page its own nonce, on the request (for the renderer) and the response', async () => {
+  const first = await proxy(new NextRequest('https://app.tajribah.sa/dashboard'));
+  const second = await proxy(new NextRequest('https://app.tajribah.sa/dashboard'));
   const policy = first.headers.get('content-security-policy') ?? '';
   const nonce = /'nonce-([^']+)'/.exec(policy)?.[1];
   assert.ok(nonce && nonce.length >= 22, 'a nonce of at least 128 bits');
@@ -53,12 +53,12 @@ test('the proxy gives each page its own nonce, on the request (for the renderer)
   assert.equal(newNonce().length, 24);
 });
 
-test('one page may be framed — the Salla app page, by Salla’s merchant dashboard only (T61)', () => {
-  const policy = (path: string) => proxy(new NextRequest(`https://app.tajribah.sa${path}`)).headers.get('content-security-policy') ?? '';
-  assert.equal(directive(policy('/salla/app'), 'frame-ancestors'), 'frame-ancestors https://s.salla.sa');
-  assert.equal(directive(policy('/salla/app/'), 'frame-ancestors'), 'frame-ancestors https://s.salla.sa');
+test('one page may be framed — the Salla app page, by Salla’s merchant dashboard only (T61)', async () => {
+  const policy = async (path: string) => (await proxy(new NextRequest(`https://app.tajribah.sa${path}`))).headers.get('content-security-policy') ?? '';
+  assert.equal(directive(await policy('/salla/app'), 'frame-ancestors'), 'frame-ancestors https://s.salla.sa');
+  assert.equal(directive(await policy('/salla/app/'), 'frame-ancestors'), 'frame-ancestors https://s.salla.sa');
   for (const path of ['/dashboard', '/salla', '/salla/app/x', '/dashboard/connections', '/login']) {
-    assert.equal(directive(policy(path), 'frame-ancestors'), "frame-ancestors 'none'", path);
+    assert.equal(directive(await policy(path), 'frame-ancestors'), "frame-ancestors 'none'", path);
   }
   assert.equal(directive(pageCsp('n', { framedBy: 'https://s.salla.sa' }), 'script-src'), directive(pageCsp('n'), 'script-src'), 'framed or not, scripts are held to the nonce');
 });
@@ -79,11 +79,24 @@ test('as vinext serves them: first matching rule wins per header, and the home p
     for (const h of matchHeaders(path, rules as never, { headers: new Headers(), cookies: {}, query: new URLSearchParams(), host: 'app.tajribah.com' } as never)) if (!out.has(h.key.toLowerCase())) out.set(h.key.toLowerCase(), h.value);
     return out;
   };
-  for (const path of ['/', '/dashboard', '/dashboard/tryon', '/admin', '/brand/logo.png', '/api/tryon']) {
+  for (const path of ['/', '/dashboard', '/dashboard/tryon', '/admin', '/brand/logo.png', '/api/tryon', '/demo', '/embed/try-on', '/p/oud/sa-77']) {
     const got = served(path);
-    for (const { key, value } of SECURITY_HEADERS) assert.equal(got.get(key.toLowerCase()), value, `${path}: ${key}`);
+    // The website's pages may use the camera on this origin (the try-on's "on me"); nothing else may.
+    const site = ['/', '/demo', '/embed/try-on', '/p/oud/sa-77'].includes(path);
+    for (const { key, value } of SECURITY_HEADERS) {
+      const expected = site && key === 'Permissions-Policy' ? 'camera=(self), microphone=(), geolocation=(), payment=()' : value;
+      assert.equal(got.get(key.toLowerCase()), expected, `${path}: ${key}`);
+    }
   }
   assert.equal(served('/api/tryon').get('content-security-policy'), API_CSP, 'the API keeps its own policy');
   assert.equal(served('/dashboard').get('content-security-policy'), undefined, 'pages take theirs from the proxy, with a nonce');
 });
 
+test('the website’s pages keep the website’s policy; the dashboard’s keep the dashboard’s (the website moved in)', async () => {
+  const policy = async (path: string) => (await proxy(new NextRequest(`https://tajribah.sa${path}`))).headers.get('content-security-policy') ?? '';
+  // The website's: the config host for the try-on, and /embed framed by any https shop.
+  for (const path of ['/', '/pricing', '/demo', '/p/oud/sa-77']) assert.match(directive(await policy(path), 'connect-src'), /cfg\.tajribah\.com/, path);
+  assert.equal(directive(await policy('/embed/try-on'), 'frame-ancestors'), 'frame-ancestors https:');
+  // The dashboard's: none of the website's hosts.
+  for (const path of ['/dashboard', '/login', '/admin']) assert.doesNotMatch(directive(await policy(path), 'connect-src'), /cfg\.tajribah\.com/, path);
+});

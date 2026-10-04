@@ -3,8 +3,9 @@
 # platform: `scripts/verify.mjs` — typecheck, the full test suite (isolation, migrations, audit,
 #           storage, connectors, SSO…), .env.example current, the RLS migration matching the schema,
 #           and lint (errors fail).
-# website:  the typecheck. Its lint is not a gate yet: the try-on studio and the vendored vision
-#           model file carry errors the site's code does not (see STATE.md, 2026-09-30).
+#           Since 2026-10-04 the website lives in the platform too (site/, app/(site)), so all of
+#           this covers it; its lint gate exempts only the owner's studio effects and vendored files.
+# website:  the old tajribah-try-on copy, kept until it is deleted: the typecheck only.
 name: checks
 
 on:
@@ -31,9 +32,6 @@ jobs:
         run: corepack enable && corepack prepare pnpm@11.25.0 --activate
       - name: install
         run: pnpm install --no-frozen-lockfile
-      - name: the website's packages (platform tests import its shared files, which import react)
-        run: pnpm install --frozen-lockfile
-        working-directory: tajribah-try-on
       - name: every gate check
         run: node scripts/verify.mjs --modules node_modules
 

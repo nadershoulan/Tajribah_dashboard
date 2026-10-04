@@ -11,8 +11,8 @@ import { API_KEY_PREFIX } from '@/lib/api-keys';
 import { V1_RATE, V1_ROUTES } from '@/lib/public-api/v1';
 import { RETRY_MINUTES, SIGNATURE_HEADER, WEBHOOK_EVENTS } from '@/lib/webhooks';
 import { DELIVERY_TIMEOUT_MS, signature } from '@/server/modules/outgoing-webhooks/deliver';
-import { COMPANY } from '../../../tajribah-try-on/lib/site';
-import { API, ENDPOINTS, EVENTS, VERIFY_EXAMPLE } from '../../../tajribah-try-on/lib/developers';
+import { COMPANY } from '@site/lib/site';
+import { API, ENDPOINTS, EVENTS, VERIFY_EXAMPLE } from '@site/lib/developers';
 
 test('the developer page lists exactly the routes, scopes and events the platform serves', () => {
   assert.deepEqual(
@@ -24,8 +24,10 @@ test('the developer page lists exactly the routes, scopes and events the platfor
 });
 
 test('and the same numbers and names', () => {
-  assert.equal(API.base, `${COMPANY.appUrl}/api/v1`);
-  assert.equal(API.reference, `${COMPANY.appUrl}/api/v1/openapi.json`);
+  // One app since the website moved in: the API answers on the site's own address (a full URL — developers copy it).
+  assert.equal(API.base, `${COMPANY.appUrl || COMPANY.siteUrl}/api/v1`);
+  assert.equal(API.reference, `${COMPANY.appUrl || COMPANY.siteUrl}/api/v1/openapi.json`);
+  assert.match(API.base, /^https:\/\//);
   assert.equal(API.keyPrefix, API_KEY_PREFIX);
   assert.equal(API.ratePerMinute, V1_RATE.limit * (60 / V1_RATE.windowSeconds));
   assert.equal(API.signatureHeader, SIGNATURE_HEADER);

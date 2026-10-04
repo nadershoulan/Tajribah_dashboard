@@ -79,7 +79,7 @@ Ads are denied in every case, and the try-on frame and phone page never load Goo
 
 ## The privacy policy
 
-The website's privacy policy (`tajribah-try-on/content/legal.ts`) says this in public: shop-page events
+The website's privacy policy (`site/content/legal.ts`) says this in public: shop-page events
 are kept per visit for 90 days, anonymously, with no IP addresses or browser identifiers, then deleted;
 daily totals tied to no one are kept. Applied on 2026-10-03 (DECISIONS T68). When this record changes,
 the policy changes with it.

@@ -17,8 +17,8 @@ import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness'
 import { handleEdgeJob, publishProduct } from '@/server/modules/edge/publish';
 import { updateSettings } from '@/server/modules/settings/service';
 import { parseConfig } from '@/widget/src/config';
-import { brandFrom, CONFIG_BASE, embedTitle, tryOnProductFrom } from '../../../../../tajribah-try-on/lib/tryon-config';
-import { brandOfPairing, embedRefsOf } from '../../../../../tajribah-try-on/lib/pair-brand';
+import { brandFrom, CONFIG_BASE, embedTitle, tryOnProductFrom } from '@site/lib/tryon-config';
+import { brandOfPairing, embedRefsOf } from '@site/lib/pair-brand';
 
 setLogLevel('error');
 

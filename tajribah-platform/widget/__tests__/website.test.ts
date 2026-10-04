@@ -12,10 +12,11 @@ import { embedSnippet } from '../src/snippet';
 import { PLANS } from '@/lib/plans';
 import { CREDITS_PER_3D_GENERATION } from '@/lib/ai-credits';
 import { INCLUDED_REVISIONS, PRICE_TIERS } from '@/lib/contracts/professional';
-import { COMPANY } from '../../../tajribah-try-on/lib/site';
-import { MATRIX, PLANS as SITE_PLANS } from '../../../tajribah-try-on/lib/plans';
+import { COMPANY } from '@site/lib/site';
+import { MATRIX, PLANS as SITE_PLANS } from '@site/lib/plans';
+import { sitePath } from './site-path';
 
-const site = (file: string) => readFileSync(join(process.cwd(), '..', 'tajribah-try-on', file), 'utf8');
+const site = (file: string) => readFileSync(sitePath(file), 'utf8');
 
 test('the website gives the same install lines as the dashboard', () => {
   assert.equal(COMPANY.widgetSrc, WIDGET_SRC, 'the script address');
@@ -28,7 +29,7 @@ test('the website gives the same install lines as the dashboard', () => {
 });
 
 test('"Start with this plan" opens this app\'s sign-up with the plan, and the plans are named alike', () => {
-  assert.equal(COMPANY.appUrl, 'https://app.tajribah.sa', 'T32: the dashboard lives on app.tajribah.sa');
+  assert.equal(COMPANY.appUrl, '', 'the dashboard is this same app since the website moved in: sign-up is /register here');
   const pricing = site('components/pages/Pricing.tsx');
   assert.ok(pricing.includes('`${COMPANY.appUrl}/register?plan=${p.id}`'), 'priced plans go to sign-up');
   assert.ok(site('app/robots.ts').length > 0);

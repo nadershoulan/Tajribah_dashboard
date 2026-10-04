@@ -1,6 +1,7 @@
 /**
- * P7 — the dashboard Worker: vinext's own fetch handler, unchanged, plus the two ways background
- * work runs on Cloudflare (the same wrapping the website uses, `tajribah-try-on/worker/index.ts`):
+ * P7 — the one Worker (dashboard and, since it moved in, the website): vinext's own fetch handler,
+ * behind the website's store-address redirect (T62), plus the two ways background work runs on
+ * Cloudflare (the scheduled pass also sweeps expired QR photo transfers, P5.7):
  *
  *  - `scheduled` — the every-minute Cron Trigger: the sweeps, then drain the job queue. It runs
  *    whatever else happens, so nothing depends on a message arriving.
@@ -17,6 +18,8 @@ import { log } from '@/server/core/observability/log';
 import { withDbConnection } from '@/db/client';
 import { registerEdgeHandlers } from './handlers-edge';
 import { runQueuePass, runScheduledPass, chooseHandlers } from './passes';
+import { sweepExpiredPairs } from '@site/lib/pair-sweep';
+import { markStoreHost, siteHosts, storeHostRedirect } from '@site/lib/store-host';
 
 // Never `./main` or `./handlers`: they import `sharp`, which cannot load in a Worker.
 chooseHandlers(registerEdgeHandlers);
@@ -34,8 +37,17 @@ async function run(kind: 'cron' | 'queue', pass: () => Promise<unknown>): Promis
 }
 
 const worker = {
-  fetch: (request: Request, env: unknown, ctx: Ctx) => handler.fetch(request, env, ctx),
-  async scheduled() {
+  fetch(request: Request, env: unknown, ctx: Ctx) {
+    // T62 (the website, moved in): on a store's own address only its try-on and products' own pages are
+    // served — the dashboard and the marketing pages are sent to Tajribah's own host (`SITE_HOSTS`).
+    const hosts = siteHosts((env as { SITE_HOSTS?: string } | null)?.SITE_HOSTS);
+    const elsewhere = storeHostRedirect(new URL(request.url), hosts);
+    return elsewhere ? Response.redirect(elsewhere, 302) : handler.fetch(markStoreHost(request, hosts), env, ctx);
+  },
+  async scheduled(_event: unknown, _env: unknown, ctx?: Ctx) {
+    // P5.7: QR photos never received are gone within a minute of their session expiring.
+    const pairs = sweepExpiredPairs().catch((error) => console.error('QR photo sweep failed', error instanceof Error ? error.message : 'unknown'));
+    if (ctx) ctx.waitUntil(pairs); else await pairs;
     await run('cron', () => runScheduledPass());
   },
   async queue(batch: Batch) {

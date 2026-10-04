@@ -77,12 +77,14 @@ const OUT = join(MODULES, '..', OUT_NAME);
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 
-/** `@/x` resolves from the project root, the same as the tsconfig path alias. */
+/** `@/x` resolves from the project root and `@site/x` from `site/` (the website), as the tsconfig aliases do. */
 const aliasPlugin = {
   name: 'alias-at',
   setup(build) {
     build.onResolve({ filter: /^@\// }, (args) =>
       build.resolve('./' + args.path.slice(2), { kind: args.kind, resolveDir: ROOT }));
+    build.onResolve({ filter: /^@site\// }, (args) =>
+      build.resolve('./site/' + args.path.slice(6), { kind: args.kind, resolveDir: ROOT }));
   },
 };
 

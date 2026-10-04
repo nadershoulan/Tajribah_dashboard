@@ -4,12 +4,13 @@ The product spec is `../../TAJRIBAH-BUILD-PLAN.md`. Read `STATE.md` first, then 
 package in `docs/PACKAGES.md`, then only the files that package touches. Do not read the
 whole repo.
 
-**Sibling repo `../tajribah-try-on` is the marketing site (Track M) and the live try-on
-demo.** This app's code never reaches into it: lift code by copying, and read its `CLAUDE.md`
-before touching anything derived from its try-on studio. Track M packages are built *there*,
-under *its* rules — improve in place, never rewrite the studio, real photography only,
-invent nothing — and recorded here in `STATE.md` and `docs/PACKAGES.md` like any other
-package.
+**The website (Track M) and the live try-on studio live here since 2026-10-04:** `site/` holds their
+code (imported as `@site/…`) and `app/(site)` their pages, served by the same Worker (the website at
+`/`, the dashboard at `/dashboard`). Track M work follows **`site/CLAUDE.md`** — improve in place,
+never rewrite the studio, real photography only, invent nothing — and is recorded here in `STATE.md`
+and `docs/PACKAGES.md` like any other package. The dashboard's code (`@/…`) and the website's
+(`@site/…`) stay apart: the proxy gives each its own page policy (`lib/site-paths.ts`).
+`../tajribah-try-on` is the old copy, frozen until Nader deletes it — never edit it.
 
 ## Hard rules (from §14, non-negotiable)
 

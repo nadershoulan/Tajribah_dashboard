@@ -20,13 +20,13 @@ import { createTestDb, seedTenant, seededPlanId, type TestDb } from '@/server/te
 import { publishProduct } from '@/server/modules/edge/publish';
 import { confirmCutout, startCutoutUpload, tryOnScreen, updateTryOn } from '@/server/modules/tryon/service';
 import { TRYON_WIDTH_MM, parseConfig } from '../../../../widget/src/config';
-import { tryOnProductFrom } from '../../../../../tajribah-try-on/lib/tryon-config';
+import { tryOnProductFrom } from '@site/lib/tryon-config';
 
 setLogLevel('error');
-const FRAME = new Uint8Array(readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'public', 'assets', 'glasses-front.png')));
-const RING = new Uint8Array(readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'public', 'assets', 'ring-top.webp')));
-const NECKLACE = new Uint8Array(readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'public', 'assets', 'necklace-front.webp')));
-const BAG = new Uint8Array(readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'public', 'assets', 'bag-front.webp')));
+const FRAME = new Uint8Array(readFileSync(join(process.cwd(), 'public', 'assets', 'glasses-front.png')));
+const RING = new Uint8Array(readFileSync(join(process.cwd(), 'public', 'assets', 'ring-top.webp')));
+const NECKLACE = new Uint8Array(readFileSync(join(process.cwd(), 'public', 'assets', 'necklace-front.webp')));
+const BAG = new Uint8Array(readFileSync(join(process.cwd(), 'public', 'assets', 'bag-front.webp')));
 class CdnStorage extends MemoryStorage { publicUrl(k: string) { return `https://cdn.example.test/${k}`; } }
 
 async function store(harness: TestDb, name: string) {

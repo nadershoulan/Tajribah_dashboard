@@ -18,6 +18,8 @@ const eslintConfig = defineConfig([
     "dist-worker/**",
     // Vendored third-party viewer files, served as they were published (public/vendor/README.md).
     "public/vendor/**",
+    // MediaPipe's vision runtime for the website's try-on, as published (site/ASSETS.md).
+    "public/wasm/**",
     // Salla's Embedded App SDK, as published (lib/vendor/salla-embedded-sdk-0.2.6/README.md).
     "lib/vendor/**",
     // Local tool output, never committed: wrangler's dev bundles and the test runner's build.
@@ -25,7 +27,7 @@ const eslintConfig = defineConfig([
     ".tests/**",
   ]),
   {
-    files: ["components/ui/**/*.{ts,tsx}", "hooks/use-mobile.ts"],
+    files: ["components/ui/**/*.{ts,tsx}", "hooks/use-mobile.ts", "site/components/ui/**/*.{ts,tsx}", "site/hooks/use-mobile.ts"],
     rules: {
       // These files are vendored verbatim from shadcn@4.17.0. Keep the
       // registry source intact while applying the stricter rules to Site code.
@@ -33,6 +35,12 @@ const eslintConfig = defineConfig([
       "react-hooks/purity": "off",
       "react-hooks/set-state-in-effect": "off",
     },
+  },
+  {
+    // The try-on studio is the owner's code, moved in from tajribah-try-on unchanged (site/CLAUDE.md
+    // rule 1): its two effects that set state stay as written. Every other rule still applies to it.
+    files: ["site/components/studio/Studio.tsx"],
+    rules: { "react-hooks/set-state-in-effect": "off" },
   },
   {
     // P0.5 / T9: the RLS-bypassing handle. Mirrors ADMIN_ALLOWED and APP_ALLOWED in

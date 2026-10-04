@@ -7,7 +7,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { newNonce, pageCsp } from '../../../tajribah-try-on/lib/security';
+import { newNonce, pageCsp } from '@site/lib/security';
+import { sitePath } from './site-path';
 
 const directives = (csp: string) => Object.fromEntries(csp.split('; ').map((d) => { const [k, ...v] = d.split(' '); return [k!, v]; }));
 
@@ -30,10 +31,10 @@ test('only the try-on frame may be framed, by https pages; local test servers on
   assert.deepEqual(directives(pageCsp('x', { framed: true }))['frame-ancestors'], ['https:']);
   assert.ok(!pageCsp('x').includes('localhost'), 'a public page never names a local server');
   assert.ok(directives(pageCsp('x', { local: true }))['connect-src']!.includes('http://127.0.0.1:*'));
-  const proxy = readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'proxy.ts'), 'utf8');
-  assert.match(proxy, /framed = request\.nextUrl\.pathname\.startsWith\('\/embed\/'\)/, 'framed means the try-on frame');
-  assert.match(proxy, /local = isLocalHost\(request\.nextUrl\.hostname\)/, 'local means the page is on this machine');
-  assert.match(proxy, /headers\.set\('content-security-policy', csp\)/, 'on the request too: that is where the renderer reads the nonce');
+  const proxy = readFileSync(sitePath('proxy.ts'), 'utf8');
+  assert.match(proxy, /framed: pathname\.startsWith\(["']\/embed\/["']\)/, 'framed means the try-on frame');
+  assert.match(proxy, /local: isLocalHost\(hostname\)/, 'local means the page is on this machine');
+  assert.match(proxy, /headers\.set\(["']content-security-policy["'], csp\)/, 'on the request too: that is where the renderer reads the nonce');
 });
 
 test('T68 analytics: Google may be reached only when a GA4 id is set, and never from the try-on frame', () => {
@@ -43,7 +44,7 @@ test('T68 analytics: Google may be reached only when a GA4 id is set, and never 
   assert.ok(on.includes('https://*.google-analytics.com') && on.includes('https://*.analytics.google.com'));
   assert.ok(!directives(pageCsp('x', { analytics: true, framed: true }))['connect-src']!.some((h) => h.includes('google')), 'the frame sits on a merchant’s page');
   assert.deepEqual(directives(pageCsp('x', { analytics: true }))['script-src'], ["'self'", "'nonce-x'", "'strict-dynamic'", "'wasm-unsafe-eval'"], 'the script still arrives only through the site’s own code');
-  const proxy = readFileSync(join(process.cwd(), '..', 'tajribah-try-on', 'proxy.ts'), 'utf8');
-  assert.match(proxy, /const analytics = request\.nextUrl\.pathname\.startsWith\('\/p\/'\) \|\| \(await siteGaId\(\)\) !== null;/, 'T69: the id staff set, read at run time; a product page may carry its store’s');
-  assert.match(proxy, /framed, analytics \}\)/);
+  const proxy = readFileSync(sitePath('proxy.ts'), 'utf8');
+  assert.match(proxy, /const analytics = pathname\.startsWith\(["']\/p\/["']\) \|\| \(await siteGaId\(\)\) !== null;/, 'T69: the id staff set, read at run time; a product page may carry its store’s');
+  assert.match(proxy, /analytics \}\);/);
 });

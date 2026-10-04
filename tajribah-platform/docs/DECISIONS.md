@@ -1109,3 +1109,37 @@ role only) and `tenant_settings.ga4_measurement_id`, with its ROLLBACK.
 
 **Rollback path.** Revert the commit and run the migration's ROLLBACK; the website falls back to
 `NEXT_PUBLIC_GA_ID` and product pages to no analytics. Cost: low.
+
+## T70 · 2026-10-04 · The website moves into the platform — one app, one Worker (you asked)
+
+**Decision.** The website and the try-on studio (`tajribah-try-on`) now live in the platform, so the
+old folder can be deleted:
+- **Code** in `site/` (components, lib, content, hooks, preview, its `CLAUDE.md` and `ASSETS.md`),
+  copied unchanged except for its imports (`@/…` → `@site/…`, a tsconfig alias; the test runner
+  resolves it too). The studio is byte-for-byte the owner's (`site/CLAUDE.md` rule 1).
+- **Pages** in the route group `app/(site)` with their own root layout and stylesheet
+  (`site/styles/`); the dashboard's moved to `app/(app)`, its catch-all from `[[...path]]` to
+  `[...path]` so `/` is the website's home. vinext builds one stylesheet per root layout, so neither
+  side's styles (or the dashboard's dark theme) reach the other — checked on the built app.
+- **Page policies stay separate**: the proxy gives the website's pages (`lib/site-paths.ts`, checked
+  against the folders by a test) the website's policy and every other page the dashboard's; the
+  website's pages may use the camera on this origin (`Permissions-Policy`), the dashboard's never.
+- **One Worker**: the platform's entry gains the website's store-address redirect (T62) and the QR
+  photo sweep (P5.7). The pairing API is `app/api/pair` — the one API route outside the module map.
+- **Shopper photos get their own private bucket, `PAIR_BUCKET`.** On the website, `BUCKET` held only
+  those photos; in the platform `BUCKET` is the merchants' public CDN storage, where a shopper's photo
+  must never be.
+- **Links**: sign-up and sign-in are same-site now (`COMPANY.appUrl` defaults to empty); the developer
+  page shows the API on the site's own full address.
+
+**Why.** You asked for one project. Two Workers, two deploys and two copies of the shared pieces (the
+plans, the hosted page reader, the security policy) were drift waiting to happen; the platform's
+tests already imported the website's files across folders.
+
+**No new dependency** (the platform already had every package the website uses, at the same versions).
+**No schema change.** The old folder stays, marked frozen, until you delete it; CI's platform job no
+longer installs it.
+
+**Rollback path.** Revert the commit: the platform goes back to the dashboard alone and the old folder
+is still there, unchanged, with its own Worker setup (`tajribah-try-on/vite.config.ts`). Cost: low
+until the old folder is deleted; after that, restore it from git history.

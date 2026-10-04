@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
-import './globals.css';
+import '../globals.css';
 import { dirOf, langFromCookie } from '@/lib/lang';
 import { themeAttribute, themeFromCookie } from '@/lib/theme';
 import { NextProviders } from '@/components/next-shell';

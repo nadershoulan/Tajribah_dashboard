@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { isSized, nextSort, pageOf } from '@/lib/product-list';
 import { DEMO_PRODUCTS } from '@/lib/demo-data';
 import type { ProductRow } from '@/lib/view-models';
+import type { ProductListQuery, ProductSort } from '@/lib/contracts/products';
 
 const row = (id: string, over: Partial<ProductRow> = {}): ProductRow => ({
   id, name: `Product ${id}`, nameAr: null, sku: null, imageUrl: null, priceMinor: null, currency: 'SAR',
@@ -70,7 +71,7 @@ test('T74: the preview sorts each column exactly as the API does (same rows, sam
     row('03', { name: 'cherry', priceMinor: 100, productType: 'eyewear', dimensions: { widthMm: 140 }, views30: 30 }),
     row('04', { name: 'date', priceMinor: 100, productType: 'other' }),
   ];
-  const names = (sort: any, dir: 'asc' | 'desc' = 'asc', extra: any = {}) => pageOf(rows, { sort, dir, ...extra }).rows.map((r) => r.name);
+  const names = (sort: ProductSort, dir: 'asc' | 'desc' = 'asc', extra: Partial<ProductListQuery> = {}) => pageOf(rows, { sort, dir, ...extra }).rows.map((r) => r.name);
   assert.deepEqual(names('name'), ['Apple', 'banana', 'cherry', 'date']);
   assert.deepEqual(names('name', 'desc'), ['date', 'cherry', 'banana', 'Apple']);
   assert.deepEqual(names('price'), ['date', 'cherry', 'banana', 'Apple']);

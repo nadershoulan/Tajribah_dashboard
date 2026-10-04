@@ -32,6 +32,7 @@ const TYPE_LABEL: Record<ProductRow['productType'], { ar: string; en: string }> 
 const COLUMNS: { by: ProductSort; label: { ar: string; en: string } }[] = [
   { by: 'name', label: { ar: 'المنتج', en: 'Product' } },
   { by: 'type', label: { ar: 'النوع', en: 'Type' } },
+  { by: 'category', label: { ar: 'التصنيف', en: 'Category' } },
   { by: 'price', label: { ar: 'السعر', en: 'Price' } },
   { by: 'size', label: { ar: 'المقاس', en: 'Size' } },
   { by: 'model', label: { ar: 'النموذج', en: 'Model' } },
@@ -51,10 +52,15 @@ export default function Products() {
   // of the catalogue than one page, however large the store. T73: numbered pages.
   const [sort, setSort] = useState<ProductSortState>(null);
   const [perPage, setPerPage] = useState<PageSize>(DEFAULT_PAGE_SIZE); // T76: rows per page, beside the search
-  const key = `${filter}|${q}|${sort?.by ?? ''}|${sort?.dir ?? ''}|${perPage}`;
+  // T77: the store's category, or every one; a product's page links here with `?category=`.
+  const [category, setCategory] = useState(() => {
+    try { const id = new URLSearchParams(window.location.search).get('category') ?? ''; return /^[0-9a-f-]{36}$/i.test(id) ? id : ''; } catch { return ''; }
+  });
+  const { data: categories } = useResource((s) => s.productCategories());
+  const key = `${filter}|${q}|${sort?.by ?? ''}|${sort?.dir ?? ''}|${perPage}|${category}`;
   const [paged, setPaged] = useState({ key, page: 1 });
   const page = paged.key === key ? paged.page : 1; // a new search or filter starts at page 1
-  const { data, loading, error } = useResource((s) => s.products({ q: q || undefined, filter, page, limit: perPage, sort: sort?.by, dir: sort?.dir }), [q, filter, page, sort?.by, sort?.dir, perPage]);
+  const { data, loading, error } = useResource((s) => s.products({ q: q || undefined, filter, page, limit: perPage, sort: sort?.by, dir: sort?.dir, category: category || undefined }), [q, filter, page, sort?.by, sort?.dir, perPage, category]);
   const rows = data?.rows ?? [];
   const counts = data?.counts;
   const pages = pageCount(counts?.[filter] ?? 0, perPage);
@@ -152,6 +158,15 @@ export default function Products() {
               {item.count != null && <span style={{ opacity: .65 }}>{formatNumber(item.count, lang)}</span>}
             </button>
           ))}
+          {categories && categories.length > 0 && (
+            <label className="page-size" htmlFor="products-category" style={{ marginInlineStart: 'auto' }}>
+              <span>{t('التصنيف', 'Category')}</span>
+              <select id="products-category" value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="">{t('كل التصنيفات', 'All categories')}</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.name} ({formatNumber(c.count, lang)})</option>)}
+              </select>
+            </label>
+          )}
         </div>
 
         {loading && <Loading rows={6} />}
@@ -199,6 +214,9 @@ export default function Products() {
                       </AppLink>
                     </td>
                     <td>{pick(TYPE_LABEL[product.productType])}</td>
+                    <td>{product.category ? (
+                      <button type="button" className="link-plain" onClick={() => setCategory(product.category!.id)} title={t('اعرض هذا التصنيف فقط', 'Show this category only')}>{product.category.name}</button>
+                    ) : <span style={{ color: 'var(--text-3)' }}>—</span>}</td>
                     <td className="num">
                       {product.priceMinor == null ? '—' : formatMoney(product.priceMinor, product.currency, lang)}
                     </td>

@@ -34,6 +34,7 @@ export function sortValue(product: ProductRow, sort: ProductSort): string | numb
   switch (sort) {
     case 'name': return product.name.toLowerCase();
     case 'type': return product.productType;
+    case 'category': return product.category?.name.toLowerCase() ?? null;
     case 'price': return product.priceMinor;
     case 'size': return isSized(product) ? product.dimensions!.widthMm! : null;
     case 'model': return MODEL_RANK[product.modelStatus];
@@ -64,17 +65,18 @@ export function pageOf(rows: readonly ProductRow[], query: Partial<ProductListQu
   const limit = query.limit ?? 50;
   const searched = rows.filter((p) => matchesSearch(p, query.q));
   const ordered = searched
-    .filter((p) => matchesFilter(p, filter) && (query.page || query.sort || !query.cursor || p.id < query.cursor))
+    .filter((p) => matchesFilter(p, filter) && (!query.category || p.category?.id === query.category) && (query.page || query.sort || !query.cursor || p.id < query.cursor))
     .sort(query.sort ? byColumn(query.sort, query.dir ?? 'asc') : newest);
   const start = query.page ? (query.page - 1) * limit : 0; // T73: a numbered page
   const page = ordered.slice(start, start + limit);
-  const counts = Object.fromEntries(PRODUCT_FILTERS.map((f) => [f, searched.filter((p) => matchesFilter(p, f)).length])) as Record<ProductFilter, number>;
+  const inCategory = searched.filter((p) => !query.category || p.category?.id === query.category); // T77
+  const counts = Object.fromEntries(PRODUCT_FILTERS.map((f) => [f, inCategory.filter((p) => matchesFilter(p, f)).length])) as Record<ProductFilter, number>;
   return { rows: page, counts, nextCursor: ordered.length > start + limit ? page[page.length - 1].id : null };
 }
 
 export type ProductSortState = { by: ProductSort; dir: 'asc' | 'desc' } | null;
 /** T74: numbers people want biggest or latest first start descending; words and states start ascending. */
-const FIRST_DIR: Record<ProductSort, 'asc' | 'desc'> = { name: 'asc', type: 'asc', price: 'desc', size: 'desc', model: 'asc', ar: 'asc', views: 'desc', updated: 'desc' };
+const FIRST_DIR: Record<ProductSort, 'asc' | 'desc'> = { name: 'asc', type: 'asc', category: 'asc', price: 'desc', size: 'desc', model: 'asc', ar: 'asc', views: 'desc', updated: 'desc' };
 /** Click: that column, its first direction → the other direction → back to newest first. */
 export function nextSort(current: ProductSortState, by: ProductSort): ProductSortState {
   if (current?.by !== by) return { by, dir: FIRST_DIR[by] };

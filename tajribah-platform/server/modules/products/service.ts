@@ -12,10 +12,10 @@
  *  3. **Deleting is soft.** The row stays (orders and analytics still point at it), hidden.
  */
 import { and, desc, eq, gte, ilike, inArray, isNotNull, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm';
-import { dailyProductStats, edgeConfigs, models3d, products, type Product } from '@/db/schema';
+import { categories, dailyProductStats, edgeConfigs, models3d, products, type Product } from '@/db/schema';
 import {
   ProductCreate, ProductPatch, STORE_OWNED_FIELDS,
-  type ProductFilter, type ProductListPage, type ProductListQuery, type ProductSort,
+  type ProductCategoryCount, type ProductFilter, type ProductListPage, type ProductListQuery, type ProductSort,
 } from '@/lib/contracts/products';
 import { riyadhDay } from '@/lib/format';
 import type { ProductRow } from '@/lib/view-models';
@@ -49,6 +49,7 @@ function sortKey(sort: ProductSort, since: string): SQL {
   switch (sort) {
     case 'name': return sql`lower(${products.name})`;
     case 'type': return sql`${products.productType}::text`;
+    case 'category': return sql`(select lower(${categories.name}) from ${categories} where ${categories.id} = ${products.categoryId})`;
     case 'price': return sql`${products.priceMinor}`;
     case 'size': return sql`case when ${SIZED} then (${products.dimensions}->>'widthMm')::numeric end`;
     case 'model': return sql`(select case ${models3d.status} when 'ready' then 0 when 'processing' then 1 when 'failed' then 2 else 3 end from ${models3d} where ${models3d.id} = ${products.primaryModelId})`;
@@ -77,17 +78,33 @@ export async function listProducts(ctx: TenantContext, query: ProductListQuery):
     ? [sql`${sortKey(query.sort, riyadhDay(Date.now() - 29 * 24 * 3600_000))} ${sql.raw(query.dir === 'desc' ? 'desc' : 'asc')} nulls last`, desc(products.id)]
     : desc(products.id);
 
-  const page = await ctx.db.find(products, and(live, FILTER[query.filter], search, after), {
+  const inCategory = query.category ? eq(products.categoryId, query.category) : undefined; // T77
+  const page = await ctx.db.find(products, and(live, FILTER[query.filter], search, inCategory, after), {
     limit: query.limit + 1, orderBy, offset: query.page ? (query.page - 1) * query.limit : undefined,
   });
   const more = page.length > query.limit;
   const rows = more ? page.slice(0, query.limit) : page;
 
   const counts = Object.fromEntries(await Promise.all(
-    (Object.keys(FILTER) as ProductFilter[]).map(async (key) => [key, await ctx.db.count(products, and(live, FILTER[key], search))] as const),
+    (Object.keys(FILTER) as ProductFilter[]).map(async (key) => [key, await ctx.db.count(products, and(live, FILTER[key], search, inCategory))] as const),
   )) as Record<ProductFilter, number>;
 
   return { rows: await toRows(ctx, rows), counts, nextCursor: more ? rows[rows.length - 1].id : null };
+}
+
+/**
+ * T77 — the store's categories with how many products (not deleted, not archived) each has, the
+ * largest first: what the list's category filter offers. A category no product is in any more is left out.
+ */
+export async function listProductCategories(ctx: TenantContext): Promise<ProductCategoryCount[]> {
+  ctx.require('products:read');
+  const all = await ctx.db.find(categories, undefined, { limit: 1000 });
+  if (all.length === 0) return [];
+  const counted = await Promise.all(all.map(async (c) => ({
+    id: c.id, name: c.nameAr ?? c.name,
+    count: await ctx.db.count(products, and(isNull(products.deletedAt), ne(products.status, 'archived'), eq(products.categoryId, c.id))),
+  })));
+  return counted.filter((c) => c.count > 0).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ar'));
 }
 
 export async function getProduct(ctx: TenantContext, id: string): Promise<ProductRow> {
@@ -163,12 +180,15 @@ async function toRows(ctx: TenantContext, list: Product[]): Promise<ProductRow[]
   const modelIds = list.map((p) => p.primaryModelId).filter((id): id is string => !!id);
   const since = riyadhDay(Date.now() - 29 * 24 * 3600_000);
 
-  const [models, stats, live] = await Promise.all([
+  const categoryIds = [...new Set(list.map((p) => p.categoryId).filter((id): id is string => !!id))];
+  const [models, stats, live, named] = await Promise.all([
     modelIds.length ? ctx.db.find(models3d, inArray(models3d.id, modelIds), { limit: modelIds.length }) : Promise.resolve([]),
     ctx.db.find(dailyProductStats, and(inArray(dailyProductStats.productId, ids), gte(dailyProductStats.day, since)), { limit: ids.length * 30 }),
     // T42: which of these have a button on the shop now.
     ctx.db.find(edgeConfigs, and(inArray(edgeConfigs.productId, ids), isNotNull(edgeConfigs.key), isNull(edgeConfigs.withdrawnAt)), { limit: ids.length }),
+    categoryIds.length ? ctx.db.find(categories, inArray(categories.id, categoryIds), { limit: categoryIds.length }) : Promise.resolve([]),
   ]);
+  const categoryName = new Map(named.map((c) => [c.id, c.nameAr ?? c.name]));
   const liveIds = new Set(live.map((row) => row.productId));
   const modelStatus = new Map(models.map((m) => [m.id, MODEL_STATUS[m.status] ?? 'none']));
   const totals = new Map<string, { views: number; ar: number }>();
@@ -197,5 +217,6 @@ async function toRows(ctx: TenantContext, list: Product[]): Promise<ProductRow[]
     views30: totals.get(p.id)?.views ?? 0,
     arSessions30: totals.get(p.id)?.ar ?? 0,
     updatedAt: p.updatedAt.toISOString(),
+    category: p.categoryId && categoryName.has(p.categoryId) ? { id: p.categoryId, name: categoryName.get(p.categoryId)! } : null,
   }));
 }

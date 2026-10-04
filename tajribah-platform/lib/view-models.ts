@@ -263,6 +263,8 @@ export type ProductRow = {
   views30: number;
   arSessions30: number;
   updatedAt: string;
+  /** T77: the store's own category ("ساعات نسائية"), from its feed or platform; none when it gives none. */
+  category?: { id: string; name: string } | null;
 };
 
 export type ModelRow = {

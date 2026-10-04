@@ -210,8 +210,9 @@ function ConnectionPanel({ connection, onChanged }: { connection: ConnectionDeta
   const { t, pick, lang } = useLang();
   const lock = useWriteLock(); // T50: a read-only store or a staff view changes nothing
   const source = useData();
-  const [busy, setBusy] = useState<'sync' | 'disconnect' | null>(null);
+  const [busy, setBusy] = useState<'sync' | 'disconnect' | 'remove' | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [removing, setRemoving] = useState(false); // T78: "remove this store and its products?"
   const [failure, setFailure] = useState<Error | null>(null);
   const sync = connection.latestSync;
   const running = sync?.status === 'queued' || sync?.status === 'running';
@@ -220,13 +221,15 @@ function ConnectionPanel({ connection, onChanged }: { connection: ConnectionDeta
   const feed = connection.provider === 'feed';
   const file = feed && !connection.storeUrl;
 
-  const act = async (kind: 'sync' | 'disconnect') => {
+  const act = async (kind: 'sync' | 'disconnect' | 'remove') => {
     setBusy(kind);
     setFailure(null);
     try {
       if (kind === 'sync') await source.syncNow(connection.id);
+      else if (kind === 'remove') await source.removeStore(connection.id);
       else await source.disconnect(connection.id);
       setConfirming(false);
+      setRemoving(false);
       onChanged();
     } catch (error) {
       setFailure(error as Error);
@@ -295,6 +298,11 @@ function ConnectionPanel({ connection, onChanged }: { connection: ConnectionDeta
                 : t('انتهى إذن الوصول إلى متجرك. أعد الربط لاستئناف المزامنة.', 'Access to your store has lapsed. Reconnect it to resume syncing.')}
             </p>
           )}
+          {!active && !removing && (
+            <button type="button" className="btn btn-quiet btn-sm" style={{ color: 'var(--bad)' }} onClick={() => setRemoving(true)} disabled={busy !== null || lock.locked} title={lock.title}>
+              {t('احذف المتجر ومنتجاته', 'Remove the store and its products')}
+            </button>
+          )}
         </div>
         <div style={{ minWidth: 170 }}>
           <div className="usage-top" style={{ fontSize: 13, marginBottom: 4 }}>
@@ -325,6 +333,21 @@ function ConnectionPanel({ connection, onChanged }: { connection: ConnectionDeta
               {busy === 'disconnect' ? t('جارٍ الفصل…', 'Disconnecting…') : t('نعم، افصل', 'Yes, disconnect')}
             </button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirming(false)} disabled={busy !== null}>{t('إلغاء', 'Cancel')}</button>
+          </div>
+        </div>
+      )}
+      {removing && (
+        <div className="confirm" role="alertdialog" aria-labelledby={`remove-${connection.id}`}>
+          <p id={`remove-${connection.id}`} style={{ margin: 0 }}>
+            <strong>{t('حذف هذا المتجر ومنتجاته؟', 'Remove this store and its products?')}</strong>{' '}
+            {t(`يُحذف ${n(connection.productCount)} منتجًا جاء من هذا المتجر، ويُزال زرها من متجرك إن كان منشورًا، ويختفي الربط من هنا. لا يمكن التراجع من اللوحة.`,
+              `The ${n(connection.productCount)} products that came from this store are deleted, their buttons come off your shop if published, and the link disappears from here. This cannot be undone from the dashboard.`)}
+          </p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+            <button type="button" className="btn btn-danger btn-sm" onClick={() => act('remove')} disabled={busy !== null}>
+              {busy === 'remove' ? t('جارٍ الحذف…', 'Removing…') : t('نعم، احذفه مع منتجاته', 'Yes, remove it and its products')}
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRemoving(false)} disabled={busy !== null}>{t('إلغاء', 'Cancel')}</button>
           </div>
         </div>
       )}

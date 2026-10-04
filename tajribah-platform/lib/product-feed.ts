@@ -6,7 +6,8 @@
  * What is read (Google's attribute names; common plain names are accepted for a hand-made sheet):
  *   id · title · description · link · image_link · additional_image_link · price · availability ·
  *   item_group_id · mpn/sku/gtin · product_width / product_height / product_length (T72: the size, when
- *   the feed has it — "20 cm", "8 in", "200 mm"; a plain number is millimetres, the dashboard's unit)
+ *   the feed has it — "20 cm", "8 in", "200 mm"; a plain number is millimetres, the dashboard's unit) ·
+ *   product_type / google_product_category (T77: the store's own category, read for the product's type)
  * Variants (rows sharing `item_group_id`) are one product: the try-on does not change per size or
  * colour. Its first row names it. `price` is the regular price ("60.00 SAR"); a sale price is the
  * shop's business, not the size's. A row without an id or a title is skipped and reported.
@@ -26,7 +27,13 @@ export type FeedProduct = {
   link: string | null;
   /** Millimetres, when the feed gives them; only ever fills a size the product does not have yet. */
   dimensions: { widthMm?: number; heightMm?: number; depthMm?: number } | null;
+  /** T77: the type the store's own category names, or null; only ever fills a type still "other". */
+  productType: FeedProductType | null;
+  /** T77: the store's own category, as written ("ساعات نسائية"), or null — the store's, kept as it changes. */
+  category: string | null;
 };
+
+export type FeedProductType = 'watch' | 'jewelry' | 'eyewear' | 'bag' | 'apparel' | 'furniture';
 
 export type FeedResult = { products: FeedProduct[]; skipped: { row: number; reason: string }[]; rows: number };
 
@@ -49,7 +56,44 @@ const ALIASES: Record<string, string> = {
   product_height: 'product_height', height: 'product_height', height_mm: 'product_height', 'الارتفاع': 'product_height',
   product_length: 'product_length', length: 'product_length', depth: 'product_length', length_mm: 'product_length', depth_mm: 'product_length', 'الطول': 'product_length', 'العمق': 'product_length',
   currency: 'currency', 'العملة': 'currency',
+  product_type: 'product_type', category: 'product_type', product_category: 'product_type', 'التصنيف': 'product_type', 'الفئة': 'product_type', 'القسم': 'product_type',
+  google_product_category: 'google_product_category',
 };
+
+/**
+ * T77 — the product's type from the store's own category (`product_type`, then Google's
+ * `google_product_category` when written out as text), in Arabic or English. Only words that name one
+ * type are read: "ساعات نسائية" → watch, "خواتم نسائية" / "حلق" / "سلاسل" / "Jewelry > Rings" → jewelry.
+ * A word that could be either (طقم "a set", إكسسوار "accessories") names nothing — the type stays
+ * "other" for the merchant to choose. Watches come first: "a watch with a bracelet" is a watch.
+ */
+/** Arabic stems that must begin a word (after "ال", "و" or "ب" at most — "سوار" is not inside "إكسسوارات"), and whole English words. */
+const words = (arabic: string[], english: string[]) =>
+  new RegExp(`(?<![\\u0600-\\u06FF])(?:ال|و|ب)?(?:${arabic.join('|')})|\\b(?:${english.join('|')})\\b`, 'i');
+const TYPE_WORDS: [FeedProductType, RegExp][] = [
+  ['watch', words(['ساع[ةا]'], ['watch(es)?', 'smartwatch(es)?'])],
+  ['eyewear', words(['نظار[ةا]'], ['(sun)?glasses', 'eyewear', 'eyeglasses'])],
+  ['bag', words(['حقيب[ةا]', 'حقائب', 'شنط'], ['(hand)?bags?', 'purses?', 'backpacks?'])],
+  ['apparel', words(['ملابس', 'فستان', 'فساتين', 'عباي[ةا]', 'حجاب', 'طرح[ةه]', 'طرحات', 'قميص', 'بنطلون'], ['apparel', 'clothing', 'dress(es)?', 'shirts?', 'abayas?', 'hijabs?'])],
+  ['jewelry', words(['خاتم', 'خواتم', 'حلق', 'أقراط', 'اقراط', 'قرط', 'سلسال', 'سلاسل', 'قلاد[ةا]', 'قلائد', 'تعليق[ةه]', 'تشوكر', 'أساور', 'اساور', 'سوار', 'خلخال', 'خلاخل', 'مجوهرات'], ['jewel(le)?ry', 'rings?', 'necklaces?', 'earrings?', 'bracelets?', 'anklets?', 'pendants?', 'chokers?'])],
+  ['furniture', words(['أثاث', 'اثاث', 'كنب'], ['furniture', 'sofas?', 'couch(es)?'])],
+];
+
+/** The store's category as one name: the last step of a path ("Apparel > Jewelry > Rings" → "Rings"), 100 characters at most. */
+export function categoryOf(text: string): string | null {
+  const last = decodeXml(text).split('>').map((part) => part.trim()).filter(Boolean).pop();
+  return last && !/^\d+$/.test(last) ? last.slice(0, 100) : null; // a bare Google taxonomy number names nothing readable
+}
+
+export function typeFromCategory(text: string): FeedProductType | null {
+  // A path is read from its most specific step: "Apparel & Accessories > Jewelry > Rings" is jewelry.
+  const steps = decodeXml(text).split('>').map((step) => step.trim()).filter(Boolean).reverse();
+  for (const step of steps) {
+    const found = TYPE_WORDS.find(([, pattern]) => pattern.test(step));
+    if (found) return found[0];
+  }
+  return null;
+}
 
 const ARABIC = /[\u0600-\u06FF]/;
 
@@ -114,6 +158,8 @@ function productOf(row: Row): FeedProduct | string {
     images: [...new Set(images)].slice(0, 10).map((url) => ({ url })),
     link: /^https?:\/\//i.test(one('link')) ? one('link') : null,
     dimensions: dimensionsOf(one),
+    productType: typeFromCategory(one('product_type')) ?? typeFromCategory(one('google_product_category')),
+    category: categoryOf(one('product_type') || one('google_product_category')),
   };
 }
 

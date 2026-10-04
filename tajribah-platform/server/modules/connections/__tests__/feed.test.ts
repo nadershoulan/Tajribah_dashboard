@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq } from 'drizzle-orm';
-import { products, storeConnections, syncJobs } from '@/db/schema';
+import { auditLogs, categories, edgeConfigs, products, storeConnections, syncJobs } from '@/db/schema';
 import { clearConnectors, registerConnector } from '@/server/connectors/types';
 import { FeedConnector } from '@/server/connectors/feed/connector';
 import { loadEnv, resetEnv } from '@/server/core/config/env';
@@ -18,6 +18,8 @@ import { RSS, workbook } from '@/server/testing/feed-fixtures';
 import { connectFeed, importProductFile, syncFeedNow } from '@/server/modules/connections/feed';
 import { runSyncStep } from '@/server/modules/sync/engine';
 import { requestSync } from '@/server/modules/sync/service';
+import { disconnectStore, removeStore } from '@/server/modules/connections/service';
+import { listProductCategories, listProducts, updateProduct } from '@/server/modules/products/service';
 
 setLogLevel('error');
 const LINK = 'https://shop.example.sa/ar/feeds/google-merchant/S3cretT0ken';
@@ -135,4 +137,72 @@ test('a file: imported in its own request, not kept; uploading again updates it;
     const jobs = await harness.asAdmin(() => harness.db.select().from(syncJobs).where(eq(syncJobs.connectionId, first.connection.id))) as any[];
     assert.deepEqual(jobs.map((j) => j.status), ['done', 'done'], 'a refused file starts no sync');
   } finally { clearConnectors(); await harness.close(); resetEnv(); }
+});
+
+const FAILET = (watchCategory: string) => `<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0"><channel>
+  <item><g:id>1</g:id><g:title>ساعة نسائية ماركة فايلت</g:title><g:price>545.00 SAR</g:price><g:product_type>${watchCategory}</g:product_type><g:item_group_id>G1</g:item_group_id></item>
+  <item><g:id>2</g:id><g:title>ساعة رجالية</g:title><g:price>360.00 SAR</g:price><g:product_type>ساعات رجالية</g:product_type></item>
+  <item><g:id>3</g:id><g:title>طقم زركون فضي</g:title><g:price>672.75 SAR</g:price><g:product_type>أطقم</g:product_type></item>
+  <item><g:id>4</g:id><g:title>خاتم</g:title><g:price>50 SAR</g:price><g:product_type>خواتم نسائية</g:product_type></item>
+  <item><g:id>5</g:id><g:title>بلا تصنيف</g:title><g:price>10 SAR</g:price></item>
+</channel></rss>`;
+
+test('T77: the store’s categories come in as this store’s categories; a type fills only one still "other"; the category follows the store', async () => {
+  const harness = await createTestDb();
+  const feed = { body: FAILET('ساعات نسائية') };
+  try {
+    const { ctx, tenantId } = await setup(harness, feed);
+    const linked = await connectFeed(ctx, { url: LINK }, internet(feed));
+    const LIST = { filter: 'all' as const, limit: 50 };
+    const rows = (await listProducts(ctx, LIST)).rows;
+    const by = (name: string) => rows.find((r) => r.name === name)!;
+    assert.deepEqual([by('ساعة نسائية ماركة فايلت').productType, by('ساعة نسائية ماركة فايلت').category?.name], ['watch', 'ساعات نسائية']);
+    assert.deepEqual([by('طقم زركون فضي').productType, by('طقم زركون فضي').category?.name], ['other', 'أطقم'], 'a set: kept as a category, no type guessed');
+    assert.deepEqual([by('خاتم').productType, by('بلا تصنيف').category], ['jewelry', null]);
+    const cats = await listProductCategories(ctx);
+    assert.deepEqual(cats.map((c) => [c.name, c.count]).sort(), [['أطقم', 1], ['خواتم نسائية', 1], ['ساعات رجالية', 1], ['ساعات نسائية', 1]]);
+    const watches = cats.find((c) => c.name === 'ساعات نسائية')!;
+    assert.deepEqual((await listProducts(ctx, { ...LIST, category: watches.id })).rows.map((r) => r.name), ['ساعة نسائية ماركة فايلت'], 'the list filtered by a category');
+    assert.equal((await listProducts(ctx, { ...LIST, category: watches.id })).counts.all, 1, 'counts follow the category');
+    assert.deepEqual((await listProducts(ctx, { ...LIST, sort: 'category', dir: 'asc' })).rows.at(-1)!.name, 'بلا تصنيف', 'sorted by category, none last');
+
+    // The merchant sets the set's type; the store moves the women's watch to another category.
+    await updateProduct(ctx, by('طقم زركون فضي').id, { productType: 'jewelry' });
+    await updateProduct(ctx, by('ساعة رجالية').id, { productType: 'other' });
+    await updateProduct(ctx, by('خاتم').id, { productType: 'apparel' }); // the merchant's own choice, though the store says rings
+    feed.body = FAILET('ساعات ألماس نسائية').replace('<g:price>50 SAR</g:price>', '<g:price>55 SAR</g:price>'); // the ring's price changes: its row is written
+    await syncFeedNow(ctx, (await requestSync(ctx, linked.connection.id, { type: 'full' })).id);
+    const after = (await listProducts(ctx, LIST)).rows;
+    const now = (name: string) => after.find((r) => r.name === name)!;
+    assert.equal(now('ساعة نسائية ماركة فايلت').category?.name, 'ساعات ألماس نسائية', 'the category is the store’s: it follows');
+    assert.equal(now('طقم زركون فضي').productType, 'jewelry', 'a type the merchant chose is kept');
+    assert.equal(now('خاتم').productType, 'apparel', 'even when the store’s category names another type');
+    assert.equal(now('ساعة رجالية').productType, 'watch', 'set back to "other": the store’s category fills it again');
+    const stored = await harness.asAdmin(() => harness.db.select().from(categories).where(eq(categories.tenantId, tenantId))) as any[];
+    assert.equal(stored.filter((c) => c.name === 'ساعات رجالية').length, 1, 'one row per category, however often it is read');
+  } finally { await harness.close(); resetEnv(); clearConnectors(); }
+});
+
+test('T78: a disconnected store is removed with its products — never an active one, never another store’s products', async () => {
+  const harness = await createTestDb();
+  const feed = { body: FAILET('ساعات نسائية') };
+  try {
+    const { ctx, tenantId } = await setup(harness, feed);
+    const linked = await connectFeed(ctx, { url: LINK }, internet(feed));
+    const file = await importProductFile(ctx, { filename: 'mine.csv', bytes: new TextEncoder().encode('id,title\nM-1,مصباح\n') });
+    await assert.rejects(() => removeStore(ctx, linked.connection.id), (e: any) => e.code === 'conflict', 'an active store: disconnect first');
+    await disconnectStore(ctx, linked.connection.id);
+    const one = (await catalogue(harness, tenantId)).find((p) => p.externalId === 'G1');
+    await harness.asAdmin(() => harness.db.insert(edgeConfigs).values({ tenantId, productId: one.id, key: 'feedstore/G1.json', version: 1, publishedAt: new Date() } as any));
+
+    const out = await removeStore(ctx, linked.connection.id);
+    assert.equal(out.products, 5);
+    const rows = await catalogue(harness, tenantId);
+    assert.ok(rows.filter((p) => p.connectionId === linked.connection.id).every((p) => p.deletedAt && p.status === 'archived' && !p.arEnabled), 'its products: deleted (soft), archived, 3D off');
+    assert.equal(rows.filter((p) => p.connectionId === file.connection.id && !p.deletedAt).length, 1, 'another source’s products stay');
+    assert.equal((await harness.asAdmin(() => harness.db.select().from(storeConnections).where(eq(storeConnections.id, linked.connection.id))) as any[]).length, 0, 'the link is gone');
+    const [trail] = await harness.asAdmin(() => harness.db.select().from(auditLogs).where(eq(auditLogs.resourceId, linked.connection.id))).then((r: any[]) => r.filter((a) => a.action === 'delete'));
+    assert.ok(trail, 'recorded once');
+    assert.equal((await listProducts(ctx, { filter: 'all', limit: 50 })).counts.all, 1, 'the list no longer shows them');
+  } finally { await harness.close(); resetEnv(); clearConnectors(); }
 });

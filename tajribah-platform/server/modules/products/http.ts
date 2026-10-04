@@ -6,7 +6,7 @@ import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@
 import { errors, fieldErrorsFrom } from '@/server/core/errors/problem';
 import { ProductListQuery } from '@/lib/contracts/products';
 import { z } from 'zod';
-import { createProduct, deleteProduct, getProduct, listProducts, updateProduct } from './service';
+import { createProduct, deleteProduct, getProduct, listProductCategories, listProducts, updateProduct } from './service';
 
 const UUID = z.string().uuid();
 
@@ -23,6 +23,12 @@ export const listProductsHandler = route(async (request) => {
   const parsed = ProductListQuery.safeParse(Object.fromEntries(new URL(request.url).searchParams));
   if (!parsed.success) throw errors.validation(fieldErrorsFrom(parsed.error.issues));
   return json(await listProducts(ctx, parsed.data));
+});
+
+/** API-186 — GET /api/products/categories: the store's categories and how many products each has (T77). */
+export const listProductCategoriesHandler = route(async (request) => {
+  const ctx = await tenantContextFor(request);
+  return json({ categories: await listProductCategories(ctx) });
 });
 
 /** API-031 — POST /api/products (a product added by hand, not synced) */

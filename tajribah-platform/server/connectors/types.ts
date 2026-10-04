@@ -29,6 +29,10 @@ export type ExternalProduct = {
   updatedAt: Date;
   /** T72: millimetres, when the source gives them (a feed's product_width…). Fills an empty size only — the size is the merchant's. */
   dimensions?: { widthMm?: number; heightMm?: number; depthMm?: number } | null;
+  /** T77: the type the store's own category names (a feed's product_type). Fills a type still "other" only — the type is the merchant's. */
+  productType?: 'watch' | 'jewelry' | 'eyewear' | 'bag' | 'apparel' | 'furniture' | null;
+  /** T77: the store's own category name ("ساعات نسائية"). The store's: it follows the source on every sync. */
+  category?: string | null;
 };
 
 /** `total`, when the store reports it, is what makes progress a percentage. */

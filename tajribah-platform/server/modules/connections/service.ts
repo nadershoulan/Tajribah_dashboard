@@ -12,8 +12,8 @@
  *  - **A refused refresh is final.** The store revoked us: tokens are wiped, status is
  *    `revoked`, and only the merchant reconnecting fixes it.
  */
-import { and, asc, eq, isNull } from 'drizzle-orm';
-import { products, storeConnections, type Provider, type StoreConnection } from '@/db/schema';
+import { and, asc, eq, isNotNull, isNull } from 'drizzle-orm';
+import { edgeConfigs, products, storeConnections, type Provider, type StoreConnection } from '@/db/schema';
 import type { ConnectionSummary } from '@/lib/view-models';
 import { connectorFor, TokenRevokedError, type TokenSet } from '@/server/connectors/types';
 import { auditedInsert, auditedUpdate, record } from '@/server/core/audit/audit';
@@ -25,6 +25,7 @@ import type { TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { uuidv7 } from '@/lib/ids';
+import { keepLive } from '@/server/modules/edge/publish';
 import { needsReseal, NO_TOKENS, openTokens, sealTokens, type VaultKeys } from './vault';
 
 /** Refresh this long before the store says the token expires: a sync page takes time. */
@@ -100,6 +101,35 @@ export async function disconnectStore(ctx: TenantContext, id: string): Promise<v
   await ctx.db.requireById(storeConnections, id);
   await auditedUpdate(ctx, storeConnections, id, { ...NO_TOKENS, status: 'revoked', lastError: null },
     { resourceType: 'store_connection', action: 'disconnect' });
+}
+
+/**
+ * T78 — an old store removed with its products (the merchant asked): only once it is disconnected, so
+ * an active store is never wiped by one click. Its products are deleted as a merchant deletes one
+ * (soft: `deleted_at`, archived, 3D off) in one transaction, the connection row goes (its sync history
+ * with it), and one audit entry records how many. Products that were on the shop are taken down after.
+ */
+export async function removeStore(ctx: TenantContext, id: string): Promise<{ products: number }> {
+  ctx.require('connections:write');
+  ctx.require('products:delete');
+  const { removed, live } = await withTenant(ctx.tenantId, async (db) => {
+    const before = await db.lockById(storeConnections, id);
+    if (before.status === 'active') throw errors.conflict('disconnect the store first, then remove it');
+    const now = new Date();
+    const gone = await db.update(products, and(eq(products.connectionId, id), isNull(products.deletedAt))!, { deletedAt: now, status: 'archived', arEnabled: false, updatedAt: now });
+    const ids = gone.map((p) => p.id);
+    const shown = ids.length ? await db.find(edgeConfigs, and(isNotNull(edgeConfigs.key), isNull(edgeConfigs.withdrawnAt)), { limit: 100_000 }) : [];
+    await db.deleteById(storeConnections, id);
+    await record(ctx, {
+      action: 'delete', resourceType: 'store_connection', resourceId: id,
+      before: { provider: before.provider, storeName: before.storeName, storeUrl: before.storeUrl } as never,
+      after: { productsDeleted: ids.length } as never,
+    }, db);
+    const inStore = new Set(ids);
+    return { removed: ids.length, live: shown.filter((e) => inStore.has(e.productId)).map((e) => e.productId) };
+  });
+  for (const productId of live) await keepLive(ctx.tenantId, productId); // P1.15: a deleted product's button goes too
+  return { products: removed };
 }
 
 /**

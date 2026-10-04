@@ -23,7 +23,7 @@
  * every change a person made.
  */
 import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
-import { products, storeConnections, syncJobItems, syncJobs, type Product } from '@/db/schema';
+import { categories, products, storeConnections, syncJobItems, syncJobs, type Product } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { UNLIMITED } from '@/lib/plans';
 import { connectorFor, TokenRevokedError, type ExternalProduct, type Page } from '@/server/connectors/types';
@@ -161,6 +161,10 @@ async function applyItems(db: TenantDb, job: SyncJob, items: ExternalProduct[], 
     ? await db.find(products, and(eq(products.connectionId, job.connectionId), inArray(products.externalId, ids)), { limit: ids.length })
     : [];
   const byExternalId = new Map(existing.map((p) => [p.externalId!, p]));
+  const categoryIds = await categoriesFor(db, items, now);
+  // T77: the store's category follows the source on every sync (it is the store's, like the name);
+  // a connector that does not report one (undefined) leaves the product's alone.
+  const categoryOf = (item: ExternalProduct) => (item.category === undefined ? undefined : item.category ? categoryIds.get(categorySlug(item.category)) ?? null : null);
 
   type ItemRow = { externalId: string; productId?: string; action: 'created' | 'updated' | 'skipped' | 'failed'; error?: string };
   const rows: ItemRow[] = [];
@@ -177,15 +181,20 @@ async function applyItems(db: TenantDb, job: SyncJob, items: ExternalProduct[], 
     const current = byExternalId.get(item.externalId);
     if (!current) {
       const id = uuidv7();
-      inserts.push({ id, tenantId: db.tenantId, connectionId: job.connectionId, externalId: item.externalId, ...fields, ...(item.dimensions ? { dimensions: item.dimensions } : {}), syncedAt: now });
+      const categoryId = categoryOf(item);
+      inserts.push({ id, tenantId: db.tenantId, connectionId: job.connectionId, externalId: item.externalId, ...fields, ...(item.dimensions ? { dimensions: item.dimensions } : {}), ...(item.productType ? { productType: item.productType } : {}), ...(categoryId ? { categoryId } : {}), syncedAt: now });
       rows.push({ externalId: item.externalId, productId: id, action: 'created' });
     } else if (current.deletedAt) {
       rows.push({ externalId: item.externalId, productId: current.id, action: 'skipped', error: 'deleted in Tajribah' });
-    } else if (unchanged(current, fields) && !(item.dimensions && !current.dimensions)) {
+    } else if (unchanged(current, fields) && !(item.dimensions && !current.dimensions) && !(item.productType && current.productType === 'other') && (categoryOf(item) === undefined || categoryOf(item) === current.categoryId)) {
       rows.push({ externalId: item.externalId, productId: current.id, action: 'skipped' });
     } else {
-      // T72: a size from the source fills an empty one only — once set, the size is the merchant's.
-      await db.updateById(products, current.id, { ...fields, ...(item.dimensions && !current.dimensions ? { dimensions: item.dimensions } : {}), syncedAt: now });
+      // T72: a size from the source fills an empty one only — once set, the size is the merchant's. T77: so does a type.
+      await db.updateById(products, current.id, {
+        ...fields, ...(item.dimensions && !current.dimensions ? { dimensions: item.dimensions } : {}),
+        ...(item.productType && current.productType === 'other' ? { productType: item.productType } : {}),
+        ...(categoryOf(item) !== undefined ? { categoryId: categoryOf(item) } : {}), syncedAt: now,
+      });
       rows.push({ externalId: item.externalId, productId: current.id, action: 'updated' });
     }
   }
@@ -196,6 +205,25 @@ async function applyItems(db: TenantDb, job: SyncJob, items: ExternalProduct[], 
     externalId: r.externalId, productId: r.productId ?? null, action: r.action, error: r.error ?? null,
   })));
   return rows.filter((r) => r.action === 'failed').length;
+}
+
+/** T77: one category per store per name — "ساعات نسائية" and " ساعات  نسائية " are one. */
+export const categorySlug = (name: string): string => name.trim().toLowerCase().replace(/\s+/g, '-').slice(0, 100);
+
+/** The page's store categories as rows of this store's `categories` (found, or added): slug → id. */
+async function categoriesFor(db: TenantDb, items: ExternalProduct[], now: Date): Promise<Map<string, string>> {
+  const named = new Map<string, string>();
+  for (const item of items) if (item.category?.trim()) named.set(categorySlug(item.category), item.category.trim().slice(0, 100));
+  if (named.size === 0) return new Map();
+  const found = await db.find(categories, inArray(categories.slug, [...named.keys()]), { limit: named.size });
+  const ids = new Map(found.map((c) => [c.slug, c.id]));
+  const missing = [...named].filter(([slug]) => !ids.has(slug));
+  if (missing.length) {
+    const rows = missing.map(([slug, name]) => ({ id: uuidv7(), tenantId: db.tenantId, slug, name, nameAr: /[\u0600-\u06FF]/.test(name) ? name : null, createdAt: now, updatedAt: now }));
+    await db.insert(categories, rows);
+    for (const r of rows) ids.set(r.slug, r.id);
+  }
+  return ids;
 }
 
 /** The last page: archive what a full sync did not see, stamp the connection, record it. */

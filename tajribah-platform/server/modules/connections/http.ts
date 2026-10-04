@@ -13,7 +13,7 @@ import { latestSync, requestSync } from '@/server/modules/sync/service';
 import { webhookHealth } from '@/server/modules/webhooks/service';
 import { storeConnections } from '@/db/schema';
 import { connectionHealth } from './health';
-import { disconnectStore, listConnections } from './service';
+import { disconnectStore, listConnections, removeStore } from './service';
 import { completeWooConnect, startWooConnect } from './woocommerce';
 import { connectFeed, importProductFile, syncFeedNow } from './feed';
 import { completeShopifyConnect, startShopifyConnect, type ShopifyAppConfig } from './shopify';
@@ -66,6 +66,14 @@ export const disconnectHandler = route(async (request) => {
   const ctx = await tenantContextFor(request, config);
   await disconnectStore(ctx, idFrom(request, 0));
   return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+});
+
+/** API-187 — POST /api/connections/[id]/remove: a disconnected store and its products deleted (T78). */
+export const removeStoreHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  return json(await removeStore(ctx, idFrom(request, 1)));
 });
 
 /** API-184 — POST /api/connections/feed { url }: a Google Merchant feed's link, synced now and every 24 hours. */

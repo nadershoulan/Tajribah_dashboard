@@ -55,7 +55,7 @@ export const PRODUCT_FILTERS = ['all', 'ar_on', 'no_ar', 'missing_sizes', 'draft
 export type ProductFilter = (typeof PRODUCT_FILTERS)[number];
 
 /** T74: the columns the products list sorts by — one per column it shows. */
-export const PRODUCT_SORTS = ['name', 'type', 'price', 'size', 'model', 'ar', 'views', 'updated'] as const;
+export const PRODUCT_SORTS = ['name', 'type', 'category', 'price', 'size', 'model', 'ar', 'views', 'updated'] as const;
 export type ProductSort = (typeof PRODUCT_SORTS)[number];
 
 export const ProductListQuery = z.object({
@@ -68,9 +68,14 @@ export const ProductListQuery = z.object({
   page: z.coerce.number().int().min(1).max(100_000).optional(),
   /** T74: a column to sort by (default: newest first); a sorted list pages by `page`, not the cursor. */
   sort: z.enum(PRODUCT_SORTS).optional(),
+  /** T77: only products in this store category (its id from `GET /api/products/categories`). */
+  category: z.string().uuid().optional(),
   dir: z.enum(['asc', 'desc']).optional(),
 });
 export type ProductListQuery = z.infer<typeof ProductListQuery>;
+
+/** T77 — a store category and how many of the catalogue's products are in it (`GET /api/products/categories`). */
+export type ProductCategoryCount = { id: string; name: string; count: number };
 
 /** One page of the catalogue, as `GET /api/products` returns it. Counts honour the search. */
 export type ProductListPage = {

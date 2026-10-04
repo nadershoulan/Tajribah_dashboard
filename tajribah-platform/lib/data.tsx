@@ -23,7 +23,7 @@ import { alphaFacts, CALIBRATE_MIN_PX, calibrationCrop, hasMargins, qualityScore
 import { healthOf } from './connection-health';
 import { ApiError, currentStore, type ApiClient } from './api-client';
 import type { Bi, Lang } from './lang';
-import type { ProductListPage, ProductListQuery } from './contracts/products';
+import type { ProductCategoryCount, ProductListPage, ProductListQuery } from './contracts/products';
 import type { PlanCode } from './plans';
 import { DEFAULT_BUTTON_RADIUS, SettingsPatch, type Ga4Picker, type StoreSettings } from './contracts/settings';
 import { ga4PickerFor, noGa4Picker } from './ga4-picker';
@@ -61,6 +61,8 @@ export interface DataSource {
   checkCustomDomain(): Promise<CustomDomainView>;
   /** One page of the catalogue: search, filter and cursor are the server's (P1.9). */
   products(query?: Partial<ProductListQuery>): Promise<ProductListPage>;
+  /** T77: the store's categories with their product counts (the list's category filter). */
+  productCategories(): Promise<ProductCategoryCount[]>;
   product(id: string): Promise<ProductRow | null>;
   /** P1.10. Refusals arrive as `ApiError` 422 with per-field messages. */
   updateProduct(id: string, edit: ProductEdit): Promise<ProductRow>;
@@ -74,6 +76,8 @@ export interface DataSource {
   /** API-185 — a product sheet (CSV, TSV, XLSX, Merchant XML), imported at once; not kept. */
   importProductFile(file: File): Promise<FeedImport>;
   disconnect(connectionId: string): Promise<void>;
+  /** T78: a disconnected store removed with its products; how many products went. */
+  removeStore(connectionId: string): Promise<{ products: number }>;
   models(): Promise<ModelRow[]>;
   /** P1.14. Newest first; `isCurrent` marks the live one. */
   modelVersions(modelId: string): Promise<ModelVersionRow[]>;
@@ -230,6 +234,7 @@ export function apiSource(client: ApiClient): DataSource {
     async setCustomDomain(hostname) { return (await client.call<{ domain: CustomDomainView }>('/api/settings/domain', { method: 'PUT', body: { hostname } })).domain; },
     async removeCustomDomain() { await client.call<void>('/api/settings/domain', { method: 'DELETE' }); },
     async checkCustomDomain() { return (await client.call<{ domain: CustomDomainView }>('/api/settings/domain/check', { method: 'POST' })).domain; },
+    async productCategories() { return (await client.call<{ categories: ProductCategoryCount[] }>('/api/products/categories')).categories; },
     async products(query = {}) {
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(query)) {
@@ -260,6 +265,9 @@ export function apiSource(client: ApiClient): DataSource {
     },
     async disconnect(connectionId) {
       await client.call<void>(`/api/connections/${encodeURIComponent(connectionId)}`, { method: 'DELETE' });
+    },
+    async removeStore(connectionId) {
+      return client.call<{ products: number }>(`/api/connections/${encodeURIComponent(connectionId)}/remove`, { method: 'POST' });
     },
     async models() {
       return (await client.call<{ models: ModelRow[] }>('/api/models')).models;
@@ -685,6 +693,14 @@ export const demoSource: DataSource = {
       ],
     }];
   },
+  async productCategories() {
+    const counts = new Map<string, ProductCategoryCount>();
+    for (const p of [...demoAdded, ...DEMO_PRODUCTS]) if (p.category && p.status !== 'archived') {
+      const c = counts.get(p.category.id) ?? { ...p.category, count: 0 };
+      counts.set(p.category.id, { ...c, count: c.count + 1 });
+    }
+    return [...counts.values()].sort((a, b) => b.count - a.count);
+  },
   async products(query = {}) { return pageOf([...demoAdded, ...DEMO_PRODUCTS].map((p) => withLive(demoEdits.get(p.id) ?? p)), query); },
   async product(id) { const p = demoEdits.get(id) ?? [...demoAdded, ...DEMO_PRODUCTS].find((x) => x.id === id); return p ? withLive(p) : null; },
   async createProduct(input) {
@@ -726,6 +742,12 @@ export const demoSource: DataSource = {
   async disconnect(connectionId) {
     if (!demoConnections().some((c) => c.id === connectionId)) throw new ApiError(404, 'not_found', 'store connection not found');
     demoConnectionState.status = 'revoked';
+  },
+  // The preview's one store stays (its products are the demo's catalogue): the server's refusal for an active one, and nothing removed otherwise.
+  async removeStore(connectionId) {
+    if (!demoConnections().some((c) => c.id === connectionId)) throw new ApiError(404, 'not_found', 'store connection not found');
+    if (demoConnectionState.status === 'active') throw new ApiError(409, 'conflict', 'disconnect the store first, then remove it');
+    return { products: 0 };
   },
   async models() { return demoModels.map((m) => ({ ...m, thumbnailUrl: demoPictures.has(m.id) ? `preview:${m.id}` : m.thumbnailUrl })); },
   async setModelPicture(modelId, picture) {

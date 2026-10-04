@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { feedProblem, parseDelimited, parseFeedText, parseLength, parsePrice, parseXmlFeed } from '@/lib/product-feed';
+import { categoryOf, feedProblem, parseDelimited, parseFeedText, parseLength, parsePrice, parseXmlFeed, typeFromCategory } from '@/lib/product-feed';
 import { readXlsx } from '@/lib/xlsx';
 import { RSS, workbook } from '@/server/testing/feed-fixtures';
 
@@ -73,4 +73,31 @@ test('T72 sizes, when a feed has them: units to millimetres, a plain number is m
   const feed = `<rss xmlns:g="http://base.google.com/ns/1.0"><channel><item><g:id>1</g:id><g:title>Lamp</g:title><g:product_width>42 cm</g:product_width><g:product_height>165 cm</g:product_height></item><item><g:id>2</g:id><g:title>Vase</g:title></item></channel></rss>`;
   assert.deepEqual(parseFeedText(feed).products.map((p) => p.dimensions), [{ widthMm: 420, heightMm: 1650 }, null]);
   assert.deepEqual(parseDelimited('id,title,width,height'+String.fromCharCode(10)+'7,Bowl,120,80').products[0]!.dimensions, { widthMm: 120, heightMm: 80 }, 'a sheet: plain numbers in mm');
+});
+
+test('T77: the store’s own category names the type only when its words name one type (Failet’s real categories)', () => {
+  const type = (t: string) => typeFromCategory(t);
+  assert.equal(type('ساعات نسائية'), 'watch');
+  assert.equal(type('ساعات ألماس رجالية'), 'watch');
+  assert.equal(type('ساعة'), 'watch');
+  for (const t of ['خواتم نسائية', 'حلق', 'حلق كاجوال', 'سلاسل', 'تشوكر', 'أساور نسائية', 'خلاخل', 'تعليقة مع حلق', 'Apparel & Accessories > Jewelry > Rings']) assert.equal(type(t), 'jewelry', t);
+  assert.equal(type('نظارات شمسية'), 'eyewear');
+  assert.equal(type('حقائب يد'), 'bag');
+  assert.equal(type('عبايات'), 'apparel');
+  assert.equal(type('Furniture > Sofas'), 'furniture');
+  for (const t of ['أطقم', 'نص طقم', 'إكسسوارت ألماس', 'الاكسسوارات الكاجوال', 'عروض', '', 'Ringtones']) assert.equal(type(t), null, `"${t}" names no one type`);
+  assert.equal(type('ساعة مع سوار'), 'watch', 'a watch with a bracelet is a watch');
+});
+
+test('T77: the category kept as the store wrote it — the last step of a path, never a bare taxonomy number', () => {
+  assert.equal(categoryOf('ساعات نسائية'), 'ساعات نسائية');
+  assert.equal(categoryOf('Apparel &amp; Accessories > Jewelry > Rings'), 'Rings');
+  assert.equal(categoryOf('201'), null);
+  assert.equal(categoryOf('  '), null);
+  const [p] = parseXmlFeed('<rss><channel><item><g:id>1</g:id><g:title>ساعة</g:title><g:product_type>ساعات نسائية</g:product_type></item></channel></rss>').products;
+  assert.deepEqual([p!.productType, p!.category], ['watch', 'ساعات نسائية']);
+  const [q] = parseDelimited('id,title,التصنيف\n7,خاتم,خواتم نسائية\n').products;
+  assert.deepEqual([q!.productType, q!.category], ['jewelry', 'خواتم نسائية'], 'a sheet’s Arabic column name');
+  const [r] = parseXmlFeed('<rss><channel><item><g:id>2</g:id><g:title>x</g:title></item></channel></rss>').products;
+  assert.deepEqual([r!.productType, r!.category], [null, null]);
 });

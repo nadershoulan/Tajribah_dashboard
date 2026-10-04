@@ -203,6 +203,9 @@ function StorePanel({ product }: { product: ProductRow }) {
     <Panel title={t('من متجرك', 'From your store')} sub={t('يتغير في متجرك ويُزامن هنا', 'Change these in your store; they sync here')}>
       <dl className="facts">
         <dt>{t('الاسم', 'Name')}</dt><dd>{lang === 'ar' ? (product.nameAr ?? product.name) : product.name}</dd>
+        <dt>{t('التصنيف', 'Category')}</dt><dd>{product.category ? (
+          <AppLink href={`/dashboard/products?category=${product.category.id}`}>{product.category.name}</AppLink>
+        ) : '—'}</dd>
         <dt>{t('السعر', 'Price')}</dt><dd className="num">{product.priceMinor == null ? '—' : formatMoney(product.priceMinor, product.currency, lang)}</dd>
         <dt>{t('آخر تحديث', 'Updated')}</dt><dd>{formatRelative(product.updatedAt, lang)}</dd>
       </dl>

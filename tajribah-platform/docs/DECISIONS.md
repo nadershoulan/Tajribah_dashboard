@@ -1276,3 +1276,35 @@ showed a product as published while its page couldn't find it. This applies only
 server at localhost or 127.0.0.1. Asking for KV still means KV, and elsewhere memory is used as before.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T77 · 2026-10-05 · A feed's categories come in, and name the product's type when they can (you asked)
+
+**Decision.** Every item in your Failet feed carries the store's own category (`g:product_type`:
+"ساعات نسائية", "خواتم نسائية", "حلق"…). It is now kept as **this store's category**, using the
+`categories` table and `products.category_id`, which already existed unused, so no migration was needed.
+- **Shown and used.** It appears on the product's page (under "من متجرك"). The Products list has a
+  category column (sortable; click a category to filter by it) and a category picker with counts
+  (`GET /api/products/categories`, `?category=` on the list).
+- **It follows the store.** It updates on every sync, like the name. A product whose store gives no
+  category has none. One row exists per category name per store.
+- **Type, only when the words name one type.** "ساعات…" means watch; "خواتم", "حلق", "سلاسل", "تشوكر",
+  "أساور", "خلاخل" and "Jewelry > Rings" mean jewelry; also glasses, bags, clothing and furniture. A Google
+  path is read from its most specific step. An Arabic stem must begin a word ("سوار" is not inside
+  "إكسسوارات"). Words that could mean either thing ("أطقم" sets, "إكسسوار" accessories) name nothing:
+  the type stays "other" for you to choose. Like sizes, a type fills only a product still "other". A type
+  you chose is never overwritten.
+
+**Why not guess from titles.** The store's category is the store's own statement; a title is prose.
+Nothing is inferred beyond what the category says.
+
+**Rollback path.** Revert the commit. Category rows stay (harmless). Cost: low.
+
+## T78 · 2026-10-05 · Remove an old store with its products (you asked)
+
+**Decision.** A disconnected store's panel has "احذف المتجر ومنتجاته" (remove the store and its
+products), behind a red confirm that says how many products go. It works only on a disconnected
+store, so an active store is never wiped by one click. Its products are deleted the way you delete one
+(soft: `deleted_at`, archived, 3D off) in one transaction. The link and its sync history go too, and one
+audit entry records the count. Any that were on your shop are taken down. `POST /api/connections/{id}/remove`.
+
+**Rollback path.** Revert the commit. Removed products stay soft-deleted in the database. Cost: low.

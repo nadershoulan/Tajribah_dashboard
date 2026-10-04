@@ -29,6 +29,26 @@
   --sidebar-ring: #00a7bc;
 }
 
+/* Dark: the device's choice unless light was picked; or dark picked (dashboard.css has the same rule). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  --background: #0d1e2c; --foreground: #e6eef4; --card: #0d1e2c; --card-foreground: #e6eef4;
+  --popover: #0d1e2c; --popover-foreground: #e6eef4; --primary: #dbe7f0; --primary-foreground: #0a2237;
+  --secondary: #132a3c; --secondary-foreground: #e6eef4; --muted: #132a3c; --muted-foreground: #93a8b9;
+  --accent: #0f2f3a; --accent-foreground: #e6eef4; --destructive: #ff8f86; --border: #1f3b52; --input: #2b4b64; --ring: #22d3ee;
+  --sidebar: #0d1e2c; --sidebar-foreground: #e6eef4; --sidebar-primary: #dbe7f0; --sidebar-primary-foreground: #0a2237;
+  --sidebar-accent: #0f2f3a; --sidebar-accent-foreground: #e6eef4; --sidebar-border: #1f3b52; --sidebar-ring: #22d3ee;
+  }
+}
+:root[data-theme="dark"] {
+  --background: #0d1e2c; --foreground: #e6eef4; --card: #0d1e2c; --card-foreground: #e6eef4;
+  --popover: #0d1e2c; --popover-foreground: #e6eef4; --primary: #dbe7f0; --primary-foreground: #0a2237;
+  --secondary: #132a3c; --secondary-foreground: #e6eef4; --muted: #132a3c; --muted-foreground: #93a8b9;
+  --accent: #0f2f3a; --accent-foreground: #e6eef4; --destructive: #ff8f86; --border: #1f3b52; --input: #2b4b64; --ring: #22d3ee;
+  --sidebar: #0d1e2c; --sidebar-foreground: #e6eef4; --sidebar-primary: #dbe7f0; --sidebar-primary-foreground: #0a2237;
+  --sidebar-accent: #0f2f3a; --sidebar-accent-foreground: #e6eef4; --sidebar-border: #1f3b52; --sidebar-ring: #22d3ee;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

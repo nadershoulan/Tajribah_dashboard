@@ -33,7 +33,7 @@ import { DEFAULT_HOSTED_PAGE_BASE, HostedPageInput, hostedPageUrl, qrUrl, type H
 import { RequestInput as ProfessionalRequest, type ProfessionalOrderView } from './contracts/professional';
 import { MODEL_TARGET_BYTES } from './model-size';
 import { embedSnippet } from '../widget/src/snippet';
-import { applyEdit, editErrors, type ProductEdit } from './product-edit';
+import { applyEdit, editErrors, newProductErrors, type NewProduct, type ProductEdit } from './product-edit';
 import { STEP_COPY } from './onboarding-steps';
 import { priceInvoiceLines, type InvoiceDocument } from './contracts/invoices';
 import { SELLER, addressLine } from '@/server/core/billing/seller';
@@ -63,6 +63,8 @@ export interface DataSource {
   product(id: string): Promise<ProductRow | null>;
   /** P1.10. Refusals arrive as `ApiError` 422 with per-field messages. */
   updateProduct(id: string, edit: ProductEdit): Promise<ProductRow>;
+  /** API-031 — a product added by hand. Refusals arrive as `ApiError` 422 with per-field messages. */
+  createProduct(input: NewProduct): Promise<ProductRow>;
   /** P1.11: every store connection with its latest sync and webhook health. */
   connections(): Promise<ConnectionDetail[]>;
   syncNow(connectionId: string): Promise<SyncProgress>;
@@ -240,6 +242,9 @@ export function apiSource(client: ApiClient): DataSource {
     },
     async updateProduct(id, edit) {
       return client.call<ProductRow>(`/api/products/${encodeURIComponent(id)}`, { method: 'PATCH', body: edit });
+    },
+    async createProduct(input) {
+      return client.call<ProductRow>('/api/products', { method: 'POST', body: input });
     },
     async connections() {
       return (await client.call<{ connections: ConnectionDetail[] }>('/api/connections')).connections;
@@ -470,6 +475,8 @@ export function photoContentType(file: File): string {
 /** Seeded data, resolved on a microtask so screens exercise their loading states. */
 /** The preview's edits, for this page load only: the preview has nowhere to save them. */
 const demoEdits = new Map<string, ProductRow>();
+/** Products added by hand in the preview (P1.10 follow-up), newest first. */
+const demoAdded: ProductRow[] = [];
 const demoTeam: TeamMemberRow[] = DEMO_TEAM.map((m) => ({ ...m }));
 const demoArConfigs = new Map<string, ArConfigView>();
 const demoPages = new Map<string, { active: boolean; shopUrl: string | null }>();
@@ -663,8 +670,20 @@ export const demoSource: DataSource = {
       ],
     }];
   },
-  async products(query = {}) { return pageOf(DEMO_PRODUCTS.map((p) => withLive(demoEdits.get(p.id) ?? p)), query); },
-  async product(id) { const p = demoEdits.get(id) ?? DEMO_PRODUCTS.find((x) => x.id === id); return p ? withLive(p) : null; },
+  async products(query = {}) { return pageOf([...demoAdded, ...DEMO_PRODUCTS].map((p) => withLive(demoEdits.get(p.id) ?? p)), query); },
+  async product(id) { const p = demoEdits.get(id) ?? [...demoAdded, ...DEMO_PRODUCTS].find((x) => x.id === id); return p ? withLive(p) : null; },
+  async createProduct(input) {
+    const fields = newProductErrors(input);
+    if (Object.keys(fields).length) throw new ApiError(422, 'validation_failed', 'Validation failed', fields);
+    const row: ProductRow = {
+      id: `demo-added-${demoAdded.length + 1}`, name: input.name.trim(), nameAr: input.nameAr?.trim() || null, sku: input.sku?.trim() || null,
+      imageUrl: null, priceMinor: input.priceMinor ?? null, currency: 'SAR', productType: input.productType, status: 'active',
+      arEnabled: false, tryonEnabled: false, modelStatus: 'none', live: false, dimensions: input.dimensions ?? null,
+      views30: 0, arSessions30: 0, updatedAt: new Date().toISOString(),
+    };
+    demoAdded.unshift(row);
+    return row;
+  },
   async updateProduct(id, edit) {
     const current = demoEdits.get(id) ?? DEMO_PRODUCTS.find((p) => p.id === id);
     if (!current) throw new ApiError(404, 'not_found', 'product not found');

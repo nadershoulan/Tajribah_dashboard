@@ -23,6 +23,31 @@ export type ProductEdit = {
 };
 export type FieldErrors = Record<string, string[]>;
 
+/** A product added by hand (API-031, `ProductCreate`): for a store with no connection yet, or one off it. */
+export type NewProduct = {
+  name: string;
+  nameAr?: string;
+  sku?: string;
+  priceMinor?: number;
+  productType: ProductRow['productType'];
+  dimensions?: Dimensions;
+};
+
+/** Why `input` would be refused, per field — the server's rules, answered before the round trip. */
+export function newProductErrors(input: NewProduct): FieldErrors {
+  const errors: FieldErrors = {};
+  if (!input.name.trim()) errors.name = ['required'];
+  else if (input.name.trim().length > 200) errors.name = ['at most 200 characters'];
+  if ((input.nameAr?.trim().length ?? 0) > 200) errors.nameAr = ['at most 200 characters'];
+  if ((input.sku?.trim().length ?? 0) > 100) errors.sku = ['at most 100 characters'];
+  if (input.priceMinor !== undefined && !(Number.isInteger(input.priceMinor) && input.priceMinor >= 0)) errors.priceMinor = ['a price of 0 or more'];
+  for (const [key, value] of Object.entries(input.dimensions ?? {})) {
+    if (typeof value !== 'number' || !(value > 0)) (errors[`dimensions.${key}`] ??= []).push('must be more than 0');
+    else if (value > MAX_MM) (errors[`dimensions.${key}`] ??= []).push('is over 3 metres — check the unit (mm)');
+  }
+  return errors;
+}
+
 /** `''` → null (cleared); a number in range → that number; anything else → an error message. */
 export function parseMm(text: string): { value: number | null } | { error: string } {
   const folded = foldDigits(text).replace(/\u066B/g, '.').replace(/,/g, '.').trim();

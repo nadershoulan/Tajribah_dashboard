@@ -79,6 +79,7 @@ export function Footer() {
           <p>{t('تجربة افتراضية ومقارنة بالحجم الحقيقي لمتاجر الساعات والمجوهرات والإكسسوارات. عربية أولًا، ومن دون تطبيق.',
             'Virtual try-on and true-size comparison for watch, jewellery and accessory stores. Arabic-first, no app required.')}</p>
           <a className="foot-mail" href={`mailto:${COMPANY.email}`} dir="ltr">{COMPANY.email}</a>
+          <a className="foot-mail" href={`tel:${COMPANY.tel}`} dir="ltr">{COMPANY.phone}</a>
         </div>
         {FOOTER.map((col) => (
           <div key={col.title.en} className="foot-col">

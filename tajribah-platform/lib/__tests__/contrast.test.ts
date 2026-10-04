@@ -54,3 +54,20 @@ test("the try-on studio's small text takes the same ink shades (T61)", () => {
     assert.match(body, /color: var\(--aqua-ink\)/, `${rule} is text, so it uses the ink shade`);
   }
 });
+
+test('dark theme: small text reads at 4.5:1 or more on every dark surface, both ways of turning it on', () => {
+  const css = readFileSync(join(process.cwd(), 'app', 'dashboard.css'), 'utf8');
+  for (const scope of [':root:not([data-theme="light"]) {', ':root[data-theme="dark"] {']) {
+    const surfaces = ['surface', 'bg', 'tint'].map((name) => token(css, name, scope));
+    assert.ok(luminance(surfaces[0]!) < 0.05, `${scope} is dark`);
+    for (const ink of ['text', 'text-2', 'text-3', 'aqua-ink', 'teal-ink', 'ok', 'warn', 'bad']) {
+      const colour = token(css, ink, scope);
+      for (const surface of surfaces) assert.ok(contrast(colour, surface) >= 4.5, `${scope} --${ink} ${colour} on ${surface}: ${contrast(colour, surface).toFixed(2)}`);
+    }
+    // Badges: their text on their own tint.
+    for (const tone of ['ok', 'warn', 'bad']) assert.ok(contrast(token(css, tone, scope), token(css, `${tone}-bg`, scope)) >= 4.5, `${scope} --${tone} on --${tone}-bg`);
+    // The primary button and filled marks: their text on their fill.
+    assert.ok(contrast(token(css, 'btn-primary-fg', scope), token(css, 'btn-primary-bg', scope)) >= 4.5, `${scope} primary button`);
+    for (const fill of ['ok', 'bad']) assert.ok(contrast(token(css, 'on-fill', scope), token(css, fill, scope)) >= 4.5, `${scope} text on --${fill}`);
+  }
+});

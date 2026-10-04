@@ -174,7 +174,8 @@ html[lang="en"] .eyebrow { text-transform: uppercase; letter-spacing: .12em; fon
 .foot-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(4, minmax(0, 1fr)); gap: 40px; }
 .foot-brand p { margin-top: 18px; max-width: 38ch; font-size: 15px; line-height: 1.85; }
 .foot-brand .logo img { height: 38px; }
-.foot-mail { display: inline-block; margin-top: 16px; font-family: var(--f-mono); font-size: 14px; color: var(--aqua-bright); }
+.foot-mail { display: block; width: fit-content; margin-top: 16px; font-family: var(--f-mono); font-size: 14px; color: var(--aqua-bright); }
+.foot-mail + .foot-mail { margin-top: 6px; }
 .foot-col h2 { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 14px; }
 .foot-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
 .foot-col a { font-size: 15px; transition: color .15s; }

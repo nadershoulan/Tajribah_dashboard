@@ -10,8 +10,8 @@ import type { Bi } from './lang';
  * The same facts the platform's invoices carry (tajribah-platform
  * server/core/billing/seller.ts).
  *
- * Still placeholders: the two email addresses are on a domain that must be
- * registered and have working mailboxes before they are published.
+ * Contact, supplied by the owner (2026-10-04): info@tajribah.org (also for privacy requests, until a
+ * separate mailbox exists) and the mobile 055 370 0329.
  */
 export const COMPANY = {
   name: { ar: 'تجربة', en: 'Tajribah' } as Bi,
@@ -19,11 +19,14 @@ export const COMPANY = {
   crNumber: '7033242079',
   vatNumber: '314550511700003',
   address: { ar: 'حي الملقا، الرياض 13524، المملكة العربية السعودية', en: 'Al Malqa, Riyadh 13524, Saudi Arabia' } as Bi,
-  email: 'hello@tajribah.sa',
-  privacyEmail: 'privacy@tajribah.sa',
+  email: 'info@tajribah.org',
+  privacyEmail: 'info@tajribah.org',
+  /** As people in Saudi Arabia write it; `tel` is the dialable form. */
+  phone: '055 370 0329',
+  tel: '+966553700329',
   /**
    * The site's public address, for the sitemap, robots and absolute links. The domain is not
-   * confirmed yet: set NEXT_PUBLIC_SITE_URL at deploy; the default matches the placeholder emails.
+   * confirmed yet: set NEXT_PUBLIC_SITE_URL at deploy; the default is a guess until then.
    */
   // `typeof` guard: the static preview's browser bundle has no `process`.
   siteUrl: ((typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SITE_URL) || 'https://tajribah.sa').replace(/\/$/, ''),

@@ -4,7 +4,7 @@
 
 import { CREDITS_PER_3D_GENERATION } from '@/lib/ai-credits';
 import { useState } from 'react';
-import { CheckCircle2, Clock, CreditCard, FileText, Lock, Sparkles, X } from 'lucide-react';
+import { CheckCircle2, Clock, CreditCard, FileText, Lock, Mail, Phone, Sparkles, X } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
 import { useData, useResource, type CouponQuote } from '@/lib/data';
@@ -14,6 +14,7 @@ import { formatMoney, vatOf } from '@/lib/money';
 import { PLANS, planByCode, type PlanCode } from '@/lib/plans';
 import { priceInvoiceLines } from '@/lib/contracts/invoices';
 import type { BillingSummary } from '@/lib/view-models';
+import { CONTACT } from '@/lib/contact';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, Empty, ErrorNote, Loading, Meter, PageHead, Panel } from '@/components/dashboard/ui';
 
@@ -214,7 +215,19 @@ export default function Billing() {
                     ))}
                   </ul>
                   {plan.priceMonthlyMinor == null ? (
-                    <p className="hint" style={{ marginTop: 16, textAlign: 'center' }}>{t('سعر حسب الاتفاق — نتواصل معك.', 'Priced by agreement — we get in touch.')}</p>
+                    <div style={{ marginTop: 16, display: 'grid', gap: 8 }}>
+                      <a className="btn btn-accent" style={{ width: '100%', justifyContent: 'center' }}
+                        href={`mailto:${CONTACT.email}?subject=${encodeURIComponent(t('باقة المؤسسات', 'Enterprise plan'))}`}>
+                        <Mail size={15} aria-hidden />{t('راسلنا', 'Email us')}
+                      </a>
+                      <a className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center' }} href={`tel:${CONTACT.tel}`}
+                        aria-label={t(`اتصل بنا على ${CONTACT.phone}`, `Call us on ${CONTACT.phone}`)}>
+                        <Phone size={15} aria-hidden /><span dir="ltr">{CONTACT.phone}</span>
+                      </a>
+                      <p className="hint" style={{ margin: 0, textAlign: 'center' }}>
+                        <span dir="ltr">{CONTACT.email}</span> · {t('سعر حسب الاتفاق.', 'Priced by agreement.')}
+                      </p>
+                    </div>
                   ) : (
                     <button type="button" className={`btn ${plan.featured ? 'btn-accent' : 'btn-ghost'}`}
                       style={{ width: '100%', justifyContent: 'center', marginTop: 16 }} disabled={isPaidFor}

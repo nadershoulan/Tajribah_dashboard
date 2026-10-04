@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { useLang } from '@/lib/i18n';
 import { LangToggle } from '@/components/dashboard/chrome';
 import { authErrorMessage } from './auth-errors';
+import { PASSWORDS_DIFFER, passwordsDiffer } from '@/lib/password-confirm';
 
 /** The same rule as the API's `PASSWORD` (server/modules/auth/http.ts). */
 const MIN_PASSWORD = 10;
@@ -109,12 +110,19 @@ function SetPassword({ token }: { token: string }) {
   const [note, setNote] = useState<string | null>(null);
   const [expired, setExpired] = useState(false);
   const [done, setDone] = useState(false);
+  const [differ, setDiffer] = useState(false);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const password = String(new FormData(event.currentTarget).get('password') ?? '');
+    const typed = new FormData(event.currentTarget);
+    const password = String(typed.get('password') ?? '');
     if (password.length < MIN_PASSWORD) {
       setNote(t('كلمة المرور يجب أن تكون 10 أحرف على الأقل.', 'The password must be at least 10 characters.'));
+      return;
+    }
+    if (passwordsDiffer(password, String(typed.get('passwordAgain') ?? ''))) {
+      setDiffer(true);
+      document.getElementById('passwordAgain')?.focus();
       return;
     }
     if (!auth.live) {
@@ -179,6 +187,12 @@ function SetPassword({ token }: { token: string }) {
             </button>
           </div>
           <span id="password-hint" className="field-hint">{t('10 أحرف على الأقل.', 'At least 10 characters.')}</span>
+        </div>
+        <div className="field">
+          <label htmlFor="passwordAgain">{t('أكّد كلمة المرور', 'Confirm the password')}</label>
+          <input id="passwordAgain" name="passwordAgain" type={show ? 'text' : 'password'} autoComplete="new-password" dir="ltr" required
+            aria-invalid={differ} aria-describedby={differ ? 'passwordAgain-error' : undefined} onChange={() => setDiffer(false)} />
+          {differ && <span id="passwordAgain-error" className="field-error">{t(PASSWORDS_DIFFER.ar, PASSWORDS_DIFFER.en)}</span>}
         </div>
         {note && <p className="field-hint" role="alert" style={{ color: 'var(--warn)', marginBottom: 12 }}>{note}</p>}
         <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={pending}>

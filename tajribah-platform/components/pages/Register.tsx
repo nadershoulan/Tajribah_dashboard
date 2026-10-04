@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { authErrorMessage } from './auth-errors';
 import { safeNext } from '@/lib/safe-next';
 import { slugify } from '@/lib/slug';
+import { PASSWORDS_DIFFER, passwordsDiffer } from '@/lib/password-confirm';
 import { TRIAL_DAYS, TRIAL_PLAN, planByCode, type PlanCode } from '@/lib/plans';
 
 export default function Register() {
@@ -20,6 +21,7 @@ export default function Register() {
   const [storeName, setStoreName] = useState('');
   const [note, setNote] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [differ, setDiffer] = useState(false);
 
   // T49: arriving from a team invitation (`?next=/invite/<token>`): an account only, no store of its own.
   const next = new URLSearchParams(env.search).get('next');
@@ -35,6 +37,12 @@ export default function Register() {
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const typed = new FormData(event.currentTarget);
+    if (passwordsDiffer(String(typed.get('password') ?? ''), String(typed.get('passwordAgain') ?? ''))) {
+      setDiffer(true);
+      document.getElementById('passwordAgain')?.focus();
+      return;
+    }
     if (!auth.live) {
       setNote(t('هذه معاينة ثابتة بدون خادم — لا يُنشأ حساب فعلي.', 'This is a static preview with no server — no account is created.'));
       return;
@@ -139,6 +147,13 @@ export default function Register() {
               <label htmlFor="password">{t('كلمة المرور', 'Password')}</label>
               <input id="password" name="password" type="password" autoComplete="new-password" dir="ltr" minLength={10} required />
               <span className="field-hint">{t('10 أحرف على الأقل.', 'At least 10 characters.')}</span>
+            </div>
+
+            <div className="field">
+              <label htmlFor="passwordAgain">{t('أكّد كلمة المرور', 'Confirm the password')}</label>
+              <input id="passwordAgain" name="passwordAgain" type="password" autoComplete="new-password" dir="ltr" required
+                aria-invalid={differ} aria-describedby={differ ? 'passwordAgain-error' : undefined} onChange={() => setDiffer(false)} />
+              {differ && <span id="passwordAgain-error" className="field-error">{t(PASSWORDS_DIFFER.ar, PASSWORDS_DIFFER.en)}</span>}
             </div>
 
             {note && <p className="field-hint" role="alert" style={{ color: 'var(--warn)', marginBottom: 12 }}>{note}</p>}

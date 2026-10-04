@@ -6,13 +6,15 @@
  * The sidebar hides an item the role cannot use, and shows a locked item the *plan* does
  * not include — hiding a feature the merchant could buy is how you sell nothing.
  */
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react';
 import {
   BarChart3, Box, CreditCard, Code2, Home, KeyRound, Link2, Webhook, Lock, Menu, Package, QrCode,
   Scan, Settings, ShieldAlert, ShieldCheck, SlidersHorizontal, Users, ChevronDown, X, LogOut, Eye, Megaphone, Check, Plus,
+  Monitor, Moon, Sun,
 } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
+import { themeAttribute, themeCookie, type ThemeChoice } from '@/lib/theme';
 import { ApiError, currentStore } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
 import { useResource } from '@/lib/data';
@@ -323,6 +325,34 @@ export function LangToggle() {
   );
 }
 
+/** The choice on the page now: the server wrote it as `data-theme` (none = the device's). */
+const themeNow = (): ThemeChoice => (document.documentElement.dataset.theme as ThemeChoice | undefined) ?? 'system';
+const onThemeChange = (notify: () => void) => { window.addEventListener('tajribah-theme', notify); return () => window.removeEventListener('tajribah-theme', notify); };
+const THEME_NEXT: Record<ThemeChoice, ThemeChoice> = { system: 'light', light: 'dark', dark: 'system' };
+
+/** Device → light → dark → device. The device's choice is the default and keeps no cookie. */
+export function ThemeToggle() {
+  const { t } = useLang();
+  const choice = useSyncExternalStore(onThemeChange, themeNow, () => 'system' as ThemeChoice);
+  const word: Record<ThemeChoice, string> = { system: t('مثل الجهاز', 'Same as device'), light: t('فاتح', 'Light'), dark: t('داكن', 'Dark') };
+  const Icon = { system: Monitor, light: Sun, dark: Moon }[choice];
+  const pickNext = () => {
+    const next = THEME_NEXT[choice];
+    const attribute = themeAttribute(next);
+    if (attribute) document.documentElement.dataset.theme = attribute;
+    else delete document.documentElement.dataset.theme;
+    document.cookie = themeCookie(next);
+    window.dispatchEvent(new Event('tajribah-theme'));
+  };
+  return (
+    <button type="button" className="lang-toggle theme-toggle" onClick={pickNext}
+      aria-label={t(`المظهر: ${word[choice]}. اضغط لـ: ${word[THEME_NEXT[choice]]}`, `Appearance: ${word[choice]}. Press for: ${word[THEME_NEXT[choice]]}`)}
+      title={t(`المظهر: ${word[choice]}`, `Appearance: ${word[choice]}`)}>
+      <Icon size={16} aria-hidden />
+    </button>
+  );
+}
+
 export type Crumb = { label: string; href?: string };
 
 export function Shell({ tenant, crumbs = [], children }: {
@@ -374,6 +404,7 @@ export function Shell({ tenant, crumbs = [], children }: {
               </span>
             )}
             <CommandPalette />
+            <ThemeToggle />
             <LangToggle />
             <NotificationBell />
             <TenantSwitcher tenant={store} />

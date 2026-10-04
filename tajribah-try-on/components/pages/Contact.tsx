@@ -80,6 +80,7 @@ export default function Contact() {
               <Mail size={22} aria-hidden className="q-icon" />
               <h3>{t('راسلنا مباشرة', 'Email us directly')}</h3>
               <a href={`mailto:${COMPANY.email}`} dir="ltr" className="mail-big">{COMPANY.email}</a>
+              <p>{t('أو اتصل بنا:', 'Or call us:')} <a href={`tel:${COMPANY.tel}`} dir="ltr">{COMPANY.phone}</a></p>
               <p className="fine">{t('لطلبات الخصوصية والبيانات الشخصية:', 'For privacy and personal-data requests:')} <a href={`mailto:${COMPANY.privacyEmail}`} dir="ltr">{COMPANY.privacyEmail}</a></p>
             </div>
             <div className="panel-card">

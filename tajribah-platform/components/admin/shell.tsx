@@ -13,7 +13,7 @@ import { AppLink, useEnv } from '@/lib/app-env';
 import { ApiError } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
 import { useLang } from '@/lib/i18n';
-import { LangToggle } from '@/components/dashboard/chrome';
+import { LangToggle, ThemeToggle } from '@/components/dashboard/chrome';
 import { RequireSession } from '@/components/dashboard/require-session';
 import { Loading, Panel } from '@/components/dashboard/ui';
 import NotFound from '@/components/pages/NotFound';
@@ -76,6 +76,7 @@ function Guarded({ title, children }: { title: string; children: ReactNode }) {
         <strong>{t('لوحة موظفي تجربة', 'Tajribah staff console')}</strong>
         <span className="admin-warn"><ShieldAlert size={15} aria-hidden />{t('كل إجراء هنا يُسجَّل', 'Every action here is logged')}</span>
         <span className="admin-who" dir="ltr">{access.state === 'staff' ? access.email : ''}</span>
+        <ThemeToggle />
         <LangToggle />
         <AppLink href="/dashboard" className="btn btn-ghost btn-sm"><ArrowLeft size={14} aria-hidden />{t('لوحة المتجر', 'Store dashboard')}</AppLink>
       </header>

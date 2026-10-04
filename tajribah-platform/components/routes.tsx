@@ -8,6 +8,7 @@ import { createElement, type ReactElement } from 'react';
 import DashboardHome from '@/components/pages/DashboardHome';
 import Products from '@/components/pages/Products';
 import ProductDetail from '@/components/pages/ProductDetail';
+import ProductNew from '@/components/pages/ProductNew';
 import InviteAccept from '@/components/pages/InviteAccept';
 import ArSettings from '@/components/pages/ArSettings';
 import Models from '@/components/pages/Models';
@@ -59,6 +60,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/dashboard/onboarding': Onboarding,
   '/dashboard/security': Security,
   '/dashboard/products': Products,
+  '/dashboard/products/new': ProductNew,
   '/dashboard/models': Models,
   '/dashboard/tryon': TryOn, // MD-070, P5.10
   '/dashboard/connections': Connections,
@@ -108,6 +110,12 @@ const PATTERNS: [RegExp, () => ReactElement][] = [
   [/^\/admin\/people\/[^/]+$/, AdminPerson],
   [/^\/admin\/invoices\/[^/]+$/, AdminInvoice],
 ];
+
+/** Whether a path opens a screen rather than "page not found". */
+export function hasScreen(path: string): boolean {
+  const clean = path.replace(/[?#].*$/, '').replace(/\/$/, '') || '/';
+  return !!ROUTES[clean] || PATTERNS.some(([pattern]) => pattern.test(clean));
+}
 
 /** The rendered screen for a path — an element, so no component is chosen during render. */
 export function screenFor(path: string): ReactElement {

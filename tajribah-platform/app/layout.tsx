@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
 import './globals.css';
 import { dirOf, langFromCookie } from '@/lib/lang';
+import { themeAttribute, themeFromCookie } from '@/lib/theme';
 import { NextProviders } from '@/components/next-shell';
 
 export const metadata: Metadata = {
@@ -11,13 +12,15 @@ export const metadata: Metadata = {
   icons: { icon: [{ url: '/brand/favicon.ico', sizes: 'any' }] },
 };
 
-export const viewport: Viewport = { themeColor: '#0A2237', width: 'device-width', initialScale: 1 };
+export const viewport: Viewport = { themeColor: '#0A2237', colorScheme: 'light dark', width: 'device-width', initialScale: 1 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   // Arabic and right-to-left unless this person chose English before (§11).
-  const lang = langFromCookie((await headers()).get('cookie'));
+  const cookie = (await headers()).get('cookie');
+  const lang = langFromCookie(cookie);
+  // Light or dark as this person picked; otherwise no attribute, and the device decides.
   return (
-    <html lang={lang} dir={dirOf(lang)}>
+    <html lang={lang} dir={dirOf(lang)} data-theme={themeAttribute(themeFromCookie(cookie))}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />

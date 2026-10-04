@@ -35,13 +35,39 @@ export class KvConfigStore implements ConfigStore {
   async delete(key: string) { await this.kv.delete(key); }
 }
 
+/** The part of `Storage` (server/core/storage) used here: a structural type, so configs need not import storage. */
+export type ObjectStore = {
+  put(key: string, body: string, options?: { contentType?: string }): Promise<unknown>;
+  get(key: string): Promise<{ body: ReadableStream } | null>;
+  delete(key: string): Promise<void>;
+};
+
+/**
+ * T75 — on this computer only: published configs kept in the local storage (an S3 server such as
+ * SeaweedFS) under `edge-configs/`, so they survive a restart of the dashboard. Memory forgot them, and
+ * the dashboard then showed a product as published that its page could not find.
+ */
+export class LocalStorageConfigStore implements ConfigStore {
+  constructor(private readonly objects: ObjectStore, private readonly prefix = 'edge-configs/') {}
+  async get(key: string) {
+    const found = await this.objects.get(this.prefix + key);
+    return found ? new Response(found.body).text() : null;
+  }
+  async put(key: string, body: string) { await this.objects.put(this.prefix + key, body, { contentType: 'application/json' }); }
+  async delete(key: string) { await this.objects.delete(this.prefix + key); }
+}
+
+/** Storage on this computer: an S3 endpoint at localhost or 127.0.0.1. */
+export const isLocalStorage = (config: { STORAGE_PROVIDER?: string; S3_ENDPOINT?: string }): boolean =>
+  config.STORAGE_PROVIDER === 's3' && /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(?:\/|$)/.test(config.S3_ENDPOINT ?? '');
+
 let current: ConfigStore = new MemoryConfigStore();
 export function setConfigStore(store: ConfigStore): void { current = store; }
 export function configStore(): ConfigStore { return current; }
 
 /** Install the store the environment names; `loadEnv()` has already refused memory in production. */
-export function configureConfigStore(config: { CONFIG_STORE?: 'memory' | 'kv' }, kv?: KvBinding): void {
-  if (config.CONFIG_STORE !== 'kv') { current = new MemoryConfigStore(); return; }
+export function configureConfigStore(config: { CONFIG_STORE?: 'memory' | 'kv'; STORAGE_PROVIDER?: string; S3_ENDPOINT?: string }, kv?: KvBinding, objects?: ObjectStore): void {
+  if (config.CONFIG_STORE !== 'kv') { current = objects && isLocalStorage(config) ? new LocalStorageConfigStore(objects) : new MemoryConfigStore(); return; }
   if (!kv) throw new Error('CONFIG_STORE=kv but no KV namespace binding (CONFIGS) is bound to this Worker');
   current = new KvConfigStore(kv);
 }

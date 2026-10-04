@@ -10,9 +10,10 @@ import { useResource } from '@/lib/data';
 import { ApiError } from '@/lib/api-client';
 import { formatDate, formatNumber } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
-import type { SessionListView, SessionPathView, ShopEventType } from '@/lib/view-models';
+import { SESSIONS_MAX_OFFSET, type SessionListView, type SessionPathView, type ShopEventType } from '@/lib/view-models';
 import { Shell } from '@/components/dashboard/chrome';
-import { Badge, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
+import { Badge, ErrorNote, Loading, PageHead, PageSizePicker, Pagination, Panel } from '@/components/dashboard/ui';
+import { DEFAULT_PAGE_SIZE, rowNumber, type PageSize } from '@/lib/pagination';
 
 const EVENT_LABEL: Record<ShopEventType, { ar: string; en: string }> = {
   product_view: { ar: 'مشاهدة منتج', en: 'Product view' },
@@ -39,7 +40,11 @@ export default function AnalyticsSessions() {
   const [day, setDay] = useState<string | undefined>(undefined);
   const [filter, setFilter] = useState<SessionListView['filter']>('all');
   const [offset, setOffset] = useState(0);
-  const { data, loading, error } = useResource((source) => source.sessionList({ day, filter, offset }), [day, filter, offset]);
+  const [perPage, setPerPage] = useState<PageSize>(DEFAULT_PAGE_SIZE); // T76: rows per page
+  const { data, loading, error } = useResource((source) => source.sessionList({ day, filter, offset, limit: perPage }), [day, filter, offset, perPage]);
+  // T76: numbered pages, as far as the server reads into a day (its offset cap).
+  const page = Math.floor(offset / perPage) + 1;
+  const pages = data ? Math.min(Math.max(1, Math.ceil(data.total / perPage)), Math.floor(SESSIONS_MAX_OFFSET / perPage) + 1) : 1;
   const [open, setOpen] = useState<string | null>(null);
   const planRequired = error instanceof ApiError && error.code === 'plan_required';
 
@@ -83,7 +88,8 @@ export default function AnalyticsSessions() {
 
       {!planRequired && (
         <Panel flush title={data ? t(`زيارات ${formatDate(`${data.day}T12:00:00Z`, 'ar')}`, `Visits on ${formatDate(`${data.day}T12:00:00Z`, 'en')}`) : t('الزيارات', 'Visits')}
-          sub={t('تُحفظ تفاصيل الزيارات 90 يومًا؛ الأرقام اليومية تبقى.', 'Visit details are kept for 90 days; the daily figures stay.')}>
+          sub={t('تُحفظ تفاصيل الزيارات 90 يومًا؛ الأرقام اليومية تبقى.', 'Visit details are kept for 90 days; the daily figures stay.')}
+          actions={<PageSizePicker id="visits-page-size" value={perPage} onChange={(n) => choose(() => setPerPage(n))} />}>
           {loading && <Loading rows={5} />}
           {!loading && data && !data.kept && (
             <p style={{ margin: 0, padding: 18 }}>{t('تفاصيل هذا اليوم لم تعد محفوظة (أو لم يأتِ بعد). اختر يومًا ضمن آخر 90 يومًا.', 'This day’s details are no longer kept (or it has not come yet). Choose a day within the last 90 days.')}</p>
@@ -96,6 +102,7 @@ export default function AnalyticsSessions() {
               <table className="data">
                 <thead>
                   <tr>
+                    <th scope="col" className="row-num">#</th>
                     <th scope="col">{t('الوقت', 'Time')}</th>
                     <th scope="col">{t('الأحداث', 'Events')}</th>
                     <th scope="col">{t('المنتجات', 'Products')}</th>
@@ -106,9 +113,10 @@ export default function AnalyticsSessions() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.sessions.map((s) => (
+                  {data.sessions.map((s, index) => (
                     <Fragment key={s.id}>
                       <tr>
+                        <td className="num row-num">{formatNumber(rowNumber(page, perPage, index), lang)}</td>
                         <td className="num" dir="ltr">{clock(s.firstAt)}{clock(s.lastAt) !== clock(s.firstAt) && <> – {clock(s.lastAt)}</>}</td>
                         <td className="num">{formatNumber(s.events, lang)}</td>
                         <td className="num">{formatNumber(s.products, lang)}</td>
@@ -128,18 +136,15 @@ export default function AnalyticsSessions() {
                           </button>
                         </td>
                       </tr>
-                      {open === s.id && <tr><td colSpan={7} style={{ background: 'var(--tint)' }}><VisitPath id={s.id} /></td></tr>}
+                      {open === s.id && <tr><td colSpan={8} style={{ background: 'var(--tint)' }}><VisitPath id={s.id} /></td></tr>}
                     </Fragment>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
-          {!loading && data && (offset > 0 || data.more) && (
-            <div style={{ display: 'flex', gap: 8, padding: 14, justifyContent: 'flex-end' }}>
-              <button type="button" className="btn btn-ghost btn-sm" disabled={offset === 0} onClick={() => { setOpen(null); setOffset(Math.max(0, offset - 50)); }}>{t('الأحدث', 'Newer')}</button>
-              <button type="button" className="btn btn-ghost btn-sm" disabled={!data.more} onClick={() => { setOpen(null); setOffset(offset + 50); }}>{t('الأقدم', 'Older')}</button>
-            </div>
+          {!loading && data && data.sessions.length > 0 && (
+            <Pagination page={page} pages={pages} onPage={(next) => { setOpen(null); setOffset((next - 1) * perPage); }} label={t('صفحات الزيارات', 'Visit pages')} />
           )}
         </Panel>
       )}

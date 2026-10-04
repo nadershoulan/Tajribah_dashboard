@@ -1,7 +1,7 @@
 /** T73: numbered pages — the first 3, the last 3, the current one and its neighbours. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pageCount, pageItems, rangeText, slicePage } from '@/lib/pagination';
+import { DEFAULT_PAGE_SIZE, isPageSize, pageCount, pageItems, rangeText, rowNumber, slicePage } from '@/lib/pagination';
 
 const show = (current: number, total: number) => pageItems(current, total).map((i) => (i === 'gap' ? '…' : String(i))).join(' ');
 
@@ -41,4 +41,13 @@ test('which rows a page shows, of how many — ASCII digits in Arabic too', () =
   assert.equal(rangeText(2, 50, 50, 1243, 'en'), '51–100 of 1,243');
   assert.equal(rangeText(25, 50, 43, 1243, 'ar'), '1,201–1,243 من 1,243');
   assert.equal(rangeText(1, 50, 0, 0, 'en'), '0 of 0');
+});
+
+test('T76: rows per page are 10, 25, 50 or 100 — 10 unless changed — and each row is numbered across pages', () => {
+  assert.equal(DEFAULT_PAGE_SIZE, 10);
+  assert.deepEqual([10, 25, 50, 100].map(isPageSize), [true, true, true, true]);
+  assert.deepEqual([0, 20, 200, 10.5].map(isPageSize), [false, false, false, false]);
+  assert.equal(rowNumber(1, 10, 0), 1);
+  assert.equal(rowNumber(2, 10, 0), 11, 'page 2 of 10 starts at 11');
+  assert.equal(rowNumber(3, 25, 4), 55);
 });

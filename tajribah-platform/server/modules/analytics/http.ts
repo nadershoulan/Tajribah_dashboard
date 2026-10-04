@@ -53,13 +53,14 @@ export const analyticsLiveHandler = route(async (request) => {
   return json(await liveActivity(await tenantContextFor(request, apiConfig())));
 });
 
-/** API-124 — GET /api/analytics/sessions?day=&filter=&offset=: the visits of one Riyadh day (P4.10). */
+/** API-124 — GET /api/analytics/sessions?day=&filter=&offset=&limit=: the visits of one Riyadh day (P4.10). */
 export const analyticsSessionsHandler = route(async (request) => {
   const ctx = await tenantContextFor(request, apiConfig());
   const query = new URL(request.url).searchParams;
   const filter = z.enum(SESSION_FILTERS).safeParse(query.get('filter'));
   const offset = Number(query.get('offset') ?? 0);
-  return json(await sessionList(ctx, { day: query.get('day'), filter: filter.success ? filter.data : 'all', offset: Number.isFinite(offset) ? offset : 0 }));
+  const limit = Number(query.get('limit') ?? 50); // T76: 10, 25, 50 or 100
+  return json(await sessionList(ctx, { day: query.get('day'), filter: filter.success ? filter.data : 'all', offset: Number.isFinite(offset) ? offset : 0, limit }));
 });
 
 /** API-125 — GET /api/analytics/sessions/[id]: one visit's events in order. */

@@ -13,7 +13,7 @@
  */
 import { loadEnv, type Env } from '../config/env';
 import { configureNotify } from '../notify/notify';
-import { configureStorage } from '../storage/storage';
+import { configureStorage, storage } from '../storage/storage';
 import { configureConfigStore, type KvBinding } from '../edge/configs';
 import { configureCustomHostnames } from '../edge/custom-hostnames';
 import { configureRateLimiter, type RateLimitKv } from '../ratelimit/limiter';
@@ -38,7 +38,7 @@ export function bootstrap(bindings: Record<string, unknown>, fallback: Record<st
   setLogLevel(env.LOG_LEVEL);
   configureNotify(env);
   configureStorage(env, bindings.BUCKET as R2Bucket | undefined);
-  configureConfigStore(env, bindings.CONFIGS as KvBinding | undefined);
+  configureConfigStore(env, bindings.CONFIGS as KvBinding | undefined, storage()); // T75: local storage keeps local configs
   configureRateLimiter(env, bindings.RATE_LIMITS as RateLimitKv | undefined);
   configureJobs(env, bindings.JOBS as JobsQueue | undefined); // P7: the job queue's wake-up
   const app = (bindings.HYPERDRIVE_APP as Hyperdrive | undefined)?.connectionString ?? env.DATABASE_APP_URL;

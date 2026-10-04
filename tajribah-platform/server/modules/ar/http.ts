@@ -6,6 +6,7 @@ import { route } from '@/server/core/observability/request';
 import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@/server/core/http/api';
 import { errors } from '@/server/core/errors/problem';
 import { listArConfigPage, saveArConfig } from './service';
+import { isPageSize } from '@/lib/pagination';
 import { publishProduct, unpublishProduct } from '@/server/modules/edge/publish';
 import { saveHostedPage } from '@/server/modules/hosted-pages/service';
 import { qrCodesFor } from '@/server/modules/hosted-pages/qr';
@@ -13,10 +14,14 @@ import { qrCodesFor } from '@/server/modules/hosted-pages/qr';
 /** API-100 — GET /api/ar-configs */
 export const listArConfigsHandler = route(async (request) => {
   const ctx = await tenantContextFor(request);
-  // T73: a numbered page (?page=&q=); the list's first page is what an older caller gets.
+  // T73: a numbered page (?page=&q=); the list's first page is what an older caller gets. T76: ?pageSize=
+  // one of 10, 25, 50, 100 (otherwise 50, as before).
   const params = new URL(request.url).searchParams;
   const page = Number(params.get('page') ?? '1');
-  return json(await listArConfigPage(ctx, { page: Number.isInteger(page) && page > 0 ? page : 1, q: (params.get('q') ?? '').slice(0, 100) }));
+  const pageSize = Number(params.get('pageSize') ?? '50');
+  return json(await listArConfigPage(ctx, {
+    page: Number.isInteger(page) && page > 0 ? page : 1, pageSize: isPageSize(pageSize) ? pageSize : 50, q: (params.get('q') ?? '').slice(0, 100),
+  }));
 });
 
 /** API-101 — PUT /api/ar-configs/[productId] */

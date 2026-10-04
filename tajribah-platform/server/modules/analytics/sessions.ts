@@ -12,7 +12,8 @@
 import { asc, eq, inArray, sql } from 'drizzle-orm';
 import { analyticsEvents, products } from '@/db/schema';
 import { riyadhDay } from '@/lib/format';
-import type { SessionListView, SessionPathView } from '@/lib/view-models';
+import { isPageSize } from '@/lib/pagination';
+import { SESSIONS_MAX_OFFSET, type SessionListView, type SessionPathView } from '@/lib/view-models';
 import { assertFeature, entitlementsOf } from '@/server/core/billing/entitlements';
 import { errors } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
@@ -22,7 +23,7 @@ const DAY = 86_400_000;
 /** Raw events are kept this long (the retention rule, `admin/retention.ts`). */
 export const KEPT_DAYS = 90;
 export const SESSIONS_PAGE = 50;
-export const SESSIONS_MAX_OFFSET = 950;
+export { SESSIONS_MAX_OFFSET };
 export const PATH_MAX_EVENTS = 500;
 export const SESSION_FILTERS = ['all', 'opened', 'bought'] as const;
 export type SessionFilter = (typeof SESSION_FILTERS)[number];
@@ -37,7 +38,7 @@ async function allowed(ctx: TenantContext): Promise<void> {
 }
 
 /** API-124 — the visits of one Riyadh day, latest first. */
-export async function sessionList(ctx: TenantContext, input: { day?: string | null; filter?: SessionFilter; offset?: number } = {}, now = new Date()): Promise<SessionListView> {
+export async function sessionList(ctx: TenantContext, input: { day?: string | null; filter?: SessionFilter; offset?: number; limit?: number } = {}, now = new Date()): Promise<SessionListView> {
   await allowed(ctx);
   const today = riyadhDay(now);
   const oldest = riyadhDay(now.getTime() - (KEPT_DAYS - 1) * DAY);
@@ -45,14 +46,22 @@ export async function sessionList(ctx: TenantContext, input: { day?: string | nu
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(Date.parse(`${day}T00:00:00+03:00`))) throw errors.validation({ day: ['a day, like 2026-10-01'] });
   const filter = input.filter ?? 'all';
   const offset = Math.min(SESSIONS_MAX_OFFSET, Math.max(0, Math.floor(input.offset ?? 0)));
-  const base = { day, today, oldest, filter, offset };
+  // T76: rows per page, the merchant's choice (10, 25, 50, 100); 50 otherwise, as before.
+  const limit = input.limit !== undefined && isPageSize(input.limit) ? input.limit : SESSIONS_PAGE;
+  const base = { day, today, oldest, filter, offset, limit };
   // Outside what is kept (or not yet happened): nothing to read, said plainly rather than as an empty day.
-  if (day < oldest || day > today) return { ...base, sessions: [], more: false, kept: false };
+  if (day < oldest || day > today) return { ...base, sessions: [], more: false, kept: false, total: 0 };
 
   const from = new Date(`${day}T00:00:00+03:00`);
   const to = new Date(from.getTime() + DAY);
   const having = filter === 'opened' ? sql`HAVING bool_or(event_type IN ('ar_open', 'tryon_start'))`
     : filter === 'bought' ? sql`HAVING bool_or(event_type = 'purchase')` : sql``;
+  // T76: how many visits the day has (with this filter), for the numbered pages.
+  const [counted] = await withTenantSql(ctx.tenantId, async (tx) => rowsOf(await tx.execute(sql`
+    SELECT count(*)::int AS total FROM (
+      SELECT session_id FROM analytics_events
+      WHERE tenant_id = ${ctx.tenantId}::uuid AND occurred_at >= ${from.toISOString()}::timestamptz AND occurred_at < ${to.toISOString()}::timestamptz
+      GROUP BY session_id ${having}) visits`)));
   const rows = await withTenantSql(ctx.tenantId, async (tx) => rowsOf(await tx.execute(sql`
     SELECT session_id, min(occurred_at) AS first_at, max(occurred_at) AS last_at, count(*)::int AS events,
       count(DISTINCT product_id)::int AS products,
@@ -64,11 +73,11 @@ export async function sessionList(ctx: TenantContext, input: { day?: string | nu
     WHERE tenant_id = ${ctx.tenantId}::uuid AND occurred_at >= ${from.toISOString()}::timestamptz AND occurred_at < ${to.toISOString()}::timestamptz
     GROUP BY session_id ${having}
     ORDER BY max(occurred_at) DESC, session_id
-    LIMIT ${SESSIONS_PAGE + 1} OFFSET ${offset}`)));
+    LIMIT ${limit + 1} OFFSET ${offset}`)));
 
   return {
-    ...base, kept: true, more: rows.length > SESSIONS_PAGE,
-    sessions: rows.slice(0, SESSIONS_PAGE).map((r) => ({
+    ...base, kept: true, more: rows.length > limit, total: Number(counted?.total ?? 0),
+    sessions: rows.slice(0, limit).map((r) => ({
       id: String(r.session_id), firstAt: iso(r.first_at), lastAt: iso(r.last_at), events: Number(r.events), products: Number(r.products),
       opened: r.opened === true, carted: r.carted === true, bought: r.bought === true,
       device: (r.device ?? 'unknown') as SessionListView['sessions'][number]['device'], country: (r.country as string | null) ?? null,

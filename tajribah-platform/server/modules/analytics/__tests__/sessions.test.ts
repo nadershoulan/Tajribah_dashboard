@@ -91,6 +91,12 @@ test('paging: fifty at a time, with whether there are more', async () => {
     assert.equal(new Set([...first.sessions, ...second.sessions].map((s) => s.id)).size, SESSIONS_PAGE + 3, 'no visit on both pages, none missed');
     assert.equal((await sessionList(a.ctx, { offset: -5 }, NOW)).offset, 0);
     assert.equal((await sessionList(a.ctx, { offset: 1e9 }, NOW)).offset, 950, 'a page far away is capped, not a scan of the whole day');
+    // T76: the merchant's page size, and the day's total for numbered pages.
+    const tens = await sessionList(a.ctx, { limit: 10, offset: 10 }, NOW);
+    assert.deepEqual([tens.sessions.length, tens.limit, tens.total, tens.more], [10, 10, SESSIONS_PAGE + 3, true]);
+    assert.equal(tens.sessions[0]!.id, first.sessions[10]!.id, 'page 2 of 10 follows on from the first ten');
+    assert.equal((await sessionList(a.ctx, { limit: 7 }, NOW)).limit, SESSIONS_PAGE, 'not a page size: 50, as before');
+    assert.equal((await sessionList(a.ctx, { filter: 'bought' }, NOW)).total, 0, 'the total follows the filter');
   } finally { await harness.close(); }
 });
 

@@ -83,8 +83,8 @@ this on your computer, `DATABASE.md` → "Model and picture work on this machine
 SeaweedFS (a single program, no Docker). Without it, uploads wait in "processing". The dashboard's pages, when opened at
 127.0.0.1 or localhost, may upload to storage on this computer; publishing to a shop still needs https
 storage on the real host — locally, publishing works for this computer only (T75): the product's own
-page at `http://127.0.0.1:8799/p/…` shows it. Publish again after restarting the server (published
-settings are kept in memory here).
+page at `http://127.0.0.1:8799/p/…` shows it. Published settings are kept in the local storage, so they
+survive a restart.
 
 ## The checks
 

@@ -136,6 +136,9 @@ export type LiveActivityView = {
 };
 
 /** P4.10 — the visits of one Riyadh day (API-124). A visit's id is a daily hash: it names nobody. */
+/** How far into one day's visits a list may page (rows skipped): a page far away is capped, not a scan of the whole day. */
+export const SESSIONS_MAX_OFFSET = 950;
+
 export type SessionListView = {
   day: string;
   /** Today in Riyadh, and the oldest day whose raw events are still kept. */
@@ -144,6 +147,9 @@ export type SessionListView = {
   kept: boolean;
   filter: 'all' | 'opened' | 'bought';
   offset: number;
+  /** T76: rows per page, and how many visits the day has with this filter (numbered pages). */
+  limit: number;
+  total: number;
   more: boolean;
   sessions: {
     id: string; firstAt: string; lastAt: string; events: number; products: number;

@@ -14,6 +14,15 @@ export type PageItem = number | 'gap';
 
 export const EDGE_PAGES = 3;
 
+/** T76 — how many rows a page shows, the merchant's choice beside the search; 10 unless changed. */
+export const PAGE_SIZES = [10, 25, 50, 100] as const;
+export type PageSize = (typeof PAGE_SIZES)[number];
+export const DEFAULT_PAGE_SIZE: PageSize = 10;
+export const isPageSize = (n: number): n is PageSize => (PAGE_SIZES as readonly number[]).includes(n);
+
+/** The number a row shows in its list: counted across pages (page 2 of 10 starts at 11). */
+export const rowNumber = (page: number, pageSize: number, index: number): number => (page - 1) * pageSize + index + 1;
+
 export function pageItems(current: number, total: number): PageItem[] {
   if (total <= 0) return [];
   const page = Math.min(Math.max(1, Math.floor(current)), total);

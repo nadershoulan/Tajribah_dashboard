@@ -1259,3 +1259,20 @@ three things stopped it, and each is now fixed **for local addresses only**:
 the server restarts. On real addresses nothing changes.
 
 **Rollback path.** Revert the commit: local publishing is refused again. Cost: low.
+
+## T76 · 2026-10-05 · Rows per page (10, 25, 50, 100) and row numbers on every long list (you asked)
+
+**Decision.** A "عدد الصفوف" (rows) picker with 10, 25, 50 or 100 sits beside the search, or in the
+panel's corner where a list has no search. It starts at 10, and changing it returns to page 1. Each row
+shows its number, counted across pages (page 2 at 10 per page starts at 11). It's on Products,
+AR settings, 3D models and Visits. Visits used to have "Newer / Older"; it now has numbered pages, and
+the server counts the day's visits for the current filter (`total`) and takes a `limit`. How far into a
+day it can page stays capped as before. `GET /api/ar-configs` takes `pageSize`. A value that isn't one of
+the four gives the previous size (50).
+
+**Also (T75 follow-up).** On this computer, published settings now live in the local storage
+(`edge-configs/…`) instead of memory, so they survive restarting the dashboard. Before, the dashboard
+showed a product as published while its page couldn't find it. This applies only when storage is an S3
+server at localhost or 127.0.0.1. Asking for KV still means KV, and elsewhere memory is used as before.
+
+**Rollback path.** Revert the commit. Cost: low.

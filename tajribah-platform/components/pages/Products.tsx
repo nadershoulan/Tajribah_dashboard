@@ -12,8 +12,8 @@ import { isSized, nextSort, type ProductSortState } from '@/lib/product-list';
 import { formatNumber, formatRelative } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
 import { Shell } from '@/components/dashboard/chrome';
-import { Badge, Empty, ErrorNote, Forward, Loading, PageHead, Pagination, Panel } from '@/components/dashboard/ui';
-import { pageCount, rangeText } from '@/lib/pagination';
+import { Badge, Empty, ErrorNote, Forward, Loading, PageHead, PageSizePicker, Pagination, Panel } from '@/components/dashboard/ui';
+import { DEFAULT_PAGE_SIZE, pageCount, rangeText, rowNumber, type PageSize } from '@/lib/pagination';
 import { useDebounced } from '@/lib/use-debounced';
 import type { ProductRow } from '@/lib/view-models';
 
@@ -28,7 +28,6 @@ const TYPE_LABEL: Record<ProductRow['productType'], { ar: string; en: string }> 
 };
 
 
-const PAGE_SIZE = 50;
 
 const COLUMNS: { by: ProductSort; label: { ar: string; en: string } }[] = [
   { by: 'name', label: { ar: 'المنتج', en: 'Product' } },
@@ -51,13 +50,14 @@ export default function Products() {
   // Search, filter, counts and paging are the server's (P1.9): the screen never holds more
   // of the catalogue than one page, however large the store. T73: numbered pages.
   const [sort, setSort] = useState<ProductSortState>(null);
-  const key = `${filter}|${q}|${sort?.by ?? ''}|${sort?.dir ?? ''}`;
+  const [perPage, setPerPage] = useState<PageSize>(DEFAULT_PAGE_SIZE); // T76: rows per page, beside the search
+  const key = `${filter}|${q}|${sort?.by ?? ''}|${sort?.dir ?? ''}|${perPage}`;
   const [paged, setPaged] = useState({ key, page: 1 });
   const page = paged.key === key ? paged.page : 1; // a new search or filter starts at page 1
-  const { data, loading, error } = useResource((s) => s.products({ q: q || undefined, filter, page, limit: PAGE_SIZE, sort: sort?.by, dir: sort?.dir }), [q, filter, page, sort?.by, sort?.dir]);
+  const { data, loading, error } = useResource((s) => s.products({ q: q || undefined, filter, page, limit: perPage, sort: sort?.by, dir: sort?.dir }), [q, filter, page, sort?.by, sort?.dir, perPage]);
   const rows = data?.rows ?? [];
   const counts = data?.counts;
-  const pages = pageCount(counts?.[filter] ?? 0, PAGE_SIZE);
+  const pages = pageCount(counts?.[filter] ?? 0, perPage);
   const goTo = (next: number) => {
     setPaged({ key, page: next });
     document.querySelector('table.data')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -119,8 +119,9 @@ export default function Products() {
       <Panel
         flush
         title={t('كل المنتجات', 'All products')}
-        sub={counts ? rangeText(Math.min(page, pages), PAGE_SIZE, rows.length, counts[filter], lang) : undefined}
+        sub={counts ? rangeText(Math.min(page, pages), perPage, rows.length, counts[filter], lang) : undefined}
         actions={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, flexWrap: 'wrap' }}>
           <label style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
             <Search size={15} aria-hidden style={{ position: 'absolute', insetInlineStart: 10, color: 'var(--text-3)' }} />
             <span className="sr-only">{t('ابحث في المنتجات', 'Search products')}</span>
@@ -135,6 +136,8 @@ export default function Products() {
               }}
             />
           </label>
+          <PageSizePicker id="products-page-size" value={perPage} onChange={setPerPage} />
+          </div>
         }
       >
         <div style={{ display: 'flex', gap: 6, padding: '12px 18px 0', flexWrap: 'wrap' }}>
@@ -168,6 +171,7 @@ export default function Products() {
             <table className="data">
               <thead>
                 <tr>
+                  <th scope="col" className="row-num">#</th>
                   {COLUMNS.map((c) => (
                     <th key={c.by} scope="col"
                       aria-sort={sort?.by === c.by ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}>
@@ -182,8 +186,9 @@ export default function Products() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((product) => (
+                {rows.map((product, index) => (
                   <tr key={product.id}>
+                    <td className="num row-num">{formatNumber(rowNumber(Math.min(page, pages), perPage, index), lang)}</td>
                     <td>
                       <AppLink href={`/dashboard/products/${product.id}`} className="cell-main">
                         <span className="thumb" aria-hidden><Package size={17} /></span>

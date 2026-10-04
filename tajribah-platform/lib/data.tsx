@@ -173,7 +173,7 @@ export interface DataSource {
   markNotificationsRead(ids: string[] | 'all'): Promise<void>;
   /** P1.21: AR button and viewer settings per product. */
   /** T73: one numbered page, products already set up first; `q` searches name and SKU. */
-  arConfigs(query?: { page?: number; q?: string }): Promise<ArConfigPage>;
+  arConfigs(query?: { page?: number; q?: string; pageSize?: number }): Promise<ArConfigPage>;
   saveArConfig(productId: string, input: ArConfigInput): Promise<ArConfigView>;
   /** P1.15 — publish the product's config to the store shops read. */
   publishArConfig(productId: string): Promise<PublishResult>;
@@ -190,7 +190,7 @@ export interface DataSource {
   /** P4.8: the range's daily figures as CSV text. */
   analyticsCsv(range: '7d' | '30d' | '90d'): Promise<string>;
   /** P4.10: the visits of one Riyadh day, and one visit's events in order (null: not found, or expired). */
-  sessionList(input: { day?: string; filter?: SessionListView['filter']; offset?: number }): Promise<SessionListView>;
+  sessionList(input: { day?: string; filter?: SessionListView['filter']; offset?: number; limit?: number }): Promise<SessionListView>;
   sessionPath(id: string): Promise<SessionPathView | null>;
   /** P4.9: the shop's last half hour, from the raw events. */
   liveActivity(): Promise<LiveActivityView>;
@@ -399,6 +399,7 @@ export function apiSource(client: ApiClient): DataSource {
       const params = new URLSearchParams();
       if (query.page && query.page > 1) params.set('page', String(query.page));
       if (query.q) params.set('q', query.q);
+      if (query.pageSize) params.set('pageSize', String(query.pageSize));
       const qs = params.toString();
       return client.call<ArConfigPage>(`/api/ar-configs${qs ? `?${qs}` : ''}`);
     },
@@ -427,8 +428,8 @@ export function apiSource(client: ApiClient): DataSource {
     async analytics(range) { return client.call<AnalyticsView>(`/api/analytics?range=${range}`); },
     async analyticsCsv(range) { return client.callText(`/api/analytics/export?range=${range}`); },
     async liveActivity() { return client.call<LiveActivityView>('/api/analytics/live'); },
-    async sessionList({ day, filter, offset }) {
-      const query = new URLSearchParams({ ...(day ? { day } : {}), ...(filter ? { filter } : {}), ...(offset ? { offset: String(offset) } : {}) });
+    async sessionList({ day, filter, offset, limit }) {
+      const query = new URLSearchParams({ ...(day ? { day } : {}), ...(filter ? { filter } : {}), ...(offset ? { offset: String(offset) } : {}), ...(limit ? { limit: String(limit) } : {}) });
       return client.call<SessionListView>(`/api/analytics/sessions${query.size ? `?${query}` : ''}`);
     },
     async sessionPath(id) {
@@ -1002,8 +1003,9 @@ export const demoSource: DataSource = {
     const all = DEMO_PRODUCTS.filter((p) => p.status !== 'archived' && (!q || [p.name, p.nameAr, p.sku].some((v) => v?.toLowerCase().includes(q))))
       .map((p) => withDemoPage(demoArConfigs.get(p.id) ?? demoArDefault(p)));
     const ordered = [...all.filter((c) => c.saved || c.arEnabled), ...all.filter((c) => !(c.saved || c.arEnabled))];
-    const page = Math.min(Math.max(1, query.page ?? 1), pageCount(ordered.length, 50));
-    return { configs: slicePage(ordered, page, 50), total: ordered.length, page, pageSize: 50 };
+    const size = query.pageSize ?? 50;
+    const page = Math.min(Math.max(1, query.page ?? 1), pageCount(ordered.length, size));
+    return { configs: slicePage(ordered, page, size), total: ordered.length, page, pageSize: size };
   },
   async saveArConfig(productId, input) {
     const product = DEMO_PRODUCTS.find((p) => p.id === productId);
@@ -1071,10 +1073,10 @@ export const demoSource: DataSource = {
     return ['day,views,ar_sessions,tryon_sessions,purchases', ...view.series.map((p) => [p.day, p.views, p.arSessions, p.tryonSessions, p.purchases].join(','))].join('\r\n') + '\r\n';
   },
   // The preview has no shoppers: no visits to list.
-  async sessionList({ day, filter, offset }) {
+  async sessionList({ day, filter, offset, limit }) {
     const today = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
     const oldest = new Date(Date.now() + 3 * 3_600_000 - 89 * 86_400_000).toISOString().slice(0, 10);
-    return { day: day ?? today, today, oldest, kept: true, filter: filter ?? 'all', offset: offset ?? 0, more: false, sessions: [] };
+    return { day: day ?? today, today, oldest, kept: true, filter: filter ?? 'all', offset: offset ?? 0, limit: limit ?? 50, total: 0, more: false, sessions: [] };
   },
   async sessionPath() { return null; },
   // The preview has no shoppers: a quiet half hour, honestly empty.

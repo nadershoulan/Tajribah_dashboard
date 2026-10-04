@@ -10,13 +10,11 @@ import { useLang } from '@/lib/i18n';
 import { useData, useResource } from '@/lib/data';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import { Shell } from '@/components/dashboard/chrome';
-import { Badge, Empty, ErrorNote, Loading, PageHead, Pagination, Panel } from '@/components/dashboard/ui';
-import { pageCount, slicePage } from '@/lib/pagination';
+import { Badge, Empty, ErrorNote, Loading, PageHead, PageSizePicker, Pagination, Panel } from '@/components/dashboard/ui';
+import { DEFAULT_PAGE_SIZE, pageCount, rowNumber, slicePage, type PageSize } from '@/lib/pagination';
 import { ModelPicture } from '@/components/dashboard/model-picture';
 import type { ModelRow, ModelVersionRow } from '@/lib/view-models';
 import { MODEL_TARGET_BYTES } from '@/lib/model-size';
-
-const MODEL_PAGE = 25;
 
 /** Under this, AR loads in about two seconds on a Saudi mobile network. Over it, it does not. */
 const SIZE_TARGET_BYTES = MODEL_TARGET_BYTES;
@@ -50,8 +48,10 @@ export default function Models() {
   const [version, setVersion] = useState(0);
   const { data, loading, error } = useResource((s) => s.models(), [version]);
   const reload = () => setVersion((v) => v + 1);
-  const [page, setPage] = useState(1); // T73: numbered pages of 25
-  const pages = pageCount(data?.length ?? 0, MODEL_PAGE);
+  const [page, setPage] = useState(1); // T73: numbered pages
+  const [perPage, setPerPage] = useState<PageSize>(DEFAULT_PAGE_SIZE); // T76: rows per page
+  const pages = pageCount(data?.length ?? 0, perPage);
+  const shownPage = Math.min(page, pages);
   const [open, setOpen] = useState<string | null>(null);
   const [upload, setUpload] = useState<{ state: 'busy' | 'done' | 'failed'; message: string } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -152,7 +152,8 @@ export default function Models() {
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
       >
-      <Panel flush title={t('مكتبة النماذج', 'Model library')} sub={t('اسحب ملف GLB أو USDZ وأفلته هنا', 'Drop a GLB or USDZ file here')}>
+      <Panel flush title={t('مكتبة النماذج', 'Model library')} sub={t('اسحب ملف GLB أو USDZ وأفلته هنا', 'Drop a GLB or USDZ file here')}
+        actions={(data ?? []).length > 0 ? <PageSizePicker id="models-page-size" value={perPage} onChange={(n) => { setPerPage(n); setPage(1); }} /> : undefined}>
         {loading && <Loading rows={5} />}
         {error && <ErrorNote error={error} />}
 
@@ -173,6 +174,7 @@ export default function Models() {
             <table className="data">
               <thead>
                 <tr>
+                  <th scope="col" className="row-num">#</th>
                   <th scope="col">{t('النموذج', 'Model')}</th>
                   <th scope="col">{t('المصدر', 'Source')}</th>
                   <th scope="col">{t('الحالة', 'Status')}</th>
@@ -185,9 +187,10 @@ export default function Models() {
                 </tr>
               </thead>
               <tbody>
-                {slicePage(data ?? [], page, MODEL_PAGE).map((model) => (
+                {slicePage(data ?? [], shownPage, perPage).map((model, index) => (
                   <Fragment key={model.id}>
                   <tr>
+                    <td className="num row-num">{formatNumber(rowNumber(shownPage, perPage, index), lang)}</td>
                     <td>
                       <div className="cell-main">
                         <span className="thumb">
@@ -233,7 +236,7 @@ export default function Models() {
                   </tr>
                   {open === model.id && (
                     <tr className="versions-row">
-                      <td colSpan={9}><Versions model={model} onPublished={reload} /></td>
+                      <td colSpan={10}><Versions model={model} onPublished={reload} /></td>
                     </tr>
                   )}
                   </Fragment>
@@ -242,7 +245,7 @@ export default function Models() {
             </table>
           </div>
         )}
-        {!loading && !error && (data ?? []).length > 0 && <Pagination page={Math.min(page, pages)} pages={pages} onPage={setPage} label={t('صفحات النماذج', 'Model pages')} />}
+        {!loading && !error && (data ?? []).length > 0 && <Pagination page={shownPage} pages={pages} onPage={setPage} label={t('صفحات النماذج', 'Model pages')} />}
       </Panel>
       </div>
 

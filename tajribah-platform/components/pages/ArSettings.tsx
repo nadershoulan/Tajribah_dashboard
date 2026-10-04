@@ -10,12 +10,12 @@ import { ApiError } from '@/lib/api-client';
 import { ArConfigInput, placementErrors, placementsFor, type ArConfigView, type Placement } from '@/lib/contracts/ar-config';
 import { HostedPageInput, type HostedPageView } from '@/lib/contracts/hosted-page';
 import { useData, useResource } from '@/lib/data';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, formatNumber } from '@/lib/format';
 import { useLang } from '@/lib/i18n';
 import type { Bi } from '@/lib/lang';
 import { Shell } from '@/components/dashboard/chrome';
-import { Badge, Empty, ErrorNote, Loading, PageHead, Pagination, Panel } from '@/components/dashboard/ui';
-import { pageCount, rangeText } from '@/lib/pagination';
+import { Badge, Empty, ErrorNote, Loading, PageHead, PageSizePicker, Pagination, Panel } from '@/components/dashboard/ui';
+import { DEFAULT_PAGE_SIZE, pageCount, rangeText, rowNumber, type PageSize } from '@/lib/pagination';
 import { useDebounced } from '@/lib/use-debounced';
 
 const PLACEMENT_LABEL: Record<Placement, Bi> = {
@@ -50,9 +50,10 @@ export default function ArSettings() {
   // T73: numbered pages and a search — products already set up come first.
   const [typed, setTyped] = useState('');
   const q = useDebounced(typed.trim(), 250);
-  const [paged, setPaged] = useState({ q, page: 1 });
-  const page = paged.q === q ? paged.page : 1;
-  const { data: list, loading, error } = useResource((s) => s.arConfigs({ page, q: q || undefined }), [version, page, q]);
+  const [perPage, setPerPage] = useState<PageSize>(DEFAULT_PAGE_SIZE); // T76
+  const [paged, setPaged] = useState({ key: `${q}|${perPage}`, page: 1 });
+  const page = paged.key === `${q}|${perPage}` ? paged.page : 1; // a new search or page size starts at page 1
+  const { data: list, loading, error } = useResource((s) => s.arConfigs({ page, q: q || undefined, pageSize: perPage }), [version, page, q, perPage]);
   const data = list?.configs;
   const { data: settings } = useResource((s) => s.settings());
   const [selected, setSelected] = useState<string | null>(null);
@@ -84,16 +85,20 @@ export default function ArSettings() {
       {data && (current || q) && (
         <div className="ar-grid">
           <Panel flush title={t('المنتجات', 'Products')} sub={list ? rangeText(list.page, list.pageSize, data.length, list.total, lang) : undefined}>
+            <div className="pick-tools">
             <label className="pick-search">
               <Search size={15} aria-hidden />
               <span className="sr-only">{t('ابحث في المنتجات', 'Search products')}</span>
               <input type="search" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={t('ابحث بالاسم أو الرمز', 'Search by name or SKU')} />
             </label>
+            <PageSizePicker id="ar-page-size" value={perPage} onChange={setPerPage} />
+            </div>
             {data.length === 0 && <p className="hint" style={{ padding: '8px 16px 16px' }}>{t('لا منتجات بهذا البحث.', 'No products match this search.')}</p>}
             <ul className="pick-list">
-              {data.map((c) => (
+              {data.map((c, index) => (
                 <li key={c.productId}>
                   <button type="button" aria-current={c.productId === current?.productId ? 'true' : undefined} onClick={() => setSelected(c.productId)}>
+                    <span className="pick-num">{formatNumber(rowNumber(list?.page ?? 1, list?.pageSize ?? perPage, index), lang)}</span>
                     <span className="pick-name">{name(c)}</span>
                     <span className="pick-meta">
                       {c.arEnabled ? <Badge tone="ok" dot>{t('العرض مفعّل', 'AR on')}</Badge> : <Badge>{t('العرض متوقف', 'AR off')}</Badge>}
@@ -103,7 +108,7 @@ export default function ArSettings() {
                 </li>
               ))}
             </ul>
-            <Pagination page={list?.page ?? 1} pages={pages} onPage={(next) => setPaged({ q, page: next })} label={t('صفحات المنتجات', 'Product pages')} />
+            <Pagination page={list?.page ?? 1} pages={pages} onPage={(next) => setPaged({ key: `${q}|${perPage}`, page: next })} label={t('صفحات المنتجات', 'Product pages')} />
           </Panel>
           <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
             {current && <Editor key={`${current.productId}:${JSON.stringify(current)}`} config={current} name={name(current)}

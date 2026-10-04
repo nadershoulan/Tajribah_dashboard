@@ -14,7 +14,7 @@ import { AlertCircle, ArrowLeft, ArrowRight, Check, Inbox } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 import { isUnreachable } from '@/lib/api-client';
 import { formatNumber, formatPercent } from '@/lib/format';
-import { pageItems } from '@/lib/pagination';
+import { PAGE_SIZES, pageItems, type PageSize } from '@/lib/pagination';
 import type { Bi } from '@/lib/lang';
 
 /** An arrow that points the way "forward" reads in the current direction. */
@@ -223,5 +223,18 @@ export function Pagination({ page, pages, onPage, label }: { page: number; pages
         <On size={15} aria-hidden />
       </button>
     </nav>
+  );
+}
+
+/** T76 — rows per page (10, 25, 50, 100), beside a list's search; changing it starts again at page 1. */
+export function PageSizePicker({ value, onChange, id }: { value: PageSize; onChange: (size: PageSize) => void; id: string }) {
+  const { t, lang } = useLang();
+  return (
+    <label className="page-size" htmlFor={id}>
+      <span>{t('عدد الصفوف', 'Rows')}</span>
+      <select id={id} value={value} onChange={(e) => onChange(Number(e.target.value) as PageSize)}>
+        {PAGE_SIZES.map((n) => <option key={n} value={n}>{formatNumber(n, lang)}</option>)}
+      </select>
+    </label>
   );
 }

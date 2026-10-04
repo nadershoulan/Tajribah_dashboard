@@ -28,6 +28,10 @@ export class ApiError extends Error {
   }
 }
 
+/** The server could not be reached at all (offline, or restarting): no answer to explain. Status 0. */
+export const UNREACHABLE = 'unreachable';
+export const isUnreachable = (error: unknown): boolean => error instanceof ApiError && error.code === UNREACHABLE;
+
 export type MeResponse = {
   user: { id: string; email: string; fullName: string; emailVerified: boolean; locale: string; isStaff?: boolean };
   currentTenantId: string | null;
@@ -90,16 +94,22 @@ export class ApiClient {
 
   // ------------------------------------------------------------------ transport
 
-  private async send(path: string, init: { method?: string; body?: unknown; auth?: boolean }): Promise<Response> {
+  private async send(path: string, init: { method?: string; body?: unknown; auth?: boolean; raw?: Blob }): Promise<Response> {
     const headers: Record<string, string> = { accept: 'application/json' };
-    if (init.body !== undefined) headers['content-type'] = 'application/json';
+    if (init.raw) headers['content-type'] = 'application/octet-stream';
+    else if (init.body !== undefined) headers['content-type'] = 'application/json';
     if (init.auth && this.accessToken) headers.authorization = `Bearer ${this.accessToken}`;
-    return this.fetchImpl(`${this.base}${path}`, {
-      method: init.method ?? (init.body === undefined ? 'GET' : 'POST'),
-      headers,
-      body: init.body === undefined ? undefined : JSON.stringify(init.body),
-      credentials: 'same-origin',
-    });
+    try {
+      return await this.fetchImpl(`${this.base}${path}`, {
+        method: init.method ?? (init.body === undefined && !init.raw ? 'GET' : 'POST'),
+        headers,
+        body: init.raw ?? (init.body === undefined ? undefined : JSON.stringify(init.body)),
+        credentials: 'same-origin',
+      });
+    } catch {
+      // The browser's own words ("Failed to fetch") explain nothing: say the server was not reached.
+      throw new ApiError(0, UNREACHABLE, 'Tajribah could not be reached — check your connection and try again');
+    }
   }
 
   private static async fail(response: Response): Promise<never> {
@@ -118,6 +128,15 @@ export class ApiClient {
     if (response.status === 401) this.setToken(null);
     if (!response.ok) return ApiClient.fail(response);
     return (response.status === 204 ? undefined : await response.json()) as T;
+  }
+
+  /** Like `call`, with a file as the request's body (a product sheet): the bytes as they are, no JSON. */
+  async callUpload<T>(path: string, file: Blob): Promise<T> {
+    let response = await this.send(path, { auth: true, raw: file });
+    if (response.status === 401 && (await this.refresh())) response = await this.send(path, { auth: true, raw: file });
+    if (response.status === 401) this.setToken(null);
+    if (!response.ok) return ApiClient.fail(response);
+    return (await response.json()) as T;
   }
 
   /** P4.8 — like `call`, for a response that is a file (CSV) rather than JSON. */

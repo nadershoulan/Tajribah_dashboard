@@ -18,7 +18,8 @@ import { index, integer, pgEnum, pgTable, text, uniqueIndex, uuid } from 'drizzl
 import { bool, createdAt, deletedAt, json, pk, tenantId, timestamps, ts } from './_shared';
 import { tenants, productCategory } from './identity';
 
-export const PROVIDER = ['salla', 'zid', 'shopify', 'woocommerce'] as const;
+/** `feed`: a Google Merchant feed's link, or a sheet uploaded by hand — for a store that does not link its platform. */
+export const PROVIDER = ['salla', 'zid', 'shopify', 'woocommerce', 'feed'] as const;
 export const CONNECTION_STATUS = ['active', 'expired', 'revoked', 'error'] as const;
 export const SYNC_TYPE = ['full', 'incremental', 'single_product', 'inventory', 'orders'] as const;
 export const JOB_STATUS = ['queued', 'running', 'done', 'failed', 'cancelled'] as const;

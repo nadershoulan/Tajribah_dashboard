@@ -185,3 +185,11 @@ test('P7: a refusal with no detail (a 429) reads as its title in the viewer’s 
       (e: any) => e instanceof ApiError && e.code === 'rate_limited' && e.status === 429 && e.message === title);
   }
 });
+
+test('a server that cannot be reached is said plainly, not as the browser’s "Failed to fetch"', async () => {
+  const client = new ApiClient(async () => { throw new TypeError('Failed to fetch'); }, APP);
+  await assert.rejects(() => client.call('/api/dashboard'), (e: any) => e instanceof ApiError && e.status === 0 && e.code === 'unreachable' && /could not be reached/.test(e.message));
+  const { isUnreachable } = await import('@/lib/api-client');
+  assert.equal(isUnreachable(new ApiError(0, 'unreachable')), true);
+  assert.equal(isUnreachable(new ApiError(500, 'internal')), false);
+});

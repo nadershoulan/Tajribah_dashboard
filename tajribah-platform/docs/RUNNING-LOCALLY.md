@@ -98,3 +98,4 @@ These are what GitHub runs on every push.
 - **Store connections (Salla, Zid, Shopify)** — each needs its app registered with the platform first.
 - **Card payments, phone codes by SMS, generating 3D models from photos** — each needs its provider's account.
 - **Real emails** — printed to the terminal until a mail provider is set.
+- **Background work** (a product feed's sync, model and picture checks) — no queue consumer runs on this machine, so a linked feed waits in "queued"; a file upload imports at once.

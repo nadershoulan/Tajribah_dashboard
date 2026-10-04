@@ -34,12 +34,16 @@ export type SyncRequest = {
  */
 export async function assertPlatformInPlan(ctx: TenantContext, connectionId: string): Promise<void> {
   const connection = await ctx.db.findById(storeConnections, connectionId);
-  if (connection) assertFeature(await entitlementsOf(ctx), connection.provider);
+  // A product feed or file is on every plan (connections/feed.ts).
+  if (connection && connection.provider !== 'feed') assertFeature(await entitlementsOf(ctx), connection.provider);
 }
 
 export async function requestSync(ctx: TenantContext, connectionId: string, request: SyncRequest = {}): Promise<SyncProgress> {
   ctx.require('connections:write');
   await assertPlatformInPlan(ctx, connectionId);
+  const connection = await ctx.db.findById(storeConnections, connectionId);
+  // A file's products change only when the file is uploaded again (connections/feed.ts): it is not re-read.
+  if (connection?.provider === 'feed' && connection.settings?.kind === 'file') throw errors.conflict('these products came from a file — upload the file again to update them');
   const { job, fresh } = await withTenant(ctx.tenantId, (db) => createSyncIn(ctx, db, connectionId, request));
   if (fresh) await enqueueSync(ctx.tenantId, job.id);
   return toProgress(job);

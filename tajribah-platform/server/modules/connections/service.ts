@@ -56,7 +56,8 @@ export async function connectStore(ctx: TenantContext, input: ConnectInput): Pro
   ctx.require('connections:write');
   // T35: a store platform is a plan feature (Salla and Zid from Growth — the trial runs on Growth —
   // Shopify and WooCommerce from Pro); the feature keys are the provider names.
-  assertFeature(await entitlementsOf(ctx), input.provider);
+  // A product feed or file is not a store platform: every plan may add products that way (feed.ts).
+  if (input.provider !== 'feed') assertFeature(await entitlementsOf(ctx), input.provider);
   if (!input.externalStoreId || !input.tokens.accessToken) {
     throw errors.validation({ tokens: ['the store did not hand over an access token'] });
   }
@@ -163,7 +164,7 @@ export async function accessTokenFor(ctx: TenantContext, id: string, now: Date =
 
 // ------------------------------------------------------------------ view mapping
 
-async function summaryOf(ctx: TenantContext, id: string): Promise<ConnectionSummary> {
+export async function summaryOf(ctx: TenantContext, id: string): Promise<ConnectionSummary> {
   return toSummary(ctx, await ctx.db.requireById(storeConnections, id));
 }
 

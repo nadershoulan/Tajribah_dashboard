@@ -15,6 +15,7 @@ import { storeConnections } from '@/db/schema';
 import { connectionHealth } from './health';
 import { disconnectStore, listConnections } from './service';
 import { completeWooConnect, startWooConnect } from './woocommerce';
+import { connectFeed, importProductFile } from './feed';
 import { completeShopifyConnect, startShopifyConnect, type ShopifyAppConfig } from './shopify';
 import { linkSallaStore, openSallaApp, type SallaLinkConfig } from './salla';
 import { completeZidCallback, linkZidStore, startZid, startZidFromDashboard, ZID_STATE_COOKIE, STATE_TTL_MS, type ZidConnectConfig } from './zid';
@@ -63,6 +64,31 @@ export const disconnectHandler = route(async (request) => {
   return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
 });
 
+/** API-184 — POST /api/connections/feed { url }: a Google Merchant feed's link, synced now and every 24 hours. */
+export const connectFeedHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  const { url } = await readJson(request, z.object({ url: z.string().max(4096) }));
+  return json(await connectFeed(ctx, { url }), { status: 201 });
+});
+
+/**
+ * API-185 — POST /api/connections/feed/file?filename=… with the file itself as the body (CSV, TSV,
+ * XLSX or Merchant XML, up to 30 MB): its products are imported in this request; the file is not kept.
+ */
+export const importProductFileHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  const declared = Number(request.headers.get('content-length') ?? 0);
+  if (declared > 30 * 1024 * 1024) throw errors.validation({ file: ['the file is larger than 30 MB'] });
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  if (!bytes.byteLength) throw errors.validation({ file: ['the file is empty'] });
+  const filename = new URL(request.url).searchParams.get('filename') ?? 'products';
+  return json(await importProductFile(ctx, { filename, bytes }), { status: 201 });
+});
+
 /** API-063 — POST /api/connections/woocommerce/start { storeUrl } → { authorizeUrl } (the store's own approval page) */
 export const startWooConnectHandler = route(async (request) => {
   const config = apiConfig();
@@ -100,7 +126,7 @@ const shopifyNotYet = () => errors.notImplemented('Shopify shops can be connecte
 export const connectionProvidersHandler = route(async (request) => {
   const config = apiConfig();
   await tenantContextFor(request, config);
-  return json({ woocommerce: true, shopify: shopifyApp(config) !== null, salla: sallaLink(config) !== null, zid: zidConnect(config) !== null });
+  return json({ woocommerce: true, shopify: shopifyApp(config) !== null, salla: sallaLink(config) !== null, zid: zidConnect(config) !== null, feed: true });
 });
 
 /**

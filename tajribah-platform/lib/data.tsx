@@ -13,7 +13,7 @@ import {
   DEMO_AI_JOBS, DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
 } from './demo-data';
 import type {
-  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, SallaAppView, SsoSettingsView, ReportSubscriptionView, LiveActivityView, SessionListView, SessionPathView, StoreOverview, CustomDomainView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, FeedImport, SallaAppView, SsoSettingsView, ReportSubscriptionView, LiveActivityView, SessionListView, SessionPathView, StoreOverview, CustomDomainView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
@@ -68,6 +68,10 @@ export interface DataSource {
   /** P1.11: every store connection with its latest sync and webhook health. */
   connections(): Promise<ConnectionDetail[]>;
   syncNow(connectionId: string): Promise<SyncProgress>;
+  /** API-184 — a Google Merchant feed's link: read now and every 24 hours. */
+  connectFeed(url: string): Promise<FeedImport>;
+  /** API-185 — a product sheet (CSV, TSV, XLSX, Merchant XML), imported at once; not kept. */
+  importProductFile(file: File): Promise<FeedImport>;
   disconnect(connectionId: string): Promise<void>;
   models(): Promise<ModelRow[]>;
   /** P1.14. Newest first; `isCurrent` marks the live one. */
@@ -258,6 +262,8 @@ export function apiSource(client: ApiClient): DataSource {
     async models() {
       return (await client.call<{ models: ModelRow[] }>('/api/models')).models;
     },
+    async connectFeed(url) { return client.call<FeedImport>('/api/connections/feed', { body: { url } }); },
+    async importProductFile(file) { return client.callUpload<FeedImport>(`/api/connections/feed/file?filename=${encodeURIComponent(file.name)}`, file); },
     async startWooConnect(storeUrl) { return client.call<{ authorizeUrl: string }>('/api/connections/woocommerce/start', { body: { storeUrl } }); },
     async connectionProviders() { return client.call<ConnectionProviders>('/api/connections/providers'); },
     async ssoSettings() { return client.call<SsoSettingsView>('/api/settings/sso'); },
@@ -749,10 +755,13 @@ export const demoSource: DataSource = {
     if (!picture) throw new ApiError(404, 'not_found', 'picture not found');
     return picture;
   },
+  // The preview has no server to read a feed or a file: it says so, as a refusal would.
+  async connectFeed() { throw new ApiError(422, 'validation_failed', 'Validation failed', { url: ['this preview has no server to read the feed — the real dashboard reads it'] }); },
+  async importProductFile() { throw new ApiError(422, 'validation_failed', 'Validation failed', { file: ['this preview has no server to read the file — the real dashboard imports it'] }); },
   // P6: WooCommerce is Pro and up; the preview's store is on Growth, as the server would say.
   async startWooConnect() { throw new ApiError(402, 'plan_required', 'woocommerce is not included in this plan'); },
   // P6: no Shopify app is registered yet, as the server would say.
-  async connectionProviders() { return { woocommerce: true, shopify: false, salla: false, zid: false }; },
+  async connectionProviders() { return { woocommerce: true, shopify: false, salla: false, zid: false, feed: true }; },
   // P8: single sign-on is Enterprise — the preview's Growth store has none and cannot set one.
   async ssoSettings() {
     return { configured: false, enabled: false, issuer: null, clientId: null, emailDomains: [], redirectUri: 'https://app.tajribah.sa/login/sso', signInUrl: 'https://app.tajribah.sa/login/sso?store=failet', updatedAt: null };

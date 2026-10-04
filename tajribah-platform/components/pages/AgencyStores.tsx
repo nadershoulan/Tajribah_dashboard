@@ -26,7 +26,7 @@ const ATTENTION: Record<StoreOverview['attention'][number], { tone: BadgeTone; l
 };
 
 const PROVIDER: Record<NonNullable<StoreOverview['connection']>['provider'], Bi> = {
-  salla: { ar: 'سلة', en: 'Salla' }, zid: { ar: 'زد', en: 'Zid' }, shopify: { ar: 'Shopify', en: 'Shopify' }, woocommerce: { ar: 'WooCommerce', en: 'WooCommerce' },
+  salla: { ar: 'سلة', en: 'Salla' }, zid: { ar: 'زد', en: 'Zid' }, shopify: { ar: 'Shopify', en: 'Shopify' }, woocommerce: { ar: 'WooCommerce', en: 'WooCommerce' }, feed: { ar: 'ملف أو رابط منتجات', en: 'Product feed or file' },
 };
 const HEALTH: Record<NonNullable<StoreOverview['connection']>['health'], BadgeTone> = { healthy: 'ok', attention: 'warn', failing: 'bad' };
 

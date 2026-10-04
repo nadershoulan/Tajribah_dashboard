@@ -12,6 +12,7 @@
 import type { ReactNode } from 'react';
 import { AlertCircle, ArrowLeft, ArrowRight, Check, Inbox } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
+import { isUnreachable } from '@/lib/api-client';
 import { formatNumber, formatPercent } from '@/lib/format';
 import type { Bi } from '@/lib/lang';
 
@@ -146,7 +147,7 @@ export function ErrorNote({ error }: { error: Error }) {
         <AlertCircle size={22} aria-hidden />
       </div>
       <h3>{t('تعذّر تحميل هذه البيانات', 'That did not load')}</h3>
-      <p>{error.message}</p>
+      <p>{isUnreachable(error) ? t('تعذّر الوصول إلى تجربة — تأكد من اتصالك ثم حاول مرة أخرى.', 'Tajribah could not be reached — check your connection and try again.') : error.message}</p>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { WooCommerceConnector } from './woocommerce/connector';
 import { ShopifyConnector } from './shopify/connector';
 import { SallaConnector, type SallaApp } from './salla/connector';
 import { ZidConnector, type ZidApp } from './zid/connector';
+import { FeedConnector } from './feed/connector';
 
 /** The Salla Partner app's keys, or null until it is registered (P1.4). */
 export function sallaApp(): SallaApp | null {
@@ -30,4 +31,5 @@ export function registerAllConnectors(): void {
   registerConnector(new ShopifyConnector());
   registerConnector(new SallaConnector(sallaApp));
   registerConnector(new ZidConnector(zidApp));
+  registerConnector(new FeedConnector()); // a store's Google Merchant feed, or a sheet, instead of a linked platform
 }

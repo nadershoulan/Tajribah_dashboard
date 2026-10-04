@@ -17,6 +17,7 @@ import { Shell } from '@/components/dashboard/chrome';
 import { Badge, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
 import type { Bi } from '@/lib/lang';
 import { HEALTH_LEVELS, HEALTH_REASONS, type HealthLevel } from '@/lib/connection-health';
+import FeedImportPanel from '@/components/pages/FeedImportPanel';
 
 type ProviderCard = {
   id: 'salla' | 'zid' | 'shopify' | 'woocommerce';
@@ -177,6 +178,8 @@ export default function Connections() {
         })}
       </div>
 
+      <div style={{ marginTop: 18 }}><FeedImportPanel onImported={() => setVersion((v) => v + 1)} /></div>
+
       <Panel title={t('ماذا نقرأ من متجرك', 'What we read from your store')} >
         <ul style={{ margin: 0, paddingInlineStart: 18, color: 'var(--text-2)', fontSize: 14, lineHeight: 2 }}>
           <li>{t('اسم المنتج ووصفه وسعره وصوره وحالته.', 'Product name, description, price, images and status.')}</li>
@@ -213,6 +216,9 @@ function ConnectionPanel({ connection, onChanged }: { connection: ConnectionDeta
   const sync = connection.latestSync;
   const running = sync?.status === 'queued' || sync?.status === 'running';
   const active = connection.status === 'active';
+  // A product feed's link has an address; a file uploaded by hand has none, and is never re-read.
+  const feed = connection.provider === 'feed';
+  const file = feed && !connection.storeUrl;
 
   const act = async (kind: 'sync' | 'disconnect') => {
     setBusy(kind);
@@ -233,12 +239,14 @@ function ConnectionPanel({ connection, onChanged }: { connection: ConnectionDeta
   const status = STATUS[connection.status];
   return (
     <Panel
-      title={t('المتجر المتصل', 'Connected store')}
+      title={file ? t('ملف منتجات', 'Product file') : feed ? t('رابط منتجات', 'Product feed') : t('المتجر المتصل', 'Connected store')}
       actions={active && (
         <>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => act('sync')} disabled={running || busy !== null || lock.locked} title={lock.title}>
-            <RefreshCw size={14} aria-hidden />{running ? t('تجري المزامنة…', 'Syncing…') : t('مزامنة الآن', 'Sync now')}
-          </button>
+          {!file && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => act('sync')} disabled={running || busy !== null || lock.locked} title={lock.title}>
+              <RefreshCw size={14} aria-hidden />{running ? t('تجري المزامنة…', 'Syncing…') : t('مزامنة الآن', 'Sync now')}
+            </button>
+          )}
           {!confirming && (
             <button type="button" className="btn btn-quiet btn-sm" onClick={() => setConfirming(true)} disabled={busy !== null || lock.locked} title={lock.title}>{t('فصل', 'Disconnect')}</button>
           )}

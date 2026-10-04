@@ -1143,3 +1143,37 @@ longer installs it.
 **Rollback path.** Revert the commit: the platform goes back to the dashboard alone and the old folder
 is still there, unchanged, with its own Worker setup (`tajribah-try-on/vite.config.ts`). Cost: low
 until the old folder is deleted; after that, restore it from git history.
+
+## T71 · 2026-10-04 · Products without linking a store: a feed's link or a file, like Google Merchant Center (you asked)
+
+**Decision.** Store connections gains "Without linking your store: from a link or a file":
+- **A link to a product file** — the Google Merchant feed a store's platform publishes (Salla has apps that
+  generate one; Zid, Shopify and WooCommerce plugins do too). Read once to check it, then synced like a
+  linked store: now, and every 24 hours. A new provider, `feed` (migration 0043, with its ROLLBACK note),
+  whose connector (`server/connectors/feed`) fetches the whole feed under the install check's rules
+  (https, public name, no private address on any redirect, 30 s, 30 MB) and pages through it. The link
+  is sealed like a token — Salla's carries a secret.
+- **A file from the computer** — CSV, TSV, Excel (.xlsx) or Merchant XML, up to 30 MB. Read in the
+  upload's own request and synced there; **the file is never stored** (the merchants' bucket is public,
+  and there is no reason to keep it). One "file" connection per store: uploading again updates the same
+  products and archives the ones the new file no longer has. Never re-read on a schedule; "sync now" is
+  refused for it ("upload the file again").
+- **Reading** (`lib/product-feed.ts`): Google's attributes (id, title, description, link, image_link,
+  additional_image_link, price, item_group_id, mpn/gtin), plain and Arabic column names for a hand-made
+  sheet; variants (`item_group_id`) are one product; the regular price, not the sale price; https
+  pictures only; Arabic titles kept as the Arabic name. `.xlsx` through a 90-line reader
+  (`lib/xlsx.ts`) on the runtime's own unzip (DecompressionStream).
+- **Every plan**: it is another way of adding products, which every plan has — not one of the store
+  platforms the plans list. Plan product limits still hold (the engine records the rest, with the reason).
+
+**Why.** You asked for merchants who will not link their store. The sync engine already does what a feed
+needs — paging, limits, archiving with its guard against a broken source, a per-connection interval.
+
+**Seen.** Your sample Salla feed (1,240 items, 2.8 MB) reads in under 0.1 s; on this machine the link was
+imported through the screen and synced: 198 products (the trial's 200-product limit), Arabic names and
+prices, 189 with pictures; the 1,042 over the limit recorded as "plan limit reached".
+
+**No new dependency.** **Schema:** `drizzle/0043_feed_provider.sql`.
+
+**Rollback path.** Revert the commit; run the migration's ROLLBACK (feed connections deleted, their
+products kept, unlinked). The enum value stays, unused. Cost: low.

@@ -86,7 +86,7 @@ export type WebhookHealth = {
 
 export type ConnectionSummary = {
   id: string;
-  provider: 'salla' | 'zid' | 'shopify' | 'woocommerce';
+  provider: 'salla' | 'zid' | 'shopify' | 'woocommerce' | 'feed';
   storeName: string;
   storeUrl: string | null;
   status: 'active' | 'expired' | 'revoked' | 'error';
@@ -104,6 +104,9 @@ export type SsoSettingsView = {
 
 /** P6 — which store platforms this dashboard can connect yet (API-065). */
 export type ConnectionProviders = Record<ConnectionSummary['provider'], boolean>;
+
+/** A product feed's link or a file, read (API-184/185): how many rows, how many products, which rows were skipped and why. */
+export type FeedImport = { connection: ConnectionSummary; rows: number; products: number; skipped: { row: number; reason: string }[]; sync: SyncProgress };
 
 /** T62 — an Enterprise store's own address (API-089): where it stands, and the two DNS records to add. */
 export type CustomDomainView = {
@@ -181,7 +184,7 @@ export type StoreOverview = {
   status: 'trial' | 'active' | 'past_due' | 'suspended' | 'cancelled';
   trialEndsAt: string | null; readOnly: string | null;
   products: number; liveButtons: number; setupComplete: boolean;
-  connection: { provider: 'salla' | 'zid' | 'shopify' | 'woocommerce'; status: 'active' | 'expired' | 'revoked' | 'error'; health: 'healthy' | 'attention' | 'failing'; lastSyncAt: string | null } | null;
+  connection: { provider: 'salla' | 'zid' | 'shopify' | 'woocommerce' | 'feed'; status: 'active' | 'expired' | 'revoked' | 'error'; health: 'healthy' | 'attention' | 'failing'; lastSyncAt: string | null } | null;
   last30: { views: number; arSessions: number; tryonSessions: number };
   /** What to look at first, most urgent first. */
   attention: ('suspended' | 'read_only' | 'past_due' | 'trial_ending' | 'connection' | 'setup')[];

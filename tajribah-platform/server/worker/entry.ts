@@ -20,6 +20,8 @@ import { registerEdgeHandlers } from './handlers-edge';
 import { runQueuePass, runScheduledPass, chooseHandlers } from './passes';
 import { sweepExpiredPairs } from '@site/lib/pair-sweep';
 import { markStoreHost, siteHosts, storeHostRedirect } from '@site/lib/store-host';
+import { isLocalHost } from '@site/lib/tryon-config';
+import { keyOf, serveConfig } from '@/server/core/edge/host';
 
 // Never `./main` or `./handlers`: they import `sharp`, which cannot load in a Worker.
 chooseHandlers(registerEdgeHandlers);
@@ -38,6 +40,11 @@ async function run(kind: 'cron' | 'queue', pass: () => Promise<unknown>): Promis
 
 const worker = {
   fetch(request: Request, env: unknown, ctx: Ctx) {
+    // T75: on this computer there is no config host (`cfg.tajribah.com`, its own Worker), so this one
+    // answers its `/v1/{store}/{product}.json` from the configs it published — only when opened at
+    // localhost or 127.0.0.1, so that a product can be published and tried here. Elsewhere: unchanged.
+    const url = new URL(request.url);
+    if (isLocalHost(url.hostname) && keyOf(url.pathname)) { bootOnce(); return serveConfig(request); }
     // T62 (the website, moved in): on a store's own address only its try-on and products' own pages are
     // served — the dashboard and the marketing pages are sent to Tajribah's own host (`SITE_HOSTS`).
     const hosts = siteHosts((env as { SITE_HOSTS?: string } | null)?.SITE_HOSTS);

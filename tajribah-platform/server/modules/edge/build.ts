@@ -141,11 +141,24 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
       : null,
   };
   const body = JSON.stringify(config);
-  if (!parseConfig(JSON.parse(body))) {
+  if (!parseConfig(JSON.parse(checkable(body, watch?.worn ?? model?.glb ?? '')))) {
     log.error('edge config refused by the widget parser', { tenantId: ctx.tenantId, productId });
     return { ok: false, key, reason: 'invalid' };
   }
   return { ok: true, key, config, body, fingerprint: await sha256(body) };
+}
+
+/**
+ * T75 — storage on this computer (`http://127.0.0.1:…` or `http://localhost:…`, docs/DATABASE.md) serves
+ * plain http, which the widget's parser refuses: it runs on shops, where only https may load. So that a
+ * product can be published and tried here, the check reads this storage's own address as https. The
+ * config keeps its real address — the website's try-on pages accept http from a local host when they
+ * are themselves opened on one (`tryOnProductFrom(json, local)`), and a shop never sees this storage.
+ * Real storage is https, and nothing changes for it.
+ */
+export function checkable(body: string, storageBase: string): string {
+  const local = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\//.exec(storageBase)?.[0];
+  return local ? body.split(local).join(`https${local.slice(4)}`) : body;
 }
 
 /**

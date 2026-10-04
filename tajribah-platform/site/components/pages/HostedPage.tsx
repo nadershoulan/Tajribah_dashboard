@@ -46,7 +46,7 @@ export default function HostedPage({ initial, store, product, storeHost = null }
     let live = true;
     // An address that cannot name a published config is simply "unavailable" — nothing is fetched.
     (validRefs(store, product)
-      ? fetch(configUrl(configBase(query().get('base'), onThisMachine()), store, product), { credentials: 'omit' }).then((r) => (r.ok ? r.json() : null))
+      ? fetch(configUrl(configBase(query().get('base') ?? (onThisMachine() ? `${location.origin}/v1` : null), onThisMachine()), store, product), { credentials: 'omit' }).then((r) => (r.ok ? r.json() : null))
       : Promise.resolve(null))
       .then((json) => { if (live) { const found = hostedProductFrom(json, onThisMachine()); setState(found && servesHere(storeHost, found.host) ? { kind: 'ready', product: found } : { kind: 'unavailable' }); } })
       .catch(() => { if (live) setState({ kind: 'unavailable' }); });

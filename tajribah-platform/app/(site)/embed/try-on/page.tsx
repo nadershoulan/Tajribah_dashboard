@@ -34,7 +34,9 @@ const load = cache(async (store: string, product: string, base: string, local: b
 async function initialOf(query: Record<string, string | string[] | undefined>) {
   const h = await headers();
   const host = (h.get('host') ?? '').replace(/:\d+$/, '');
-  return load(one(query.store), one(query.product), one(query.base), isLocalHost(host), h.get(STORE_HOST_HEADER));
+  // T75: on this computer, this app's own configs (`/v1`) unless `base` names another local server.
+  const base = one(query.base) || (isLocalHost(host) ? `http://${h.get('host')}/v1` : '');
+  return load(one(query.store), one(query.product), base, isLocalHost(host), h.get(STORE_HOST_HEADER));
 }
 
 // P5 (T26) — opened in a frame over a merchant's product page; not a site page. T61: an Enterprise

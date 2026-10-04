@@ -59,7 +59,8 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
     const product = p.get('product') ?? '';
     const valid = validRefs(store, product);
     let live = true;
-    const url = configUrl(configBase(p.get('base'), onThisMachine()), store, product);
+    // T75: on this computer, this app's own configs (`/v1`, served by the Worker) unless `base` names another.
+    const url = configUrl(configBase(p.get('base') ?? (onThisMachine() ? `${location.origin}/v1` : null), onThisMachine()), store, product);
     // An address that cannot name a published config is simply "unavailable" — nothing is fetched.
     (valid ? fetch(url, { credentials: 'omit' }).then((r) => (r.ok ? r.json() : null)) : Promise.resolve(null))
       .then((json) => { if (!live) return; const found = servesHere(storeHost, (json as { host?: string | null } | null)?.host) ? tryOnProductFrom(json, onThisMachine()) : null; setState(found ? { kind: 'ready', product: found, brand: brandFrom(json, onThisMachine()) } : { kind: 'unavailable' }); })

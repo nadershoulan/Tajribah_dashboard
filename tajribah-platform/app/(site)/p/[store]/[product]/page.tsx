@@ -37,7 +37,9 @@ async function initialOf(params: Params, search: Search) {
   const h = await headers();
   const host = (h.get('host') ?? '').replace(/:\d+$/, '');
   const storeHost = h.get(STORE_HOST_HEADER);
-  return { store, product, storeHost, initial: await load(store, product, one((await search).base), isLocalHost(host), storeHost) };
+  // T75: on this computer, this app's own configs (`/v1`) unless `base` names another local server.
+  const base = one((await search).base) || (isLocalHost(host) ? `http://${h.get('host')}/v1` : '');
+  return { store, product, storeHost, initial: await load(store, product, base, isLocalHost(host), storeHost) };
 }
 
 // A merchant's page, not one of the site's: not indexed (the shop's own page should rank), titled

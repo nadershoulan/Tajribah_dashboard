@@ -1233,3 +1233,29 @@ until you accept, and you can cancel before work starts. Note boxes (`.field tex
 the other inputs, so they're visible in dark mode.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T75 · 2026-10-05 · Publish and try a product on this computer, before linking a store (you asked)
+
+**Decision.** You asked to try the button before adding your store, from the dashboard. Publishing
+already doesn't need a store: it writes the product's settings for the widget and for **the product's own
+page** (`/p/{store}/{product}`), which is Tajribah's and works with no store linked. On this computer,
+three things stopped it, and each is now fixed **for local addresses only**:
+- **The check refused http pictures.** Local storage is plain http, and the widget only accepts https
+  (shops load nothing else). The check now treats this computer's own storage address
+  (`http://127.0.0.1:…` / `http://localhost:…`) as https (`checkable`, edge/build.ts). The published settings
+  keep the real address. The widget's parser that ships to shops is unchanged.
+- **Nothing served published settings.** The config host (`cfg.tajribah.com`) is a separate Worker that
+  doesn't run here. This Worker now answers `/v1/{store}/{product}.json` from what it published, only
+  when opened at localhost or 127.0.0.1 (server/worker/entry.ts).
+- **The website's try-on pages looked for settings on the real config host.** On a local address, with
+  no `base`, they now use this app's own `/v1` (the product page and the try-on frame, on the server and
+  in the browser).
+
+**Seen.** The sample watch published locally (version 1). Its page at
+`http://127.0.0.1:8799/p/store-ymc7f8/<id>` shows the try-on studio with the watch on a real wrist at
+29.3 mm.
+
+**Limits.** Published settings are held in memory on this computer, so they need publishing again after
+the server restarts. On real addresses nothing changes.
+
+**Rollback path.** Revert the commit: local publishing is refused again. Cost: low.

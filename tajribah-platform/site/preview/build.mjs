@@ -97,7 +97,8 @@ for (const f of ['model-wrist.webp', 'model-wrist-thumb.webp', 'model-lifestyle.
   'model-face.webp', 'model-face-thumb.webp', 'glasses-front.png',
   'model-hand.webp', 'model-hand-thumb.webp', 'ring-top.webp',
   'model-neck.webp', 'model-neck-thumb.webp', 'necklace-front.webp',
-  'model-bag.webp', 'model-bag-thumb.webp', 'model-bag-hand.webp', 'bag-front.webp']) copy(`assets/${f}`);
+  'model-bag.webp', 'model-bag-thumb.webp', 'model-bag-hand.webp', 'bag-front.webp',
+  'model-ear.webp', 'model-ear-thumb.webp', 'earring-front.webp']) copy(`assets/${f}`);
 copy('assets/hand-landmarker.task', 'assets/hand-landmarker.task.wasm'); // see RENAMED in main.tsx
 copy('assets/face-landmarker.task', 'assets/face-landmarker.task.wasm'); // T68 glasses — see RENAMED
 copy('wasm/vision_wasm_internal.js');

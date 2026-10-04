@@ -34,8 +34,8 @@ export default function TryOn() {
     <Shell tenant={null} crumbs={crumbs}>
       <PageHead
         title={t('التجربة الافتراضية', 'Virtual try-on')}
-        lead={t('جهّز ساعاتك ونظاراتك وخواتمك وقلائدك لاستوديو التجربة: يجرّبها المتسوق على عارضة حقيقية بمقاسها الحقيقي، أو بجانب أشياء يعرف حجمها.',
-          'Set your watches, glasses, rings and necklaces up for the try-on studio: shoppers try each on a real model at its real size, or beside things they know the size of.')}
+        lead={t('جهّز ساعاتك ونظاراتك وخواتمك وقلائدك وأقراطك لاستوديو التجربة: يجرّبها المتسوق على عارضة حقيقية بمقاسها الحقيقي، أو بجانب أشياء يعرف حجمها.',
+          'Set your watches, glasses, rings, necklaces and earrings up for the try-on studio: shoppers try each on a real model at its real size, or beside things they know the size of.')}
       />
       {loading && !data && <Loading rows={4} />}
       {error && <ErrorNote error={error} />}
@@ -49,7 +49,7 @@ export default function TryOn() {
       )}
       {data && data.watches.length === 0 && data.jewelry.length === 0 && (
         <Empty icon={<Watch size={22} />} title={t('لا منتجات للتجربة بعد', 'Nothing to try on yet')}
-          body={t('اجعل نوع المنتج «ساعة» أو «نظارات» أو «مجوهرات» (للخواتم والقلائد) في صفحته ليظهر هنا. بقية الأنواع تأتي تباعًا.', 'Set a product’s type to Watch, Eyewear or Jewelry (for rings and necklaces) on its page and it appears here. Other kinds follow.')}
+          body={t('اجعل نوع المنتج «ساعة» أو «نظارات» أو «مجوهرات» (للخواتم والقلائد والأقراط) في صفحته ليظهر هنا. بقية الأنواع تأتي تباعًا.', 'Set a product’s type to Watch, Eyewear or Jewelry (for rings, necklaces and earrings) on its page and it appears here. Other kinds follow.')}
           action={<AppLink href="/dashboard/products" className="btn btn-ghost">{t('المنتجات', 'Products')}</AppLink>} />
       )}
       <div style={{ display: 'grid', gap: 16 }}>
@@ -171,10 +171,10 @@ function WatchCard({ initial, editable, onUnmarked }: { initial: TryOnWatchView;
           <span>{t('زر «جرّبها» في صفحة المنتج', 'The “Try it on” button on the product page')}</span>
         </label>
         {!w.ready && <span className="hint" style={{ margin: 0 }}>{t(`ينقصها: ${missingText}.`, `Still needed: ${missingText}.`)}</span>}
-        {(w.kind === 'ring' || w.kind === 'necklace') && !w.worn && editable && (
+        {(w.kind === 'ring' || w.kind === 'necklace' || w.kind === 'earring') && !w.worn && editable && (
           <button type="button" className="btn btn-quiet btn-sm" style={{ marginInlineStart: 'auto' }} disabled={busy !== null}
             onClick={() => void run('unmark', async () => { const v = await source.updateTryOn(w.productId, { jewelry: null }); onUnmarked(); return v; })}>
-            {w.kind === 'ring' ? t('ليس خاتمًا', 'Not a ring') : t('ليست قلادة', 'Not a necklace')}
+            {w.kind === 'ring' ? t('ليس خاتمًا', 'Not a ring') : w.kind === 'earring' ? t('ليس قرطًا', 'Not an earring') : t('ليست قلادة', 'Not a necklace')}
           </button>
         )}
       </div>
@@ -338,12 +338,12 @@ function JewelryPanel({ items, editable, onMarked }: { items: TryOnScreen['jewel
   const source = useData();
   const [busy, setBusy] = useState<string | null>(null);
   const [failure, setFailure] = useState<Error | null>(null);
-  const mark = async (productId: string, jewelry: 'ring' | 'necklace') => {
+  const mark = async (productId: string, jewelry: 'ring' | 'necklace' | 'earring') => {
     setBusy(productId); setFailure(null);
     try { await source.updateTryOn(productId, { jewelry }); onMarked(); } catch (e) { setFailure(e as Error); } finally { setBusy(null); }
   };
   return (
-    <Panel title={t('مجوهراتك', 'Your jewelry')} sub={t('الخواتم تُجرَّب على يد حقيقية والقلائد على عارضة. حدّد ما كل قطعة — الأقراط تأتي لاحقًا.', 'Rings are tried on a real hand and necklaces on a model. Say which each piece is — earrings come later.')}>
+    <Panel title={t('مجوهراتك', 'Your jewelry')} sub={t('الخواتم تُجرَّب على يد حقيقية، والقلائد على عارضة، والأقراط على أذن حقيقية. حدّد ما كل قطعة.', 'Rings are tried on a real hand, necklaces on a model and earrings on a real ear. Say which each piece is.')}>
       <ul className="jewelry-list">
         {items.map((item) => (
           <li key={item.productId}>
@@ -354,6 +354,9 @@ function JewelryPanel({ items, editable, onMarked }: { items: TryOnScreen['jewel
               </button>
               <button type="button" className="btn btn-ghost btn-sm" disabled={!editable || busy !== null} onClick={() => void mark(item.productId, 'necklace')}>
                 {t('هذه قلادة', 'It’s a necklace')}
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" disabled={!editable || busy !== null} onClick={() => void mark(item.productId, 'earring')}>
+                {t('هذا قرط', 'It’s an earring')}
               </button>
             </span>
           </li>

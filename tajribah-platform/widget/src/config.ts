@@ -39,7 +39,7 @@ export type ViewerConfig = {
    */
   /** `onMe` (T33): the shopper may also try it on their own photo — Pro and up; anything but `true` is off. */
   /** `category`: 'glasses' (P5.2: placement `face`, 100–170 mm), 'ring' (P5.4: `wrist`, 14–30 mm) or 'necklace' (P5.5: `wrist`, 60–300 mm); absent = a watch (`wrist`, 5–80 mm). */
-  tryon: { category?: 'glasses' | 'ring' | 'necklace' | 'bag'; worn: string; flat: string; caseMm: number; sku: string | null; onMe: boolean } | null;
+  tryon: { category?: 'glasses' | 'ring' | 'necklace' | 'earring' | 'bag'; worn: string; flat: string; caseMm: number; sku: string | null; onMe: boolean } | null;
   /**
    * T62 (custom domains): the store's own address for the try-on, once it is switched on — the frame
    * opens there instead of on Tajribah's. Optional, added without a version bump; anything but a
@@ -74,12 +74,12 @@ export function hostOf(v: unknown): string | null {
 }
 
 /** The try-on widths a config may carry: a watch's case, or (P5.2) a frame's front. */
-export const TRYON_WIDTH_MM = { watch: [5, 80], glasses: [100, 170], ring: [14, 30], necklace: [60, 300], bag: [100, 600] } as const;
+export const TRYON_WIDTH_MM = { watch: [5, 80], glasses: [100, 170], ring: [14, 30], necklace: [60, 300], earring: [5, 60], bag: [100, 600] } as const;
 
 /** The try-on block, or null when it is absent, wrong, or not for this placement. */
 function tryOnOf(v: unknown, placement: unknown): ViewerConfig['tryon'] {
   if (!isObj(v) || !httpsUrl(v.worn) || !httpsUrl(v.flat)) return null;
-  const kind = v.category === undefined ? 'watch' : v.category === 'glasses' || v.category === 'ring' || v.category === 'necklace' || v.category === 'bag' ? v.category : null;
+  const kind = v.category === undefined ? 'watch' : v.category === 'glasses' || v.category === 'ring' || v.category === 'necklace' || v.category === 'earring' || v.category === 'bag' ? v.category : null;
   if (!kind) return null; // a kind this widget does not know
   // P5.6: a bag goes wherever a bag's button goes (not the face or the wrist)
   if (kind === 'bag' ? placement === 'face' || placement === 'wrist' : placement !== (kind === 'glasses' ? 'face' : 'wrist')) return null;

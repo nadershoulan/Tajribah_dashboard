@@ -70,6 +70,23 @@ export const KIND_WORDS: Record<TryOnKind, KindWords> = {
       en: `The necklace shows at about ${pct} of its real size: a soft shadow or glow at the sides widens the picture, not the necklace. Crop it to its ends, with a clean edge.`,
     }),
   },
+  earring: {
+    trueSize: { ar: 'بحجمه الحقيقي.', en: 'True to size.' },
+    widthHint: { ar: 'عرض القرط الواحد من جانب إلى جانب، كما يظهر من الأمام (5–60 مم).', en: 'One earring’s width side to side, as seen from the front (5–60 mm).' },
+    finish: { ar: 'ذهب · فصوص بيضاء', en: 'Gold · white stones' },
+    markButton: { ar: 'حدّد جانبي القرط', en: 'Mark the earring’s sides' },
+    markTitle: (label) => ({ ar: `حدّد جانبي القرط — ${label}`, en: `Mark the earring’s sides — ${label}` }),
+    markHelp: {
+      ar: 'اسحب الخطين إلى جانبي القرط. ما خارج الخطين يُقص، فيظهر القرط بعرضه الحقيقي في الاستوديو.',
+      en: 'Drag the two lines to the earring’s sides. What lies outside them is cropped away, so the studio shows the earring at its real width.',
+    },
+    cropping: { ar: 'نقصّ الصورة على جانبي القرط ثم نفحص مقاسه من جديد.', en: 'Cropping the picture to the earring’s sides, then checking its size again.' },
+    empty: { ar: 'لا يظهر شيء في هذه الصورة. ارفع صورة القرط.', en: 'Nothing is visible in this picture. Upload the earring.' },
+    undersized: (pct) => ({
+      ar: `يظهر القرط بنحو ${pct} من حجمه الحقيقي: ظل أو توهج خفيف على الجانبين يوسّع الصورة دون القرط. قصّه على جانبيه بحدّ واضح.`,
+      en: `The earring shows at about ${pct} of its real size: a soft shadow or glow at the sides widens the picture, not the earring. Crop it to its sides, with a clean edge.`,
+    }),
+  },
   bag: {
     trueSize: { ar: 'بحجمها الحقيقي.', en: 'True to size.' },
     widthHint: { ar: 'عرض الحقيبة من جانب إلى جانب، بلا المقابض (100–600 مم).', en: 'The bag’s width side to side, without the handles (100–600 mm).' },

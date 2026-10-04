@@ -72,11 +72,12 @@ export const INDUSTRIES: Record<IndustrySlug, Industry> = {
       { feature: null, label: { ar: 'الخواتم على يد حقيقية', en: 'Rings on a real hand' }, status: 'now', note: { ar: 'الخاتم على إصبع حقيقي بعرضه الحقيقي، والمقياس من عرض اليد. حدّد في لوحة التحكم أيّ مجوهراتك خواتم، وارفع صورة واحدة.', en: 'The ring on a real finger at its real width, sized from the hand’s breadth. Mark which of your jewelry are rings in the dashboard and upload one picture.' } },
       { feature: 'true-size', label: { ar: 'قارن الحجم — أي قطعة', en: 'Compare size — any piece' }, status: 'now', note: { ar: 'خواتم وقلائد وأقراط بجانب ريال سعودي بالمقياس نفسه.', en: 'Rings, pendants and earrings beside a riyal coin at one scale.' } },
       { feature: null, label: { ar: 'القلائد على عارضة حقيقية', en: 'Necklaces on a real model' }, status: 'now', note: { ar: 'القلادة على عارضة حقيقية بحجمها الحقيقي، والمقياس من المسافة بين الحدقتين. حدّد في لوحة التحكم أيّ مجوهراتك قلائد، وارفع صورة واحدة.', en: 'The necklace on a real model at its real size, sized from the distance between the pupils. Mark which of your jewelry are necklaces in the dashboard and upload one picture.' } },
-      { feature: null, label: { ar: 'الأقراط على الأذن', en: 'Earrings on the ear' }, status: 'soon', note: { ar: 'تحتاج تتبّع الأذن، وهو ضمن خطة التوسّع.', en: 'They need ear tracking, which is in the expansion plan.' } },
+      { feature: null, label: { ar: 'الأقراط على أذن حقيقية', en: 'Earrings on a real ear' }, status: 'now', note: { ar: 'القرط على أذن حقيقية بحجمه الحقيقي، والمقياس من طول الأذن. حدّد في لوحة التحكم أيّ مجوهراتك أقراط، وارفع صورة واحدة. تجربته على صورة العميل تأتي لاحقًا.', en: 'The earring on a real ear at its real size, sized from the ear’s length. Mark which of your jewelry are earrings in the dashboard and upload one picture. Trying it on the shopper’s own photo comes later.' } },
     ],
     measure: [
       { ar: 'للخاتم: عرضه على الإصبع من طرف إلى طرف (القطر الداخلي وسماكة الحلقة)', en: 'Rings: width across the finger, end to end (inner diameter plus the band)' },
       { ar: 'للقلادة: عرضها عند الرقبة من طرف إلى طرف كما تظهر من الأمام', en: 'Necklaces: width across at the neck, end to end, as seen from the front' },
+      { ar: 'للقرط: عرض القرط الواحد من جانب إلى جانب كما يظهر من الأمام', en: 'Earrings: one earring’s width side to side, as seen from the front' },
       { ar: 'للسوار: القطر الداخلي والعرض', en: 'Bracelets: inner diameter and width' },
     ],
     faq: [

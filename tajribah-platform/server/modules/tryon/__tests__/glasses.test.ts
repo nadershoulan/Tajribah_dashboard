@@ -26,6 +26,7 @@ setLogLevel('error');
 const FRAME = new Uint8Array(readFileSync(join(process.cwd(), 'public', 'assets', 'glasses-front.png')));
 const RING = new Uint8Array(readFileSync(join(process.cwd(), 'public', 'assets', 'ring-top.webp')));
 const NECKLACE = new Uint8Array(readFileSync(join(process.cwd(), 'public', 'assets', 'necklace-front.webp')));
+const EARRING = new Uint8Array(readFileSync(join(process.cwd(), 'public', 'assets', 'earring-front.webp')));
 const BAG = new Uint8Array(readFileSync(join(process.cwd(), 'public', 'assets', 'bag-front.webp')));
 class CdnStorage extends MemoryStorage { publicUrl(k: string) { return `https://cdn.example.test/${k}`; } }
 
@@ -112,7 +113,7 @@ test('P5.4 a Jewelry product the merchant marks as a ring: one picture, 14–30 
     const before = await tryOnScreen(ctx);
     assert.deepEqual(before.jewelry.map((j) => j.productId).sort(), [ring, earrings].sort(), 'jewelry waits to be told which are rings');
     assert.ok(!before.watches.some((w) => w.productId === ring));
-    await assert.rejects(() => startCutoutUpload(ctx, ring, { slot: 'worn', filename: 'r.webp', contentType: 'image/webp', sizeBytes: RING.length }), (e: any) => e.code === 'conflict' && /a ring or a necklace first/.test(e.message));
+    await assert.rejects(() => startCutoutUpload(ctx, ring, { slot: 'worn', filename: 'r.webp', contentType: 'image/webp', sizeBytes: RING.length }), (e: any) => e.code === 'conflict' && /a ring, a necklace or an earring first/.test(e.message));
     await updateTryOn(ctx, ring, { jewelry: 'ring' });
     await assert.rejects(() => updateTryOn(ctx, glasses, { jewelry: 'ring' }), (e: any) => e.code === 'conflict', 'only jewelry');
     const after = await tryOnScreen(ctx);
@@ -174,6 +175,35 @@ test('P5.5 a Jewelry product marked as a necklace: one picture, 60–300 mm, on 
     assert.deepEqual([tryOnProductFrom(config)?.category, tryOnProductFrom(config)?.onMe], ['necklace', true], 'on Pro, the shopper’s own photo too');
     assert.deepEqual([...TRYON_WIDTH_MM.necklace], [WIDTH_MM.necklace.min, WIDTH_MM.necklace.max]);
     for (const [caseMm, ok] of [[59, false], [60, true], [300, true], [301, false]] as const) {
+      const c = { ...config, tryon: { ...config.tryon, caseMm } };
+      assert.equal(!!parseConfig(c), ok, `widget ${caseMm}`);
+      assert.equal(!!tryOnProductFrom(c), ok, `try-on page ${caseMm}`);
+    }
+  } finally { await harness.close(); }
+});
+
+test('P5.5 a Jewelry product marked as an earring: one picture, 5–60 mm, on the shop as an earring — on the model and in the comparison', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, tenantId, kv } = await store(harness, 'hoop');
+    const earring = uuidv7();
+    await harness.asAdmin(() => harness.db.insert(products).values({ id: earring, tenantId, name: 'Gold huggie hoop', productType: 'jewelry', externalId: 'ear-6' } as any));
+    await updateTryOn(ctx, earring, { jewelry: 'earring' });
+    const listed = (await tryOnScreen(ctx)).watches.find((w) => w.productId === earring)!;
+    assert.deepEqual([listed.kind, listed.missing], ['earring', ['worn', 'case']]);
+    const started = await startCutoutUpload(ctx, earring, { slot: 'worn', filename: 'e.webp', contentType: 'image/webp', sizeBytes: EARRING.length });
+    await forTenant(tenantId).put(started.key, EARRING.slice().buffer as ArrayBuffer);
+    await confirmCutout(ctx, earring, { slot: 'worn', key: started.key });
+    await assert.rejects(() => updateTryOn(ctx, earring, { jewelry: 'necklace' }), (e: any) => e.code === 'conflict', 'not switched once it has a picture');
+    await assert.rejects(() => updateTryOn(ctx, earring, { caseMm: 170 }), (e: any) => !!e.errors?.caseMm, 'a necklace-sized earring');
+    await updateTryOn(ctx, earring, { caseMm: 10.6, enabled: true });
+    await publishProduct(ctx, earring);
+    const config = JSON.parse([...kv.entries.values()].find((e) => e.body.includes('Gold huggie'))!.body);
+    assert.deepEqual([config.placement, config.tryon.category, config.tryon.caseMm], ['wrist', 'earring', 10.6]);
+    assert.equal(parseConfig(config)?.tryon?.category, 'earring');
+    assert.deepEqual([tryOnProductFrom(config)?.category, tryOnProductFrom(config)?.onMe], ['earring', false], 'on the model and in the comparison; on the shopper’s own photo is not built');
+    assert.deepEqual([...TRYON_WIDTH_MM.earring], [WIDTH_MM.earring.min, WIDTH_MM.earring.max]);
+    for (const [caseMm, ok] of [[4.9, false], [5, true], [60, true], [60.1, false]] as const) {
       const c = { ...config, tryon: { ...config.tryon, caseMm } };
       assert.equal(!!parseConfig(c), ok, `widget ${caseMm}`);
       assert.equal(!!tryOnProductFrom(c), ok, `try-on page ${caseMm}`);

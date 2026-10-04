@@ -35,7 +35,7 @@ export type TryOnProduct = {
    * T68 — what is tried on. Left out: a watch, exactly as before. `eyewear`: the frame on a face photo,
    * `caseMm` then being the frame's front width. The studio's modes and controls are the same.
    */
-  category?: 'watch' | 'eyewear' | 'ring' | 'necklace' | 'bag';
+  category?: 'watch' | 'eyewear' | 'ring' | 'necklace' | 'bag' | 'earring';
 };
 
 /**
@@ -58,7 +58,7 @@ export const DEMO_WATCH: TryOnProduct = {
   demo: true,
 };
 
-export type ModelId = 'wrist' | 'lifestyle' | 'face' | 'hand' | 'neck' | 'bag';
+export type ModelId = 'wrist' | 'lifestyle' | 'face' | 'hand' | 'neck' | 'bag' | 'ear';
 
 /** `front`: an optional layer of the same photo drawn over the product — the model's own fingers over a bag's handles. */
 export type ModelPhoto = { id: ModelId; label: Bi; stageLabel: Bi; src: string; thumb: string; pose: Pose; front?: string };
@@ -228,8 +228,48 @@ export const BAG_MODELS: ModelPhoto[] = [
   },
 ];
 
+/**
+ * Earrings: a real close-up of an ear, the lobe pierced (Pexels, Karolina Grabowska / Kaboompics) — an ear
+ * alone, no face: a modest choice, and where an earring is seen — and a real diamond-set gold huggie hoop
+ * (Pexels, The Glorious Studio), the one standing upright, seen from the front as it hangs. Measured: the
+ * ear is 2,308 px from the top of the helix to the bottom of the lobe in the photo, taken as 60 mm (an
+ * adult woman's ear, approximately) → 38.5 px/mm, × 1200/3600 on the stage = 12.8 px/mm. The hoop is
+ * about 18 mm tall, so about 10.6 mm across as seen (its photo is 1,390 × 2,358 px), drawn 136 px wide,
+ * its hinge at the piercing (stage 560, 480: the photo is cropped from y 3135, so the lobe and the earring sit
+ * in the stage's visible middle).
+ */
+export const DEMO_EARRING: TryOnProduct = {
+  sku: 'EX-EAR-06',
+  collection: { ar: 'أقراط', en: 'Earrings' },
+  headLead: { ar: 'قرط', en: 'An earring' },
+  headEm: { ar: 'بحجمه الحقيقي.', en: 'at its real size.' },
+  name: { ar: 'قرط ذهبي مرصّع بالفصوص', en: 'Gold huggie hoop set with stones' },
+  finish: { ar: 'ذهب · فصوص بيضاء', en: 'Gold · white stones' },
+  caseMm: 10.6,
+  worn: '/assets/earring-front.webp',
+  flat: '/assets/earring-front.webp',
+  storeUrl: '',
+  alt: { ar: 'قرط حلقي ذهبي صغير مرصّع بصف من الفصوص البيضاء', en: 'A small gold hoop earring set with a row of white stones' },
+  storeLink: null,
+  demo: false,
+  onMe: false, // earrings on the shopper's own photo are not built yet
+  category: 'earring',
+};
+
+export const EAR_MODELS: ModelPhoto[] = [
+  {
+    id: 'ear',
+    label: { ar: 'الأذن عن قرب', en: 'Ear close-up' },
+    stageLabel: { ar: 'على الأذن', en: 'On the ear' },
+    src: '/assets/model-ear.webp',
+    thumb: '/assets/model-ear-thumb.webp',
+    pose: { x: 544, y: 580, width: 136, angle: 0 },
+  },
+];
+
 /** The model photos for this product, and the width their poses were set for. */
 export function modelsFor(product: TryOnProduct): { models: ModelPhoto[]; baseMm: number } {
+  if (product.category === 'earring') return { models: EAR_MODELS, baseMm: DEMO_EARRING.caseMm };
   if (product.category === 'bag') return { models: BAG_MODELS, baseMm: DEMO_BAG.caseMm };
   if (product.category === 'necklace') return { models: NECK_MODELS, baseMm: DEMO_NECKLACE.caseMm };
   if (product.category === 'eyewear') return { models: FACE_MODELS, baseMm: DEMO_GLASSES.caseMm };
@@ -249,6 +289,7 @@ const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 
 /** Keep the watch on the wrist in each photo — tuned to the two model shots. */
 export function constrainToModel(model: ModelId, p: Pose): Pose {
+  if (model === 'ear') return { ...p, x: clamp(p.x, 500, 600), y: clamp(p.y, 540, 660) }; // hanging from the lobe (a longer drop hangs lower)
   if (model === 'bag') return { ...p, x: clamp(p.x, 620, 690), y: clamp(p.y, 600, 820) }; // the handles near her hand (a merchant's bag may be taller or shorter)
   if (model === 'neck') return { ...p, x: clamp(p.x, 640, 750), y: clamp(p.y, 560, 640) }; // hanging from the neck
   if (model === 'hand') return { ...p, x: clamp(p.x, 600, 690), y: clamp(p.y, 520, 640) }; // along the ring finger's base

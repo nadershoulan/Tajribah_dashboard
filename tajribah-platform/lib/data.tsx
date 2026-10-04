@@ -127,7 +127,7 @@ export interface DataSource {
   /** P5.10: start → PUT straight to storage → the server's check of the picture (422 with the reason). */
   uploadCutout(productId: string, slot: 'worn' | 'flat', file: File): Promise<TryOnWatchView>;
   /** P5.4/P5.5: `jewelry` marks a Jewelry product as a ring or a necklace (null takes it back while it has no picture). */
-  updateTryOn(productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean; jewelry?: 'ring' | 'necklace' | null }): Promise<TryOnWatchView>;
+  updateTryOn(productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean; jewelry?: 'ring' | 'necklace' | 'earring' | null }): Promise<TryOnWatchView>;
   /** T68: crop a picture to the case's marked edges (pixel columns, right exclusive); it is checked again after. */
   calibrateCutout(productId: string, slot: 'worn' | 'flat', marks: { key: string; left: number; right: number }): Promise<TryOnWatchView>;
   /** P5.10: a stored picture, for the preview (a Blob: private until published). */
@@ -528,7 +528,7 @@ const demoAiJobs: AiJobView[] = DEMO_AI_JOBS.map((j) => ({ ...j }));
  */
 const demoPhotos = new Map<string, { view: GenerationPhotoView; sha: string }[]>();
 /** P5.10 — the preview's try-on settings, per watch, for this page load; pictures kept as Blobs. */
-const demoTryOn = new Map<string, { worn: Blob | null; flat: Blob | null; caseMm: number | null; finish: { ar: string; en: string } | null; enabled: boolean; jewelry?: 'ring' | 'necklace'; quality?: { worn?: SlotQuality; flat?: SlotQuality } }>();
+const demoTryOn = new Map<string, { worn: Blob | null; flat: Blob | null; caseMm: number | null; finish: { ar: string; en: string } | null; enabled: boolean; jewelry?: 'ring' | 'necklace' | 'earring'; quality?: { worn?: SlotQuality; flat?: SlotQuality } }>();
 /**
  * P5.9 in the preview: the worker's check, on a canvas — the same `alphaFacts`; empty edges
  * cropped away, the share of real size measured.

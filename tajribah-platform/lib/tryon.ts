@@ -37,21 +37,21 @@ export const TRYON_SLOTS: Record<'worn' | 'flat', { label: Bi; hint: Bi }> = {
  * lays on a face and uses in the size comparison too — and the frame's front width. The widths a
  * width may take match the widget's and the try-on page's parsers (a test keeps them equal).
  */
-export type TryOnKind = 'watch' | 'glasses' | 'ring' | 'necklace' | 'bag';
+export type TryOnKind = 'watch' | 'glasses' | 'ring' | 'necklace' | 'earring' | 'bag';
 export const TRYON_PRODUCT_TYPES = { watch: 'watch', eyewear: 'glasses', bag: 'bag' } as const satisfies Record<string, TryOnKind>;
 /**
- * P5.4/P5.5: Jewelry covers rings, necklaces, earrings, bracelets… so a Jewelry product is a ring or a
- * necklace only once the merchant says which (the try-on settings' `category`). Earrings are not built.
+ * P5.4/P5.5: Jewelry covers rings, necklaces, earrings, bracelets… so a Jewelry product is a ring, a
+ * necklace or an earring only once the merchant says which (the try-on settings' `category`).
  */
 export const RING_PRODUCT_TYPE = 'jewelry';
 export const TRYON_LISTED_TYPES = ['watch', 'eyewear', 'bag', RING_PRODUCT_TYPE] as const;
 export const kindOf = (productType: string, category?: string | null): TryOnKind | null =>
-  productType === RING_PRODUCT_TYPE ? (category === 'ring' || category === 'necklace' ? category : null) : (TRYON_PRODUCT_TYPES as Record<string, TryOnKind>)[productType] ?? null;
+  productType === RING_PRODUCT_TYPE ? (category === 'ring' || category === 'necklace' || category === 'earring' ? category : null) : (TRYON_PRODUCT_TYPES as Record<string, TryOnKind>)[productType] ?? null;
 /** The kinds a Jewelry product can be marked as. */
-export const JEWELRY_KINDS = ['ring', 'necklace'] as const;
+export const JEWELRY_KINDS = ['ring', 'necklace', 'earring'] as const;
 export type JewelryKind = (typeof JEWELRY_KINDS)[number];
-export const WIDTH_MM: Record<TryOnKind, { min: number; max: number }> = { watch: { min: 5, max: 80 }, glasses: { min: 100, max: 170 }, ring: { min: 14, max: 30 }, necklace: { min: 60, max: 300 }, bag: { min: 100, max: 600 } };
-export const SLOTS_OF: Record<TryOnKind, readonly ('worn' | 'flat')[]> = { watch: ['worn', 'flat'], glasses: ['worn'], ring: ['worn'], necklace: ['worn'], bag: ['worn'] };
+export const WIDTH_MM: Record<TryOnKind, { min: number; max: number }> = { watch: { min: 5, max: 80 }, glasses: { min: 100, max: 170 }, ring: { min: 14, max: 30 }, necklace: { min: 60, max: 300 }, earring: { min: 5, max: 60 }, bag: { min: 100, max: 600 } };
+export const SLOTS_OF: Record<TryOnKind, readonly ('worn' | 'flat')[]> = { watch: ['worn', 'flat'], glasses: ['worn'], ring: ['worn'], necklace: ['worn'], earring: ['worn'], bag: ['worn'] };
 
 export const GLASSES_SLOT: { label: Bi; hint: Bi } = {
   label: { ar: 'الإطار من الأمام', en: 'The frame from the front' },
@@ -65,10 +65,14 @@ export const NECKLACE_SLOT: { label: Bi; hint: Bi } = {
   label: { ar: 'القلادة كما تُلبس', en: 'The necklace as worn' },
   hint: { ar: 'القلادة من الأمام على حامل أو عارضة، والسلاسل متدلية كما تُلبس، مقصوصة بخلفية شفافة.', en: 'The necklace from the front on a bust or a model, the chains hanging as worn, cut out on a transparent background.' },
 };
+export const EARRING_SLOT: { label: Bi; hint: Bi } = {
+  label: { ar: 'القرط كما يُلبس', en: 'The earring as worn' },
+  hint: { ar: 'قرط واحد من الأمام كما يتدلى من الأذن، مقصوصًا بخلفية شفافة.', en: 'One earring from the front as it hangs from the ear, cut out on a transparent background.' },
+};
 export const BAG_SLOT: { label: Bi; hint: Bi } = {
   label: { ar: 'الحقيبة من الأمام', en: 'The bag from the front' },
   hint: { ar: 'الحقيبة من الأمام والمقابض للأعلى، مقصوصة بخلفية شفافة.', en: 'The bag from the front, handles up, cut out on a transparent background.' },
 };
-export const WIDTH_LABEL: Record<TryOnKind, Bi> = { watch: { ar: 'عرض العلبة', en: 'Case width' }, glasses: { ar: 'عرض الإطار', en: 'Frame width' }, ring: { ar: 'عرض الخاتم', en: 'Ring width' }, necklace: { ar: 'العرض عند الرقبة', en: 'Width at the neck' }, bag: { ar: 'عرض الحقيبة', en: 'Bag width' } };
+export const WIDTH_LABEL: Record<TryOnKind, Bi> = { watch: { ar: 'عرض العلبة', en: 'Case width' }, glasses: { ar: 'عرض الإطار', en: 'Frame width' }, ring: { ar: 'عرض الخاتم', en: 'Ring width' }, necklace: { ar: 'العرض عند الرقبة', en: 'Width at the neck' }, earring: { ar: 'عرض القرط', en: 'Earring width' }, bag: { ar: 'عرض الحقيبة', en: 'Bag width' } };
 /** The picture's name and hint for this kind: glasses have one, the frame from the front. */
-export const slotInfo = (kind: TryOnKind, slot: 'worn' | 'flat') => (kind === 'glasses' ? GLASSES_SLOT : kind === 'ring' ? RING_SLOT : kind === 'necklace' ? NECKLACE_SLOT : kind === 'bag' ? BAG_SLOT : TRYON_SLOTS[slot]);
+export const slotInfo = (kind: TryOnKind, slot: 'worn' | 'flat') => (kind === 'glasses' ? GLASSES_SLOT : kind === 'ring' ? RING_SLOT : kind === 'necklace' ? NECKLACE_SLOT : kind === 'earring' ? EARRING_SLOT : kind === 'bag' ? BAG_SLOT : TRYON_SLOTS[slot]);

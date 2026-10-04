@@ -55,3 +55,12 @@ Real photographs under the [Pexels License](https://www.pexels.com/license/) (cr
 - `bag-front.webp`: an embroidered tan handbag on a grey sweep by Amjed wani — https://www.pexels.com/photo/26610519/ (6000 × 4000). Cut out by `scripts/cut-bag.mjs`: warm or dark kept, the neutral sweep and its shadow dropped everywhere (the light through the handles too), the largest piece kept; the colours are the photo's own. Stored as WebP (quality 90, alpha lossless).
 
 Scale on the portrait is measured: 5300 px from the top of her hijab to her feet, taken as 160 cm (an adult Saudi woman's average height, approximately) → 3.31 px/mm, × 1200/4160 on the stage = 0.956 px/mm. The example bag's width, 280 mm, is approximate; it is an example product, not a store's.
+
+## Earring (P5.5, 2026-10-04)
+
+Real photographs under the [Pexels License](https://www.pexels.com/license/) (credited here anyway). The model photo is an ear alone, no face — a modest choice for a Saudi audience, and the hijab portraits cover the ears.
+
+- `model-ear.webp` (and `model-ear-thumb.webp`): a close-up of a woman's ear, the lobe pierced, by Karolina Grabowska (Kaboompics) — https://www.pexels.com/photo/8092973/ (4480 × 6720). Cropped 3600 × 3150 from (74, 3135) and scaled to the 1200 × 1050 stage (the lobe in the stage's visible middle); nothing else changed.
+- `earring-front.webp`: a pair of diamond-set gold huggie hoops on a grey sweep by The Glorious Studio — https://www.pexels.com/photo/20943477/ (5992 × 5992); the right-hand hoop, standing upright as it hangs. Cut out by `site/scripts/cut-earring.mjs`: gold (warm — even the pale hinge, the sweep being neutral grey) or dark kept; the white stones kept by where they lie, inside the hoop's band (closed with a round element, at least 8 px from the outside); the sweep inside the hoop and outside dropped; small enclosed clear spots filled; colours the photo's own. Stored as WebP (quality 90, alpha lossless). No brand is shown or named.
+
+Scale on the ear is measured: 2,308 px from the top of the helix to the bottom of the lobe in the photo, taken as 60 mm (an adult woman's ear, approximately) → 38.5 px/mm, × 1200/3600 on the stage = 12.8 px/mm. The example hoop is about 18 mm tall (its true diameter: the photo is seen three-quarter on), so 10.6 mm across as seen; it is an example product, not a store's.

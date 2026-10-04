@@ -23,8 +23,9 @@
  *    background (`quality.ts`, sharp) and checked again — the screen shows "checking" meanwhile.
  *  - P5.2 (T68): glasses too (product type Eyewear) — one picture, the frame from the front, which is
  *    published as both pictures; the width is the frame's (100–170 mm, a watch's case 5–80).
- *  - P5.4/P5.5: rings and necklaces too — a Jewelry product the merchant marks as one (`jewelry`;
- *    Jewelry is also earrings and bracelets) — one picture as worn; a ring 14–30 mm, a necklace 60–300.
+ *  - P5.4/P5.5: rings, necklaces and earrings too — a Jewelry product the merchant marks as one
+ *    (`jewelry`; Jewelry is also bracelets) — one picture as worn; a ring 14–30 mm, a necklace 60–300,
+ *    an earring 5–60.
  *  - P5.6: bags (product type Bag) — one picture, the bag from the front; 100–600 mm across.
  *  - P5.13: the list shows each watch's last 30 days (views, try-on openings) from the analytics
  *    rollup — never raw events — to anyone who may read analytics.
@@ -97,11 +98,11 @@ async function watchOf(db: TenantDb, productId: string): Promise<Product> {
   return product;
 }
 
-/** What this product is tried on as; Jewelry not yet marked (a ring or a necklace) is refused. */
+/** What this product is tried on as; Jewelry not yet marked (a ring, a necklace or an earring) is refused. */
 async function kindFor(db: TenantDb, product: Product): Promise<TryOnKind> {
   const config = product.productType === RING_PRODUCT_TYPE ? await db.findOne(tryonConfigs, eq(tryonConfigs.productId, product.id)) : null;
   const kind = kindOf(product.productType, config?.category);
-  if (!kind) throw errors.conflict('mark this jewelry as a ring or a necklace first — earrings are not built yet');
+  if (!kind) throw errors.conflict('mark this jewelry as a ring, a necklace or an earring first');
   return kind;
 }
 
@@ -200,7 +201,7 @@ export async function confirmCutout(ctx: TenantContext, productId: string, input
 
 /**
  * API-153 — case width, finish, on/off. Switching on needs both pictures and a case width. P5.4:
- * `jewelry: 'ring' | 'necklace'` marks a Jewelry product as one; `jewelry: null` takes that back while it
+ * `jewelry: 'ring' | 'necklace' | 'earring'` marks a Jewelry product as one; `jewelry: null` takes that back while it
  * has no picture.
  */
 export async function updateTryOn(ctx: TenantContext, productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean; jewelry?: JewelryKind | null }): Promise<TryOnWatchView> {
@@ -270,10 +271,10 @@ export async function calibrateCutoutEdges(ctx: TenantContext, productId: string
 
 /** P5.4/P5.5 — "It's a ring" / "It's a necklace": a Jewelry product's try-on settings made as that kind; or taken back while empty. */
 async function markJewelry(ctx: TenantContext, productId: string, kind: JewelryKind | null): Promise<TryOnWatchView> {
-  if (kind !== null && !(JEWELRY_KINDS as readonly string[]).includes(kind)) throw errors.validation({ jewelry: ['a ring or a necklace'] });
+  if (kind !== null && !(JEWELRY_KINDS as readonly string[]).includes(kind)) throw errors.validation({ jewelry: ['a ring, a necklace or an earring'] });
   const result = await withTenant(ctx.tenantId, async (db) => {
     const product = await watchOf(db, productId);
-    if (product.productType !== RING_PRODUCT_TYPE) throw errors.conflict('only a Jewelry product can be marked as a ring or a necklace');
+    if (product.productType !== RING_PRODUCT_TYPE) throw errors.conflict('only a Jewelry product can be marked as a ring, a necklace or an earring');
     await db.lockById(products, productId);
     const before = await db.findOne(tryonConfigs, eq(tryonConfigs.productId, productId));
     if (kind) {

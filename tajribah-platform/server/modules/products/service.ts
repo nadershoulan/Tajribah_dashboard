@@ -52,10 +52,11 @@ export async function listProducts(ctx: TenantContext, query: ProductListQuery):
     ? or(ilike(products.name, likeEscape(query.q)), ilike(products.nameAr, likeEscape(query.q)), ilike(products.sku, likeEscape(query.q)))
     : undefined;
   // Keyset paging on the id: uuid v7 is time-ordered and never changes, unlike updated_at.
-  const after = query.cursor ? lt(products.id, query.cursor) : undefined;
+  // T73: or a numbered page (the dashboard's pager), counted from the newest.
+  const after = query.cursor && !query.page ? lt(products.id, query.cursor) : undefined;
 
   const page = await ctx.db.find(products, and(live, FILTER[query.filter], search, after), {
-    limit: query.limit + 1, orderBy: desc(products.id),
+    limit: query.limit + 1, orderBy: desc(products.id), offset: query.page ? (query.page - 1) * query.limit : undefined,
   });
   const more = page.length > query.limit;
   const rows = more ? page.slice(0, query.limit) : page;

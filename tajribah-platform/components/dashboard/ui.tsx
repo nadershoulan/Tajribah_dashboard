@@ -14,6 +14,7 @@ import { AlertCircle, ArrowLeft, ArrowRight, Check, Inbox } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 import { isUnreachable } from '@/lib/api-client';
 import { formatNumber, formatPercent } from '@/lib/format';
+import { pageItems } from '@/lib/pagination';
 import type { Bi } from '@/lib/lang';
 
 /** An arrow that points the way "forward" reads in the current direction. */
@@ -194,4 +195,33 @@ export function Funnel({ steps }: { steps: { step: Bi; value: number }[] }) {
 
 export function Check3({ done }: { done: boolean }) {
   return <span className="mark">{done ? <Check size={13} aria-hidden /> : ''}</span>;
+}
+
+/**
+ * T73 — numbered pages under a list: previous, the first 3, the current one with its neighbours,
+ * the last 3, next (`pageItems`). Nothing is shown for a single page.
+ */
+export function Pagination({ page, pages, onPage, label }: { page: number; pages: number; onPage: (page: number) => void; label?: string }) {
+  const { t, lang, dir } = useLang();
+  if (pages <= 1) return null;
+  const Back = dir === 'rtl' ? ArrowRight : ArrowLeft;
+  const On = dir === 'rtl' ? ArrowLeft : ArrowRight;
+  return (
+    <nav className="pager" aria-label={label ?? t('الصفحات', 'Pages')}>
+      <button type="button" className="pager-step" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label={t('الصفحة السابقة', 'Previous page')}>
+        <Back size={15} aria-hidden />
+      </button>
+      {pageItems(page, pages).map((item, i) => item === 'gap'
+        ? <span key={`gap-${i}`} className="pager-gap" aria-hidden>…</span>
+        : (
+          <button key={item} type="button" className="pager-num" aria-current={item === page ? 'page' : undefined}
+            aria-label={t(`الصفحة ${item}`, `Page ${item}`)} onClick={() => item !== page && onPage(item)}>
+            {formatNumber(item, lang)}
+          </button>
+        ))}
+      <button type="button" className="pager-step" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label={t('الصفحة التالية', 'Next page')}>
+        <On size={15} aria-hidden />
+      </button>
+    </nav>
+  );
 }

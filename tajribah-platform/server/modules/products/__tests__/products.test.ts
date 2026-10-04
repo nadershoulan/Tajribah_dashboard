@@ -100,6 +100,13 @@ test('search, filters and their counts, and paging that neither skips nor repeat
     assert.equal(seen.length, 26);
     assert.equal(new Set(seen).size, 26, 'no product appears twice across pages');
 
+    // T73: numbered pages give the same rows as the cursor, in the same order; a page wins over a cursor.
+    const numbered: string[] = [];
+    for (let page = 1; page <= 3; page++) numbered.push(...(await listProducts(ctx, { ...LIST, limit: 10, page, cursor: seen[0] })).rows.map((r) => r.id));
+    assert.deepEqual(numbered, seen);
+    assert.equal((await listProducts(ctx, { ...LIST, limit: 10, page: 3 })).nextCursor, null, 'the last page');
+    assert.equal((await listProducts(ctx, { ...LIST, limit: 10, page: 4 })).rows.length, 0, 'past the end: empty');
+
     const all = await listProducts(ctx, LIST);
     assert.deepEqual(all.counts, { all: 26, ar_on: 12, no_ar: 14, missing_sizes: 14, draft: 1 });
     assert.equal((await listProducts(ctx, { ...LIST, filter: 'ar_on' })).rows.length, 12);

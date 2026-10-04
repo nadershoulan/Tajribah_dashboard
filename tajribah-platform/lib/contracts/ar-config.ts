@@ -81,3 +81,6 @@ export type PublishResult = { version: number; publishedAt: string | null; outda
 export function placementErrors(type: ProductRow['productType'], placement: Placement): Record<string, string[]> {
   return placementsFor(type).includes(placement) ? {} : { placement: [`not for this kind of product — use ${placementsFor(type).join(' or ')}`] };
 }
+
+/** T73 — one numbered page of `GET /api/ar-configs?page=&q=`: products already set up first. */
+export type ArConfigPage = { configs: ArConfigView[]; total: number; page: number; pageSize: number };

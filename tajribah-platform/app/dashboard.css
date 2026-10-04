@@ -982,3 +982,21 @@ table.data .cell-main .lines > span { display: block; font-size: 12.5px; color: 
 .jewelry-list { list-style: none; margin: 0; padding: 0; }
 .jewelry-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
 .jewelry-list li:first-child { border-top: 0; }
+
+/* T73 — numbered pages under a list */
+.pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; padding: 14px 12px; border-top: 1px solid var(--line); }
+.pager button { min-width: 36px; height: 36px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text);
+  font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.pager button:hover:not(:disabled) { border-color: var(--line-2); background: var(--tint); }
+.pager button:focus-visible { outline: 2px solid var(--aqua); outline-offset: 2px; }
+.pager button[aria-current="page"] { background: var(--btn-primary-bg); border-color: var(--btn-primary-bg); color: var(--btn-primary-fg); font-weight: 600; cursor: default; }
+.pager button:disabled { opacity: .45; cursor: default; }
+.pager-gap { min-width: 22px; text-align: center; color: var(--text-2); }
+.pick-search { position: relative; display: flex; align-items: center; margin: 10px 12px 4px; }
+.pick-search svg { position: absolute; inset-inline-start: 10px; color: var(--text-3); }
+.pick-search input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 10px; padding: 7px 12px; padding-inline-start: 30px; font: inherit; font-size: 13.5px; background: var(--surface); color: var(--text); }
+@media (max-width: 480px) {
+  .pager { gap: 3px; padding: 12px 6px; }
+  .pager button { min-width: 31px; height: 34px; padding: 0 5px; font-size: 13px; }
+  .pager-gap { min-width: 14px; }
+}

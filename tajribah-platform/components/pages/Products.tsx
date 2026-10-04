@@ -2,17 +2,19 @@
 
 // MD-010 — Products table view
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Package, Plus, Ruler, Search, Upload } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
-import { useData, useResource } from '@/lib/data';
+import { useResource } from '@/lib/data';
 import type { ProductFilter } from '@/lib/contracts/products';
 import { isSized } from '@/lib/product-list';
 import { formatNumber, formatRelative } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
 import { Shell } from '@/components/dashboard/chrome';
-import { Badge, Empty, ErrorNote, Forward, Loading, PageHead, Panel } from '@/components/dashboard/ui';
+import { Badge, Empty, ErrorNote, Forward, Loading, PageHead, Pagination, Panel } from '@/components/dashboard/ui';
+import { pageCount, rangeText } from '@/lib/pagination';
+import { useDebounced } from '@/lib/use-debounced';
 import type { ProductRow } from '@/lib/view-models';
 
 const TYPE_LABEL: Record<ProductRow['productType'], { ar: string; en: string }> = {
@@ -25,44 +27,27 @@ const TYPE_LABEL: Record<ProductRow['productType'], { ar: string; en: string }> 
   other: { ar: 'أخرى', en: 'Other' },
 };
 
-/** Wait for typing to pause before asking the server. */
-function useDebounced<T>(value: T, ms: number): T {
-  const [settled, setSettled] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setSettled(value), ms);
-    return () => clearTimeout(timer);
-  }, [value, ms]);
-  return settled;
-}
 
-type MorePages = { key: string; rows: ProductRow[]; nextCursor: string | null; loading: boolean; error: Error | null };
+const PAGE_SIZE = 50;
 
 export default function Products() {
   const { t, pick, lang } = useLang();
-  const source = useData();
   const [filter, setFilter] = useState<ProductFilter>('all');
   const [typed, setTyped] = useState('');
   const q = useDebounced(typed.trim(), 250);
 
   // Search, filter, counts and paging are the server's (P1.9): the screen never holds more
-  // of the catalogue than it has shown, however large the store.
-  const { data, loading, error } = useResource((s) => s.products({ q: q || undefined, filter }), [q, filter]);
+  // of the catalogue than one page, however large the store. T73: numbered pages.
   const key = `${filter}|${q}`;
-  const [more, setMore] = useState<MorePages | null>(null);
-  const extra = more?.key === key ? more : null; // pages for an older query are simply ignored
-  const rows = [...(data?.rows ?? []), ...(extra?.rows ?? [])];
-  const nextCursor = extra ? extra.nextCursor : data?.nextCursor ?? null;
+  const [paged, setPaged] = useState({ key, page: 1 });
+  const page = paged.key === key ? paged.page : 1; // a new search or filter starts at page 1
+  const { data, loading, error } = useResource((s) => s.products({ q: q || undefined, filter, page, limit: PAGE_SIZE }), [q, filter, page]);
+  const rows = data?.rows ?? [];
   const counts = data?.counts;
-
-  const loadMore = async () => {
-    if (!nextCursor || extra?.loading) return;
-    setMore({ key, rows: extra?.rows ?? [], nextCursor, loading: true, error: null });
-    try {
-      const page = await source.products({ q: q || undefined, filter, cursor: nextCursor });
-      setMore((m) => (m?.key === key ? { key, rows: [...m.rows, ...page.rows], nextCursor: page.nextCursor, loading: false, error: null } : m));
-    } catch (failure) {
-      setMore((m) => (m?.key === key ? { ...m, loading: false, error: failure as Error } : m));
-    }
+  const pages = pageCount(counts?.[filter] ?? 0, PAGE_SIZE);
+  const goTo = (next: number) => {
+    setPaged({ key, page: next });
+    document.querySelector('table.data')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
 
   const crumbs = [{ label: t('الرئيسية', 'Home'), href: '/dashboard' }, { label: t('المنتجات', 'Products') }];
@@ -121,7 +106,7 @@ export default function Products() {
       <Panel
         flush
         title={t('كل المنتجات', 'All products')}
-        sub={counts ? t(`${formatNumber(rows.length, lang)} من ${formatNumber(counts[filter], lang)}`, `${formatNumber(rows.length, lang)} of ${formatNumber(counts[filter], lang)}`) : undefined}
+        sub={counts ? rangeText(Math.min(page, pages), PAGE_SIZE, rows.length, counts[filter], lang) : undefined}
         actions={
           <label style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
             <Search size={15} aria-hidden style={{ position: 'absolute', insetInlineStart: 10, color: 'var(--text-3)' }} />
@@ -215,16 +200,9 @@ export default function Products() {
                 ))}
               </tbody>
             </table>
-            {extra?.error && <ErrorNote error={extra.error} />}
-            {nextCursor && (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 18px' }}>
-                <button type="button" className="btn btn-ghost" onClick={loadMore} disabled={extra?.loading}>
-                  {extra?.loading ? t('جارٍ التحميل…', 'Loading…') : t('عرض المزيد', 'Show more')}
-                </button>
-              </div>
-            )}
           </div>
         )}
+        {!loading && !error && rows.length > 0 && <Pagination page={Math.min(page, pages)} pages={pages} onPage={goTo} label={t('صفحات المنتجات', 'Product pages')} />}
       </Panel>
 
       <p className="hint" style={{ marginTop: 14 }}>

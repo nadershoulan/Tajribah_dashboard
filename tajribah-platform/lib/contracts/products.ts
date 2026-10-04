@@ -60,6 +60,8 @@ export const ProductListQuery = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
   /** The last id of the previous page (uuid v7 — time-ordered). */
   cursor: z.string().uuid().optional(),
+  /** T73: a numbered page (1 = the newest `limit`); with it the cursor is not used. */
+  page: z.coerce.number().int().min(1).max(100_000).optional(),
 });
 export type ProductListQuery = z.infer<typeof ProductListQuery>;
 

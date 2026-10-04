@@ -37,9 +37,10 @@ export function pageOf(rows: readonly ProductRow[], query: Partial<ProductListQu
   const limit = query.limit ?? 50;
   const searched = rows.filter((p) => matchesSearch(p, query.q));
   const ordered = searched
-    .filter((p) => matchesFilter(p, filter) && (!query.cursor || p.id < query.cursor))
+    .filter((p) => matchesFilter(p, filter) && (query.page || !query.cursor || p.id < query.cursor))
     .sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
-  const page = ordered.slice(0, limit);
+  const start = query.page ? (query.page - 1) * limit : 0; // T73: a numbered page
+  const page = ordered.slice(start, start + limit);
   const counts = Object.fromEntries(PRODUCT_FILTERS.map((f) => [f, searched.filter((p) => matchesFilter(p, f)).length])) as Record<ProductFilter, number>;
-  return { rows: page, counts, nextCursor: ordered.length > limit ? page[page.length - 1].id : null };
+  return { rows: page, counts, nextCursor: ordered.length > start + limit ? page[page.length - 1].id : null };
 }

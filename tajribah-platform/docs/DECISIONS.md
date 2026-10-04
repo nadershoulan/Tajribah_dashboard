@@ -1196,3 +1196,22 @@ products still need theirs; the template now has the three columns.
 
 **Rollback path.** Revert the commit: the count goes back to every product row and syncs stop at the limit
 again (rows already imported stay). Cost: low.
+
+## T73 · 2026-10-04 · Numbered pages on every long list (you asked)
+
+**Decision.** You asked for numbered pages, "3 at the start and 3 at the end", on Products and the other pages.
+One pager (`Pagination` in `components/dashboard/ui.tsx`, the numbers from `lib/pagination.ts`) shows previous,
+the first 3 pages, the current page with its neighbours, the last 3 pages, and next. A "…" that would hide a
+single page shows that page instead. It is used on:
+- **Products**: 50 a page. `GET /api/products` takes `page`; the cursor still works for other callers.
+- **AR settings** (إعدادات العرض): 50 a page, plus a search box. The list used to stop at 500 products, so
+  in a store of 1,243 a product could be missing. `GET /api/ar-configs` now takes `?page=&q=` and returns
+  `total`, `page` and `pageSize` beside `configs`. Products already set up (3D on, a try-on, saved settings or
+  published) are listed first, newest first, then the rest of the catalogue, newest first.
+- **3D models**: 25 a page (the list comes whole from the server and is paged on screen).
+
+**Not yet.** The staff console's lists (stores, people, billing, one store's activity) keep "Show more":
+they page by cursor and have no totals. Numbered pages there need totals from those queries.
+
+**Rollback path.** Revert the commit: "Show more" comes back, and AR settings goes back to its first 500
+products. Cost: low.

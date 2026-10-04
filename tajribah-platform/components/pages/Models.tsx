@@ -10,10 +10,13 @@ import { useLang } from '@/lib/i18n';
 import { useData, useResource } from '@/lib/data';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import { Shell } from '@/components/dashboard/chrome';
-import { Badge, Empty, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
+import { Badge, Empty, ErrorNote, Loading, PageHead, Pagination, Panel } from '@/components/dashboard/ui';
+import { pageCount, slicePage } from '@/lib/pagination';
 import { ModelPicture } from '@/components/dashboard/model-picture';
 import type { ModelRow, ModelVersionRow } from '@/lib/view-models';
 import { MODEL_TARGET_BYTES } from '@/lib/model-size';
+
+const MODEL_PAGE = 25;
 
 /** Under this, AR loads in about two seconds on a Saudi mobile network. Over it, it does not. */
 const SIZE_TARGET_BYTES = MODEL_TARGET_BYTES;
@@ -47,6 +50,8 @@ export default function Models() {
   const [version, setVersion] = useState(0);
   const { data, loading, error } = useResource((s) => s.models(), [version]);
   const reload = () => setVersion((v) => v + 1);
+  const [page, setPage] = useState(1); // T73: numbered pages of 25
+  const pages = pageCount(data?.length ?? 0, MODEL_PAGE);
   const [open, setOpen] = useState<string | null>(null);
   const [upload, setUpload] = useState<{ state: 'busy' | 'done' | 'failed'; message: string } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -180,7 +185,7 @@ export default function Models() {
                 </tr>
               </thead>
               <tbody>
-                {(data ?? []).map((model) => (
+                {slicePage(data ?? [], page, MODEL_PAGE).map((model) => (
                   <Fragment key={model.id}>
                   <tr>
                     <td>
@@ -237,6 +242,7 @@ export default function Models() {
             </table>
           </div>
         )}
+        {!loading && !error && (data ?? []).length > 0 && <Pagination page={Math.min(page, pages)} pages={pages} onPage={setPage} label={t('صفحات النماذج', 'Model pages')} />}
       </Panel>
       </div>
 

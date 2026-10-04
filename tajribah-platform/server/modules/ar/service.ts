@@ -6,10 +6,10 @@
  * the product's whole config, to the store shops read — is `edge/publish.ts` (P1.15); the view
  * carries its status: the version shoppers see, and whether what would be published now differs.
  */
-import { and, eq, inArray, isNull, ne } from 'drizzle-orm';
-import { arConfigs, edgeConfigs, hostedPages, products } from '@/db/schema';
+import { and, desc, eq, ilike, inArray, isNull, ne, notInArray, or } from 'drizzle-orm';
+import { arConfigs, edgeConfigs, hostedPages, products, tryonConfigs } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
-import { ArConfigInput, DEFAULT_AR_CONFIG, defaultLabelsFor, placementErrors, placementsFor, type ArConfigView } from '@/lib/contracts/ar-config';
+import { ArConfigInput, DEFAULT_AR_CONFIG, defaultLabelsFor, placementErrors, placementsFor, type ArConfigPage, type ArConfigView } from '@/lib/contracts/ar-config';
 import { auditedInsert, auditedUpdate } from '@/server/core/audit/audit';
 import { errors, fieldErrorsFrom } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
@@ -19,9 +19,45 @@ import { customHostOf, hostedPageViewOf } from '@/server/modules/hosted-pages/vi
 type Product = typeof products.$inferSelect;
 type Config = typeof arConfigs.$inferSelect;
 
+const likeEscape = (text: string) => `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+
 export async function listArConfigs(ctx: TenantContext): Promise<ArConfigView[]> {
+  return (await listArConfigPage(ctx, { page: 1, pageSize: 500 })).configs;
+}
+
+/**
+ * T73 — one numbered page of the products, those already set up first (3D on, a try-on, saved
+ * settings, or published — newest first), then the rest of the catalogue, newest first; `q` searches
+ * the name, Arabic name and SKU. A store of thousands of products no longer hides the ones that matter.
+ */
+export async function listArConfigPage(ctx: TenantContext, query: { page?: number; pageSize?: number; q?: string }): Promise<ArConfigPage> {
   ctx.require('ar:read');
-  const rows = await ctx.db.find(products, and(isNull(products.deletedAt), ne(products.status, 'archived')), { limit: 500 });
+  const pageSize = Math.min(Math.max(1, query.pageSize ?? 50), 500);
+  const search = query.q?.trim()
+    ? or(ilike(products.name, likeEscape(query.q.trim())), ilike(products.nameAr, likeEscape(query.q.trim())), ilike(products.sku, likeEscape(query.q.trim())))
+    : undefined;
+  const listed = and(isNull(products.deletedAt), ne(products.status, 'archived'), search);
+  const [saved, tryons, edges, shown] = await Promise.all([
+    ctx.db.find(arConfigs, undefined, { limit: 100_000 }),
+    ctx.db.find(tryonConfigs, undefined, { limit: 100_000 }),
+    ctx.db.find(edgeConfigs, undefined, { limit: 100_000 }),
+    ctx.db.find(products, and(listed, eq(products.arEnabled, true)), { limit: 100_000 }),
+  ]);
+  const setUpIds = [...new Set([...saved, ...tryons, ...edges].map((r) => r.productId).concat(shown.map((p) => p.id)))];
+  const setUp = setUpIds.length ? await ctx.db.find(products, and(listed, inArray(products.id, setUpIds)), { limit: setUpIds.length, orderBy: desc(products.id) }) : [];
+  const rest = and(listed, setUp.length ? notInArray(products.id, setUp.map((p) => p.id)) : undefined);
+  const total = setUp.length + await ctx.db.count(products, rest);
+  const page = Math.min(Math.max(1, Math.floor(query.page ?? 1)), Math.max(1, Math.ceil(total / pageSize)));
+  const start = (page - 1) * pageSize;
+  const first = setUp.slice(start, start + pageSize);
+  const more = pageSize - first.length;
+  const rows = more > 0
+    ? [...first, ...await ctx.db.find(products, rest, { limit: more, offset: Math.max(0, start - setUp.length), orderBy: desc(products.id) })]
+    : first;
+  return { configs: await viewsOf(ctx, rows), total, page, pageSize };
+}
+
+async function viewsOf(ctx: TenantContext, rows: Product[]): Promise<ArConfigView[]> {
   const configs = rows.length ? await ctx.db.find(arConfigs, inArray(arConfigs.productId, rows.map((p) => p.id)), { limit: 500 }) : [];
   const live = await edgeStatuses(ctx, rows.map((p) => p.id));
   const pages = await pagesOf(ctx, rows);

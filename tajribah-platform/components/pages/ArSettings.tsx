@@ -4,17 +4,19 @@
 
 import { useWriteLock } from '@/components/dashboard/write-lock';
 import { useState } from 'react';
-import { Box, Copy, ExternalLink, Link2, Rotate3D, Sparkles } from 'lucide-react';
+import { Box, Copy, ExternalLink, Link2, Rotate3D, Search, Sparkles } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import { ApiError } from '@/lib/api-client';
 import { ArConfigInput, placementErrors, placementsFor, type ArConfigView, type Placement } from '@/lib/contracts/ar-config';
 import { HostedPageInput, type HostedPageView } from '@/lib/contracts/hosted-page';
 import { useData, useResource } from '@/lib/data';
-import { formatDateTime, formatNumber } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 import { useLang } from '@/lib/i18n';
 import type { Bi } from '@/lib/lang';
 import { Shell } from '@/components/dashboard/chrome';
-import { Badge, Empty, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
+import { Badge, Empty, ErrorNote, Loading, PageHead, Pagination, Panel } from '@/components/dashboard/ui';
+import { pageCount, rangeText } from '@/lib/pagination';
+import { useDebounced } from '@/lib/use-debounced';
 
 const PLACEMENT_LABEL: Record<Placement, Bi> = {
   floor: { ar: 'على الأرض', en: 'On the floor' },
@@ -45,10 +47,17 @@ const MESSAGE_AR: [RegExp, string][] = [
 export default function ArSettings() {
   const { t, lang } = useLang();
   const [version, setVersion] = useState(0);
-  const { data, loading, error } = useResource((s) => s.arConfigs(), [version]);
+  // T73: numbered pages and a search — products already set up come first.
+  const [typed, setTyped] = useState('');
+  const q = useDebounced(typed.trim(), 250);
+  const [paged, setPaged] = useState({ q, page: 1 });
+  const page = paged.q === q ? paged.page : 1;
+  const { data: list, loading, error } = useResource((s) => s.arConfigs({ page, q: q || undefined }), [version, page, q]);
+  const data = list?.configs;
   const { data: settings } = useResource((s) => s.settings());
   const [selected, setSelected] = useState<string | null>(null);
   const current = data?.find((c) => c.productId === selected) ?? data?.[0] ?? null;
+  const pages = list ? pageCount(list.total, list.pageSize) : 1;
 
   const crumbs = [
     { label: t('الرئيسية', 'Home'), href: '/dashboard' },
@@ -67,18 +76,24 @@ export default function ArSettings() {
       />
       {loading && !data && <Panel><Loading rows={4} /></Panel>}
       {error && <ErrorNote error={error} />}
-      {data && data.length === 0 && (
+      {data && data.length === 0 && !q && (
         <Empty icon={<Box size={22} />} title={t('لا توجد منتجات بعد', 'No products yet')}
           body={t('اربط متجرك أو أضف منتجًا، ثم اضبط عرضه هنا.', 'Connect your store or add a product, then set up its AR here.')}
           action={<AppLink href="/dashboard/products" className="btn btn-ghost">{t('المنتجات', 'Products')}</AppLink>} />
       )}
-      {data && current && (
+      {data && (current || q) && (
         <div className="ar-grid">
-          <Panel flush title={t('المنتجات', 'Products')} sub={t(`${formatNumber(data.filter((c) => c.saved).length, lang)} مضبوط من ${formatNumber(data.length, lang)}`, `${formatNumber(data.filter((c) => c.saved).length, lang)} of ${formatNumber(data.length, lang)} set up`)}>
+          <Panel flush title={t('المنتجات', 'Products')} sub={list ? rangeText(list.page, list.pageSize, data.length, list.total, lang) : undefined}>
+            <label className="pick-search">
+              <Search size={15} aria-hidden />
+              <span className="sr-only">{t('ابحث في المنتجات', 'Search products')}</span>
+              <input type="search" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={t('ابحث بالاسم أو الرمز', 'Search by name or SKU')} />
+            </label>
+            {data.length === 0 && <p className="hint" style={{ padding: '8px 16px 16px' }}>{t('لا منتجات بهذا البحث.', 'No products match this search.')}</p>}
             <ul className="pick-list">
               {data.map((c) => (
                 <li key={c.productId}>
-                  <button type="button" aria-current={c.productId === current.productId ? 'true' : undefined} onClick={() => setSelected(c.productId)}>
+                  <button type="button" aria-current={c.productId === current?.productId ? 'true' : undefined} onClick={() => setSelected(c.productId)}>
                     <span className="pick-name">{name(c)}</span>
                     <span className="pick-meta">
                       {c.arEnabled ? <Badge tone="ok" dot>{t('العرض مفعّل', 'AR on')}</Badge> : <Badge>{t('العرض متوقف', 'AR off')}</Badge>}
@@ -88,12 +103,13 @@ export default function ArSettings() {
                 </li>
               ))}
             </ul>
+            <Pagination page={list?.page ?? 1} pages={pages} onPage={(next) => setPaged({ q, page: next })} label={t('صفحات المنتجات', 'Product pages')} />
           </Panel>
           <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
-            <Editor key={`${current.productId}:${JSON.stringify(current)}`} config={current} name={name(current)}
+            {current && <Editor key={`${current.productId}:${JSON.stringify(current)}`} config={current} name={name(current)}
               brandColor={settings?.brandColor ?? null} radius={settings?.buttonRadius ?? 12}
-              onSaved={() => setVersion((v) => v + 1)} />
-            {current.page && <ProductPage key={`page:${current.productId}:${JSON.stringify(current.page)}`} productId={current.productId} page={current.page}
+              onSaved={() => setVersion((v) => v + 1)} />}
+            {current?.page && <ProductPage key={`page:${current.productId}:${JSON.stringify(current.page)}`} productId={current.productId} page={current.page}
               onSaved={() => setVersion((v) => v + 1)} />}
           </div>
         </div>

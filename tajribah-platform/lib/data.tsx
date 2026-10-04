@@ -27,7 +27,8 @@ import type { ProductListPage, ProductListQuery } from './contracts/products';
 import type { PlanCode } from './plans';
 import { DEFAULT_BUTTON_RADIUS, SettingsPatch, type Ga4Picker, type StoreSettings } from './contracts/settings';
 import { ga4PickerFor, noGa4Picker } from './ga4-picker';
-import { ArConfigInput, DEFAULT_AR_CONFIG, defaultLabelsFor, placementErrors, placementsFor, type ArConfigView, type PublishResult } from './contracts/ar-config';
+import { ArConfigInput, DEFAULT_AR_CONFIG, defaultLabelsFor, placementErrors, placementsFor, type ArConfigPage, type ArConfigView, type PublishResult } from './contracts/ar-config';
+import { pageCount, slicePage } from './pagination';
 import { pageOf } from './product-list';
 import { DEFAULT_HOSTED_PAGE_BASE, HostedPageInput, hostedPageUrl, qrUrl, type HostedPageView, type QrScreen } from './contracts/hosted-page';
 import { RequestInput as ProfessionalRequest, type ProfessionalOrderView } from './contracts/professional';
@@ -171,7 +172,8 @@ export interface DataSource {
   announcements(): Promise<Announcement[]>;
   markNotificationsRead(ids: string[] | 'all'): Promise<void>;
   /** P1.21: AR button and viewer settings per product. */
-  arConfigs(): Promise<ArConfigView[]>;
+  /** T73: one numbered page, products already set up first; `q` searches name and SKU. */
+  arConfigs(query?: { page?: number; q?: string }): Promise<ArConfigPage>;
   saveArConfig(productId: string, input: ArConfigInput): Promise<ArConfigView>;
   /** P1.15 — publish the product's config to the store shops read. */
   publishArConfig(productId: string): Promise<PublishResult>;
@@ -393,7 +395,13 @@ export function apiSource(client: ApiClient): DataSource {
     },
     async billing() { return client.call<BillingSummary>('/api/billing'); },
     async settings() { return client.call<StoreSettings>('/api/settings'); },
-    async arConfigs() { return (await client.call<{ configs: ArConfigView[] }>('/api/ar-configs')).configs; },
+    async arConfigs(query = {}) {
+      const params = new URLSearchParams();
+      if (query.page && query.page > 1) params.set('page', String(query.page));
+      if (query.q) params.set('q', query.q);
+      const qs = params.toString();
+      return client.call<ArConfigPage>(`/api/ar-configs${qs ? `?${qs}` : ''}`);
+    },
     async notifications() { return client.call<{ items: NotificationItem[]; unread: number }>('/api/notifications'); },
     async announcements() { return (await client.call<{ announcements: Announcement[] }>('/api/announcements')).announcements; },
     async embed() { return client.call<{ storeKey: string; snippet: string; storeHost: string | null }>('/api/embed'); },
@@ -989,8 +997,13 @@ export const demoSource: DataSource = {
   async markNotificationsRead(ids) {
     for (const n of demoNotifications) if (ids === 'all' || ids.includes(n.id)) n.read = true;
   },
-  async arConfigs() {
-    return DEMO_PRODUCTS.filter((p) => p.status !== 'archived').map((p) => withDemoPage(demoArConfigs.get(p.id) ?? demoArDefault(p)));
+  async arConfigs(query = {}) {
+    const q = query.q?.trim().toLowerCase();
+    const all = DEMO_PRODUCTS.filter((p) => p.status !== 'archived' && (!q || [p.name, p.nameAr, p.sku].some((v) => v?.toLowerCase().includes(q))))
+      .map((p) => withDemoPage(demoArConfigs.get(p.id) ?? demoArDefault(p)));
+    const ordered = [...all.filter((c) => c.saved || c.arEnabled), ...all.filter((c) => !(c.saved || c.arEnabled))];
+    const page = Math.min(Math.max(1, query.page ?? 1), pageCount(ordered.length, 50));
+    return { configs: slicePage(ordered, page, 50), total: ordered.length, page, pageSize: 50 };
   },
   async saveArConfig(productId, input) {
     const product = DEMO_PRODUCTS.find((p) => p.id === productId);

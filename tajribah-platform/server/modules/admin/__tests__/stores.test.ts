@@ -57,7 +57,7 @@ test('one store: the merchant’s own numbers, members, staff actions — for a 
   const harness = await createTestDb();
   try {
     const store = await seedTenant(harness, 'alpha');
-    await harness.asAdmin(() => harness.db.insert(products).values([{ tenantId: store.tenantId, name: 'A' }, { tenantId: store.tenantId, name: 'B' }] as any));
+    await harness.asAdmin(() => harness.db.insert(products).values([{ tenantId: store.tenantId, name: 'A', arEnabled: true }, { tenantId: store.tenantId, name: 'B', arEnabled: true }, { tenantId: store.tenantId, name: 'C' }] as any));
     const merchant = await buildTenantContext({ actor: { userId: store.userId, email: store.email, isStaff: false }, tenantId: store.tenantId, requestId: 'r' });
     const staff = STAFF(store.userId);
     await staffLog(staff, { action: 'trial.extend', targetType: 'store', targetId: store.tenantId, storeId: store.tenantId, reason: 'test' });

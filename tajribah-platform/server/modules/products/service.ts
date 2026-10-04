@@ -20,7 +20,7 @@ import {
 import { riyadhDay } from '@/lib/format';
 import type { ProductRow } from '@/lib/view-models';
 import { auditedInsert, auditedUpdate } from '@/server/core/audit/audit';
-import { assertWithinQuota } from '@/server/core/billing/entitlements';
+import { assertRoomToShow } from '@/server/core/billing/entitlements';
 import { errors, fieldErrorsFrom } from '@/server/core/errors/problem';
 import { keepLive } from '@/server/modules/edge/publish';
 import { emitEvent } from '@/server/modules/outgoing-webhooks/emit';
@@ -77,7 +77,7 @@ export async function getProduct(ctx: TenantContext, id: string): Promise<Produc
 export async function createProduct(ctx: TenantContext, input: unknown): Promise<ProductRow> {
   ctx.require('products:write');
   const data = parse(ProductCreate, input);
-  await assertWithinQuota(ctx, 'products');
+  // T72: the catalogue is never limited; the plan counts products shown in 3D or the try-on.
   const created = await auditedInsert(ctx, products, { ...data, dimensions: data.dimensions ?? null }, { resourceType: 'product' });
   const row = await getProduct(ctx, String(created.id));
   await emitEvent(ctx, 'product.created', productV1(row)); // P8
@@ -102,6 +102,7 @@ export async function updateProduct(ctx: TenantContext, id: string, input: unkno
   if (arOn && !(dimensions?.widthMm && dimensions?.heightMm)) {
     throw errors.validation({ arEnabled: ['needs the width and height in millimetres first — AR shows the real size'] });
   }
+  if (patch.arEnabled === true && !current.arEnabled) await assertRoomToShow(ctx, id); // T72: the plan counts what is shown
 
   await auditedUpdate(ctx, products, id, patch as Record<string, unknown>, { resourceType: 'product' });
   await keepLive(ctx.tenantId, id); // P1.15: name, sizes and AR on/off are in the published config

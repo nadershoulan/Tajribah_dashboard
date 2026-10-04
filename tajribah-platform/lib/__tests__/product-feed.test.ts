@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { feedProblem, parseDelimited, parseFeedText, parsePrice, parseXmlFeed } from '@/lib/product-feed';
+import { feedProblem, parseDelimited, parseFeedText, parseLength, parsePrice, parseXmlFeed } from '@/lib/product-feed';
 import { readXlsx } from '@/lib/xlsx';
 import { RSS, workbook } from '@/server/testing/feed-fixtures';
 
@@ -61,3 +61,16 @@ test('an Excel workbook: its first sheet (whatever its file is called), shared a
   await assert.rejects(() => readXlsx(new TextEncoder().encode('id,title\n1,x')), /not an Excel file/);
 });
 
+
+test('T72 sizes, when a feed has them: units to millimetres, a plain number is millimetres, nonsense is no size', () => {
+  assert.equal(parseLength('20 cm'), 200);
+  assert.equal(parseLength('8 in'), 203.2);
+  assert.equal(parseLength('45'), 45);
+  assert.equal(parseLength('0.3 m'), 300);
+  assert.equal(parseLength('12,5 سم'), 125);
+  assert.equal(parseLength('large'), null);
+  assert.equal(parseLength('9 m'), null, 'over 3 metres is a unit mistake');
+  const feed = `<rss xmlns:g="http://base.google.com/ns/1.0"><channel><item><g:id>1</g:id><g:title>Lamp</g:title><g:product_width>42 cm</g:product_width><g:product_height>165 cm</g:product_height></item><item><g:id>2</g:id><g:title>Vase</g:title></item></channel></rss>`;
+  assert.deepEqual(parseFeedText(feed).products.map((p) => p.dimensions), [{ widthMm: 420, heightMm: 1650 }, null]);
+  assert.deepEqual(parseDelimited('id,title,width,height'+String.fromCharCode(10)+'7,Bowl,120,80').products[0]!.dimensions, { widthMm: 120, heightMm: 80 }, 'a sheet: plain numbers in mm');
+});

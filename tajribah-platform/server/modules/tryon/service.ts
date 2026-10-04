@@ -37,7 +37,7 @@ import { CUTOUT_ISSUES, JEWELRY_KINDS, RING_PRODUCT_TYPE, SLOTS_OF, TRYON_LISTED
 import { CALIBRATE_MIN_PX } from '@/lib/tryon-quality';
 import type { TryOnScreen, TryOnWatchView } from '@/lib/view-models';
 import { record } from '@/server/core/audit/audit';
-import { assertStorageRoom, entitlementsOf } from '@/server/core/billing/entitlements';
+import { assertRoomToShow, assertStorageRoom, entitlementsOf } from '@/server/core/billing/entitlements';
 import { errors } from '@/server/core/errors/problem';
 import { forTenant } from '@/server/core/storage/storage';
 import type { TenantContext } from '@/server/core/tenancy/context';
@@ -214,6 +214,8 @@ export async function updateTryOn(ctx: TenantContext, productId: string, patch: 
   if (Object.keys(problems).length) throw errors.validation(problems);
 
   if (patch.jewelry !== undefined) return markJewelry(ctx, productId, patch.jewelry);
+  // T72: the plan counts products shown in 3D or the try-on — checked before the transaction (entitlements have their own handle).
+  if (patch.enabled === true) await assertRoomToShow(ctx, productId);
   const result = await withTenant(ctx.tenantId, async (db) => {
     const product = await watchOf(db, productId);
     const range = WIDTH_MM[await kindFor(db, product)];

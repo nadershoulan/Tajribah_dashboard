@@ -5,7 +5,8 @@
  *
  * What is read (Google's attribute names; common plain names are accepted for a hand-made sheet):
  *   id · title · description · link · image_link · additional_image_link · price · availability ·
- *   item_group_id · mpn/sku/gtin
+ *   item_group_id · mpn/sku/gtin · product_width / product_height / product_length (T72: the size, when
+ *   the feed has it — "20 cm", "8 in", "200 mm"; a plain number is millimetres, the dashboard's unit)
  * Variants (rows sharing `item_group_id`) are one product: the try-on does not change per size or
  * colour. Its first row names it. `price` is the regular price ("60.00 SAR"); a sale price is the
  * shop's business, not the size's. A row without an id or a title is skipped and reported.
@@ -23,6 +24,8 @@ export type FeedProduct = {
   currency: string;
   images: { url: string }[];
   link: string | null;
+  /** Millimetres, when the feed gives them; only ever fills a size the product does not have yet. */
+  dimensions: { widthMm?: number; heightMm?: number; depthMm?: number } | null;
 };
 
 export type FeedResult = { products: FeedProduct[]; skipped: { row: number; reason: string }[]; rows: number };
@@ -42,6 +45,9 @@ const ALIASES: Record<string, string> = {
   price: 'price', 'السعر': 'price',
   item_group_id: 'item_group_id', group_id: 'item_group_id',
   mpn: 'sku', sku: 'sku', gtin: 'gtin', 'رمز_المنتج': 'sku',
+  product_width: 'product_width', width: 'product_width', width_mm: 'product_width', 'العرض': 'product_width',
+  product_height: 'product_height', height: 'product_height', height_mm: 'product_height', 'الارتفاع': 'product_height',
+  product_length: 'product_length', length: 'product_length', depth: 'product_length', length_mm: 'product_length', depth_mm: 'product_length', 'الطول': 'product_length', 'العمق': 'product_length',
   currency: 'currency', 'العملة': 'currency',
 };
 
@@ -75,6 +81,16 @@ export function parsePrice(text: string, fallbackCurrency = DEFAULT_CURRENCY): {
   return minor <= 2_147_483_647 ? { minor, currency } : null;
 }
 
+/** "20 cm", "8 in", "200mm", "0.3 m", "20 سم" (Arabic digits too), "45" (mm) → millimetres; null when unreadable or not a sane size. */
+export function parseLength(text: string): number | null {
+  const folded = text.replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x660)).replace(/\u066B|,/g, '.').trim().toLowerCase();
+  const m = /^(\d+(?:\.\d+)?)\s*(mm|cm|m|in|inch|inches|"|مم|سم|م)?$/.exec(folded);
+  if (!m) return null;
+  const factor: Record<string, number> = { mm: 1, 'مم': 1, cm: 10, 'سم': 10, m: 1000, 'م': 1000, in: 25.4, inch: 25.4, inches: 25.4, '"': 25.4 };
+  const mm = Math.round(Number(m[1]) * factor[m[2] ?? 'mm']! * 10) / 10;
+  return mm > 0 && mm <= 3000 ? mm : null;
+}
+
 type Row = Record<string, string[]>;
 
 /** One record (a feed item or a sheet row, keys already normalised) → a product, or why not. */
@@ -97,7 +113,17 @@ function productOf(row: Row): FeedProduct | string {
     currency: price?.currency ?? DEFAULT_CURRENCY,
     images: [...new Set(images)].slice(0, 10).map((url) => ({ url })),
     link: /^https?:\/\//i.test(one('link')) ? one('link') : null,
+    dimensions: dimensionsOf(one),
   };
+}
+
+function dimensionsOf(one: (k: string) => string): FeedProduct['dimensions'] {
+  const out: NonNullable<FeedProduct['dimensions']> = {};
+  const w = parseLength(one('product_width')), h = parseLength(one('product_height')), d = parseLength(one('product_length'));
+  if (w) out.widthMm = w;
+  if (h) out.heightMm = h;
+  if (d) out.depthMm = d;
+  return Object.keys(out).length ? out : null;
 }
 
 function collect(rows: Row[], firstRow: number): FeedResult {

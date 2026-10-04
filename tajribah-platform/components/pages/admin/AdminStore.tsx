@@ -59,7 +59,7 @@ function Detail() {
           </dl>
         </Panel>
         <Panel title={t('الاستهلاك مقابل الباقة', 'Usage against the plan')} sub={t(`رصيد الذكاء الاصطناعي: ${credits.balance}`, `AI credit balance: ${credits.balance}`)}>
-          <Meter label={t('المنتجات', 'Products')} used={usage.products.used} limit={usage.products.limit} />
+          <Meter label={t('معروضة بثلاثي الأبعاد أو بالتجربة', 'Shown in 3D or try-on')} used={usage.products.used} limit={usage.products.limit} />
           <Meter label={t('أعضاء الفريق', 'Team members')} used={usage.team_members.used} limit={usage.team_members.limit} />
           <Meter label={t('التخزين (GB)', 'Storage (GB)')} used={Math.round(usage.storage_gb.used * 100) / 100} limit={usage.storage_gb.limit} />
           <Meter label={t('جلسات العرض هذا الشهر', 'AR sessions this month')} used={usage.ar_sessions.used} limit={usage.ar_sessions.limit} />

@@ -21,7 +21,8 @@ async function starterStore(harness: TestDb) {
 
 async function plantProducts(harness: TestDb, tenantId: string, count: number) {
   await harness.asAdmin(() => harness.db.insert(products).values(
-    Array.from({ length: count }, (_, i) => ({ tenantId, name: `p${i}` })) as any,
+    // T72: the limit counts products shown in 3D (or the try-on), so these are.
+    Array.from({ length: count }, (_, i) => ({ tenantId, name: `p${i}`, arEnabled: true, dimensions: { widthMm: 100, heightMm: 100 } })) as any,
   ));
 }
 
@@ -73,7 +74,7 @@ test('soft-deleted products do not count against the quota', async () => {
     const ctx = await starterStore(harness);
     const limit = planByCode('starter').limits.products;
     await harness.asAdmin(() => harness.db.insert(products).values(
-      Array.from({ length: limit }, (_, i) => ({ tenantId: ctx.tenantId, name: `d${i}`, deletedAt: new Date() })) as any,
+      Array.from({ length: limit }, (_, i) => ({ tenantId: ctx.tenantId, name: `d${i}`, deletedAt: new Date(), arEnabled: true })) as any,
     ));
     await assert.doesNotReject(() => assertWithinQuota(ctx, 'products'));
   } finally { await harness.close(); }

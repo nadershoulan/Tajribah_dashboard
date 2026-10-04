@@ -60,7 +60,8 @@ test('a limit or feature changed in the database applies on the next request, wi
     await harness.asAdmin(() => harness.db.update(planLimits).set({ value: 2 })
       .where(and(eq(planLimits.planId, starter), eq(planLimits.key, 'products'))));
     await harness.asAdmin(() => harness.db.insert(products).values([
-      { tenantId: ctx.tenantId, name: 'A' }, { tenantId: ctx.tenantId, name: 'B' },
+      { tenantId: ctx.tenantId, name: 'A', arEnabled: true }, { tenantId: ctx.tenantId, name: 'B', arEnabled: true }, // T72: shown in 3D
+      { tenantId: ctx.tenantId, name: 'C' }, // in the catalogue only: not counted
     ] as never));
     await assert.rejects(() => assertWithinQuota(ctx, 'products'), (e: { code?: string }) => e.code === 'quota_exceeded');
 

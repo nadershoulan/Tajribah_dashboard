@@ -12,6 +12,7 @@ import { MemoryRateLimiter, setRateLimiter } from '@/server/core/ratelimit/limit
 import { setLogLevel } from '@/server/core/observability/log';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
 import { createProduct, deleteProduct, getProduct, listProducts, updateProduct } from '@/server/modules/products/service';
+import { assertRoomToShow } from '@/server/core/billing/entitlements';
 import { registerHandler } from '@/server/modules/auth/http';
 import { getProductHandler, listProductsHandler, updateProductHandler } from '@/server/modules/products/http';
 
@@ -141,13 +142,23 @@ test('model status and 30-day numbers come from the real rows', async () => {
   } finally { await harness.close(); }
 });
 
-test('the plan quota refuses one product too many', async () => {
+test('T72: the plan counts products shown in 3D — adding is never refused; switching 3D on past the limit is', async () => {
   const harness = await createTestDb();
   try {
     const { ctx, tenantId } = await store(harness, 'alpha');
     const limit = planByCode('starter').limits.products;
-    await plant(harness, products, Array.from({ length: limit }, (_, i) => ({ tenantId, name: `p${i}` })));
-    await assert.rejects(() => createProduct(ctx, { name: 'one more' }), (e: any) => code(e) === 'quota_exceeded');
+    const sized = { widthMm: 100, heightMm: 200 };
+    await plant(harness, products, Array.from({ length: limit }, (_, i) => ({ tenantId, name: `p${i}`, arEnabled: true, dimensions: sized })));
+    const more = await createProduct(ctx, { name: 'one more', dimensions: sized });
+    assert.equal(more.name, 'one more', 'the catalogue is not limited');
+    await assert.rejects(() => updateProduct(ctx, more.id, { arEnabled: true }), (e: any) => code(e) === 'quota_exceeded', 'showing one more in 3D is');
+    const shown = (await listProducts(ctx, { ...LIST, filter: 'ar_on' })).rows[0]!;
+    await updateProduct(ctx, shown.id, { arEnabled: false });
+    await updateProduct(ctx, more.id, { arEnabled: true });
+    assert.equal((await getProduct(ctx, shown.id)).arEnabled, false);
+    // At the limit: switching the try-on on for a product already shown is fine; for a new one it is not.
+    await assert.doesNotReject(() => assertRoomToShow(ctx, more.id), 'one already shown is not counted twice');
+    await assert.rejects(() => assertRoomToShow(ctx, shown.id), (e: any) => code(e) === 'quota_exceeded');
   } finally { await harness.close(); }
 });
 

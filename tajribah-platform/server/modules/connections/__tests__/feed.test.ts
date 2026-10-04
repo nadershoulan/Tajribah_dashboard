@@ -81,6 +81,16 @@ test('a feed’s link: checked, sealed, synced now and every 24 hours; a change 
     await syncAll(tenantId, (await requestSync(ctx, linked.connection.id, { type: 'full' })).id);
     assert.equal((await catalogue(harness, tenantId)).find((p) => p.externalId === '300').status, 'archived');
 
+    // T72: a size the feed gives fills an empty one; once set, the size is the merchant's.
+    feed.body = feed.body.replace('<g:mpn>ARC-1</g:mpn>', '<g:mpn>ARC-1</g:mpn><g:product_width>42 cm</g:product_width><g:product_height>165 cm</g:product_height>');
+    await syncFeedNow(ctx, (await requestSync(ctx, linked.connection.id, { type: 'full' })).id);
+    const lamp = () => catalogue(harness, tenantId).then((r) => r.find((p) => p.externalId === '200'));
+    assert.deepEqual((await lamp()).dimensions, { widthMm: 420, heightMm: 1650 });
+    await harness.asAdmin(() => harness.db.update(products).set({ dimensions: { widthMm: 400, heightMm: 1600 } } as any).where(eq(products.externalId, '200')));
+    feed.body = feed.body.replace('<g:price>75 SAR</g:price>', '<g:price>80 SAR</g:price>'); // the row is written: the size must still stay
+    await syncFeedNow(ctx, (await requestSync(ctx, linked.connection.id, { type: 'full' })).id);
+    assert.deepEqual((await lamp()).dimensions, { widthMm: 400, heightMm: 1600 }, 'the merchant’s own size stays');
+
     // The same link again is the same connection.
     assert.equal((await connectFeed(ctx, { url: LINK }, internet(feed))).connection.id, linked.connection.id);
   } finally { clearConnectors(); await harness.close(); resetEnv(); }

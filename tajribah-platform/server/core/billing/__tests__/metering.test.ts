@@ -74,12 +74,13 @@ test('AR sessions: this Riyadh month of the rollup, own store only; a re-run day
   } finally { await harness.close(); }
 });
 
-test('products: the home screen shows the number the quota counts, archived included', async () => {
+test('products: the home screen shows the number the quota counts — shown in 3D, archived included (T72)', async () => {
   const harness = await createTestDb();
   try {
     const { ctx, tenantId } = await store(harness, 'alpha');
     await admin(harness, () => harness.db.insert(products).values([
-      { tenantId, name: 'A' }, { tenantId, name: 'B', status: 'archived' }, { tenantId, name: 'C', deletedAt: new Date() },
+      { tenantId, name: 'A', arEnabled: true }, { tenantId, name: 'B', status: 'archived', arEnabled: true }, { tenantId, name: 'C', deletedAt: new Date(), arEnabled: true },
+      { tenantId, name: 'D' }, // in the catalogue, not shown in 3D: not counted
     ] as any));
     const home = await dashboardSummary(ctx, NOW);
     assert.equal(home.usage.products.used, await currentUsage(ctx, 'products'));

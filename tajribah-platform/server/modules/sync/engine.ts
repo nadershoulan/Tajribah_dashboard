@@ -10,12 +10,13 @@
  *    fetched with (checked under a row lock). Two runs of the same job — a duplicate
  *    delivery, a retry racing a slow first attempt — cannot apply one page twice.
  *  - **The store owns only what it syncs.** Name, SKU, price, description, images, status.
- *    Dimensions, AR switches and product type are the merchant's and are never touched.
+ *    Dimensions, AR switches and product type are the merchant's: a size the source gives (a feed's
+ *    product_width…) only fills an empty one (T72), never overwrites it.
  *  - **Full sync archives what the store no longer has** — unless that would archive most
  *    of the catalogue, which looks like a store API fault, not a merchant deleting 90% of
  *    their products. Then nothing is archived and the connection says why.
- *  - **Plan limits hold.** Products beyond the plan's limit are recorded as failed items
- *    with the limit in the error; nothing is silently dropped.
+ *  - **The whole catalogue comes in** (T72): the plan's product limit counts products shown in 3D or
+ *    the try-on, which the merchant switches on one by one — never the rows a sync writes.
  *
  * Audit: a sync is one `sync` row on the connection when it finishes, with its counts.
  * The per-product trail is `sync_job_items` — 10,000 audit rows per import would bury
@@ -73,7 +74,6 @@ export async function runSyncStep(input: {
   const since = job.type === 'incremental' && connection.lastSyncAt
     ? new Date(connection.lastSyncAt.getTime() - SINCE_OVERLAP_MS)
     : null;
-  const limit = (await entitlementsOf(ctx)).limit('products');
 
   for (let page = 0; page < (input.maxPages ?? PAGES_PER_RUN); page++) {
     let token: string;
@@ -94,7 +94,7 @@ export async function runSyncStep(input: {
       await withTenant(ctx.tenantId, (db) => revokeIn(ctx, db, connection.id, 'the store refused the keys — reconnect it'));
       return { result: 'failed', job: await markSyncFailed(ctx, job.id, 'the store refused access — reconnect it', now()) };
     }
-    const applied = await applyPage(ctx, job.id, cursor, fetched, limit, now());
+    const applied = await applyPage(ctx, job.id, cursor, fetched, now());
     if (!applied) return { result: 'skipped', job: null }; // another run got there first
     job = applied;
     if (job.status === 'done') return { result: 'done', job };
@@ -134,13 +134,13 @@ async function begin(ctx: TenantContext, syncJobId: string, now: Date): Promise<
 }
 
 async function applyPage(
-  ctx: TenantContext, syncJobId: string, cursor: string | null, page: Page<ExternalProduct>, limit: number, now: Date,
+  ctx: TenantContext, syncJobId: string, cursor: string | null, page: Page<ExternalProduct>, now: Date,
 ): Promise<SyncJob | null> {
   return withTenant(ctx.tenantId, async (db) => {
     const job = await db.lockById(syncJobs, syncJobId);
     if (job.status !== 'running' || job.cursor !== cursor) return null;
 
-    const failed = await applyItems(db, job, page.items, limit, now);
+    const failed = await applyItems(db, job, page.items, now);
     const processed = job.processedItems + page.items.length;
     const progress = {
       cursor: page.next,
@@ -154,14 +154,13 @@ async function applyPage(
 }
 
 /** Apply one page's items. Returns how many failed. */
-async function applyItems(db: TenantDb, job: SyncJob, items: ExternalProduct[], limit: number, now: Date): Promise<number> {
+async function applyItems(db: TenantDb, job: SyncJob, items: ExternalProduct[], now: Date): Promise<number> {
   if (items.length === 0) return 0;
   const ids = [...new Set(items.map((i) => i.externalId).filter(Boolean))];
   const existing = ids.length
     ? await db.find(products, and(eq(products.connectionId, job.connectionId), inArray(products.externalId, ids)), { limit: ids.length })
     : [];
   const byExternalId = new Map(existing.map((p) => [p.externalId!, p]));
-  let room = limit === UNLIMITED ? Infinity : limit - await db.count(products, isNull(products.deletedAt));
 
   type ItemRow = { externalId: string; productId?: string; action: 'created' | 'updated' | 'skipped' | 'failed'; error?: string };
   const rows: ItemRow[] = [];
@@ -177,17 +176,16 @@ async function applyItems(db: TenantDb, job: SyncJob, items: ExternalProduct[], 
     const fields = storeFields(item);
     const current = byExternalId.get(item.externalId);
     if (!current) {
-      if (room <= 0) { rows.push({ externalId: item.externalId, action: 'failed', error: `plan limit reached (products: ${limit})` }); continue; }
-      room -= 1;
       const id = uuidv7();
-      inserts.push({ id, tenantId: db.tenantId, connectionId: job.connectionId, externalId: item.externalId, ...fields, syncedAt: now });
+      inserts.push({ id, tenantId: db.tenantId, connectionId: job.connectionId, externalId: item.externalId, ...fields, ...(item.dimensions ? { dimensions: item.dimensions } : {}), syncedAt: now });
       rows.push({ externalId: item.externalId, productId: id, action: 'created' });
     } else if (current.deletedAt) {
       rows.push({ externalId: item.externalId, productId: current.id, action: 'skipped', error: 'deleted in Tajribah' });
-    } else if (unchanged(current, fields)) {
+    } else if (unchanged(current, fields) && !(item.dimensions && !current.dimensions)) {
       rows.push({ externalId: item.externalId, productId: current.id, action: 'skipped' });
     } else {
-      await db.updateById(products, current.id, { ...fields, syncedAt: now });
+      // T72: a size from the source fills an empty one only — once set, the size is the merchant's.
+      await db.updateById(products, current.id, { ...fields, ...(item.dimensions && !current.dimensions ? { dimensions: item.dimensions } : {}), syncedAt: now });
       rows.push({ externalId: item.externalId, productId: current.id, action: 'updated' });
     }
   }

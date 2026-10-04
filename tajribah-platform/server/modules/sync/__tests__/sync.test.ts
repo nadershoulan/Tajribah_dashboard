@@ -210,7 +210,7 @@ test('full sync archives what the store removed — but not when most of the cat
   } finally { clearConnectors(); await harness.close(); }
 });
 
-test('the plan limit holds, and a bad product fails alone', async () => {
+test('T72: the whole catalogue comes in whatever the plan (it counts what is shown in 3D), and a bad product fails alone', async () => {
   const harness = await createTestDb();
   try {
     const store = new FakeStore().seed(30);
@@ -224,11 +224,11 @@ test('the plan limit holds, and a bad product fails alone', async () => {
     const limit = planByCode('starter').limits.products;
     const done = await syncProgress(ctx, id);
     assert.equal(done.status, 'done');
-    assert.equal((await productRows(harness, tenantId)).length, limit);
+    assert.ok(30 - 3 > limit, 'more products than Starter shows in 3D');
+    assert.equal((await productRows(harness, tenantId)).length, 30 - 3, 'every good product imported');
     const failed = (await itemRows(harness, id)).filter((i) => i.action === 'failed');
     assert.equal(done.failed, failed.length);
-    assert.equal(failed.filter((i) => i.error === `plan limit reached (products: ${limit})`).length, 30 - 3 - limit);
-    assert.deepEqual(failed.filter((i) => !i.error.startsWith('plan limit')).map((i) => i.externalId).sort(), ['p00003', 'p00004', 'p00005']);
+    assert.deepEqual(failed.map((i) => i.externalId).sort(), ['p00003', 'p00004', 'p00005'], 'only the bad ones fail');
   } finally { clearConnectors(); await harness.close(); }
 });
 

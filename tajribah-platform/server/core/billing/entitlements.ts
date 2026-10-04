@@ -151,10 +151,34 @@ export const BYTES_PER_GB = 1024 ** 3;
  *  - bandwidth: a per-day total the CDN reports and `reportDailyBandwidth` *sets* (never adds).
  *  - AI credits: this month's use, from the credit ledger (P2.9).
  */
+/**
+ * T72 — the plan's product limit counts products **shown in 3D or the try-on** (the plans say "20
+ * products with 3D viewing"): not deleted, and AR switched on or a try-on switched on. The catalogue
+ * itself — synced, from a feed or a file, added by hand — is never limited.
+ */
+export async function liveProductIds(db: TenantDb): Promise<Set<string>> {
+  const ar = await db.find(products, and(isNull(products.deletedAt), eq(products.arEnabled, true)), { limit: 100_000 });
+  const tryon = await db.find(tryonConfigs, eq(tryonConfigs.enabled, true), { limit: 100_000 });
+  const ids = new Set(ar.map((p) => p.id));
+  if (tryon.length) {
+    const alive = await db.find(products, and(isNull(products.deletedAt), inArray(products.id, tryon.map((t) => t.productId))), { limit: 100_000 });
+    for (const p of alive) ids.add(p.id);
+  }
+  return ids;
+}
+
+/** Switching 3D or the try-on on for `productId`: refused past the plan's limit, unless it already counts. */
+export async function assertRoomToShow(ctx: TenantContext, productId: string): Promise<void> {
+  const limit = (await entitlementsOf(ctx)).limit('products');
+  if (limit === UNLIMITED) return;
+  const live = await liveProductIds(ctx.db);
+  if (!live.has(productId) && live.size + 1 > limit) throw errors.quota('products', limit);
+}
+
 export async function currentUsage(ctx: TenantContext, metric: LimitKey, now = new Date()): Promise<number> {
   switch (metric) {
     case 'products':
-      return ctx.db.count(products, isNull(products.deletedAt));
+      return (await liveProductIds(ctx.db)).size;
     case 'team_members': {
       const db = unsafeAdminDb();
       const rows = await db.select().from(tenantMemberships).where(and(

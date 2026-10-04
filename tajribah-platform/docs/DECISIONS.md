@@ -1177,3 +1177,22 @@ prices, 189 with pictures; the 1,042 over the limit recorded as "plan limit reac
 
 **Rollback path.** Revert the commit; run the migration's ROLLBACK (feed connections deleted, their
 products kept, unlinked). The enum value stays, unused. Cost: low.
+
+## T72 · 2026-10-04 · The product limit counts products shown in 3D or the try-on — the catalogue is never limited (you asked)
+
+**Decision.** You asked for the whole catalogue to come in ("import all"). The plans already describe the
+limit as products **with 3D viewing** ("20 منتجًا بعرض ثلاثي الأبعاد"), so that is what it now counts:
+products not deleted with AR switched on or a try-on switched on (`liveProductIds`). A sync, a feed, a file
+or a product added by hand is never refused or cut short; switching 3D (`updateProduct`) or the try-on
+(`updateTryOn`) on past the limit is refused (`assertRoomToShow`; one already shown is not counted twice).
+The home screen's meter and the staff console say "Shown in 3D or try-on".
+
+**Also.** A feed's sizes (`product_width` / `product_height` / `product_length`, "20 cm", "8 in"; plain
+numbers in a sheet are mm) fill a product's size **only while it has none** — once set, the size is the
+merchant's (the engine's rule, kept). Your Black Wing feed has no sizes (only a shipping weight), so its
+products still need theirs; the template now has the three columns.
+
+**Not changed.** The plan cards' wording for Growth ("200 منتج") is left as it is; it reads the same way.
+
+**Rollback path.** Revert the commit: the count goes back to every product row and syncs stop at the limit
+again (rows already imported stay). Cost: low.

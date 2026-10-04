@@ -206,7 +206,7 @@ export default function DashboardHome() {
               {t('الاشتراك', 'Billing')}
             </AppLink>}
           >
-            <Meter label={t('المنتجات', 'Products')} used={usage.products.used} limit={usage.products.limit} />
+            <Meter label={t('معروضة بثلاثي الأبعاد أو بالتجربة', 'Shown in 3D or try-on')} used={usage.products.used} limit={usage.products.limit} />
             <Meter label={t('جلسات العرض', 'AR sessions')} used={usage.arSessions.used} limit={usage.arSessions.limit} />
             <Meter label={t('أرصدة الذكاء الاصطناعي', 'AI credits')} used={usage.aiCredits.used} limit={usage.aiCredits.limit} />
             <Meter label={t('مساحة التخزين (GB)', 'Storage (GB)')} used={usage.storage.used} limit={usage.storage.limit} />

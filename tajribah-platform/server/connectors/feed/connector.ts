@@ -89,6 +89,7 @@ function toExternal(p: FeedProduct, now: Date): ExternalProduct {
     externalId: p.externalId, sku: p.sku, name: p.name, nameAr: p.nameAr, description: p.description,
     priceMinor: p.priceMinor, currency: p.currency, images: p.images, status: 'active',
     updatedAt: now, // a feed says nothing of when an item changed: every read is the whole catalogue
+    dimensions: p.dimensions,
   };
 }
 

@@ -27,6 +27,8 @@ export type ExternalProduct = {
   status: 'active' | 'draft' | 'archived';
   /** When the store last changed it — incremental sync compares against this. */
   updatedAt: Date;
+  /** T72: millimetres, when the source gives them (a feed's product_width…). Fills an empty size only — the size is the merchant's. */
+  dimensions?: { widthMm?: number; heightMm?: number; depthMm?: number } | null;
 };
 
 /** `total`, when the store reports it, is what makes progress a percentage. */

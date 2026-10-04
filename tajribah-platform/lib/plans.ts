@@ -139,7 +139,7 @@ export const FEATURE_LABELS: Record<string, Bi> = {
 };
 
 export const LIMIT_LABELS: Record<keyof PlanLimits, Bi> = {
-  products: { ar: 'المنتجات', en: 'Products' },
+  products: { ar: 'منتجات معروضة بثلاثي الأبعاد أو بالتجربة', en: 'Products shown in 3D or try-on' }, // T72: the catalogue itself is not limited
   ai_credits: { ar: 'أرصدة الذكاء الاصطناعي شهريًا', en: 'AI credits per month' },
   storage_gb: { ar: 'مساحة التخزين', en: 'Storage' },
   ar_sessions: { ar: 'جلسات AR شهريًا', en: 'AR sessions per month' },

@@ -26,7 +26,7 @@ export const FEED_AR: [RegExp, string][] = [
 ];
 const SKIP_AR: Record<string, string> = { 'no id': 'بلا رقم منتج (id)', 'no title': 'بلا اسم (title)' };
 /** The columns a hand-made sheet needs, as Google Merchant names them. */
-export const TEMPLATE_COLUMNS = ['id', 'title', 'description', 'link', 'image_link', 'additional_image_link', 'price', 'item_group_id'];
+export const TEMPLATE_COLUMNS = ['id', 'title', 'description', 'link', 'image_link', 'additional_image_link', 'price', 'item_group_id', 'product_width', 'product_height', 'product_length'];
 
 /**
  * Without linking the store (like Google Merchant Center): a feed's link, read now and every 24 hours,

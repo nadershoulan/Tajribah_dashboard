@@ -97,7 +97,7 @@ export const FEATURE_PAGES: Record<FeatureSlug, FeaturePage> = {
     limits: [
       { ar: 'تحتاج إلى صورة واضحة لظهر اليد بإضاءة معقولة. الكُم أو سوار آخر قد يربك التحديد.', en: 'It needs a clear, reasonably lit photo of the back of the hand. A sleeve or another bracelet can confuse the detection.' },
       { ar: 'عرض المعصم تقدير من راحة اليد، لا قياس. لذلك تبقى النقرتان متاحتين دائمًا.', en: 'The wrist width is estimated from the palm, not measured. That is why the two-tap correction is always available.' },
-      { ar: 'على صورة العميل اليوم: اليد للساعات والخواتم، والوجه للنظارات والقلائد. الأقراط والحقائب على صورته ضمن خطة التوسّع.', en: 'On the shopper’s own photo today: the hand for watches and rings, the face for glasses and necklaces. Earrings and bags on their photo are in the expansion plan.' },
+      { ar: 'على صورة العميل اليوم: اليد للساعات والخواتم، والوجه للنظارات والقلائد، والأذن للأقراط. الحقائب على صورته ضمن خطة التوسّع.', en: 'On the shopper’s own photo today: the hand for watches and rings, the face for glasses and necklaces, the ear for earrings. Bags on their photo are in the expansion plan.' },
     ],
     faq: [
       { q: { ar: 'هل تصل صور عملائي إليكم؟', en: 'Do my shoppers’ photos reach you?' }, a: { ar: 'لا. الصورة المرفوعة تبقى في صفحة المتصفح حتى يغلقها العميل. الاستثناء الوحيد هو النقل من الجوال برمز QR، وهو تخزين مؤقت يُحذف فور الاستلام أو بعد 30 دقيقة.', en: 'No. An uploaded photo stays in the browser page until the shopper closes it. The only exception is the QR hand-off from a phone: temporary storage, deleted the moment it is received, or after 30 minutes.' } },

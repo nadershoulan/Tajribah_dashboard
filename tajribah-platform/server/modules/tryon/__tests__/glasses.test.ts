@@ -201,7 +201,7 @@ test('P5.5 a Jewelry product marked as an earring: one picture, 5–60 mm, on th
     const config = JSON.parse([...kv.entries.values()].find((e) => e.body.includes('Gold huggie'))!.body);
     assert.deepEqual([config.placement, config.tryon.category, config.tryon.caseMm], ['wrist', 'earring', 10.6]);
     assert.equal(parseConfig(config)?.tryon?.category, 'earring');
-    assert.deepEqual([tryOnProductFrom(config)?.category, tryOnProductFrom(config)?.onMe], ['earring', false], 'on the model and in the comparison; on the shopper’s own photo is not built');
+    assert.deepEqual([tryOnProductFrom(config)?.category, tryOnProductFrom(config)?.onMe], ['earring', true], 'on the model, in the comparison, and (T83) on the shopper’s own photo — the plan allows it');
     assert.deepEqual([...TRYON_WIDTH_MM.earring], [WIDTH_MM.earring.min, WIDTH_MM.earring.max]);
     for (const [caseMm, ok] of [[4.9, false], [5, true], [60, true], [60.1, false]] as const) {
       const c = { ...config, tryon: { ...config.tryon, caseMm } };

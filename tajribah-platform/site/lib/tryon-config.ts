@@ -90,7 +90,7 @@ export function tryOnProductFrom(config: unknown, local = false): TryOnProduct |
     storeLink: null, // the shopper is already on the store's page
     demo: false,
     // T33: the shopper's own photo — Pro and up (a watch, glasses and a ring alike)
-    onMe: !bag && !earring && tryon.onMe === true, // a bag or an earring on the shopper's own photo is not built
+    onMe: !bag && tryon.onMe === true, // a bag on the shopper's own photo is not built (T83: an earring is)
     ...(glasses ? { category: 'eyewear' as const } : ring ? { category: 'ring' as const } : necklace ? { category: 'necklace' as const } : earring ? { category: 'earring' as const } : bag ? { category: 'bag' as const } : {}),
   };
 }

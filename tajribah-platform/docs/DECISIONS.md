@@ -1393,3 +1393,25 @@ QR page showed a scannable test code with no downloads; the phone-to-computer ph
 
 **Rollback path.** Revert the commit. Addresses go back to the mixed defaults, and Wi-Fi testing stops.
 Cost: low.
+
+## T83 · 2026-10-05 · Earrings on the shopper's own photo; the jewellery FAQ brought up to date
+
+**Decision.** Earrings now also work on the shopper's own photo, the last part of P5.5. Ears aren't found
+reliably by a face detector (and in a side photo, where the ear shows, the face often isn't found at all),
+so the shopper taps two points, as "Fit to eyes" works for glasses: **the top of the ear, then the bottom
+of the lobe**. The ear is taken as 60 mm long, the same figure as the ear model photo. The piercing sits
+9 mm above the lobe's bottom, measured on that photo, so 15% of the ear's length. The earring's picture
+hangs straight down from there with its top edge at the piercing (the demo hoop's hinge is within 6% of
+its top). The fitting starts by itself once the photo is in, and "ضبط على الأذن" (fit to ear) starts it
+again. Added to the studio beside the other kinds; nothing it already did changed.
+`tryOnProductFrom` gives earrings "on me" when the plan allows it (a bag still doesn't).
+
+**Also.** The jewellery page's FAQ asked "When will neck try-on be available?", but necklaces already
+work on a model and on the shopper's photo. It now answers that necklaces and earrings work on the
+shopper's own photo, and how. The jewellery, features and demo pages no longer say earrings on your
+photo "come later".
+
+**Seen.** On /demo, an ear photo (Pexels 8092973, the one the ear model was cut from) uploaded as the
+shopper's; the two taps hung the 10.6 mm hoop from the lobe at the photo's real piercing.
+
+**Rollback path.** Revert the commit. Cost: low.

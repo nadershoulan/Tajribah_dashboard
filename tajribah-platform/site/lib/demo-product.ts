@@ -252,7 +252,7 @@ export const DEMO_EARRING: TryOnProduct = {
   alt: { ar: 'قرط حلقي ذهبي صغير مرصّع بصف من الفصوص البيضاء', en: 'A small gold hoop earring set with a row of white stones' },
   storeLink: null,
   demo: false,
-  onMe: false, // earrings on the shopper's own photo are not built yet
+  onMe: true, // T83: on the shopper's own photo too — two taps on the ear give the scale
   category: 'earring',
 };
 

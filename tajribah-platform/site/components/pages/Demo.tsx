@@ -47,8 +47,8 @@ export default function Demo() {
             </div>
             {kind === 'bag' && <span className="cycle-save">{t('حقيبة مثال وصور حقيقية مرخّصة. على العارضة وبجانب أشياء تعرف حجمها.',
               'An example bag and real, licensed photos. On the model and beside things you know.')}</span>}
-            {kind === 'earring' && <span className="cycle-save">{t('قرط مثال وصور حقيقية مرخّصة. على الأذن وبجانب أشياء تعرف حجمها؛ تجربته على صورتك تأتي لاحقًا.',
-              'An example earring and real, licensed photos. On the ear and beside things you know; on your own photo comes later.')}</span>}
+            {kind === 'earring' && <span className="cycle-save">{t('قرط مثال وصور حقيقية مرخّصة. على الأذن، وبجانب أشياء تعرف حجمها، وعلى صورتك الجانبية.',
+              'An example earring and real, licensed photos. On the ear, beside things you know, and on your own side photo.')}</span>}
             {kind === 'necklace' && <span className="cycle-save">{t('قلادة مثال وصور حقيقية مرخّصة. على العارضة وبجانب أشياء تعرف حجمها؛ تجربتها على صورتك تأتي لاحقًا.',
               'An example necklace and real, licensed photos. On the model and beside things you know; on your own photo comes later.')}</span>}
             {kind === 'ring' && <span className="cycle-save">{t('خاتم مثال وصور حقيقية مرخّصة. على النموذج وبجانب الريال؛ تجربته على صورتك تأتي لاحقًا.',

@@ -185,7 +185,15 @@ function WatchCard({ initial, editable, onUnmarked, number = null }: { initial: 
                 return source.uploadCutout(w.productId, slot, cleared.file);
               }, { ar: 'أُزيلت خلفية صورة المتجر وقُبلت.', en: 'The store picture’s background was taken off, and it was accepted.' });
             }}
-            onMark={editable && w.quality[slot] && !w.quality[slot]!.issue ? () => setMarking(slot) : undefined} />
+            onMark={editable && w.quality[slot] && !w.quality[slot]!.issue ? () => setMarking(slot) : undefined}
+            // T93: a watch's product shot is often the very same cut-out — one click copies it over
+            onSameAsWorn={slot === 'flat' && w.worn && !w.flat && editable ? () => {
+              setMarking(null);
+              void run(slot, async () => {
+                const worn = await source.cutoutImage(w.productId, 'worn');
+                return source.uploadCutout(w.productId, 'flat', new File([worn], 'flat.png', { type: worn.type || 'image/png' }));
+              }, { ar: 'استُخدمت صورة الساعة نفسها صورةً للمنتج.', en: 'The same watch picture is now the product shot.' });
+            } : undefined} />
         ))}
         <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
           <div className="field">
@@ -260,10 +268,10 @@ function WatchCard({ initial, editable, onUnmarked, number = null }: { initial: 
   );
 }
 
-function Picture({ kind, productId, slot, has, quality, disabled, busy, onPick, onMark, storePictures = [], onStorePicture }: {
+function Picture({ kind, productId, slot, has, quality, disabled, busy, onPick, onMark, storePictures = [], onStorePicture, onSameAsWorn }: {
   kind: TryOnKind; productId: string; slot: 'worn' | 'flat'; has: { bytes: number } | null; quality: SlotQuality | null; disabled: boolean; busy: boolean; onPick: (file: File) => void; onMark?: () => void;
   /** T80: the product's store pictures, one of which can be chosen instead of an upload. */
-  storePictures?: string[]; onStorePicture?: (url: string) => void;
+  storePictures?: string[]; onStorePicture?: (url: string) => void; onSameAsWorn?: () => void;
 }) {
   const { t, pick, lang } = useLang();
   const source = useData();
@@ -298,6 +306,7 @@ function Picture({ kind, productId, slot, has, quality, disabled, busy, onPick, 
           <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} aria-expanded={choosing} onClick={() => setChoosing((c) => !c)}>{t('من صور المتجر', 'From the store’s pictures')}</button>
         )}
         {has && onMark && <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} onClick={onMark}>{pick(KIND_WORDS[kind].markButton)}</button>}
+        {!has && onSameAsWorn && <button type="button" className="btn btn-primary btn-sm" disabled={disabled} onClick={onSameAsWorn}>{t('استخدم صورة الساعة نفسها', 'Use the same watch picture')}</button>}
       </div>
       {choosing && onStorePicture && (
         <div className="store-pictures">

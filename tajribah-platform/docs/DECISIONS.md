@@ -1587,3 +1587,12 @@ crops to the product, and uploads the result, checked like any cut-out. Merchant
 product (picture, width, publish) on one page. One routine (`lib/clear-picture.ts`) serves both places.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T93 · 2026-10-06 · A watch's product shot in one click
+
+**Decision.** A watch takes two pictures: as worn, and the product shot for the size comparison. For a
+store's picture they are usually the same cut-out (the preview's one click already saves it as both). On
+the try-on settings, an empty product-shot slot now offers "استخدم صورة الساعة نفسها" (use the same watch
+picture), which copies the saved picture over, checked like any upload.
+
+**Rollback path.** Revert the commit. Cost: low.

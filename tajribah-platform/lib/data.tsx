@@ -13,7 +13,7 @@ import {
   DEMO_AI_JOBS, DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
 } from './demo-data';
 import type {
-  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, FeedImport, SallaAppView, SsoSettingsView, ReportSubscriptionView, LiveActivityView, SessionListView, SessionPathView, StoreOverview, CustomDomainView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnPreview, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, FeedImport, SallaAppView, SsoSettingsView, ReportSubscriptionView, LiveActivityView, SessionListView, SessionPathView, StoreOverview, CustomDomainView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnOne, TryOnPreview, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
@@ -131,6 +131,8 @@ export interface DataSource {
   tryOn(): Promise<TryOnScreen>;
   /** T85 (API-189): a product's try-on as a shopper sees it, tried as `as` or as what it is. */
   tryOnPreview(productId: string, as?: TryOnPreview['kind']): Promise<TryOnPreview>;
+  /** T87 (API-190): one product's try-on settings. */
+  tryOnOne(productId: string): Promise<TryOnOne>;
   /** P5.10: start → PUT straight to storage → the server's check of the picture (422 with the reason). */
   uploadCutout(productId: string, slot: 'worn' | 'flat', file: File): Promise<TryOnWatchView>;
   /** T80: one of the product's store pictures as its try-on picture. */
@@ -141,6 +143,8 @@ export interface DataSource {
   calibrateCutout(productId: string, slot: 'worn' | 'flat', marks: { key: string; left: number; right: number }): Promise<TryOnWatchView>;
   /** P5.10: a stored picture, for the preview (a Blob: private until published). */
   cutoutImage(productId: string, slot: 'worn' | 'flat'): Promise<Blob>;
+  /** T88 (API-191): one of the product's store pictures, as it is — to take its background off here. */
+  storePhoto(productId: string, url: string): Promise<Blob>;
   /** P3.8: a version's web GLB, for the editor's viewer (a Blob: the viewer's own fetch has no session). */
   modelFile(versionId: string): Promise<Blob>;
   /** P3.8: the model's picture — the view chosen in the editor (set), and for the list (read, a Blob). */
@@ -369,6 +373,7 @@ export function apiSource(client: ApiClient): DataSource {
       return client.call<ProfessionalOrderView>(`/api/professional/${encodeURIComponent(orderId)}/accept`, { method: 'POST' });
     },
     async tryOn() { return client.call<TryOnScreen>('/api/tryon'); },
+    async tryOnOne(productId) { return client.call<TryOnOne>(`/api/tryon/${encodeURIComponent(productId)}`); },
     async tryOnPreview(productId, as) { return client.call<TryOnPreview>(`/api/tryon/${encodeURIComponent(productId)}/preview${as ? `?as=${as}` : ''}`); },
     async uploadCutout(productId, slot, file) {
       const base = `/api/tryon/${encodeURIComponent(productId)}/images`;
@@ -387,6 +392,9 @@ export function apiSource(client: ApiClient): DataSource {
     },
     async calibrateCutout(productId, slot, marks) {
       return client.call<TryOnWatchView>(`/api/tryon/${encodeURIComponent(productId)}/images/calibrate`, { method: 'POST', body: { slot, ...marks } });
+    },
+    async storePhoto(productId, url) {
+      return client.callBlob(`/api/tryon/${encodeURIComponent(productId)}/store-picture?url=${encodeURIComponent(url)}`);
     },
     async cutoutImage(productId, slot) {
       return client.callBlob(`/api/tryon/${encodeURIComponent(productId)}/images/${slot}`);
@@ -921,6 +929,12 @@ export const demoSource: DataSource = {
   async modelFile() {
     throw new ApiError(404, 'not_found', 'the preview has no 3D files — open a model in the live dashboard to see it');
   },
+  async tryOnOne(productId) {
+    const all = await this.tryOn();
+    const p = [...demoAdded, ...DEMO_PRODUCTS].find((x) => x.id === productId);
+    if (!p) throw new ApiError(404, 'not_found', 'product not found');
+    return { onMe: all.onMe, product: { id: p.id, name: p.name, nameAr: p.nameAr, productType: p.productType }, watches: all.watches.filter((w) => w.productId === productId), jewelry: all.jewelry.filter((j) => j.productId === productId) };
+  },
   // T85: the demo has no server to build the frame's settings — the screen says what the preview needs.
   async tryOnPreview(productId, as) {
     const p = [...demoAdded, ...DEMO_PRODUCTS].find((x) => x.id === productId);
@@ -985,6 +999,7 @@ export const demoSource: DataSource = {
     demoTryOn.set(p.id, { ...s, [slot]: checked.picture, quality: { ...s.quality, [slot]: checked.quality } });
     return demoTryOnView(p);
   },
+  async storePhoto() { throw new ApiError(503, 'unavailable', 'the demo has no server to fetch store pictures'); },
   async cutoutImage(productId, slot) {
     const picture = demoTryOn.get(productId)?.[slot];
     if (!picture) throw new ApiError(404, 'not_found', 'picture not found');

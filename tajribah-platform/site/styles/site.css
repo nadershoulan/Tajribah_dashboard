@@ -816,3 +816,10 @@ html[lang="en"] .legal-body p { line-height: 1.75; }
 .demo-kind { margin: 0 0 18px; }
 .product-image-wide img { height: auto; width: 100%; max-width: 300px; transform: rotate(-3deg); }
 @media (max-width: 1100px) { .product-image-wide img { height: auto; width: 100%; max-width: 220px; } }
+
+/* T87 — the dashboard's product preview: the studio as part of the page — no bar, no page background,
+   and no product column (the preview already shows the product's name, pictures and size) */
+html:has(.embed-root.is-preview), html:has(.embed-root.is-preview) body { background: transparent; }
+.embed-root.is-preview { min-height: 0; background: transparent; padding: 0; }
+.embed-root.is-preview .studio-layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+.embed-root.is-preview .product-panel { display: none; }

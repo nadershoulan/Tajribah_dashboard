@@ -21,6 +21,8 @@ export const CLOSE_MESSAGE = 'tajribah:tryon:close';
  */
 export const PREVIEW_READY = 'tajribah:preview:ready';
 export const PREVIEW_CONFIG = 'tajribah:preview:config';
+/** T87 — the frame's height, so the dashboard shows the studio whole, with no scrollbar of its own. */
+export const PREVIEW_HEIGHT = 'tajribah:preview:height';
 
 const LOCAL = ['localhost', '127.0.0.1'];
 /**

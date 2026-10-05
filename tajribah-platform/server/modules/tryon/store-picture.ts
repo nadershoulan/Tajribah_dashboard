@@ -7,6 +7,10 @@
  * 15 seconds, at most the try-on's 10 MB. What arrives must be a PNG or WebP — a JPEG has no transparent
  * background, and the try-on needs the product cut out — and then goes through the very same check as
  * an upload (`confirmCutout`): a picture that is not a clean cut-out is refused with the reason.
+ *
+ * T88 — `fetchStorePhoto`: the same fetch, a JPEG accepted too, for the dashboard to take a plain
+ * background off in the merchant's browser (`lib/background.ts`); what it makes is uploaded and checked
+ * as a cut-out like any other.
  */
 import { isPrivateAddress, safeTarget } from '@/server/modules/embed/check';
 import { dohResolver, type Resolver } from '@/server/modules/embed/service';
@@ -44,6 +48,13 @@ async function readCapped(response: Response): Promise<Uint8Array> {
 
 /** Fetch one store picture under the rules above: its bytes and format. */
 export async function fetchStorePicture(link: string, fetchImpl: typeof fetch = fetch, resolve: Resolver = dohResolver(fetchImpl)): Promise<{ bytes: Uint8Array; format: 'png' | 'webp' }> {
+  const picture = await fetchStorePhoto(link, fetchImpl, resolve);
+  if (picture.format === 'jpeg') throw new StorePictureError('this picture is a JPEG, which has no transparent background — the try-on needs the product cut out (a PNG or WebP with a clear background)');
+  return { bytes: picture.bytes, format: picture.format };
+}
+
+/** T88 — the same fetch, any of PNG, WebP or JPEG. */
+export async function fetchStorePhoto(link: string, fetchImpl: typeof fetch = fetch, resolve: Resolver = dohResolver(fetchImpl)): Promise<{ bytes: Uint8Array; format: 'png' | 'webp' | 'jpeg' }> {
   let target = safeTarget(link, null);
   if (!target.ok) throw new StorePictureError(`the picture's address ${target.reason}`);
   for (let hop = 0; hop <= 3; hop++) {
@@ -66,8 +77,7 @@ export async function fetchStorePicture(link: string, fetchImpl: typeof fetch = 
     if (!response.ok) throw new StorePictureError(`the store answered ${response.status} for this picture`);
     const bytes = await readCapped(response);
     const format = pictureFormat(bytes);
-    if (format === 'jpeg') throw new StorePictureError('this picture is a JPEG, which has no transparent background — the try-on needs the product cut out (a PNG or WebP with a clear background)');
-    if (!format) throw new StorePictureError('this is not a PNG or WebP picture');
+    if (!format) throw new StorePictureError('this is not a PNG, WebP or JPEG picture');
     return { bytes, format };
   }
   throw new StorePictureError('the picture redirected too many times');

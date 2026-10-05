@@ -5,7 +5,7 @@
 import { useWriteLock } from '@/components/dashboard/write-lock';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { Camera, Lock, Watch } from 'lucide-react';
-import { AppLink } from '@/lib/app-env';
+import { AppLink, useEnv } from '@/lib/app-env';
 import { ApiError, currentStore } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
 import { useData, useResource } from '@/lib/data';
@@ -15,28 +15,42 @@ import { ROLE_PERMISSIONS } from '@/lib/permissions';
 import { SLOTS_OF, WIDTH_LABEL, sayCutout, slotInfo, type TryOnKind } from '@/lib/tryon';
 import { KIND_WORDS } from '@/lib/tryon-words';
 import { CALIBRATE_MIN_PX, TRUE_SIZE_MIN, alphaFacts, type SlotQuality } from '@/lib/tryon-quality';
-import type { TryOnScreen, TryOnWatchView } from '@/lib/view-models';
+import type { TryOnOne, TryOnScreen, TryOnWatchView } from '@/lib/view-models';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, Empty, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
 
 export default function TryOn() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const lock = useWriteLock(); // T50: a read-only store or a staff view changes nothing
   const auth = useAuth();
   const role = currentStore(auth.me)?.role;
   const canEdit = !role || (ROLE_PERMISSIONS[role] as readonly string[]).includes('tryon:write');
   const [version, setVersion] = useState(0); // P5.4/P5.5: a jewelry item marked as a ring or necklace moves into the list
-  const { data, loading, error } = useResource((s) => s.tryOn(), [version]);
+  // T87: `/dashboard/tryon/{product}` — the same screen, for that product only (from its preview's link).
+  const { path } = useEnv();
+  const only = /^\/dashboard\/tryon\/([^/]+)\/?$/.exec(path)?.[1];
+  const productId = only ? decodeURIComponent(only) : null;
+  const { data, loading, error } = useResource((s): Promise<TryOnScreen & { product?: TryOnOne['product'] }> => (productId ? s.tryOnOne(productId) : s.tryOn()), [version, productId]);
   const reload = () => setVersion((v) => v + 1);
-  const crumbs = [{ label: t('الرئيسية', 'Home'), href: '/dashboard' }, { label: t('التجربة الافتراضية', 'Virtual try-on') }];
+  const one = productId && data?.product ? data.product : null;
+  const oneName = one ? (lang === 'ar' ? (one.nameAr ?? one.name) : one.name) : null;
+  const crumbs = productId
+    ? [{ label: t('الرئيسية', 'Home'), href: '/dashboard' }, { label: t('التجربة الافتراضية', 'Virtual try-on'), href: '/dashboard/tryon' }, { label: oneName ?? t('المنتج', 'Product') }]
+    : [{ label: t('الرئيسية', 'Home'), href: '/dashboard' }, { label: t('التجربة الافتراضية', 'Virtual try-on') }];
 
   return (
     <Shell tenant={null} crumbs={crumbs}>
-      <PageHead
+      {productId ? (
+        <PageHead
+          title={oneName ? t(`التجربة الافتراضية: ${oneName}`, `Virtual try-on: ${oneName}`) : t('التجربة الافتراضية', 'Virtual try-on')}
+          lead={t('إعدادات التجربة لهذا المنتج وحده.', 'The try-on settings for this product only.')}
+          actions={<AppLink href={`/dashboard/products/${encodeURIComponent(productId)}/preview`} className="btn btn-ghost btn-sm">{t('معاينة المنتج', 'Preview the product')}</AppLink>}
+        />
+      ) : <PageHead
         title={t('التجربة الافتراضية', 'Virtual try-on')}
         lead={t('جهّز ساعاتك ونظاراتك وخواتمك وقلائدك وأقراطك لاستوديو التجربة: يجرّبها المتسوق على عارضة حقيقية بمقاسها الحقيقي، أو بجانب أشياء يعرف حجمها.',
           'Set your watches, glasses, rings, necklaces and earrings up for the try-on studio: shoppers try each on a real model at its real size, or beside things they know the size of.')}
-      />
+      />}
       {loading && !data && <Loading rows={4} />}
       {error && <ErrorNote error={error} />}
       {data && !data.onMe && (
@@ -47,7 +61,12 @@ export default function TryOn() {
           </p>
         </Panel>
       )}
-      {data && data.watches.length === 0 && data.jewelry.length === 0 && (
+      {one && data && data.watches.length === 0 && data.jewelry.length === 0 && (
+        <Empty icon={<Watch size={22} />} title={t('نوع هذا المنتج لا يُجرَّب بعد', 'This product’s type is not tried on yet')}
+          body={t('اجعل نوعه «ساعة» أو «نظارات» أو «حقيبة» أو «مجوهرات» (للخواتم والقلائد والأقراط) في صفحته، ثم ارجع هنا. السوار يُجرَّب كساعة: على المعصم.', 'Set its type to Watch, Eyewear, Bag or Jewelry (for rings, necklaces and earrings) on its page, then come back. A bracelet is tried as a watch: on the wrist.')}
+          action={<AppLink href={`/dashboard/products/${encodeURIComponent(one.id)}`} className="btn btn-ghost">{t('صفحة المنتج', 'The product’s page')}</AppLink>} />
+      )}
+      {!productId && data && data.watches.length === 0 && data.jewelry.length === 0 && (
         <Empty icon={<Watch size={22} />} title={t('لا منتجات للتجربة بعد', 'Nothing to try on yet')}
           body={t('اجعل نوع المنتج «ساعة» أو «نظارات» أو «مجوهرات» (للخواتم والقلائد والأقراط) في صفحته ليظهر هنا. بقية الأنواع تأتي تباعًا.', 'Set a product’s type to Watch, Eyewear or Jewelry (for rings, necklaces and earrings) on its page and it appears here. Other kinds follow.')}
           action={<AppLink href="/dashboard/products" className="btn btn-ghost">{t('المنتجات', 'Products')}</AppLink>} />

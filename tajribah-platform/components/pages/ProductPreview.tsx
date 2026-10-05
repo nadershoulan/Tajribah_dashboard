@@ -6,9 +6,11 @@
 // tried as any kind, its cut-out or else its store picture, its size or else the example's.
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Box, ImageOff, Package, Ruler, Sparkles } from 'lucide-react';
+import { BACKGROUND_REASONS, removeBackground } from '@/lib/background';
+import { useWriteLock } from '@/components/dashboard/write-lock';
+import { ArrowRight, Box, Eraser, ImageOff, Package, Ruler, Sparkles } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
-import { useResource } from '@/lib/data';
+import { useData, useResource } from '@/lib/data';
 import { formatMoney } from '@/lib/money';
 import { useLang } from '@/lib/i18n';
 import { isSized } from '@/lib/product-list';
@@ -16,7 +18,7 @@ import { kindOf, type TryOnKind } from '@/lib/tryon';
 import type { ProductRow, TryOnPreview } from '@/lib/view-models';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, Empty, ErrorNote, Loading, Panel } from '@/components/dashboard/ui';
-import { PREVIEW_CONFIG, PREVIEW_READY } from '@site/lib/tryon-config';
+import { PREVIEW_CONFIG, PREVIEW_HEIGHT, PREVIEW_READY } from '@site/lib/tryon-config';
 
 const TYPE_LABEL: Record<ProductRow['productType'], { ar: string; en: string }> = {
   watch: { ar: 'ساعة', en: 'Watch' },
@@ -125,7 +127,7 @@ function Preview({ product, title }: { product: ProductRow; title: string }) {
                   <span>{product.tryonEnabled
                     ? t('التجربة الافتراضية مفعّلة.', 'The try-on is on.')
                     : t('التجربة الافتراضية: تحتاج صورة مقصوصة للمنتج ومقاسه.', 'The try-on: needs a cut-out picture of the product and its size.')}</span>
-                  {!product.tryonEnabled && <AppLink href="/dashboard/tryon" className="btn btn-ghost btn-sm">{t('اضبط التجربة', 'Set up the try-on')}</AppLink>}
+                  {!product.tryonEnabled && <AppLink href={`/dashboard/tryon/${encodeURIComponent(product.id)}`} className="btn btn-ghost btn-sm">{t('اضبط التجربة', 'Set up the try-on')}</AppLink>}
                 </li>
               )}
             </ul>
@@ -148,22 +150,30 @@ const KINDS = Object.keys(KIND_LABEL) as TryOnKind[];
 function TryItOn({ product }: { product: ProductRow }) {
   const { t, pick, lang } = useLang();
   const [as, setAs] = useState<TryOnKind | null>(null);
-  const { data, loading, error } = useResource((source) => source.tryOnPreview(product.id, as), [product.id, as]);
+  const [version, setVersion] = useState(0); // T88: a new cut-out saved — read the preview again
+  const { data, loading, error } = useResource((source) => source.tryOnPreview(product.id, as), [product.id, as, version]);
   const kind = data?.kind ?? null;
   const frame = data?.config && kind ? `/embed/try-on?preview=1&lang=${lang}` : null;
   const frameRef = useRef<HTMLIFrameElement>(null);
   const config = data?.config ?? null;
-  // The frame asks once it is listening; the settings go only to it, on this same address.
+  const configKey = config ? JSON.stringify(config) : '';
+  const [measured, setMeasured] = useState<{ key: string; height: number } | null>(null);
+  const height = measured?.key === configKey ? measured.height : null; // a new frame measures itself again
+  // The frame asks once it is listening; the settings go only to it, on this same address. T87: it then
+  // says its height, and the page gives it all of it — the studio reads as part of the page.
   useEffect(() => {
     if (!config) return;
     const onMessage = (event: MessageEvent) => {
       const target = frameRef.current?.contentWindow;
-      if (!target || event.source !== target || event.origin !== location.origin || (event.data as { type?: unknown } | null)?.type !== PREVIEW_READY) return;
+      if (!target || event.source !== target || event.origin !== location.origin) return;
+      const message = event.data as { type?: unknown; height?: unknown } | null;
+      if (message?.type === PREVIEW_HEIGHT && typeof message.height === 'number' && message.height > 0) setMeasured({ key: configKey, height: Math.min(message.height, 4000) });
+      if (message?.type !== PREVIEW_READY) return;
       target.postMessage({ type: PREVIEW_CONFIG, config }, location.origin);
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [config]);
+  }, [config, configKey]);
 
   return (
     <Panel title={t('جرّبه كما يراه المتسوّق', 'Try it on, as a shopper does')}>
@@ -177,9 +187,10 @@ function TryItOn({ product }: { product: ProductRow }) {
       </div>
       {loading && <Loading rows={2} />}
       {error && <ErrorNote error={error} />}
-      {data && <PreviewNotes data={data} />}
+      {data && <PreviewNotes data={data} productId={product.id} />}
+      {data?.picture === 'store' && data.kind && data.config && <ClearBackground product={product} kind={data.kind} own={data.own} url={String(data.config.tryon.worn)} onSaved={() => setVersion((v) => v + 1)} />}
       {frame
-        ? <iframe key={JSON.stringify(config)} ref={frameRef} src={frame} title={t('التجربة الافتراضية', 'The virtual try-on')} className="preview-tryon-frame" allow="camera" />
+        ? <iframe key={configKey} ref={frameRef} src={frame} title={t('التجربة الافتراضية', 'The virtual try-on')} className={'preview-tryon-frame' + (height ? ' is-ready' : '')} style={height ? { height } : undefined} scrolling="no" allow="camera" />
         : data && kind && (
           <p className="hint" style={{ marginBottom: 0 }}>{data.picture === null && !data.config
             ? t('لا صورة لهذا المنتج نجرّبها: أضف صورة في متجرك أو صورة مقصوصة في إعدادات التجربة.', 'No picture to try this product on: add one in your store, or a cut-out in the try-on settings.')
@@ -190,7 +201,67 @@ function TryItOn({ product }: { product: ProductRow }) {
   );
 }
 
-function PreviewNotes({ data }: { data: TryOnPreview }) {
+const TYPE_OF: Record<TryOnKind, ProductRow['productType']> = { watch: 'watch', glasses: 'eyewear', bag: 'bag', ring: 'jewelry', necklace: 'jewelry', earring: 'jewelry' };
+/** The longest side the picture is worked on at: plenty for the try-on, quick in the browser. */
+const WORK_PX = 1600;
+
+/**
+ * T88 — one click: the store picture's plain background taken off here, in the browser
+ * (`lib/background.ts`), and the result saved as this product's try-on picture through the same upload
+ * and checks as a cut-out made by hand. A product of another type is first set up as what it is being
+ * tried as — the button says so.
+ */
+function ClearBackground({ product, kind, own, url, onSaved }: { product: ProductRow; kind: TryOnKind; own: TryOnKind | null; url: string; onSaved: () => void }) {
+  const { t, pick } = useLang();
+  const source = useData();
+  const lock = useWriteLock();
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<Error | null>(null);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const retypes = own !== kind;
+  const run = async () => {
+    setBusy(true); setFailure(null); setRefusal(null);
+    try {
+      const bitmap = await createImageBitmap(await source.storePhoto(product.id, url));
+      const k = Math.min(1, WORK_PX / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(bitmap.width * k); canvas.height = Math.round(bitmap.height * k);
+      const g = canvas.getContext('2d', { willReadFrequently: true })!;
+      g.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const cleared = removeBackground({ data: g.getImageData(0, 0, canvas.width, canvas.height).data, width: canvas.width, height: canvas.height });
+      if (!cleared.ok) { setRefusal(pick(BACKGROUND_REASONS[cleared.reason])); return; }
+      const out = document.createElement('canvas');
+      out.width = cleared.image.width; out.height = cleared.image.height;
+      out.getContext('2d')!.putImageData(new ImageData(cleared.image.data as Uint8ClampedArray<ArrayBuffer>, cleared.image.width, cleared.image.height), 0, 0);
+      const png = await new Promise<Blob>((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error('the picture could not be made'))), 'image/png'));
+      // set up as what it is tried as, then the picture (a watch takes it as both of its pictures)
+      if (product.productType !== TYPE_OF[kind]) await source.updateProduct(product.id, { productType: TYPE_OF[kind] });
+      if (TYPE_OF[kind] === 'jewelry' && own !== kind) await source.updateTryOn(product.id, { jewelry: kind as 'ring' | 'necklace' | 'earring' });
+      const file = new File([png], 'cutout.png', { type: 'image/png' });
+      await source.uploadCutout(product.id, 'worn', file);
+      if (kind === 'watch') await source.uploadCutout(product.id, 'flat', file);
+      onSaved();
+    } catch (e) {
+      setFailure(e as Error);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="preview-clear">
+      <button type="button" className="btn btn-primary btn-sm" disabled={busy || lock.locked} onClick={() => void run()}>
+        <Eraser size={15} aria-hidden />{busy ? t('نزيل الخلفية…', 'Taking the background off…') : t('أزل الخلفية واحفظها', 'Remove the background and save it')}
+      </button>
+      <span className="hint" style={{ margin: 0 }}>{retypes
+        ? t(`يُحفظ صورةً للتجربة، ويصبح نوعه «${pick(KIND_LABEL[kind])}».`, `Saved as its try-on picture, and its type becomes “${pick(KIND_LABEL[kind])}”.`)
+        : t('يُحفظ صورةً للتجربة. يعمل حين تكون الخلفية بلون واحد، كالأبيض.', 'Saved as its try-on picture. Works when the background is one plain colour, such as white.')}</span>
+      {refusal && <p className="hint" role="alert" style={{ margin: 0, color: 'var(--bad)' }}>{refusal}</p>}
+      {failure && <ErrorNote error={failure} />}
+    </div>
+  );
+}
+
+function PreviewNotes({ data, productId }: { data: TryOnPreview; productId: string }) {
   const { t, pick } = useLang();
   const notes: string[] = [];
   if (data.guessed && data.kind) notes.push(t(`اخترنا «${pick(KIND_LABEL[data.kind])}» من تصنيفه أو اسمه — غيّره أعلاه إن لم يكن كذلك.`, `We chose “${pick(KIND_LABEL[data.kind])}” from its category or name — change it above if that is wrong.`));
@@ -203,7 +274,7 @@ function PreviewNotes({ data }: { data: TryOnPreview }) {
     <ul className="preview-tryon-notes">
       {notes.map((n) => <li key={n}>{n}</li>)}
       {(data.picture === 'store' || data.size?.from === 'example') && (
-        <li><AppLink href="/dashboard/tryon" className="btn btn-ghost btn-sm">{t('إعدادات التجربة', 'Try-on settings')}</AppLink></li>
+        <li><AppLink href={`/dashboard/tryon/${encodeURIComponent(productId)}`} className="btn btn-ghost btn-sm">{t('إعدادات التجربة', 'Try-on settings')}</AppLink></li>
       )}
     </ul>
   );

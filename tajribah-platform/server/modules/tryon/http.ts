@@ -6,6 +6,7 @@ import { route } from '@/server/core/observability/request';
 import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@/server/core/http/api';
 import { errors } from '@/server/core/errors/problem';
 import { tryOnPreview } from './preview';
+import { storePhoto, tryOnOne } from './service';
 import { calibrateCutoutEdges, confirmCutout, cutoutFile, cutoutFromStorePicture, startCutoutUpload, tryOnScreen, updateTryOn } from './service';
 
 /** The `[productId]` segment `fromEnd` places from the end; a malformed id is a 404. */
@@ -53,6 +54,21 @@ export const tryOnPreviewHandler = route(async (request) => {
   const ctx = await tenantContextFor(request);
   const as = z.enum(['watch', 'glasses', 'ring', 'necklace', 'earring', 'bag']).nullable().catch(null).parse(new URL(request.url).searchParams.get('as'));
   return json(await tryOnPreview(ctx, productAt(request, 1), as));
+});
+
+/** API-190 — GET /api/tryon/[productId]: this product's try-on settings only (T87). */
+export const tryOnOneHandler = route(async (request) => {
+  const ctx = await tenantContextFor(request);
+  return json(await tryOnOne(ctx, productAt(request, 0)));
+});
+
+/** API-191 — GET /api/tryon/[productId]/store-picture?url=: one of its store pictures, as it is (T88). */
+export const storePhotoHandler = route(async (request) => {
+  const ctx = await tenantContextFor(request);
+  const url = z.string().url().max(2048).safeParse(new URL(request.url).searchParams.get('url'));
+  if (!url.success) throw errors.validation({ url: ['the picture’s address'] });
+  const photo = await storePhoto(ctx, productAt(request, 1), url.data);
+  return new Response(photo.bytes as Uint8Array<ArrayBuffer>, { headers: { 'content-type': photo.contentType, 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff' } });
 });
 
 /** API-153 — PATCH /api/tryon/[productId]: case width, finish, on/off. */

@@ -104,6 +104,7 @@ export const ROUTES: Record<string, () => ReactElement> = {
 /** Routes with an id in them: the screen reads the id from the path itself. */
 const PATTERNS: [RegExp, () => ReactElement][] = [
   [/^\/dashboard\/products\/[^/]+\/preview$/, ProductPreview], // T79
+  [/^\/dashboard\/tryon\/[^/]+$/, TryOn], // T87: one product's try-on settings
   [/^\/dashboard\/products\/(?!new$)[^/]+$/, ProductDetail],
   [/^\/dashboard\/models\/[^/]+$/, ModelEditor], // P3.8
   [/^\/invite\/[^/]+$/, InviteAccept],

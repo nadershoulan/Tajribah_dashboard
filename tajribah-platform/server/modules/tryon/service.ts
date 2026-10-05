@@ -35,7 +35,7 @@ import { dailyProductStats, products, tryonConfigs } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { CUTOUT_ISSUES, JEWELRY_KINDS, RING_PRODUCT_TYPE, SLOTS_OF, TRYON_LISTED_TYPES, WIDTH_MM, kindOf, type JewelryKind, type TryOnKind } from '@/lib/tryon';
 import { CALIBRATE_MIN_PX } from '@/lib/tryon-quality';
-import type { TryOnScreen, TryOnWatchView } from '@/lib/view-models';
+import type { TryOnOne, TryOnScreen, TryOnWatchView } from '@/lib/view-models';
 import { record } from '@/server/core/audit/audit';
 import { assertRoomToShow, assertStorageRoom, entitlementsOf } from '@/server/core/billing/entitlements';
 import { errors } from '@/server/core/errors/problem';
@@ -49,7 +49,7 @@ import { enqueueCalibration, enqueueQuality } from './quality-queue'; // not ./q
 import { retireCutout } from './retire';
 import { keepLive } from '@/server/modules/edge/publish';
 import { EXPIRED, notePendingUpload, takePendingUpload } from '@/server/modules/uploads/pending';
-import { fetchStorePicture, StorePictureError } from './store-picture';
+import { fetchStorePhoto, fetchStorePicture, StorePictureError } from './store-picture';
 import type { Resolver } from '@/server/modules/embed/service';
 
 export type Slot = 'worn' | 'flat';
@@ -137,6 +137,34 @@ export async function tryOnScreen(ctx: TenantContext, now = new Date()): Promise
   });
 }
 
+/**
+ * API-190 — one product's try-on settings (T87): set up when its type is tried on (and, for Jewelry, once
+ * marked); a Jewelry piece not marked yet comes back to be marked; any other type comes back with neither.
+ */
+export async function tryOnOne(ctx: TenantContext, productId: string, now = new Date()): Promise<TryOnOne> {
+  ctx.require('tryon:read');
+  const onMe = (await entitlementsOf(ctx)).has('virtual_tryon');
+  const days = daysOf('30d', now);
+  return withTenant(ctx.tenantId, async (db) => {
+    const product = await db.findById(products, productId);
+    if (!product || product.deletedAt) throw errors.notFound('product');
+    const config = await db.findOne(tryonConfigs, eq(tryonConfigs.productId, productId));
+    const kind = kindOf(product.productType, config?.category);
+    const listed = (TRYON_LISTED_TYPES as readonly string[]).includes(product.productType);
+    let last30: Last30 = null;
+    if (kind && ctx.can('analytics:read')) {
+      const rows = await db.find(dailyProductStats, and(eq(dailyProductStats.productId, productId), gte(dailyProductStats.day, days[0]!), lte(dailyProductStats.day, days[days.length - 1]!)), { limit: 100 });
+      last30 = { views: rows.reduce((s, r) => s + r.views, 0), tryonSessions: rows.reduce((s, r) => s + r.tryonSessions, 0) };
+    }
+    return {
+      onMe,
+      product: { id: product.id, name: product.name, nameAr: product.nameAr, productType: product.productType },
+      watches: kind ? [view(product, config ?? null, last30)] : [],
+      jewelry: !kind && listed ? [{ productId: product.id, name: product.name, nameAr: product.nameAr, sku: product.sku }] : [],
+    };
+  });
+}
+
 /** API-151 — a presigned PUT for one picture of one watch. */
 export async function startCutoutUpload(ctx: TenantContext, productId: string, input: { slot: Slot; filename: string; contentType: string; sizeBytes: number }): Promise<{ key: string; uploadUrl: string; contentType: string; expiresAt: string }> {
   await mayChange(ctx);
@@ -188,6 +216,24 @@ export async function cutoutFromStorePicture(
   await notePendingUpload(ctx.tenantId, key, 'tryon_cutout');
   await store.put(key, picture.bytes.buffer.slice(picture.bytes.byteOffset, picture.bytes.byteOffset + picture.bytes.byteLength) as ArrayBuffer, { contentType: picture.format === 'png' ? 'image/png' : 'image/webp' });
   return confirmCutout(ctx, productId, { slot: input.slot, key });
+}
+
+/**
+ * API-191 — one of the product's own store pictures, as it is (T88): for the dashboard to take its plain
+ * background off in the browser. Only a picture the store gave this product; fetched safely, as T80.
+ */
+export async function storePhoto(ctx: TenantContext, productId: string, url: string, fetchImpl: typeof fetch = fetch, resolve?: Resolver): Promise<{ bytes: Uint8Array; contentType: string }> {
+  ctx.require('tryon:read');
+  const product = await ctx.db.findById(products, productId);
+  if (!product || product.deletedAt) throw errors.notFound('product');
+  if (!(product.images ?? []).some((i) => i.url === url)) throw errors.validation({ url: ['not one of this product’s pictures from its store'] });
+  try {
+    const photo = await fetchStorePhoto(url, fetchImpl, resolve);
+    return { bytes: photo.bytes, contentType: `image/${photo.format}` };
+  } catch (error) {
+    if (error instanceof StorePictureError) throw errors.validation({ url: [error.message] });
+    throw error;
+  }
 }
 
 /** A key this store's cut-out upload for `slot` would have — nothing else can be attached. */

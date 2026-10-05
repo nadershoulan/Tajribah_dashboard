@@ -31,7 +31,7 @@ import { ShieldCheck, X } from 'lucide-react';
 import { useLang } from '@site/lib/i18n';
 import { SiteEnvContext, SiteLink, useSiteEnv } from '@site/lib/site-env';
 import type { TryOnProduct } from '@site/lib/demo-product';
-import { brandFrom, CLOSE_MESSAGE, PREVIEW_CONFIG, PREVIEW_READY, configBase, configUrl, embedTitle, isLocalHost, tryOnProductFrom, validRefs, type StoreBrand } from '@site/lib/tryon-config';
+import { brandFrom, CLOSE_MESSAGE, PREVIEW_CONFIG, PREVIEW_HEIGHT, PREVIEW_READY, configBase, configUrl, embedTitle, isLocalHost, tryOnProductFrom, validRefs, type StoreBrand } from '@site/lib/tryon-config';
 import { servesHere } from '@site/lib/store-host';
 import { StoreMark } from '@site/components/site/store-mark';
 import Studio from '@site/components/studio/Studio';
@@ -75,6 +75,16 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
     return () => window.removeEventListener('message', onMessage);
   }, []);
 
+  // T87: in the dashboard's preview, the page tells the dashboard its height as it changes.
+  useEffect(() => {
+    if (!previewing) return;
+    const send = () => window.parent.postMessage({ type: PREVIEW_HEIGHT, height: Math.ceil(document.documentElement.scrollHeight) }, location.origin);
+    const observer = new ResizeObserver(send);
+    observer.observe(document.body);
+    send();
+    return () => observer.disconnect();
+  }, [previewing]);
+
   useEffect(() => {
     if (initial || params().get('preview')) return; // the server already answered, or the dashboard's preview
     const p = params();
@@ -104,14 +114,14 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
   const close = () => window.parent?.postMessage({ type: CLOSE_MESSAGE }, '*');
 
   return (
-    <div className="embed-root">
-      <div className="embed-bar">
+    <div className={'embed-root' + (previewing ? ' is-preview' : '')}>
+      {!previewing && <div className="embed-bar">
         <span className="embed-brand">{brand ? <StoreMark brand={brand} /> : t('تجربة', 'Tajribah')}</span>
         <SiteLink href="/try-on-privacy" target="_blank" rel="noopener" className="embed-privacy">
           <ShieldCheck size={15} aria-hidden />{t('تُعالج صورك على جهازك', 'Your photos are processed on your device')}
         </SiteLink>
-        {!previewing && <button type="button" className="embed-close" onClick={close} aria-label={t('أغلق التجربة', 'Close the try-on')}><X size={20} aria-hidden /></button>}
-      </div>
+        <button type="button" className="embed-close" onClick={close} aria-label={t('أغلق التجربة', 'Close the try-on')}><X size={20} aria-hidden /></button>
+      </div>}
       {state.kind === 'loading' && <p className="embed-note" role="status">{t('جارٍ التحميل…', 'Loading…')}</p>}
       {state.kind === 'unavailable' && (
         <div className="embed-note">

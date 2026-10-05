@@ -1492,3 +1492,39 @@ app from Salla's app store, and its "service link".
 
 **Rollback path.** Revert the commit. When `STORE_LINKING` is switched on, the new test steps aside.
 Cost: low.
+
+## T87 · 2026-10-06 · One product's try-on settings; the studio as part of the preview (you asked)
+
+**Decision.** "إعدادات التجربة" (try-on settings) on a product's preview now opens that product's
+settings only, at `/dashboard/tryon/{product}`, the same screen with one product on it. The full list
+was also capped at 500, and your store has 632 watches and 1,207 jewellery pieces, so many products never
+appeared there.
+
+**The studio in the preview.** It now reads as part of the page: no bar, border or scrollbar of its own,
+sized to its full height, and without its product column (name, picture, width), which the preview
+already shows. It is still the shop's own try-on page in a frame. Loading the website's stylesheet into
+the dashboard would restyle the dashboard (both style `.btn`, `h1` and the page body). The frame
+keeps the studio exactly as shoppers see it, and your studio's code is unchanged.
+
+**Rollback path.** Revert the commit. Cost: low.
+
+## T88 · 2026-10-06 · Remove a plain background in one click, saved as the try-on picture (you asked)
+
+**Decision.** On a product's preview, when the try-on uses the store picture as it is, one button,
+"أزل الخلفية واحفظها" (remove the background and save it), takes the plain background off and saves the
+result as the product's try-on picture. The result goes through the same upload and checks as a cut-out
+made by hand. It works in your browser because the API runs on Cloudflare Workers, where the server's
+image library can't run. No new dependency.
+
+**How.** The background colour is read from the picture's edges, and it must be one colour (90% of the
+edge). What is that colour and reaches an edge goes clear. So does a large patch of it that the product
+encloses, such as the hole in a bangle or a ring (0.2% of the picture or more). A small highlight on
+silver stays. The product's edge keeps a soft fade, and the picture is cropped to the product, because
+the try-on reads the picture's width as the product's. A picture with a scene behind it is refused with
+the reason. If the product was being tried as another kind, it is set up as that kind first, and the
+button says so ("its type becomes «ساعة»").
+
+**Seen.** A Failet ring with its white box: one click, and it sits on the model's finger as a cut-out;
+its settings page shows the transparent picture.
+
+**Rollback path.** Revert the commit. Cut-outs already saved stay; they are ordinary uploads. Cost: low.

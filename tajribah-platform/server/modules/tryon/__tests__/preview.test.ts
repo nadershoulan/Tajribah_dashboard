@@ -15,7 +15,7 @@ import { setLogLevel } from '@/server/core/observability/log';
 import { MemoryStorage, forTenant, setStorage } from '@/server/core/storage/storage';
 import { buildTenantContext } from '@/server/core/tenancy/context';
 import { createTestDb, seedTenant, seededPlanId, type TestDb } from '@/server/testing/harness';
-import { confirmCutout, startCutoutUpload, updateTryOn } from '@/server/modules/tryon/service';
+import { confirmCutout, startCutoutUpload, storePhoto, tryOnOne, updateTryOn } from '@/server/modules/tryon/service';
 import { EXAMPLE_MM, guessKind, tryOnPreview } from '@/server/modules/tryon/preview';
 import { tryOnProductFrom } from '@site/lib/tryon-config';
 import { pageCsp } from '@site/lib/security';
@@ -116,4 +116,31 @@ test('the try-on page may be framed by the dashboard on this same address; other
   const framed = pageCsp('n', { framed: true });
   assert.match(framed, /frame-ancestors 'self' https:/);
   assert.match(pageCsp('n'), /frame-ancestors 'none'/);
+});
+
+test('T87 one product’s try-on settings; T88 its own store picture, as it is, for the browser to clear', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, add } = await store(harness, 'one');
+    const watch = await add({ name: 'Diver', productType: 'watch', images: [{ url: 'https://shop.example.test/w.jpg' }] });
+    const bracelet = await add({ name: 'Bangle', productType: 'jewelry' });
+    const scarf = await add({ name: 'Scarf', productType: 'other' });
+    const one = await tryOnOne(ctx, watch);
+    assert.deepEqual([one.product.id, one.watches.map((w) => w.productId), one.jewelry.length], [watch, [watch], 0], 'that product only');
+    assert.deepEqual([(await tryOnOne(ctx, bracelet)).watches.length, (await tryOnOne(ctx, bracelet)).jewelry.map((j) => j.productId)], [0, [bracelet]], 'jewelry not marked: to be marked');
+    const other = await tryOnOne(ctx, scarf);
+    assert.deepEqual([other.watches.length, other.jewelry.length], [0, 0], 'a type that is not tried on: neither');
+
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+    const fetches: string[] = [];
+    const fake = (async (url: string) => { fetches.push(String(url)); return new Response(jpeg, { status: 200 }); }) as unknown as typeof fetch;
+    const resolve = async () => ['93.184.216.34'];
+    const photo = await storePhoto(ctx, watch, 'https://shop.example.test/w.jpg', fake, resolve);
+    assert.deepEqual([photo.contentType, photo.bytes.length], ['image/jpeg', jpeg.length], 'a JPEG is fine here: the browser makes the cut-out');
+    await assert.rejects(() => storePhoto(ctx, watch, 'https://elsewhere.example.test/x.jpg', fake, resolve), (e: any) => !!e.errors?.url, 'only its own store pictures');
+    await assert.rejects(() => storePhoto(ctx, watch, 'https://shop.example.test/w.jpg', fake, async () => ['10.0.0.5']), (e: any) => !!e.errors?.url, 'never a private address');
+    assert.deepEqual(fetches, ['https://shop.example.test/w.jpg'], 'nothing else fetched');
+  } finally {
+    await harness.close();
+  }
 });

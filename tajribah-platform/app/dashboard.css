@@ -1062,4 +1062,7 @@ table.data .cell-main { min-width: 220px; }
 /* T85 — the try-on on the product's preview: the shop's own frame */
 .preview-tryon-kinds { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 12px; }
 .preview-tryon-notes { margin: 0 0 12px; padding: 0; list-style: none; display: grid; gap: 6px; color: var(--text-2); font-size: 13px; }
-.preview-tryon-frame { display: block; width: 100%; height: min(820px, 85vh); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+/* T87: no border or scrollbar of its own — sized to the studio, shown once it has said how tall it is */
+.preview-tryon-frame { display: block; width: 100%; height: 640px; border: 0; border-radius: 16px; background: transparent; opacity: 0; transition: opacity .2s; }
+.preview-tryon-frame.is-ready { opacity: 1; }
+.preview-clear { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 14px; }

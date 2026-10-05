@@ -513,6 +513,9 @@ export type TryOnPreview = {
   onMe: boolean;
 };
 
+/** T87 — one product's try-on settings (`/dashboard/tryon/{id}`): the same screen, for that product only. */
+export type TryOnOne = TryOnScreen & { product: { id: string; name: string; nameAr: string | null; productType: ProductRow['productType'] } };
+
 export type TryOnScreen = {
   /**
    * T33: every plan sets watches up for the studio (on the model, true-size comparison); this says

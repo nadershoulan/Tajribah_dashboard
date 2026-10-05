@@ -40,6 +40,7 @@ The step-by-step with checks is `docs/GO-LIVE.md`. In short:
 ```sh
 bash start-storage.sh        # pictures and 3D models — first, in its own window
 bash start-dashboard.sh      # then the platform: http://127.0.0.1:8799
+bash start-worker.sh         # and the worker: checks try-on pictures, optimises 3D models
 ```
 
 On this computer, the one domain is `http://127.0.0.1:8799`. The subdomains are stood in for so that

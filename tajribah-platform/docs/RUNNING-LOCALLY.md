@@ -80,7 +80,9 @@ terminal instead of being sent, since no mail provider is set up yet.
 **Optional — 3D models and try-on pictures.** Optimising an uploaded 3D model and checking a try-on
 picture run in a separate Node process (`node scripts/worker-node.mjs`) and need S3-style storage. For
 this on your computer, `DATABASE.md` → "Model and picture work on this machine" shows how with
-SeaweedFS (a single program, no Docker). Without it, uploads wait in "processing". The dashboard's pages, when opened at
+SeaweedFS (a single program, no Docker). Without it, uploads wait in "processing". With the local start scripts
+(`~/tajribah-local`): `start-storage.sh`, then `start-dashboard.sh` and `start-worker.sh` (the worker reads the
+dashboard script's settings; without it, a new try-on picture stays "checking the size…"). The dashboard's pages, when opened at
 127.0.0.1 or localhost, may upload to storage on this computer; publishing to a shop still needs https
 storage on the real host — locally, publishing works for this computer only (T75): the product's own
 page at `http://127.0.0.1:8799/p/…` shows it. Published settings are kept in the local storage, so they

@@ -1596,3 +1596,12 @@ the try-on settings, an empty product-shot slot now offers "استخدم صور�
 picture), which copies the saved picture over, checked like any upload.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T94 · 2026-10-06 · The publish page says where each product stands
+
+**Decision.** AR settings' product list showed "AR on / AR off", a 3D idea that is now version 2. Each
+product now shows what matters today: "منشور" (live), "جاهز للنشر" (ready to publish) or "التجربة ناقصة"
+(try-on unfinished). A product whose type isn't tried on, such as a bracelet the feed calls "other", gets
+a box pointing to its preview, where it can be tried as a watch and its picture cleared in one click.
+
+**Rollback path.** Revert the commit. Cost: low.

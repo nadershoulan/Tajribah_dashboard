@@ -102,7 +102,10 @@ export default function ArSettings() {
                     <span className="pick-num">{formatNumber(rowNumber(list?.page ?? 1, list?.pageSize ?? perPage, index), lang)}</span>
                     <span className="pick-name">{name(c)}</span>
                     <span className="pick-meta">
-                      {c.arEnabled ? <Badge tone="ok" dot>{t('العرض مفعّل', 'AR on')}</Badge> : <Badge>{t('العرض متوقف', 'AR off')}</Badge>}
+                      {/* T94: what matters today — live, ready to publish, or its try-on unfinished (3D is version 2) */}
+                      {c.publishedVersion > 0 ? <Badge tone="ok" dot>{t('منشور', 'Live')}</Badge>
+                        : c.tryon?.ready ? <Badge tone="accent">{t('جاهز للنشر', 'Ready to publish')}</Badge>
+                          : c.tryon ? <Badge tone="warn">{t('التجربة ناقصة', 'Try-on unfinished')}</Badge> : null}
                       {c.saved ? <Badge tone="accent">{t('مضبوط', 'Customised')}</Badge> : null}
                     </span>
                   </button>
@@ -270,6 +273,12 @@ function Editor({ config, name, brandColor, radius, onSaved }: {
         <div className="next-step">
           <span>{t('قبل النشر: جهّز تجربة هذا المنتج — صورته بلا خلفية ومقاسه. ثم انشره من هناك بنقرة.', 'Before publishing: set up this product’s try-on — its picture without a background and its size. Then publish it from there in one click.')}</span>
           <AppLink href={`/dashboard/tryon/${encodeURIComponent(config.productId)}`} className="btn btn-primary btn-sm">{t('اضبط التجربة', 'Set up the try-on')}</AppLink>
+        </div>
+      )}
+      {!config.tryon && config.publishedVersion === 0 && !config.arEnabled && (
+        <div className="next-step">
+          <span>{t('نوع هذا المنتج لا يُجرَّب بعد. افتح معاينته واختر ما يُجرَّب كـ (السوار كساعة: على المعصم)، ثم أزل خلفية صورته واحفظها.', 'This product’s type is not tried on yet. Open its preview and choose what to try it as (a bracelet as a watch: on the wrist), then remove its picture’s background and save it.')}</span>
+          <AppLink href={`/dashboard/products/${encodeURIComponent(config.productId)}/preview`} className="btn btn-primary btn-sm">{t('معاينة المنتج', 'Preview the product')}</AppLink>
         </div>
       )}
       {failure && <ErrorNote error={failure} />}

@@ -35,7 +35,7 @@ const MESSAGE_AR: [RegExp, string][] = [
   [/not for this kind of product/, 'لا يناسب هذا النوع من المنتجات'],
   [/missing permission: ar:write/, 'دورك لا يسمح بتغيير إعدادات العرض'],
   [/missing permission: ar:publish/, 'دورك لا يسمح بالنشر في المتجر'],
-  [/nothing for the button to open/, 'لا يوجد ما يفتحه الزر بعد — فعّل العرض مع نموذج ثلاثي الأبعاد منشور، أو اضبط تجربة الساعة.'],
+  [/nothing for the button to open/, 'لا يوجد ما يفتحه الزر بعد — اضبط تجربة المنتج أولًا (صورته ومقاسه).'],
   [/archived or deleted/, 'هذا المنتج مؤرشف أو محذوف.'],
   [/suspended or closed/, 'هذا المتجر موقوف أو مغلق.'],
   [/not make a valid config/, 'الإعدادات لا تكوّن عرضًا صالحًا — تواصل مع الدعم.'],
@@ -265,6 +265,12 @@ function Editor({ config, name, brandColor, radius, onSaved }: {
         <span><Rotate3D size={14} aria-hidden /> {t('يدور المنتج تلقائيًا في المعاينة', 'The product turns slowly in the preview')}</span>
       </label>
 
+      {config.tryon && !config.tryon.ready && config.publishedVersion === 0 && (
+        <div className="next-step">
+          <span>{t('قبل النشر: جهّز تجربة هذا المنتج — صورته بلا خلفية ومقاسه. ثم انشره من هناك بنقرة.', 'Before publishing: set up this product’s try-on — its picture without a background and its size. Then publish it from there in one click.')}</span>
+          <AppLink href={`/dashboard/tryon/${encodeURIComponent(config.productId)}`} className="btn btn-primary btn-sm">{t('اضبط التجربة', 'Set up the try-on')}</AppLink>
+        </div>
+      )}
       {failure && <ErrorNote error={failure} />}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <button type="button" className="btn btn-primary" onClick={save} disabled={saving || lock.locked} title={lock.title}>{saving ? t('جارٍ الحفظ…', 'Saving…') : t('احفظ', 'Save')}</button>
@@ -291,11 +297,12 @@ function Editor({ config, name, brandColor, radius, onSaved }: {
         </div>
       )}
       {refusal && <p className="field-error" role="alert" style={{ marginTop: 10 }}>{refusal}</p>}
+      {refusal && /تجربة المنتج|try-on/.test(refusal) && <AppLink href={`/dashboard/tryon/${encodeURIComponent(config.productId)}`} className="btn btn-primary btn-sm" style={{ marginTop: 6 }}>{t('اضبط التجربة', 'Set up the try-on')}</AppLink>}
       <p className="hint">{config.publishedAt
         ? t(`آخر نشر ${formatDateTime(config.publishedAt, 'ar')}. `, `Last published ${formatDateTime(config.publishedAt, 'en')}. `)
         : null}{t(
-        'الحفظ يحفظ الإعدادات هنا. النشر يضعها في صفحة المنتج في متجرك مع نموذجه ثلاثي الأبعاد (وتجربة الساعة إن وُجدت)، ويراها المتسوّقون خلال دقيقة تقريبًا.',
-        'Saving keeps the settings here. Publishing puts them on the product’s page in your store, with its 3D model (and a watch’s try-on); shoppers see it within about a minute.',
+        'الحفظ يحفظ الإعدادات هنا. النشر يضعها في صفحة المنتج في متجرك مع تجربته، ويراها المتسوّقون خلال دقيقة تقريبًا.',
+        'Saving keeps the settings here. Publishing puts them on the product’s page in your store with its try-on; shoppers see it within about a minute.',
       )}</p>
     </Panel>
   );

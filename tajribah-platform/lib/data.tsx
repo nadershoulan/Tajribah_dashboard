@@ -128,7 +128,7 @@ export interface DataSource {
   uploadProductPhoto(productId: string, angle: GenerationAngle, file: File): Promise<GenerationPhotoView>;
   removeProductPhoto(productId: string, photoId: string): Promise<void>;
   /** P5.10: every watch and its try-on settings, and whether the plan includes try-on. */
-  tryOn(): Promise<TryOnScreen>;
+  tryOn(query?: { page?: number; pageSize?: number; q?: string }): Promise<TryOnScreen>;
   /** T85 (API-189): a product's try-on as a shopper sees it, tried as `as` or as what it is. */
   tryOnPreview(productId: string, as?: TryOnPreview['kind']): Promise<TryOnPreview>;
   /** T87 (API-190): one product's try-on settings. */
@@ -189,6 +189,8 @@ export interface DataSource {
   saveArConfig(productId: string, input: ArConfigInput): Promise<ArConfigView>;
   /** P1.15 — publish the product's config to the store shops read. */
   publishArConfig(productId: string): Promise<PublishResult>;
+  /** T90 (API-192): switch the try-on on and publish the product, in one step. */
+  publishTryOn(productId: string): Promise<PublishResult>;
   /** T40 — take the product off the shop. */
   unpublishArConfig(productId: string): Promise<PublishResult>;
   /** P1.19 — the product's own page: on or off, and the link to buy it in the shop. */
@@ -372,7 +374,12 @@ export function apiSource(client: ApiClient): DataSource {
     async acceptProfessional(orderId) {
       return client.call<ProfessionalOrderView>(`/api/professional/${encodeURIComponent(orderId)}/accept`, { method: 'POST' });
     },
-    async tryOn() { return client.call<TryOnScreen>('/api/tryon'); },
+    async tryOn(query = {}) {
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value));
+      const qs = params.toString();
+      return client.call<TryOnScreen>(`/api/tryon${qs ? `?${qs}` : ''}`);
+    },
     async tryOnOne(productId) { return client.call<TryOnOne>(`/api/tryon/${encodeURIComponent(productId)}`); },
     async tryOnPreview(productId, as) { return client.call<TryOnPreview>(`/api/tryon/${encodeURIComponent(productId)}/preview${as ? `?as=${as}` : ''}`); },
     async uploadCutout(productId, slot, file) {
@@ -436,6 +443,9 @@ export function apiSource(client: ApiClient): DataSource {
     },
     async saveArConfig(productId, input) {
       return client.call<ArConfigView>(`/api/ar-configs/${encodeURIComponent(productId)}`, { method: 'PUT', body: input });
+    },
+    async publishTryOn(productId) {
+      return client.call<PublishResult>(`/api/tryon/${encodeURIComponent(productId)}/publish`, { method: 'POST' });
     },
     async publishArConfig(productId) {
       return client.call<PublishResult>(`/api/ar-configs/${encodeURIComponent(productId)}/publish`, { method: 'POST' });
@@ -941,12 +951,18 @@ export const demoSource: DataSource = {
     const own = p ? kindOf(p.productType, demoTryOn.get(p.id)?.jewelry) : null;
     return { kind: as ?? own, own, guessed: false, picture: null, size: null, config: null, onMe: DEMO_TRYON_ON_ME };
   },
-  async tryOn() {
+  async tryOn(query = {}) {
     const isSet = (p: ProductRow) => kindOf(p.productType, demoTryOn.get(p.id)?.jewelry);
+    const q = query.q?.trim().toLowerCase();
+    const listed = DEMO_PRODUCTS.filter((p) => (isSet(p) || p.productType === RING_PRODUCT_TYPE) && (!q || [p.name, p.nameAr, p.sku].some((v) => v?.toLowerCase().includes(q))));
+    const pageSize = Math.min(Math.max(1, query.pageSize ?? 500), 500);
+    const page = Math.min(Math.max(1, query.page ?? 1), Math.max(1, Math.ceil(listed.length / pageSize)));
+    const rows = listed.slice((page - 1) * pageSize, page * pageSize);
     return {
       onMe: DEMO_TRYON_ON_ME,
-      watches: DEMO_PRODUCTS.filter(isSet).map(demoTryOnView),
-      jewelry: DEMO_PRODUCTS.filter((p) => p.productType === RING_PRODUCT_TYPE && !isSet(p)).map((p) => ({ productId: p.id, name: p.name, nameAr: p.nameAr, sku: p.sku })),
+      watches: rows.filter(isSet).map(demoTryOnView),
+      jewelry: rows.filter((p) => !isSet(p)).map((p) => ({ productId: p.id, name: p.name, nameAr: p.nameAr, sku: p.sku })),
+      total: listed.length, page, pageSize,
     };
   },
   async uploadCutout(productId, slot, file) {
@@ -1072,6 +1088,11 @@ export const demoSource: DataSource = {
     const view = { ...demoArDefault(product), ...parsed.data!, saved: true, unpublishedChanges: true, publishedVersion: demoArConfigs.get(productId)?.publishedVersion ?? 0, publishedAt: demoArConfigs.get(productId)?.publishedAt ?? null };
     demoArConfigs.set(productId, view);
     return withDemoPage(view);
+  },
+  async publishTryOn(productId) {
+    const s = demoTryOn.get(productId);
+    if (s) demoTryOn.set(productId, { ...s, enabled: true });
+    return this.publishArConfig(productId);
   },
   async publishArConfig(productId) {
     // The preview's own copy only — no shop reads it. Same refusal as the server for a product with nothing to open.

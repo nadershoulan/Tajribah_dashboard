@@ -274,7 +274,7 @@ function PreviewNotes({ data, productId }: { data: TryOnPreview; productId: stri
     <ul className="preview-tryon-notes">
       {notes.map((n) => <li key={n}>{n}</li>)}
       {(data.picture === 'store' || data.size?.from === 'example') && (
-        <li><AppLink href={`/dashboard/tryon/${encodeURIComponent(productId)}`} className="btn btn-ghost btn-sm">{t('إعدادات التجربة', 'Try-on settings')}</AppLink></li>
+        <li><AppLink href={`/dashboard/tryon/${encodeURIComponent(productId)}`} className="btn btn-primary btn-sm">{t('اضبط التجربة وانشرها', 'Set up the try-on and publish')}</AppLink></li>
       )}
     </ul>
   );

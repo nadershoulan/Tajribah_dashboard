@@ -525,4 +525,8 @@ export type TryOnScreen = {
   watches: TryOnWatchView[];
   /** P5.4/P5.5: Jewelry products not marked yet — "It's a ring" / "It's a necklace" sets one up. */
   jewelry: { productId: string; name: string; nameAr: string | null; sku: string | null }[];
+  /** T89: how many there are in all (with the search), and this page. */
+  total?: number;
+  page?: number;
+  pageSize?: number;
 };

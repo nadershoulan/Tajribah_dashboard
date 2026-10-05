@@ -1528,3 +1528,29 @@ button says so ("its type becomes «ساعة»").
 its settings page shows the transparent picture.
 
 **Rollback path.** Revert the commit. Cut-outs already saved stay; they are ordinary uploads. Cost: low.
+
+## T89 · 2026-10-06 · The try-on page in pages (you asked)
+
+**Decision.** The try-on page has a search box, numbered pages, a 10/25/50/100 page-size picker
+(default 10) and row numbers, as on Products. Products already being set up come first, then the rest,
+newest first. Jewellery not yet marked is paged in the same sequence. Before this, the page showed the
+first 500 products and stopped; your store has 1,841.
+
+## T90 · 2026-10-06 · Publish from the try-on in one click; no 3D model needed (you asked)
+
+**Decision.** 3D models are version 2, so a product reaches the shop through its try-on. Each product's
+try-on settings now have one button, "انشر في المتجر" (publish to the store). Once the picture(s) and
+width are in, it switches the try-on on and publishes the product. If a saved button placement doesn't
+suit the kind, for example after the product's type changed, it moves the button to where that kind
+goes, and the change is audited. It publishes through the same path as AR settings, with the same checks
+and versions. Until the try-on is complete, the button is off and says what's missing.
+
+Every place a merchant could get stuck now leads there:
+- **The publish page:** a box saying "before publishing: set up this product's try-on", with a button
+  to that product's settings. The refusal no longer mentions 3D models and links there too.
+- **The preview:** "اضبط التجربة وانشرها" (set up the try-on and publish).
+- **The setup guide:** "add your products" (a link or a file), "set up your first try-on" (one click
+  from the preview, then its size), and "publish" from the try-on settings. 3D models are no longer a
+  step. The step's key is unchanged, and it already counted a finished try-on as done.
+
+**Rollback path.** Revert the commit. Cost: low.

@@ -234,10 +234,10 @@ function StepPanel({ step, onMoved }: { step: StepState; onMoved: (view: Onboard
       body = (
         <>
           <p>{t(
-            'ارفع ملف GLB أو USDZ لمنتج واحد. نُحسّنه تلقائيًا، وتتم الخطوة عندما يصبح جاهزًا. لساعة، تكفي تجربتها بدل النموذج: صورتان مفرّغتان وعرض العلبة.',
-            'Upload a GLB or USDZ file for one product. We optimise it automatically, and the step is done once it is ready. For a watch, its try-on is enough instead of a model: two cut-out pictures and the case width.',
+            'افتح معاينة أي منتج من «المنتجات» (أيقونة العين)، واضغط «أزل الخلفية واحفظها»، ثم أضف مقاسه في إعدادات تجربته. تتم الخطوة حين تكتمل تجربة منتج واحد.',
+            'Open any product’s preview from Products (the eye icon), press “Remove the background and save it”, then add its size in its try-on settings. The step is done once one product’s try-on is complete.',
           )}</p>
-          {!step.done && <div className="btn-row">{goTo(t('ارفع نموذجًا', 'Upload a model'))}<AppLink href="/dashboard/tryon" className="btn btn-ghost">{t('تجربة الساعات', 'Watch try-on')}</AppLink></div>}
+          {!step.done && <div className="btn-row"><AppLink href="/dashboard/products" className="btn btn-primary">{t('المنتجات', 'Products')}</AppLink>{goTo(t('التجربة الافتراضية', 'Virtual try-on'))}</div>}
         </>
       );
       break;
@@ -245,10 +245,10 @@ function StepPanel({ step, onMoved }: { step: StepState; onMoved: (view: Onboard
       body = (
         <>
           <p>{t(
-            'اختر منتجًا في «إعدادات العرض» واضغط «انشر في المتجر». يظهر زره في صفحة المنتج خلال دقيقة تقريبًا، ويبقى محدّثًا بعد ذلك تلقائيًا.',
-            'Pick a product in AR settings and press “Publish to the store”. Its button appears on the product page within about a minute, and stays up to date by itself after that.',
+            'في إعدادات تجربة المنتج اضغط «انشر في المتجر»: تُفعَّل التجربة ويُنشر المنتج بخطوة واحدة. يظهر زره في صفحة المنتج خلال دقيقة تقريبًا، ويبقى محدّثًا بعد ذلك تلقائيًا.',
+            'In the product’s try-on settings press “Publish to the store”: the try-on is switched on and the product published in one step. Its button appears on the product page within about a minute, and stays up to date by itself after that.',
           )}</p>
-          {!step.done && <div className="btn-row">{goTo(t('إعدادات العرض', 'AR settings'))}</div>}
+          {!step.done && <div className="btn-row">{goTo(t('التجربة الافتراضية', 'Virtual try-on'))}</div>}
         </>
       );
       break;

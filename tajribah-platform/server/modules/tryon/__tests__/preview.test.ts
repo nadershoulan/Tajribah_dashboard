@@ -8,14 +8,17 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { categories, products, subscriptions } from '@/db/schema';
+import { arConfigs, categories, products, subscriptions } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { MemoryConfigStore, setConfigStore } from '@/server/core/edge/configs';
+import { publishTryOn } from '@/server/modules/tryon/publish';
 import { uuidv7 } from '@/lib/ids';
 import { WIDTH_MM, type TryOnKind } from '@/lib/tryon';
 import { setLogLevel } from '@/server/core/observability/log';
 import { MemoryStorage, forTenant, setStorage } from '@/server/core/storage/storage';
 import { buildTenantContext } from '@/server/core/tenancy/context';
 import { createTestDb, seedTenant, seededPlanId, type TestDb } from '@/server/testing/harness';
-import { confirmCutout, startCutoutUpload, storePhoto, tryOnOne, updateTryOn } from '@/server/modules/tryon/service';
+import { confirmCutout, startCutoutUpload, storePhoto, tryOnOne, tryOnScreen, updateTryOn } from '@/server/modules/tryon/service';
 import { EXAMPLE_MM, guessKind, tryOnPreview } from '@/server/modules/tryon/preview';
 import { tryOnProductFrom } from '@site/lib/tryon-config';
 import { pageCsp } from '@site/lib/security';
@@ -140,6 +143,72 @@ test('T87 one product’s try-on settings; T88 its own store picture, as it is, 
     await assert.rejects(() => storePhoto(ctx, watch, 'https://elsewhere.example.test/x.jpg', fake, resolve), (e: any) => !!e.errors?.url, 'only its own store pictures');
     await assert.rejects(() => storePhoto(ctx, watch, 'https://shop.example.test/w.jpg', fake, async () => ['10.0.0.5']), (e: any) => !!e.errors?.url, 'never a private address');
     assert.deepEqual(fetches, ['https://shop.example.test/w.jpg'], 'nothing else fetched');
+  } finally {
+    await harness.close();
+  }
+});
+
+test('T89 the try-on list in pages: products being set up first, then the newest; a search by name or SKU', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, add } = await store(harness, 'pages');
+    const oldest = await add({ name: 'Old diver', sku: 'OD-1', productType: 'watch' });
+    const ids = [oldest];
+    for (const n of [1, 2, 3, 4]) ids.push(await add({ name: `Watch ${n}`, sku: `W-${n}`, productType: 'watch' }));
+    const ring = await add({ name: 'Unmarked piece', sku: 'J-1', productType: 'jewelry' });
+    await add({ name: 'Scarf', productType: 'other' });
+    await updateTryOn(ctx, oldest, { caseMm: 40 });
+
+    const first = await tryOnScreen(ctx, new Date(), { page: 1, pageSize: 2 });
+    assert.deepEqual([first.total, first.page, first.pageSize], [6, 1, 2], 'watches and jewelry; not the scarf');
+    assert.deepEqual([first.watches.map((w) => w.productId), first.jewelry.map((j) => j.productId)], [[oldest], [ring]], 'the one being set up first, then the newest (the jewelry piece, added last)');
+    const last = await tryOnScreen(ctx, new Date(), { page: 3, pageSize: 2 });
+    assert.deepEqual([last.watches.map((w) => w.productId), last.jewelry.map((j) => j.productId)], [[ids[2], ids[1]], []], 'the last page: the oldest of the rest');
+    const seen = new Set<string>();
+    for (const p of [1, 2, 3]) {
+      const s = await tryOnScreen(ctx, new Date(), { page: p, pageSize: 2 });
+      for (const id of [...s.watches.map((w) => w.productId), ...s.jewelry.map((j) => j.productId)]) { assert.ok(!seen.has(id), 'no product on two pages'); seen.add(id); }
+    }
+    assert.equal(seen.size, 6, 'every product on one page');
+    assert.ok(seen.has(ring), 'unmarked jewelry is paged too');
+    assert.equal((await tryOnScreen(ctx, new Date(), { page: 99, pageSize: 2 })).page, 3, 'past the end: the last page');
+
+    const found = await tryOnScreen(ctx, new Date(), { q: 'w-3', pageSize: 10 });
+    assert.deepEqual([found.total, found.watches.map((w) => w.name)], [1, ['Watch 3']], 'the SKU, any case');
+    assert.equal((await tryOnScreen(ctx, new Date(), { q: '_', pageSize: 10 })).total, 0, 'a search is text, not a pattern: “_” is not “any letter”');
+    assert.equal((await tryOnScreen(ctx)).watches.length, 5, 'no page asked for: all of them, as before');
+  } finally {
+    await harness.close();
+  }
+});
+
+test('T90 publish from the try-on in one step: switched on, the button put where the kind goes, published; incomplete is refused', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, tenantId, add } = await store(harness, 'publish');
+    const kv = new MemoryConfigStore();
+    setConfigStore(kv);
+    const glasses = await add({ name: 'Round frame', productType: 'eyewear' });
+    await harness.asAdmin(() => harness.db.insert(arConfigs).values({ id: uuidv7(), tenantId, productId: glasses, placement: 'table' } as any));
+    await assert.rejects(() => publishTryOn(ctx, glasses), (e: any) => e.status === 409 && /picture/.test(e.detail ?? e.message), 'nothing set up: refused, saying what is missing');
+    const started = await startCutoutUpload(ctx, glasses, { slot: 'worn', filename: 'frame.png', contentType: 'image/png', sizeBytes: FRAME.length });
+    await forTenant(ctx.tenantId).put(started.key, FRAME.slice().buffer as ArrayBuffer);
+    await confirmCutout(ctx, glasses, { slot: 'worn', key: started.key });
+    await assert.rejects(() => publishTryOn(ctx, glasses), (e: any) => /width/.test(e.detail ?? e.message), 'still no width');
+    assert.equal((await tryOnOne(ctx, glasses)).watches[0]!.enabled, false, 'a refusal changes nothing');
+    assert.equal(kv.entries.size, 0, 'nothing published');
+
+    await updateTryOn(ctx, glasses, { caseMm: 132 });
+    const result = await publishTryOn(ctx, glasses);
+    assert.equal(result.version, 1);
+    assert.equal((await tryOnOne(ctx, glasses)).watches[0]!.enabled, true, 'switched on');
+    const saved = await harness.asAdmin(() => harness.db.select().from(arConfigs).where(eq(arConfigs.productId, glasses)));
+    assert.equal(saved[0]!.placement, 'face', 'glasses go on the face');
+    const config = JSON.parse([...kv.entries.values()][0]!.body);
+    assert.deepEqual([config.tryon?.category, config.placement], ['glasses', 'face'], 'the shop gets the glasses');
+
+    const scarf = await add({ name: 'Scarf', productType: 'other' });
+    await assert.rejects(() => publishTryOn(ctx, scarf), (e: any) => e.status === 409, 'a type that is not tried on');
   } finally {
     await harness.close();
   }

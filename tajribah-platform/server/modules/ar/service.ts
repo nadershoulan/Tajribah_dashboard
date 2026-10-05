@@ -6,6 +6,7 @@
  * the product's whole config, to the store shops read — is `edge/publish.ts` (P1.15); the view
  * carries its status: the version shoppers see, and whether what would be published now differs.
  */
+import { kindOf } from '@/lib/tryon';
 import { and, desc, eq, ilike, inArray, isNull, ne, notInArray, or } from 'drizzle-orm';
 import { arConfigs, edgeConfigs, hostedPages, products, tryonConfigs } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
@@ -61,7 +62,15 @@ async function viewsOf(ctx: TenantContext, rows: Product[]): Promise<ArConfigVie
   const configs = rows.length ? await ctx.db.find(arConfigs, inArray(arConfigs.productId, rows.map((p) => p.id)), { limit: 500 }) : [];
   const live = await edgeStatuses(ctx, rows.map((p) => p.id));
   const pages = await pagesOf(ctx, rows);
-  return rows.map((p) => ({ ...withEdge(arViewOf(p, configs.find((c) => c.productId === p.id) ?? null), live.get(p.id)), page: pages.get(p.id)! }));
+  // T90: whether each product's try-on is complete — the way into the shop while 3D models are version 2
+  const tryons = rows.length ? await ctx.db.find(tryonConfigs, inArray(tryonConfigs.productId, rows.map((p) => p.id)), { limit: 500 }) : [];
+  const tryonOf = (p: Product) => {
+    const c = tryons.find((x) => x.productId === p.id) ?? null;
+    const kind = kindOf(p.productType, c?.category);
+    if (!kind) return null;
+    return { ready: !!c?.wornKey && (kind !== 'watch' || !!c.flatKey) && c.caseTenthsMm != null };
+  };
+  return rows.map((p) => ({ ...withEdge(arViewOf(p, configs.find((c) => c.productId === p.id) ?? null), live.get(p.id)), page: pages.get(p.id)!, tryon: tryonOf(p) }));
 }
 
 /** P1.19: each product's own page, from its row (none: on, no link) and whether it is published. */

@@ -30,7 +30,7 @@
  *  - P5.13: the list shows each watch's last 30 days (views, try-on openings) from the analytics
  *    rollup — never raw events — to anyone who may read analytics.
  */
-import { and, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
+import { and, desc, eq, gte, ilike, inArray, isNull, lte, notInArray, or } from 'drizzle-orm';
 import { dailyProductStats, products, tryonConfigs } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { CUTOUT_ISSUES, JEWELRY_KINDS, RING_PRODUCT_TYPE, SLOTS_OF, TRYON_LISTED_TYPES, WIDTH_MM, kindOf, type JewelryKind, type TryOnKind } from '@/lib/tryon';
@@ -114,14 +114,34 @@ async function mayChange(ctx: TenantContext): Promise<void> {
 }
 
 /** API-150 — every watch in the store, with its try-on settings (and, P5.13, its last 30 days). */
-export async function tryOnScreen(ctx: TenantContext, now = new Date()): Promise<TryOnScreen> {
+export type TryOnQuery = { page?: number; pageSize?: number; q?: string };
+const likeEscape = (text: string) => `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+
+/**
+ * T89 — one page of them: products already being set up first (they have try-on settings), then the
+ * rest, newest first; Jewelry not marked yet is paged in the same order. A search reads the name (both
+ * languages) and the SKU. No page asked for: the first 500, as before.
+ */
+export async function tryOnScreen(ctx: TenantContext, now = new Date(), query: TryOnQuery = {}): Promise<TryOnScreen> {
   ctx.require('tryon:read');
   const onMe = (await entitlementsOf(ctx)).has('virtual_tryon');
   const days = daysOf('30d', now);
+  const pageSize = Math.min(Math.max(1, Math.floor(query.pageSize ?? 500)), 500);
+  const q = query.q?.trim();
   return withTenant(ctx.tenantId, async (db) => {
-    const listed = await db.find(products, and(inArray(products.productType, [...TRYON_LISTED_TYPES]), isNull(products.deletedAt)), { limit: 500 });
-    const configs = listed.length ? await db.find(tryonConfigs, inArray(tryonConfigs.productId, listed.map((p) => p.id)), { limit: 500 }) : [];
-    const configOf = (id: string) => configs.find((c) => c.productId === id) ?? null;
+    const search = q ? or(ilike(products.name, likeEscape(q)), ilike(products.nameAr, likeEscape(q)), ilike(products.sku, likeEscape(q))) : undefined;
+    const listedWhere = and(inArray(products.productType, [...TRYON_LISTED_TYPES]), isNull(products.deletedAt), search);
+    const allConfigs = await db.find(tryonConfigs, undefined, { limit: 100_000 });
+    const configs = new Map(allConfigs.map((c) => [c.productId, c]));
+    const setUp = allConfigs.length ? await db.find(products, and(listedWhere, inArray(products.id, allConfigs.map((c) => c.productId))), { limit: allConfigs.length, orderBy: desc(products.id) }) : [];
+    const rest = and(listedWhere, setUp.length ? notInArray(products.id, setUp.map((p) => p.id)) : undefined);
+    const total = setUp.length + await db.count(products, rest);
+    const page = Math.min(Math.max(1, Math.floor(query.page ?? 1)), Math.max(1, Math.ceil(total / pageSize)));
+    const start = (page - 1) * pageSize;
+    const first = setUp.slice(start, start + pageSize);
+    const more = pageSize - first.length;
+    const listed = more > 0 ? [...first, ...await db.find(products, rest, { limit: more, offset: Math.max(0, start - setUp.length), orderBy: desc(products.id) })] : first;
+    const configOf = (id: string) => configs.get(id) ?? null;
     const watches = listed.filter((p) => kindOf(p.productType, configOf(p.id)?.category));
     const jewelry = listed.filter((p) => !kindOf(p.productType, configOf(p.id)?.category)).map((p) => ({ productId: p.id, name: p.name, nameAr: p.nameAr, sku: p.sku }));
     const ids = watches.map((p) => p.id);
@@ -133,7 +153,7 @@ export async function tryOnScreen(ctx: TenantContext, now = new Date()): Promise
       const rows = stats.filter((r) => r.productId === productId);
       return { views: rows.reduce((s, r) => s + r.views, 0), tryonSessions: rows.reduce((s, r) => s + r.tryonSessions, 0) };
     };
-    return { onMe, watches: watches.map((p) => view(p, configOf(p.id), last30(p.id))), jewelry };
+    return { onMe, watches: watches.map((p) => view(p, configOf(p.id), last30(p.id))), jewelry, total, page, pageSize };
   });
 }
 

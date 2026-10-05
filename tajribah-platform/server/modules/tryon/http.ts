@@ -7,6 +7,7 @@ import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@
 import { errors } from '@/server/core/errors/problem';
 import { tryOnPreview } from './preview';
 import { storePhoto, tryOnOne } from './service';
+import { publishTryOn } from './publish';
 import { calibrateCutoutEdges, confirmCutout, cutoutFile, cutoutFromStorePicture, startCutoutUpload, tryOnScreen, updateTryOn } from './service';
 
 /** The `[productId]` segment `fromEnd` places from the end; a malformed id is a 404. */
@@ -21,7 +22,10 @@ const SLOT = z.enum(['worn', 'flat']);
 /** API-150 — GET /api/tryon: every watch with its try-on settings, and whether the plan has try-on. */
 export const tryOnScreenHandler = route(async (request) => {
   const ctx = await tenantContextFor(request);
-  return json(await tryOnScreen(ctx));
+  // T89: ?page=&pageSize=&q= — one page; none asked for: the first 500, as before
+  const params = new URL(request.url).searchParams;
+  const int = (name: string) => { const v = Number(params.get(name)); return Number.isInteger(v) && v > 0 ? v : undefined; };
+  return json(await tryOnScreen(ctx, new Date(), { page: int('page'), pageSize: int('pageSize'), q: params.get('q')?.slice(0, 200) || undefined }));
 });
 
 /** API-151 — POST /api/tryon/[productId]/images: a presigned PUT for the worn or flat picture. */
@@ -69,6 +73,14 @@ export const storePhotoHandler = route(async (request) => {
   if (!url.success) throw errors.validation({ url: ['the picture’s address'] });
   const photo = await storePhoto(ctx, productAt(request, 1), url.data);
   return new Response(photo.bytes as Uint8Array<ArrayBuffer>, { headers: { 'content-type': photo.contentType, 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff' } });
+});
+
+/** API-192 — POST /api/tryon/[productId]/publish: switch the try-on on and publish the product (T90). */
+export const publishTryOnHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  return json(await publishTryOn(ctx, productAt(request, 1)));
 });
 
 /** API-153 — PATCH /api/tryon/[productId]: case width, finish, on/off. */

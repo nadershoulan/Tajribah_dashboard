@@ -72,6 +72,8 @@ export type ArConfigView = ArConfigInput & {
   unpublishedChanges: boolean;
   /** P1.19: the product's own page — its address while published, on or off, the buy link. */
   page: HostedPageView | null;
+  /** T90: its try-on — null when its type is not tried on (or jewelry not marked); else whether it is complete. */
+  tryon?: { ready: boolean } | null;
 };
 
 /** API-102's answer (P1.15): the version shoppers now see. */

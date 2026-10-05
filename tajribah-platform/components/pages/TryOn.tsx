@@ -4,7 +4,7 @@
 
 import { useWriteLock } from '@/components/dashboard/write-lock';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { Camera, Lock, Watch } from 'lucide-react';
+import { Camera, Lock, Search, Watch } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { ApiError, currentStore } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
@@ -17,7 +17,9 @@ import { KIND_WORDS } from '@/lib/tryon-words';
 import { CALIBRATE_MIN_PX, TRUE_SIZE_MIN, alphaFacts, type SlotQuality } from '@/lib/tryon-quality';
 import type { TryOnOne, TryOnScreen, TryOnWatchView } from '@/lib/view-models';
 import { Shell } from '@/components/dashboard/chrome';
-import { Badge, Empty, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
+import { Badge, Empty, ErrorNote, Loading, PageHead, PageSizePicker, Pagination, Panel } from '@/components/dashboard/ui';
+import { DEFAULT_PAGE_SIZE, pageCount, rangeText, rowNumber, type PageSize } from '@/lib/pagination';
+import { useDebounced } from '@/lib/use-debounced';
 
 export default function TryOn() {
   const { t, lang } = useLang();
@@ -30,7 +32,15 @@ export default function TryOn() {
   const { path } = useEnv();
   const only = /^\/dashboard\/tryon\/([^/]+)\/?$/.exec(path)?.[1];
   const productId = only ? decodeURIComponent(only) : null;
-  const { data, loading, error } = useResource((s): Promise<TryOnScreen & { product?: TryOnOne['product'] }> => (productId ? s.tryOnOne(productId) : s.tryOn()), [version, productId]);
+  // T89: numbered pages and a search, as on Products — products already being set up come first.
+  const [typed, setTyped] = useState('');
+  const q = useDebounced(typed.trim(), 250);
+  const [perPage, setPerPage] = useState<PageSize>(DEFAULT_PAGE_SIZE);
+  const [paged, setPaged] = useState({ key: `${q}|${perPage}`, page: 1 });
+  const page = paged.key === `${q}|${perPage}` ? paged.page : 1; // a new search or page size starts at page 1
+  const { data, loading, error } = useResource((s): Promise<TryOnScreen & { product?: TryOnOne['product'] }> => (productId ? s.tryOnOne(productId) : s.tryOn({ page, pageSize: perPage, q: q || undefined })), [version, productId, page, perPage, q]);
+  const pages = data?.total != null && data.pageSize ? pageCount(data.total, data.pageSize) : 1;
+  const numberOf = (index: number) => (!productId && data?.page && data.pageSize ? formatNumber(rowNumber(data.page, data.pageSize, index), lang) : null);
   const reload = () => setVersion((v) => v + 1);
   const one = productId && data?.product ? data.product : null;
   const oneName = one ? (lang === 'ar' ? (one.nameAr ?? one.name) : one.name) : null;
@@ -66,20 +76,33 @@ export default function TryOn() {
           body={t('اجعل نوعه «ساعة» أو «نظارات» أو «حقيبة» أو «مجوهرات» (للخواتم والقلائد والأقراط) في صفحته، ثم ارجع هنا. السوار يُجرَّب كساعة: على المعصم.', 'Set its type to Watch, Eyewear, Bag or Jewelry (for rings, necklaces and earrings) on its page, then come back. A bracelet is tried as a watch: on the wrist.')}
           action={<AppLink href={`/dashboard/products/${encodeURIComponent(one.id)}`} className="btn btn-ghost">{t('صفحة المنتج', 'The product’s page')}</AppLink>} />
       )}
-      {!productId && data && data.watches.length === 0 && data.jewelry.length === 0 && (
+      {!productId && (data?.total ?? 0) + (q ? 1 : 0) > 0 && (
+        <div className="tryon-toolbar">
+          <label className="pick-search">
+            <Search size={15} aria-hidden />
+            <span className="sr-only">{t('ابحث', 'Search')}</span>
+            <input type="search" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={t('ابحث بالاسم أو الرمز', 'Search by name or SKU')} />
+          </label>
+          <PageSizePicker id="tryon-page-size" value={perPage} onChange={setPerPage} />
+          {data?.total != null && data.page && data.pageSize && <span className="hint" style={{ margin: 0 }}>{rangeText(data.page, data.pageSize, data.watches.length + data.jewelry.length, data.total, lang)}</span>}
+        </div>
+      )}
+      {!productId && q && data && data.watches.length === 0 && data.jewelry.length === 0 && <p className="hint">{t('لا منتجات بهذا البحث.', 'No products match this search.')}</p>}
+      {!productId && !q && data && data.watches.length === 0 && data.jewelry.length === 0 && (
         <Empty icon={<Watch size={22} />} title={t('لا منتجات للتجربة بعد', 'Nothing to try on yet')}
           body={t('اجعل نوع المنتج «ساعة» أو «نظارات» أو «مجوهرات» (للخواتم والقلائد والأقراط) في صفحته ليظهر هنا. بقية الأنواع تأتي تباعًا.', 'Set a product’s type to Watch, Eyewear or Jewelry (for rings, necklaces and earrings) on its page and it appears here. Other kinds follow.')}
           action={<AppLink href="/dashboard/products" className="btn btn-ghost">{t('المنتجات', 'Products')}</AppLink>} />
       )}
       <div style={{ display: 'grid', gap: 16 }}>
-        {data?.watches.map((w) => <WatchCard key={w.productId} initial={w} editable={canEdit && !lock.locked} onUnmarked={reload} />)}
+        {data?.watches.map((w, i) => <WatchCard key={w.productId} number={numberOf(i)} initial={w} editable={canEdit && !lock.locked} onUnmarked={reload} />)}
       </div>
-      {data && data.jewelry.length > 0 && <JewelryPanel items={data.jewelry} editable={canEdit && !lock.locked} onMarked={reload} />}
+      {data && data.jewelry.length > 0 && <JewelryPanel items={data.jewelry} numberOf={(i) => numberOf(data.watches.length + i)} editable={canEdit && !lock.locked} onMarked={reload} />}
+      {!productId && pages > 1 && <Pagination page={data?.page ?? 1} pages={pages} onPage={(next) => setPaged({ key: `${q}|${perPage}`, page: next })} label={t('صفحات المنتجات', 'Product pages')} />}
     </Shell>
   );
 }
 
-function WatchCard({ initial, editable, onUnmarked }: { initial: TryOnWatchView; editable: boolean; onUnmarked: () => void }) {
+function WatchCard({ initial, editable, onUnmarked, number = null }: { initial: TryOnWatchView; editable: boolean; onUnmarked: () => void; number?: string | null }) {
   const { t, pick, lang } = useLang();
   const source = useData();
   const [w, setW] = useState(initial);
@@ -98,7 +121,7 @@ function WatchCard({ initial, editable, onUnmarked }: { initial: TryOnWatchView;
     let tries = 0;
     const timer = setInterval(() => {
       if (++tries > 20) { clearInterval(timer); return; }
-      source.tryOn().then((screen) => {
+      source.tryOnOne(w.productId).then((screen) => {
         const next = screen.watches.find((x) => x.productId === w.productId);
         if (live && next) setW((now) => ({ ...now, worn: next.worn, flat: next.flat, quality: next.quality }));
       }).catch(() => undefined);
@@ -125,6 +148,16 @@ function WatchCard({ initial, editable, onUnmarked }: { initial: TryOnWatchView;
   const save = () => run('save', () => source.updateTryOn(w.productId, {
     caseMm: caseMm.trim() === '' ? null : Number(caseMm.replace(',', '.')), finishAr: finishAr || null, finishEn: finishEn || null,
   }), { ar: 'حُفظ.', en: 'Saved.' });
+  // T90: one step into the shop — the try-on switched on and the product published
+  const [published, setPublished] = useState<number | null>(null);
+  const publish = async () => {
+    setBusy('publish'); setFailure(null); setNote(null);
+    try {
+      const result = await source.publishTryOn(w.productId);
+      setW((now) => ({ ...now, enabled: true }));
+      setPublished(result.version);
+    } catch (e) { setFailure(e as Error); } finally { setBusy(null); }
+  };
   const toggle = (on: boolean) => run('toggle', () => source.updateTryOn(w.productId, { enabled: on }),
     on ? { ar: 'زر التجربة يظهر في متجرك بعد نشر المنتج من «إعدادات العرض» (انشر في المتجر). إن كان منشورًا فقد حُدّث.', en: 'The try-on button appears in your store once the product is published from AR settings (Publish to the store). If it is already published, it has been updated.' } : { ar: 'أُوقف.', en: 'Switched off.' });
 
@@ -136,7 +169,7 @@ function WatchCard({ initial, editable, onUnmarked }: { initial: TryOnWatchView;
   const missingText = w.missing.map((m) => (m === 'case' ? pick(WIDTH_LABEL[w.kind]) : pick(slotInfo(w.kind, m).label))).join(t('، ', ', '));
 
   return (
-    <Panel title={lang === 'ar' ? w.nameAr ?? w.name : w.name} sub={w.sku ? `${t('الرمز', 'SKU')} ${w.sku}` : undefined} actions={status}>
+    <Panel title={(number ? `${number}. ` : '') + (lang === 'ar' ? w.nameAr ?? w.name : w.name)} sub={w.sku ? `${t('الرمز', 'SKU')} ${w.sku}` : undefined} actions={status}>
       <div className="tryon-grid">
         {SLOTS_OF[w.kind].map((slot) => (
           <Picture key={slot} kind={w.kind} productId={w.productId} slot={slot} has={w[slot]} quality={w.quality[slot]} disabled={!editable || busy !== null}
@@ -191,6 +224,19 @@ function WatchCard({ initial, editable, onUnmarked }: { initial: TryOnWatchView;
           <input type="checkbox" role="switch" checked={w.enabled} disabled={!editable || busy !== null || (!w.ready && !w.enabled)} onChange={(e) => void toggle(e.target.checked)} />
           <span>{t('زر «جرّبها» في صفحة المنتج', 'The “Try it on” button on the product page')}</span>
         </label>
+      {editable && (
+        <div className="tryon-publish">
+          <button type="button" className="btn btn-primary" disabled={!w.ready || busy !== null} onClick={() => void publish()}>
+            {busy === 'publish' ? t('جارٍ النشر…', 'Publishing…') : t('انشر في المتجر', 'Publish to the store')}
+          </button>
+          <span className="hint" style={{ margin: 0 }}>{published
+            ? t(`نُشر (نسخة ${published}). يظهر الزر في متجرك وصفحة المنتج خلال دقيقة تقريبًا.`, `Published (version ${published}). The button shows in your store and on the product’s page within about a minute.`)
+            : w.ready
+              ? t('يفعّل التجربة وينشر المنتج بخطوة واحدة.', 'Switches the try-on on and publishes the product in one step.')
+              : t(`أكمل أولًا: ${w.missing.map((m) => (m === 'case' ? pick(WIDTH_LABEL[w.kind]) : pick(slotInfo(w.kind, m).label))).join('، ')}.`, `Finish first: ${w.missing.map((m) => (m === 'case' ? pick(WIDTH_LABEL[w.kind]) : pick(slotInfo(w.kind, m).label))).join(', ')}.`)}</span>
+          {published && <AppLink href={`/dashboard/products/${encodeURIComponent(w.productId)}/preview`} className="btn btn-ghost btn-sm">{t('معاينة المنتج', 'Preview the product')}</AppLink>}
+        </div>
+      )}
         {!w.ready && <span className="hint" style={{ margin: 0 }}>{t(`ينقصها: ${missingText}.`, `Still needed: ${missingText}.`)}</span>}
         {(w.kind === 'ring' || w.kind === 'necklace' || w.kind === 'earring') && !w.worn && editable && (
           <button type="button" className="btn btn-quiet btn-sm" style={{ marginInlineStart: 'auto' }} disabled={busy !== null}
@@ -375,7 +421,7 @@ function CaseEdges({ kind, productId, slot, busy, onSave, onCancel }: {
 }
 
 /** P5.4/P5.5 — Jewelry is rings, necklaces, earrings, bracelets…: only the merchant knows which is which. */
-function JewelryPanel({ items, editable, onMarked }: { items: TryOnScreen['jewelry']; editable: boolean; onMarked: () => void }) {
+function JewelryPanel({ items, editable, onMarked, numberOf = () => null }: { items: TryOnScreen['jewelry']; editable: boolean; onMarked: () => void; numberOf?: (index: number) => string | null }) {
   const { t, lang } = useLang();
   const source = useData();
   const [busy, setBusy] = useState<string | null>(null);
@@ -387,9 +433,9 @@ function JewelryPanel({ items, editable, onMarked }: { items: TryOnScreen['jewel
   return (
     <Panel title={t('مجوهراتك', 'Your jewelry')} sub={t('الخواتم تُجرَّب على يد حقيقية، والقلائد على عارضة، والأقراط على أذن حقيقية. حدّد ما كل قطعة.', 'Rings are tried on a real hand, necklaces on a model and earrings on a real ear. Say which each piece is.')}>
       <ul className="jewelry-list">
-        {items.map((item) => (
+        {items.map((item, index) => (
           <li key={item.productId}>
-            <span><strong>{lang === 'ar' ? item.nameAr ?? item.name : item.name}</strong>{item.sku && <span className="hint" style={{ margin: 0 }}> · <span dir="ltr">{item.sku}</span></span>}</span>
+            <span>{numberOf(index) && <span className="pick-num">{numberOf(index)}</span>}<strong>{lang === 'ar' ? item.nameAr ?? item.name : item.name}</strong>{item.sku && <span className="hint" style={{ margin: 0 }}> · <span dir="ltr">{item.sku}</span></span>}</span>
             <span style={{ display: 'flex', gap: 8 }}>
               <button type="button" className="btn btn-ghost btn-sm" disabled={!editable || busy !== null} onClick={() => void mark(item.productId, 'ring')}>
                 {busy === item.productId ? t('جارٍ…', 'Working…') : t('هذا خاتم', 'It’s a ring')}

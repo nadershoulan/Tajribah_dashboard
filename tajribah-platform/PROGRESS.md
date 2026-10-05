@@ -3,8 +3,8 @@
 _Last updated: 2026-10-04 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: one on analytics (now end to end), store connections, enterprise features and security; the other on the website and the shop-facing pages.
-> **Just finished (2026-10-05):** **Preview any product** from its store's pictures, no 3D model needed: the eye icon on each Products row (or "معاينة" on its page) shows it as a shopper sees it, with every feed picture. Product pictures now show across the dashboard. Before that: the feed's categories and types, removing an old store, rows per page.
-> **Next:** use a feed picture for the try-on (instead of uploading one).
+> **Just finished (2026-10-05):** **Use a store picture for the try-on**: on the try-on screen, "من صور المتجر" lists the product's feed pictures; a cut-out (PNG/WebP with a transparent background) is accepted, anything else is refused with the reason. Before that: preview any product from its feed pictures, the feed's categories and types, removing an old store.
+> **Next:** store linking (Salla, Zid, Shopify, WooCommerce) moves to version 2 — a feed link or file is the way in for now; how to test the QR locally and run on one domain with its subdomains.
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
 > **Waiting on you:** **the Google sign-in button** needs one Google Cloud "OAuth client" (10 minutes, steps in `docs/HOSTING.md` → "Google sign-in for GA4"); until then the id is pasted, which works fully. **A GA4 measurement id** when you want website analytics on (analytics.google.com → a property for tajribah.sa → a web stream → `G-…`, then the console's Website page). **The short domain** (when you buy the domains): products' own pages and QR codes go on it — until then the links read `tajribah.sa/p/…`, and nothing is shared before launch, so one setting changes them all (`HOSTED_PAGE_BASE`, GO-LIVE §4). Then the **Hetzner server**, and the accounts below — Salla, Zid, Cloudflare, the domain, Moyasar and a 3D-generation provider.
 
@@ -523,3 +523,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-10-05 | Publish and try a product on this computer, no store linked; rows per page (10/25/50/100) and row numbers on Products, AR settings, Models, Visits | new tests, rules broken on purpose and caught; seen in Chrome |
 | 2026-10-05 | The feed's categories kept, shown, filterable; they set the type when clear; remove an old store with its products | new tests, four rules broken on purpose and caught |
 | 2026-10-05 | Preview any product from its store's pictures (no 3D model); pictures shown across the dashboard | new tests, two rules broken on purpose and caught; seen in Chrome with Failet's feed |
+| 2026-10-05 | Use a store picture (from the feed) for the try-on — fetched safely, checked like an upload | new tests, two guards broken on purpose and caught; seen with Failet's real pictures |

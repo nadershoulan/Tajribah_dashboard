@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { route } from '@/server/core/observability/request';
 import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@/server/core/http/api';
 import { errors } from '@/server/core/errors/problem';
-import { calibrateCutoutEdges, confirmCutout, cutoutFile, startCutoutUpload, tryOnScreen, updateTryOn } from './service';
+import { calibrateCutoutEdges, confirmCutout, cutoutFile, cutoutFromStorePicture, startCutoutUpload, tryOnScreen, updateTryOn } from './service';
 
 /** The `[productId]` segment `fromEnd` places from the end; a malformed id is a 404. */
 function productAt(request: Request, fromEnd: number): string {
@@ -37,6 +37,14 @@ export const confirmCutoutHandler = route(async (request) => {
   assertSameOrigin(request, config);
   const ctx = await tenantContextFor(request, config);
   return json(await confirmCutout(ctx, productAt(request, 2), await readJson(request, z.object({ slot: SLOT, key: z.string().max(300) }))));
+});
+
+/** API-188 — POST /api/tryon/[productId]/images/from-store { slot, url }: one of its store pictures (T80). */
+export const cutoutFromStoreHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  return json(await cutoutFromStorePicture(ctx, productAt(request, 2), await readJson(request, z.object({ slot: SLOT, url: z.string().url().max(2048) }))));
 });
 
 /** API-153 — PATCH /api/tryon/[productId]: case width, finish, on/off. */

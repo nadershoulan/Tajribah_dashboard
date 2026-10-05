@@ -122,6 +122,8 @@ function WatchCard({ initial, editable, onUnmarked }: { initial: TryOnWatchView;
         {SLOTS_OF[w.kind].map((slot) => (
           <Picture key={slot} kind={w.kind} productId={w.productId} slot={slot} has={w[slot]} quality={w.quality[slot]} disabled={!editable || busy !== null}
             busy={busy === slot} onPick={(file) => { setMarking(null); void run(slot, () => source.uploadCutout(w.productId, slot, file), { ar: 'قُبلت الصورة.', en: 'Picture accepted.' }); }}
+            storePictures={w.storePictures ?? []}
+            onStorePicture={(url) => { setMarking(null); void run(slot, () => source.cutoutFromStore(w.productId, slot, url), { ar: 'قُبلت صورة المتجر.', en: 'Store picture accepted.' }); }}
             onMark={editable && w.quality[slot] && !w.quality[slot]!.issue ? () => setMarking(slot) : undefined} />
         ))}
         <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
@@ -184,13 +186,16 @@ function WatchCard({ initial, editable, onUnmarked }: { initial: TryOnWatchView;
   );
 }
 
-function Picture({ kind, productId, slot, has, quality, disabled, busy, onPick, onMark }: {
+function Picture({ kind, productId, slot, has, quality, disabled, busy, onPick, onMark, storePictures = [], onStorePicture }: {
   kind: TryOnKind; productId: string; slot: 'worn' | 'flat'; has: { bytes: number } | null; quality: SlotQuality | null; disabled: boolean; busy: boolean; onPick: (file: File) => void; onMark?: () => void;
+  /** T80: the product's store pictures, one of which can be chosen instead of an upload. */
+  storePictures?: string[]; onStorePicture?: (url: string) => void;
 }) {
   const { t, pick, lang } = useLang();
   const source = useData();
   const picker = useRef<HTMLInputElement>(null);
   const [src, setSrc] = useState<string | null>(null);
+  const [choosing, setChoosing] = useState(false);
   // Stored pictures are private until published: fetched with the session, shown from a blob.
   const bytes = has?.bytes ?? null;
   useEffect(() => {
@@ -215,8 +220,26 @@ function Picture({ kind, productId, slot, has, quality, disabled, busy, onPick, 
       <input ref={picker} type="file" accept="image/png,image/webp,.png,.webp" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.target.value = ''; }} />
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} onClick={() => picker.current?.click()}>{has ? t('بدّل الصورة', 'Replace') : t('ارفع صورة', 'Upload')}</button>
+        {storePictures.length > 0 && onStorePicture && (
+          <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} aria-expanded={choosing} onClick={() => setChoosing((c) => !c)}>{t('من صور المتجر', 'From the store’s pictures')}</button>
+        )}
         {has && onMark && <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} onClick={onMark}>{pick(KIND_WORDS[kind].markButton)}</button>}
       </div>
+      {choosing && onStorePicture && (
+        <div className="store-pictures">
+          <span className="hint" style={{ margin: 0 }}>{t('اختر صورة مقصوصة بخلفية شفافة (PNG أو WebP). نفحصها كما نفحص الصورة المرفوعة.', 'Choose a cut-out picture with a transparent background (PNG or WebP). It is checked like an uploaded one.')}</span>
+          <ul>
+            {storePictures.map((url, i) => (
+              <li key={url}>
+                <button type="button" disabled={disabled} onClick={() => { setChoosing(false); onStorePicture(url); }}
+                  aria-label={t(`صورة المتجر ${i + 1}`, `Store picture ${i + 1}`)}>
+                  <img src={url} alt="" loading="lazy" referrerPolicy="no-referrer" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

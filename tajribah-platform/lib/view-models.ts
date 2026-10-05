@@ -467,6 +467,8 @@ export type GenerationPhotoSet = {
 /** P5.10 — one watch's try-on settings, as the merchant sees them (T26: the owner's studio). */
 export type TryOnWatchView = {
   productId: string;
+  /** T80: the product's own store pictures (https), any of which can be its try-on picture instead of an upload. */
+  storePictures?: string[];
   /** P5.2 (T68): a watch (two pictures, case width) or glasses (one picture, frame width). */
   kind: 'watch' | 'glasses' | 'ring' | 'necklace' | 'earring' | 'bag'; // all but a watch take one picture
   name: string;

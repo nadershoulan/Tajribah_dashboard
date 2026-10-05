@@ -49,6 +49,8 @@ import { enqueueCalibration, enqueueQuality } from './quality-queue'; // not ./q
 import { retireCutout } from './retire';
 import { keepLive } from '@/server/modules/edge/publish';
 import { EXPIRED, notePendingUpload, takePendingUpload } from '@/server/modules/uploads/pending';
+import { fetchStorePicture, StorePictureError } from './store-picture';
+import type { Resolver } from '@/server/modules/embed/service';
 
 export type Slot = 'worn' | 'flat';
 type Config = typeof tryonConfigs.$inferSelect;
@@ -73,6 +75,7 @@ function view(product: Product, config: Config | null, last30: Last30 = null): T
   const dims = product.dimensions as { widthMm?: number } | null;
   return {
     productId: product.id, kind, name: product.name, nameAr: product.nameAr, sku: product.sku,
+    storePictures: (product.images ?? []).map((i) => i.url).filter((url) => url.startsWith('https://')).slice(0, 10),
     productWidthMm: typeof dims?.widthMm === 'number' ? dims.widthMm : null,
     caseMm,
     worn: config?.wornKey ? { bytes: config.wornBytes ?? 0 } : null,
@@ -153,6 +156,38 @@ export async function startCutoutUpload(ctx: TenantContext, productId: string, i
   await notePendingUpload(ctx.tenantId, key, 'tryon_cutout'); // bytes never confirmed are swept
   const { url, expiresAt } = await store.presignUpload(key, { contentType, sizeBytes: input.sizeBytes, expiresInSeconds: UPLOAD_SECONDS });
   return { key, uploadUrl: url, contentType, expiresAt: expiresAt.toISOString() };
+}
+
+/**
+ * API-188 — T80: one of the product's own store pictures as its try-on picture (`./store-picture`),
+ * stored as an upload would be, then checked and attached by `confirmCutout` — the same rules exactly.
+ */
+export async function cutoutFromStorePicture(
+  ctx: TenantContext, productId: string, input: { slot: Slot; url: string },
+  fetchImpl: typeof fetch = fetch, resolve?: Resolver,
+): Promise<TryOnWatchView> {
+  await mayChange(ctx);
+  if (input.slot !== 'worn' && input.slot !== 'flat') throw errors.validation({ slot: ['worn or flat'] });
+  const product = await withTenant(ctx.tenantId, async (db) => {
+    const found = await watchOf(db, productId);
+    const kind = await kindFor(db, found);
+    if (!SLOTS_OF[kind].includes(input.slot)) throw errors.validation({ slot: ['only a watch takes two pictures'] });
+    return found;
+  });
+  if (!(product.images ?? []).some((i) => i.url === input.url)) throw errors.validation({ url: ['not one of this product’s pictures from its store'] });
+  let picture: { bytes: Uint8Array; format: 'png' | 'webp' };
+  try {
+    picture = await fetchStorePicture(input.url, fetchImpl, resolve);
+  } catch (error) {
+    if (error instanceof StorePictureError) throw errors.validation({ url: [error.message] });
+    throw error;
+  }
+  await assertStorageRoom(ctx, picture.bytes.byteLength);
+  const store = forTenant(ctx.tenantId);
+  const key = store.key({ kind: 'photo', id: uuidv7(), filename: `${input.slot}.${picture.format}` });
+  await notePendingUpload(ctx.tenantId, key, 'tryon_cutout');
+  await store.put(key, picture.bytes.buffer.slice(picture.bytes.byteOffset, picture.bytes.byteOffset + picture.bytes.byteLength) as ArrayBuffer, { contentType: picture.format === 'png' ? 'image/png' : 'image/webp' });
+  return confirmCutout(ctx, productId, { slot: input.slot, key });
 }
 
 /** A key this store's cut-out upload for `slot` would have — nothing else can be attached. */

@@ -131,6 +131,8 @@ export interface DataSource {
   tryOn(): Promise<TryOnScreen>;
   /** P5.10: start → PUT straight to storage → the server's check of the picture (422 with the reason). */
   uploadCutout(productId: string, slot: 'worn' | 'flat', file: File): Promise<TryOnWatchView>;
+  /** T80: one of the product's store pictures as its try-on picture. */
+  cutoutFromStore(productId: string, slot: 'worn' | 'flat', url: string): Promise<TryOnWatchView>;
   /** P5.4/P5.5: `jewelry` marks a Jewelry product as a ring or a necklace (null takes it back while it has no picture). */
   updateTryOn(productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean; jewelry?: 'ring' | 'necklace' | 'earring' | null }): Promise<TryOnWatchView>;
   /** T68: crop a picture to the case's marked edges (pixel columns, right exclusive); it is checked again after. */
@@ -373,6 +375,9 @@ export function apiSource(client: ApiClient): DataSource {
       const put = await fetch(started.uploadUrl, { method: 'PUT', headers: { 'content-type': started.contentType }, body: file });
       if (!put.ok) throw new ApiError(put.status, 'upload_failed', 'the picture did not reach storage — try again');
       return client.call<TryOnWatchView>(`${base}/confirm`, { method: 'POST', body: { slot, key: started.key } });
+    },
+    async cutoutFromStore(productId, slot, url) {
+      return client.call<TryOnWatchView>(`/api/tryon/${encodeURIComponent(productId)}/images/from-store`, { method: 'POST', body: { slot, url } });
     },
     async updateTryOn(productId, patch) {
       return client.call<TryOnWatchView>(`/api/tryon/${encodeURIComponent(productId)}`, { method: 'PATCH', body: patch });
@@ -930,6 +935,10 @@ export const demoSource: DataSource = {
     const checked = await demoCutoutQuality(file, slot);
     demoTryOn.set(p.id, { ...s, [slot]: checked.picture, quality: { ...s.quality, [slot]: checked.quality } });
     return demoTryOnView(p);
+  },
+  // The preview has no store to fetch from: said plainly.
+  async cutoutFromStore() {
+    throw new ApiError(422, 'validation_failed', 'Validation failed', { url: ['the preview has no store pictures to fetch — upload a picture instead'] });
   },
   async updateTryOn(productId, patch) {
     const p = DEMO_PRODUCTS.find((x) => x.id === productId && (kindOf(x.productType, demoTryOn.get(x.id)?.jewelry) || (x.productType === RING_PRODUCT_TYPE)));

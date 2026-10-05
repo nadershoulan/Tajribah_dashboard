@@ -1329,3 +1329,19 @@ Nothing is published and nothing is needed.
   it always said off, here and in the public API. It is now read from the try-on's own switch.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T80 · 2026-10-05 · A store picture as the try-on picture (you asked: "use the images you get from the feed")
+
+**Decision.** Each picture slot on the try-on screen has "من صور المتجر" (from the store's pictures).
+It shows the product's own feed pictures, and choosing one makes it the try-on picture, with no upload.
+The server fetches it the way it fetches a feed (`server/modules/tryon/store-picture.ts`): https only, a
+public address checked on every redirect (3 at most), 15 seconds, 10 MB at most. Then it goes through the
+**same check as an upload** (`confirmCutout`). A JPEG is refused plainly because it has no transparent
+background. Only a picture the store gave **this product** can be chosen, so the server never fetches an
+address chosen by the caller. `POST /api/tryon/{id}/images/from-store`.
+
+**Seen with Failet's feed.** Of the women's watch's first three pictures, two are PNGs on a white
+background, refused with the check's own words ("has no transparency"). The third is a true cut-out,
+which was accepted and attached.
+
+**Rollback path.** Revert the commit. Cost: low.

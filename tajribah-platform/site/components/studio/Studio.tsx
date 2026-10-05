@@ -273,6 +273,13 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
         notify(t('Fit adjusted. You can still drag it.', 'تم ضبط القلادة. يمكنك تحريكها.'));
         return;
       }
+      if (isBag) { // T84: the wrist and the middle finger's knuckle, a palm's length (about 100 mm) apart, give the scale
+        if (distance < 12) { notify(t('Tap the knuckle of your middle finger.', 'حدّد مفصل إصبعك الوسطى.')); return; }
+        const fit = bagPose(a, p, 0, null);
+        setPose(fit); setPhotoFit(fit); setScale(100); setCalibrating(false); setPoints([]);
+        notify(t('Fit adjusted. You can still drag it.', 'تم ضبط الحقيبة. يمكنك تحريكها.'));
+        return;
+      }
       if (isEarring) { // T83: the top of the ear, then the bottom of the lobe — the ear, about 60 mm long, gives the scale
         if (distance < 20) { notify(t('Tap the bottom of your earlobe.', 'حدّد أسفل شحمة أذنك.')); return; }
         const fit = earringPose(a, p);
@@ -374,6 +381,54 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
     return { x: clamp(pierce.x, 20, W - 20), y: clamp(pierce.y + height / 2, 20, H - 20), width, angle: 0 };
   }
 
+  /**
+   * T84 — a bag in the shopper's own hand. A hand that carries a bag hangs at the side, often seen edge-on,
+   * which squeezes the knuckles together; so the scale is the larger of two adult measures: the palm, wrist
+   * to the middle finger's knuckle, about 100 mm, and the index and little fingers' knuckles, about 62 mm
+   * apart (as for a ring) — seen at an angle, a length only looks shorter. The bag hangs straight down, the
+   * top of its handles where the fingers curl round them: the grip (the middle finger between its base and
+   * middle joints, when the hand is found), or a quarter of a palm past the knuckle from two taps — on the
+   * demo model her fingers start just above the handles' top. Handles are taken as centred.
+   */
+  function bagPose(wrist: { x: number; y: number }, knuckle: { x: number; y: number }, knuckleSpan: number, grip: { x: number; y: number } | null): Pose {
+    const palm = Math.hypot(knuckle.x - wrist.x, knuckle.y - wrist.y);
+    const pxPerMm = Math.max(palm / 100, knuckleSpan / 62);
+    const top = grip ?? { x: knuckle.x + (knuckle.x - wrist.x) * 0.25, y: knuckle.y + (knuckle.y - wrist.y) * 0.25 };
+    const width = clamp(product.caseMm * pxPerMm, 30, 2400);
+    const w = images.current.watch;
+    const height = w ? (width * w.height) / w.width : width;
+    return { x: top.x, y: top.y + height / 2, width, angle: 0 };
+  }
+
+  /** T84 — find the hand in the shopper's photo (on this device, the same model as the wrist) and hang the bag from it. */
+  async function fitBagToHand(img: HTMLImageElement, request: number) {
+    try {
+      if (!handDetector.current) {
+        const { FilesetResolver, HandLandmarker } = await import('@mediapipe/tasks-vision');
+        const vision = await FilesetResolver.forVisionTasks(asset('/wasm'));
+        handDetector.current = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: { modelAssetPath: asset('/assets/hand-landmarker.task'), delegate: 'CPU' },
+          runningMode: 'IMAGE', numHands: 1, minHandDetectionConfidence: 0.35,
+        });
+      }
+      const result = handDetector.current.detect(img);
+      if (request !== photoRequest.current) return;
+      const lm = result.landmarks?.[0];
+      if (lm) {
+        const f = Math.min(W / img.width, H / img.height);
+        const ox = (W - img.width * f) / 2, oy = (H - img.height * f) / 2;
+        const at = (i: number) => ({ x: lm[i].x * img.width * f + ox, y: lm[i].y * img.height * f + oy });
+        const base = at(9), middle = at(10);
+        const index = at(5), little = at(17);
+        const fit = bagPose(at(0), base, Math.hypot(index.x - little.x, index.y - little.y), { x: (base.x + middle.x) / 2, y: (base.y + middle.y) / 2 });
+        setPose(fit); setPhotoFit(fit);
+        notify(t('Hand found. Fine-tune the fit if needed.', 'تم تحديد اليد. عدّل موضع الحقيبة عند الحاجة.'));
+      } else notify(t('Hand not found. Use “Fit to hand” to place the bag.', 'لم يتم تحديد اليد. استخدم «ضبط على اليد».'));
+    } catch {
+      notify(t('Use “Fit to hand” to place the bag on the photo.', 'استخدم «ضبط على اليد» لتحديد موضع الحقيبة.'));
+    }
+  }
+
   /** T68 — find the face in the shopper's photo (on this device) and place the glasses on it. */
   async function fitGlassesToFace(img: HTMLImageElement, request: number) {
     try {
@@ -455,6 +510,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
       if (isEarring) { setCalibrating(true); setPoints([]); notify(t('Tap the top of your ear, then the bottom of your earlobe.', 'حدّد أعلى أذنك، ثم أسفل شحمة الأذن.')); return; } // T83
       if (isGlasses || isNecklace) { await fitGlassesToFace(img, request); return; } // T68; a watch, as before:
       if (isRing) { await fitRingToHand(img, request); return; }
+      if (isBag) { await fitBagToHand(img, request); return; } // T84
       try {
         if (!handDetector.current) {
           const { FilesetResolver, HandLandmarker } = await import('@mediapipe/tasks-vision');
@@ -656,10 +712,10 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
                       : <LoaderCircle className="spin" />}
                   </div>
                 )}
-                {photoBusy && <div className="detecting"><LoaderCircle size={16} className="spin" />{isNecklace ? t('Finding your face…', 'جارٍ تحديد الوجه…') : isRing ? t('Finding your hand…', 'جارٍ تحديد اليد…') : isGlasses ? t('Finding your face…', 'جارٍ تحديد الوجه…') : t('Finding your wrist…', 'جارٍ تحديد المعصم…')}</div>}
+                {photoBusy && <div className="detecting"><LoaderCircle size={16} className="spin" />{isNecklace ? t('Finding your face…', 'جارٍ تحديد الوجه…') : isRing || isBag ? t('Finding your hand…', 'جارٍ تحديد اليد…') : isGlasses ? t('Finding your face…', 'جارٍ تحديد الوجه…') : t('Finding your wrist…', 'جارٍ تحديد المعصم…')}</div>}
                 {calibrating && (
                   <div className="calibration-prompt">
-                    <span>{isEarring ? (points.length ? t('2. Tap the bottom of your earlobe', '2. حدّد أسفل شحمة أذنك') : t('1. Tap the top of your ear', '1. حدّد أعلى أذنك')) : isNecklace ? (points.length ? t('2. Tap the centre of your other eye', '٢. حدّد منتصف عينك الأخرى') : t('1. Tap the centre of one eye', '١. حدّد منتصف إحدى عينيك')) : isRing ? (points.length ? t('2. Tap the other side of your ring finger', '٢. حدّد الجهة الأخرى من البنصر') : t('1. Tap one side of your ring finger, where the ring sits', '١. حدّد جهة من البنصر حيث يُلبس الخاتم')) : isGlasses ? (points.length ? t('2. Tap the centre of your other eye', '٢. حدّد منتصف عينك الأخرى') : t('1. Tap the centre of one eye', '١. حدّد منتصف إحدى عينيك')) : points.length ? t('2. Tap the opposite edge of your wrist', '٢. حدد الحافة المقابلة من المعصم') : t('1. Tap one edge of your wrist', '١. حدد إحدى حافتي المعصم')}</span>
+                    <span>{isBag ? (points.length ? t('2. Tap the knuckle of your middle finger', '2. حدّد مفصل الإصبع الوسطى') : t('1. Tap your wrist, where your hand begins', '1. حدّد معصمك حيث تبدأ اليد')) : isEarring ? (points.length ? t('2. Tap the bottom of your earlobe', '2. حدّد أسفل شحمة أذنك') : t('1. Tap the top of your ear', '1. حدّد أعلى أذنك')) : isNecklace ? (points.length ? t('2. Tap the centre of your other eye', '٢. حدّد منتصف عينك الأخرى') : t('1. Tap the centre of one eye', '١. حدّد منتصف إحدى عينيك')) : isRing ? (points.length ? t('2. Tap the other side of your ring finger', '٢. حدّد الجهة الأخرى من البنصر') : t('1. Tap one side of your ring finger, where the ring sits', '١. حدّد جهة من البنصر حيث يُلبس الخاتم')) : isGlasses ? (points.length ? t('2. Tap the centre of your other eye', '٢. حدّد منتصف عينك الأخرى') : t('1. Tap the centre of one eye', '١. حدّد منتصف إحدى عينيك')) : points.length ? t('2. Tap the opposite edge of your wrist', '٢. حدد الحافة المقابلة من المعصم') : t('1. Tap one edge of your wrist', '١. حدد إحدى حافتي المعصم')}</span>
                     <button aria-label={t('Cancel fitting', 'إلغاء الضبط')} onClick={() => { setCalibrating(false); setPoints([]); }}><X size={16} /></button>
                   </div>
                 )}
@@ -676,13 +732,13 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
               <div className="personal-empty">
                 <div className="photo-icon"><Camera size={31} strokeWidth={1.3} /></div>
                 <span className="eyebrow">{t('Make it personal', 'جرّبها بنفسك')}</span>
-                <h2>{isEarring ? t('Your ear. Your earring.', 'أذنك. قرطك.') : isNecklace ? t('You. Your necklace.', 'أنتِ. قلادتك.') : isRing ? t('Your hand. Your ring.', 'يدك. خاتمك.') : isGlasses ? t('Your face. Your frame.', 'وجهك. إطارك.') : t('Your wrist. Your watch.', 'معصمك. ساعتك.')}</h2>
-                <p>{isEarring ? t('See how it looks on you with a side photo, your ear in view. You tap the top of your ear and your earlobe; it stays on this device.', 'شاهدي كيف يبدو القرط عليك بصورة جانبية تظهر فيها الأذن. تحدّدين أعلى الأذن وشحمتها، وتبقى الصورة على جهازك.') : isNecklace ? t('See how it looks on you with a front photo, your face and chest in view. It stays on this device.', 'شاهدي كيف تبدو القلادة عليك بصورة أمامية يظهر فيها الوجه والصدر. تبقى الصورة على جهازك.') : isRing ? t('See how it looks on you with a photo of the back of your hand, fingers apart. It stays on this device.', 'شاهد كيف يبدو الخاتم عليك بصورة لظهر يدك والأصابع متباعدة. تبقى الصورة على جهازك.') : isGlasses ? t('See how it looks on you with a front photo of your face. It stays on this device.', 'شاهد كيف تبدو النظارة عليك بصورة أمامية لوجهك. تبقى الصورة على جهازك.') : t('See how it looks on you with a photo of your wrist.', 'شاهد كيف تبدو الساعة عليك باستخدام صورة لمعصمك.')}</p>
+                <h2>{isBag ? t('Your hand. Your bag.', 'يدك. حقيبتك.') : isEarring ? t('Your ear. Your earring.', 'أذنك. قرطك.') : isNecklace ? t('You. Your necklace.', 'أنتِ. قلادتك.') : isRing ? t('Your hand. Your ring.', 'يدك. خاتمك.') : isGlasses ? t('Your face. Your frame.', 'وجهك. إطارك.') : t('Your wrist. Your watch.', 'معصمك. ساعتك.')}</h2>
+                <p>{isBag ? t('See it in your hand with a photo of you, your hand down at your side. It stays on this device.', 'شاهدي الحقيبة في يدك بصورة لك ويدك منسدلة إلى جانبك. تبقى الصورة على جهازك.') : isEarring ? t('See how it looks on you with a side photo, your ear in view. You tap the top of your ear and your earlobe; it stays on this device.', 'شاهدي كيف يبدو القرط عليك بصورة جانبية تظهر فيها الأذن. تحدّدين أعلى الأذن وشحمتها، وتبقى الصورة على جهازك.') : isNecklace ? t('See how it looks on you with a front photo, your face and chest in view. It stays on this device.', 'شاهدي كيف تبدو القلادة عليك بصورة أمامية يظهر فيها الوجه والصدر. تبقى الصورة على جهازك.') : isRing ? t('See how it looks on you with a photo of the back of your hand, fingers apart. It stays on this device.', 'شاهد كيف يبدو الخاتم عليك بصورة لظهر يدك والأصابع متباعدة. تبقى الصورة على جهازك.') : isGlasses ? t('See how it looks on you with a front photo of your face. It stays on this device.', 'شاهد كيف تبدو النظارة عليك بصورة أمامية لوجهك. تبقى الصورة على جهازك.') : t('See how it looks on you with a photo of your wrist.', 'شاهد كيف تبدو الساعة عليك باستخدام صورة لمعصمك.')}</p>
                 <button className="primary-button" onClick={() => (isPhone ? file.current?.click() : features.pairing ? setQrOpen(true) : file.current?.click())}>
                   {isPhone ? <Camera size={18} /> : features.pairing ? <Smartphone size={18} /> : <Upload size={18} />}
-                  {isPhone ? (isEarring ? t('Take a side photo', 'التقطي صورة جانبية') : isNecklace ? t('Take a front photo', 'التقطي صورة أمامية') : isRing ? t('Take a photo of your hand', 'التقط صورة ليدك') : isGlasses ? t('Take a selfie', 'التقط صورة لوجهك') : t('Take a wrist photo', 'التقط صورة لمعصمك'))
+                  {isPhone ? (isBag ? t('Take a photo of you', 'التقطي صورة لك') : isEarring ? t('Take a side photo', 'التقطي صورة جانبية') : isNecklace ? t('Take a front photo', 'التقطي صورة أمامية') : isRing ? t('Take a photo of your hand', 'التقط صورة ليدك') : isGlasses ? t('Take a selfie', 'التقط صورة لوجهك') : t('Take a wrist photo', 'التقط صورة لمعصمك'))
                     : features.pairing ? t('Continue on your phone', 'أكمل التجربة من جوالك')
-                      : isNecklace ? t('Upload a front photo', 'ارفعي صورة أمامية') : isRing ? t('Upload a hand photo', 'ارفع صورة ليدك') : isGlasses ? t('Upload a face photo', 'ارفع صورة لوجهك') : t('Upload a wrist photo', 'ارفع صورة لمعصمك')}
+                      : isBag ? t('Upload a photo of you', 'ارفعي صورة لك') : isEarring ? t('Upload a side photo', 'ارفعي صورة جانبية') : isNecklace ? t('Upload a front photo', 'ارفعي صورة أمامية') : isRing ? t('Upload a hand photo', 'ارفع صورة ليدك') : isGlasses ? t('Upload a face photo', 'ارفع صورة لوجهك') : t('Upload a wrist photo', 'ارفع صورة لمعصمك')}
                 </button>
                 {(isPhone || features.pairing) && (
                   <button className="text-button" onClick={() => file.current?.click()}><Upload size={16} />{t('Or upload a photo', 'أو ارفع صورة')}</button>
@@ -722,7 +778,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
               ) : (
                 <div className="photo-actions">
                   <button className="secondary-button" onClick={() => file.current?.click()}><ImagePlus size={16} />{photo ? t('Change photo', 'تغيير الصورة') : t('Upload a photo', 'ارفع صورة')}</button>
-                  {photo && <button className="secondary-button" onClick={() => { setCalibrating(true); setPoints([]); setZoom(1); }}><Maximize2 size={16} />{isEarring ? t('Fit to ear', 'ضبط على الأذن') : isNecklace ? t('Fit to eyes', 'ضبط على العينين') : isRing ? t('Fit to finger', 'ضبط على الإصبع') : isGlasses ? t('Fit to eyes', 'ضبط على العينين') : t('Fit to wrist', 'ضبط على المعصم')}</button>}
+                  {photo && <button className="secondary-button" onClick={() => { setCalibrating(true); setPoints([]); setZoom(1); }}><Maximize2 size={16} />{isBag ? t('Fit to hand', 'ضبط على اليد') : isEarring ? t('Fit to ear', 'ضبط على الأذن') : isNecklace ? t('Fit to eyes', 'ضبط على العينين') : isRing ? t('Fit to finger', 'ضبط على الإصبع') : isGlasses ? t('Fit to eyes', 'ضبط على العينين') : t('Fit to wrist', 'ضبط على المعصم')}</button>}
                   {features.pairing && <button className="icon-button" aria-label={t('Use your phone', 'استخدام الجوال')} onClick={() => setQrOpen(true)}><QrCode size={19} /></button>}
                 </div>
               )}
@@ -763,16 +819,16 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
       </footer>
 
       <input ref={file} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture={isPhone ? 'environment' : undefined}
-        className="sr-only" aria-label={isNecklace ? t('Choose a front photo', 'اختاري صورة أمامية') : isRing ? t('Choose hand photo', 'اختر صورة اليد') : isGlasses ? t('Choose face photo', 'اختر صورة الوجه') : t('Choose wrist photo', 'اختر صورة المعصم')}
+        className="sr-only" aria-label={isBag ? t('Choose a photo of you', 'اختاري صورة لك') : isEarring ? t('Choose a side photo', 'اختاري صورة جانبية') : isNecklace ? t('Choose a front photo', 'اختاري صورة أمامية') : isRing ? t('Choose hand photo', 'اختر صورة اليد') : isGlasses ? t('Choose face photo', 'اختر صورة الوجه') : t('Choose wrist photo', 'اختر صورة المعصم')}
         onChange={(e) => { const f = e.target.files?.[0]; if (f) void applyPhoto(f); e.target.value = ''; }} />
 
       {features.pairing && (
         <Dialog open={qrOpen} onOpenChange={closePair}>
           <DialogContent className="qr-dialog">
             <DialogTitle>{t('Take your try-on to your phone', 'أكمل التجربة على جوالك')}</DialogTitle>
-            <DialogDescription>{isNecklace ? t('Scan the code with your phone camera. Take a front photo and send it to this studio.', 'امسحي الرمز بكاميرا جوالك، ثم التقطي صورة أمامية وأرسليها إلى الاستوديو.') : isRing ? t('Scan the code with your phone camera. Take a photo of your hand and send it to this studio.', 'امسح الرمز بكاميرا جوالك، ثم التقط صورة ليدك وأرسلها إلى الاستوديو.') : isGlasses ? t('Scan the code with your phone camera. Take a selfie and send it to this studio.', 'امسح الرمز بكاميرا جوالك، ثم التقط صورة لوجهك وأرسلها إلى الاستوديو.') : t('Scan the code with your phone camera. Take a wrist photo and send it to this studio.', 'امسح الرمز بكاميرا جوالك، ثم التقط صورة لمعصمك وأرسلها إلى الاستوديو.')}</DialogDescription>
+            <DialogDescription>{isBag ? t('Scan the code with your phone camera. Take a photo of you, your hand at your side, and send it to this studio.', 'امسحي الرمز بكاميرا جوالك، ثم التقطي صورة لك ويدك إلى جانبك وأرسليها إلى الاستوديو.') : isEarring ? t('Scan the code with your phone camera. Take a side photo, your ear in view, and send it to this studio.', 'امسحي الرمز بكاميرا جوالك، ثم التقطي صورة جانبية تظهر فيها الأذن وأرسليها إلى الاستوديو.') : isNecklace ? t('Scan the code with your phone camera. Take a front photo and send it to this studio.', 'امسحي الرمز بكاميرا جوالك، ثم التقطي صورة أمامية وأرسليها إلى الاستوديو.') : isRing ? t('Scan the code with your phone camera. Take a photo of your hand and send it to this studio.', 'امسح الرمز بكاميرا جوالك، ثم التقط صورة ليدك وأرسلها إلى الاستوديو.') : isGlasses ? t('Scan the code with your phone camera. Take a selfie and send it to this studio.', 'امسح الرمز بكاميرا جوالك، ثم التقط صورة لوجهك وأرسلها إلى الاستوديو.') : t('Scan the code with your phone camera. Take a wrist photo and send it to this studio.', 'امسح الرمز بكاميرا جوالك، ثم التقط صورة لمعصمك وأرسلها إلى الاستوديو.')}</DialogDescription>
             <div className="qr-box">
-              {pairBusy ? <LoaderCircle className="spin" /> : pairError ? <p>{pairError}</p> : qrImage ? <img src={qrImage} alt={isGlasses || isRing || isNecklace ? t('Scan to send your photo', 'امسح الرمز لإرسال صورتك') : t('Scan to send your wrist photo', 'امسح الرمز لإرسال صورة معصمك')} /> : <LoaderCircle className="spin" />}
+              {pairBusy ? <LoaderCircle className="spin" /> : pairError ? <p>{pairError}</p> : qrImage ? <img src={qrImage} alt={isGlasses || isRing || isNecklace || isBag || isEarring ? t('Scan to send your photo', 'امسح الرمز لإرسال صورتك') : t('Scan to send your wrist photo', 'امسح الرمز لإرسال صورة معصمك')} /> : <LoaderCircle className="spin" />}
             </div>
             {pairError ? (
               <button className="primary-button" onClick={() => { if (pair) void fetch(`/api/pair/${pair.id}`, { method: 'DELETE' }); setPair(null); void startPair(); }}>{t('Create a new code', 'إنشاء رمز جديد')}</button>
@@ -791,7 +847,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
           <DialogDescription>{isEarring ? t('Explore the earring from every perspective.', 'اكتشف القرط بالطريقة التي تناسبك.') : isBag ? t('Explore the bag from every perspective.', 'اكتشف الحقيبة بالطريقة التي تناسبك.') : isNecklace ? t('Explore the necklace from every perspective.', 'اكتشف القلادة بالطريقة التي تناسبك.') : isRing ? t('Explore the ring from every perspective.', 'اكتشف الخاتم بالطريقة التي تناسبك.') : isGlasses ? t('Explore the glasses from every perspective.', 'اكتشف النظارة بالطريقة التي تناسبك.') : t('Explore the watch from every perspective.', 'اكتشف الساعة بالطريقة التي تناسبك.')}</DialogDescription>
           <div className="help-steps">
             <div><Hand /><div><strong>{t('On model', 'على النموذج')}</strong><p>{isEarring ? t('The earring hangs from a real ear at its real size. Drag it and adjust its size.', 'يتدلى القرط من أذن حقيقية بحجمه الحقيقي. حرّكه وعدّل حجمه.') : isBag ? t('The bag is carried by a real model at its real size.', 'تحمل الحقيبةَ عارضةٌ حقيقية بحجمها الحقيقي.') : isNecklace ? t('The necklace hangs on a real model at its real size. Drag it and adjust its size.', 'تتدلى القلادة على عارضة حقيقية بحجمها الحقيقي. حرّكها وعدّل حجمها.') : isRing ? t('The ring sits on a real hand at its real width. Drag it along the finger and adjust its size or angle.', 'يظهر الخاتم على يد حقيقية بعرضه الحقيقي. حرّكه على الإصبع وعدّل حجمه وزاويته.') : isGlasses ? t('The frame sits on a real face at its real width. Drag it and adjust its size or angle.', 'يظهر الإطار على وجه حقيقي بعرضه الحقيقي. حرّكه وعدّل حجمه وزاويته.') : t('Choose a close-up or lifestyle photo. Drag the watch along the wrist and adjust its size or angle.', 'اختر صورة المعصم أو الإطلالة اليومية. حرّك الساعة على المعصم وعدّل حجمها وزاويتها.')}</p></div></div>
-            <div><Camera /><div><strong>{t('On me', 'عليّ')}</strong><p>{isEarring ? t('Upload a clear side photo with your ear in view. Tap the top of your ear, then the bottom of your earlobe: the earring hangs from the lobe at its real size, sized from the ear.', 'ارفعي صورة جانبية واضحة تظهر فيها الأذن. حدّدي أعلى الأذن ثم أسفل الشحمة: يتدلى القرط من الشحمة بحجمه الحقيقي، والمقياس من طول الأذن.') : isNecklace ? t('Upload a clear front photo with your face and chest in view. We find your face automatically, on this device, and hang the necklace below your chin; use Fit to eyes to tap your two pupils if needed.', 'ارفعي صورة أمامية واضحة يظهر فيها الوجه والصدر. نحدد وجهك تلقائيًا على جهازك ونعلّق القلادة تحت الذقن، ويمكنك تحديد الحدقتين باستخدام ضبط على العينين.') : isRing ? t('Upload a clear photo of the back of your hand, fingers apart. We find your ring finger automatically, on this device; use Fit to finger to tap its two sides if needed.', 'ارفع صورة واضحة لظهر يدك والأصابع متباعدة. نحدد البنصر تلقائيًا على جهازك، ويمكنك تحديد جهتيه باستخدام ضبط على الإصبع.') : isGlasses ? t('Upload a clear front photo of your face. We find your eyes automatically, on this device; use Fit to eyes to tap your two pupils if needed.', 'ارفع صورة أمامية واضحة لوجهك. نحدد عينيك تلقائيًا على جهازك، ويمكنك تحديد الحدقتين باستخدام ضبط على العينين.') : t('Upload a clear photo with your whole hand visible. We look for your wrist automatically; use Fit to wrist to mark its two edges if needed.', 'ارفع صورة واضحة تظهر اليد كاملة. نحاول تحديد المعصم تلقائياً، ويمكنك تحديد حافتيه باستخدام ضبط على المعصم.')}</p></div></div>
+            <div><Camera /><div><strong>{t('On me', 'عليّ')}</strong><p>{isBag ? t('Upload a photo of you with your hand down at your side. We find your hand automatically, on this device, and hang the bag from it at its real size, sized from your hand; use Fit to hand to tap your wrist and your middle finger’s knuckle if needed.', 'ارفعي صورة لك ويدك منسدلة إلى جانبك. نحدد يدك تلقائيًا على جهازك ونعلّق الحقيبة منها بحجمها الحقيقي، والمقياس من طول الكف، ويمكنك تحديد المعصم ومفصل الإصبع الوسطى باستخدام ضبط على اليد.') : isEarring ? t('Upload a clear side photo with your ear in view. Tap the top of your ear, then the bottom of your earlobe: the earring hangs from the lobe at its real size, sized from the ear.', 'ارفعي صورة جانبية واضحة تظهر فيها الأذن. حدّدي أعلى الأذن ثم أسفل الشحمة: يتدلى القرط من الشحمة بحجمه الحقيقي، والمقياس من طول الأذن.') : isNecklace ? t('Upload a clear front photo with your face and chest in view. We find your face automatically, on this device, and hang the necklace below your chin; use Fit to eyes to tap your two pupils if needed.', 'ارفعي صورة أمامية واضحة يظهر فيها الوجه والصدر. نحدد وجهك تلقائيًا على جهازك ونعلّق القلادة تحت الذقن، ويمكنك تحديد الحدقتين باستخدام ضبط على العينين.') : isRing ? t('Upload a clear photo of the back of your hand, fingers apart. We find your ring finger automatically, on this device; use Fit to finger to tap its two sides if needed.', 'ارفع صورة واضحة لظهر يدك والأصابع متباعدة. نحدد البنصر تلقائيًا على جهازك، ويمكنك تحديد جهتيه باستخدام ضبط على الإصبع.') : isGlasses ? t('Upload a clear front photo of your face. We find your eyes automatically, on this device; use Fit to eyes to tap your two pupils if needed.', 'ارفع صورة أمامية واضحة لوجهك. نحدد عينيك تلقائيًا على جهازك، ويمكنك تحديد الحدقتين باستخدام ضبط على العينين.') : t('Upload a clear photo with your whole hand visible. We look for your wrist automatically; use Fit to wrist to mark its two edges if needed.', 'ارفع صورة واضحة تظهر اليد كاملة. نحاول تحديد المعصم تلقائياً، ويمكنك تحديد حافتيه باستخدام ضبط على المعصم.')}</p></div></div>
             <div><Ruler /><div><strong>{t('Compare', 'قارن الحجم')}</strong><p>{t('Compare relative sizes with an iPhone, AirPods or Saudi riyal. Drag either item and rotate it. Zoom scales both together.', 'قارن الحجم مع آيفون أو إيربودز أو ريال سعودي. حرّك أي عنصر ودوّره. التكبير يغيّر حجم العنصرين معاً.')}</p></div></div>
             <p className="privacy-note">{t('Photo-based preview, not a live 3D camera filter. A single photo cannot verify exact physical fit.', 'معاينة باستخدام صورة، وليست فلتر كاميرا ثلاثي الأبعاد. لا يمكن التحقق من المقاس الفعلي الدقيق عبر صورة واحدة.')}</p>
           </div>

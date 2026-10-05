@@ -212,7 +212,7 @@ export const DEMO_BAG: TryOnProduct = {
   alt: { ar: 'حقيبة يد بنية فاتحة مطرّزة بزهور برتقالية وحمراء', en: 'A tan handbag embroidered with orange and red flowers' },
   storeLink: null,
   demo: false,
-  onMe: false, // a bag on the shopper's own photo is not built
+  onMe: true, // T84: in the shopper's own hand too — the hand found on their device, the knuckles give the scale
   category: 'bag',
 };
 

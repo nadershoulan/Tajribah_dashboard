@@ -90,7 +90,7 @@ export const INDUSTRIES: Record<IndustrySlug, Industry> = {
     nav: { ar: 'متاجر النظارات', en: 'Eyewear stores' },
     hero: {
       title: { ar: 'لمتاجر النظارات: عرض الإطار بحجمه الحقيقي', en: 'For eyewear stores: frame width at its true size' },
-      lead: { ar: 'اليوم: إطارك على وجه حقيقي بعرضه الحقيقي، وبجانب أشياء يعرفها الجميع — تجهّزه من لوحة التحكم بصورة واحدة وعرض الإطار. التجربة على صورة العميل تأتي لاحقًا.', en: 'Today: your frame on a real face at its real width, and beside familiar objects — set up in the dashboard with one picture and the frame’s width. The shopper’s own photo comes later.' },
+      lead: { ar: 'اليوم: إطارك على وجه حقيقي بعرضه الحقيقي، وبجانب أشياء يعرفها الجميع — تجهّزه من لوحة التحكم بصورة واحدة وعرض الإطار. وعلى صورة العميل نفسه: نحدد وجهه على جهازه ونضع الإطار على عينيه.', en: 'Today: your frame on a real face at its real width, and beside familiar objects — set up in the dashboard with one picture and the frame’s width. On the shopper’s own photo too: their face is found on their device and the frame sits on their eyes.' },
     },
     question: { ar: '«هل الإطار عريض على وجهي؟»', en: '“Is this frame too wide for my face?”' },
     problem: [
@@ -123,7 +123,7 @@ export const INDUSTRIES: Record<IndustrySlug, Industry> = {
     ],
     modes: [
       { feature: 'true-size', label: { ar: 'قارن الحجم', en: 'Compare size' }, status: 'now', note: { ar: 'الحقائب الصغيرة والمحافظ وحقائب اليد الصغيرة بجانب آيفون.', en: 'Small bags, wallets and clutches beside an iPhone.' } },
-      { feature: null, label: { ar: 'الحقيبة باليد', en: 'The bag in hand' }, status: 'now', note: { ar: 'عارضة حقيقية تحمل الحقيبة بيدها، والمقياس من طولها. على صورة العميل نفسه يأتي لاحقًا.', en: 'A real model holds the bag in her hand, sized from her height. On the shopper’s own photo comes later.' } },
+      { feature: null, label: { ar: 'الحقيبة باليد', en: 'The bag in hand' }, status: 'now', note: { ar: 'عارضة حقيقية تحمل الحقيبة بيدها، والمقياس من طولها. وعلى صورة العميل نفسه: نحدد يده على جهازه ونعلّق الحقيبة منها بحجمها.', en: 'A real model holds the bag in her hand, sized from her height. On the shopper’s own photo too: their hand is found on their device and the bag hangs from it at its size.' } },
     ],
     measure: [
       { ar: 'العرض والارتفاع من الأمام بالمليمتر', en: 'Front width and height in millimetres' },

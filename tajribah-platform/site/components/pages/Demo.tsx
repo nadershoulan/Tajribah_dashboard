@@ -45,16 +45,16 @@ export default function Demo() {
                 </button>
               ))}
             </div>
-            {kind === 'bag' && <span className="cycle-save">{t('حقيبة مثال وصور حقيقية مرخّصة. على العارضة وبجانب أشياء تعرف حجمها.',
-              'An example bag and real, licensed photos. On the model and beside things you know.')}</span>}
+            {kind === 'bag' && <span className="cycle-save">{t('حقيبة مثال وصور حقيقية مرخّصة. على العارضة، وبجانب أشياء تعرف حجمها، وفي يدك على صورتك.',
+              'An example bag and real, licensed photos. On the model, beside things you know, and in your hand on your own photo.')}</span>}
             {kind === 'earring' && <span className="cycle-save">{t('قرط مثال وصور حقيقية مرخّصة. على الأذن، وبجانب أشياء تعرف حجمها، وعلى صورتك الجانبية.',
               'An example earring and real, licensed photos. On the ear, beside things you know, and on your own side photo.')}</span>}
-            {kind === 'necklace' && <span className="cycle-save">{t('قلادة مثال وصور حقيقية مرخّصة. على العارضة وبجانب أشياء تعرف حجمها؛ تجربتها على صورتك تأتي لاحقًا.',
-              'An example necklace and real, licensed photos. On the model and beside things you know; on your own photo comes later.')}</span>}
-            {kind === 'ring' && <span className="cycle-save">{t('خاتم مثال وصور حقيقية مرخّصة. على النموذج وبجانب الريال؛ تجربته على صورتك تأتي لاحقًا.',
-              'An example ring and real, licensed photos. On the model and beside a riyal; on your own photo comes later.')}</span>}
-            {kind === 'glasses' && <span className="cycle-save">{t('إطار مثال وصور حقيقية مرخّصة. على النموذج وبجانب أشياء تعرف حجمها؛ تجربتها على صورتك تأتي لاحقًا.',
-              'An example frame and real, licensed photos. On the model and beside things you know; on your own photo comes later.')}</span>}
+            {kind === 'necklace' && <span className="cycle-save">{t('قلادة مثال وصور حقيقية مرخّصة. على العارضة، وبجانب أشياء تعرف حجمها، وعلى صورتك.',
+              'An example necklace and real, licensed photos. On the model, beside things you know, and on your own photo.')}</span>}
+            {kind === 'ring' && <span className="cycle-save">{t('خاتم مثال وصور حقيقية مرخّصة. على النموذج، وبجانب الريال، وعلى صورة يدك.',
+              'An example ring and real, licensed photos. On the model, beside a riyal, and on your own hand photo.')}</span>}
+            {kind === 'glasses' && <span className="cycle-save">{t('إطار مثال وصور حقيقية مرخّصة. على النموذج، وبجانب أشياء تعرف حجمها، وعلى صورتك.',
+              'An example frame and real, licensed photos. On the model, beside things you know, and on your own photo.')}</span>}
           </div>
           {kind === 'glasses' ? <Studio key="glasses" product={DEMO_GLASSES} /> : kind === 'ring' ? <Studio key="ring" product={DEMO_RING} /> : kind === 'necklace' ? <Studio key="necklace" product={DEMO_NECKLACE} /> : kind === 'earring' ? <Studio key="earring" product={DEMO_EARRING} /> : kind === 'bag' ? <Studio key="bag" product={DEMO_BAG} /> : <Studio key="watch" />}
         </div>

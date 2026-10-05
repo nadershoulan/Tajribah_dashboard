@@ -230,7 +230,7 @@ test('P5.6 a Bag product: one picture, 100–600 mm, on the shop as a bag — wh
     assert.ok(config.placement !== 'face' && config.placement !== 'wrist', config.placement);
     assert.equal(parseConfig(config)?.tryon?.category, 'bag');
     assert.equal(parseConfig({ ...config, placement: 'wrist' }), null, 'a bag on a wrist: nothing to open');
-    assert.deepEqual([tryOnProductFrom(config)?.category, tryOnProductFrom(config)?.onMe], ['bag', false]);
+    assert.deepEqual([tryOnProductFrom(config)?.category, tryOnProductFrom(config)?.onMe], ['bag', true], 'on Pro (T84), in the shopper’s own hand too — the hand found on their device');
     assert.deepEqual([...TRYON_WIDTH_MM.bag], [WIDTH_MM.bag.min, WIDTH_MM.bag.max]);
     for (const [caseMm, ok] of [[99, false], [100, true], [600, true], [601, false]] as const) {
       const c = { ...config, tryon: { ...config.tryon, caseMm } };

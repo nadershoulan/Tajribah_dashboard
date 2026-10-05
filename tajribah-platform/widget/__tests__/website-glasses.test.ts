@@ -91,6 +91,7 @@ test('a necklace hangs on a real model at a measured scale: 62 mm between pupils
 });
 
 test('a bag is carried by a real model at a measured scale, her own fingers over the handles', () => {
+  assert.notEqual(DEMO_BAG.onMe, false, 'the demo offers the shopper’s own photo (T84): the hand found, the bag hung from it');
   const { models, baseMm } = modelsFor(DEMO_BAG);
   assert.equal(models, BAG_MODELS);
   assert.equal(baseMm, DEMO_BAG.caseMm);

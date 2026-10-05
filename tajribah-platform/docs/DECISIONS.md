@@ -1415,3 +1415,30 @@ photo "come later".
 shopper's; the two taps hung the 10.6 mm hoop from the lobe at the photo's real piercing.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T84 · 2026-10-05 · Bags in the shopper's own hand — every kind now works on the shopper's photo
+
+**Decision.** A bag now also works on the shopper's own photo, the last part of P5.6. The shopper uploads
+a photo of themselves standing with a hand at their side. The hand is found on their device (the same
+hand model as the wrist and the ring), and the bag hangs straight down from the fingers, the top of its
+handles where the fingers curl round them (the middle finger between its base and middle joints). On the
+demo model, her fingers start just above the handles' top, which matches.
+
+**The scale.** A hand at the side is usually seen edge-on, which squeezes the knuckles together: the
+first try, with the knuckle span alone (62 mm, as for a ring), drew the bag about a quarter of its size.
+So the scale is the larger of two adult measures, the palm (wrist to the middle knuckle, about 100 mm)
+and the knuckle span (about 62 mm). Seen at an angle, a length can only look shorter, so the larger one
+is the truer. If the hand isn't found, "ضبط على اليد" (fit to hand) asks for two taps that stay apart
+in a side view: the wrist, then the middle knuckle. Handles are taken as centred in the picture; the
+studio already says a bag's size and placement are approximate. Added to the studio beside the other
+kinds; nothing it already did changed.
+
+**Also.** The demo still said necklaces, rings and glasses on your own photo "come later" (they have
+worked since T68), and so did the glasses industry page; corrected. The earring's upload button, file
+picker and phone code fell back to the watch's "wrist" wording on some paths; they now say a side photo.
+
+**Seen.** On /demo, a real photo (Pexels 7249224, a woman in an abaya with her hands at her sides; used
+to test only, not shipped): the hand was found and the bag hung from her fingers; in English, the two
+taps placed it too.
+
+**Rollback path.** Revert the commit. Cost: low.

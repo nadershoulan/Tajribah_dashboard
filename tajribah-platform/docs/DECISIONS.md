@@ -1577,3 +1577,13 @@ imports are removed. The lint warnings left are deliberate: `<img>` for store pi
 domains, and the studio's own code.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T92 · 2026-10-06 · A store picture becomes a cut-out on the try-on settings too
+
+**Decision.** The try-on settings card's "من صور المتجر" (from the store's pictures) used to accept
+only a picture that was already a transparent PNG or WebP, and almost every store picture is a JPEG on
+white. It now does what the preview's one click does: it takes the plain background off in the browser,
+crops to the product, and uploads the result, checked like any cut-out. Merchants can now finish a
+product (picture, width, publish) on one page. One routine () serves both places.
+
+**Rollback path.** Revert the commit. Cost: low.

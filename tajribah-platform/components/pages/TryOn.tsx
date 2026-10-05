@@ -10,6 +10,7 @@ import { ApiError, currentStore } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
 import { useData, useResource } from '@/lib/data';
 import { formatBytes, formatNumber, formatPercent } from '@/lib/format';
+import { clearStorePicture } from '@/lib/clear-picture';
 import { useLang } from '@/lib/i18n';
 import { ROLE_PERMISSIONS } from '@/lib/permissions';
 import { SLOTS_OF, WIDTH_LABEL, sayCutout, slotInfo, type TryOnKind } from '@/lib/tryon';
@@ -175,7 +176,15 @@ function WatchCard({ initial, editable, onUnmarked, number = null }: { initial: 
           <Picture key={slot} kind={w.kind} productId={w.productId} slot={slot} has={w[slot]} quality={w.quality[slot]} disabled={!editable || busy !== null}
             busy={busy === slot} onPick={(file) => { setMarking(null); void run(slot, () => source.uploadCutout(w.productId, slot, file), { ar: 'قُبلت الصورة.', en: 'Picture accepted.' }); }}
             storePictures={w.storePictures ?? []}
-            onStorePicture={(url) => { setMarking(null); void run(slot, () => source.cutoutFromStore(w.productId, slot, url), { ar: 'قُبلت صورة المتجر.', en: 'Store picture accepted.' }); }}
+            onStorePicture={(url) => {
+              setMarking(null);
+              // T92: its plain background taken off here (as on the preview), then checked like an upload
+              void run(slot, async () => {
+                const cleared = await clearStorePicture(await source.storePhoto(w.productId, url));
+                if (!cleared.ok) throw new Error(pick(cleared.reason));
+                return source.uploadCutout(w.productId, slot, cleared.file);
+              }, { ar: 'أُزيلت خلفية صورة المتجر وقُبلت.', en: 'The store picture’s background was taken off, and it was accepted.' });
+            }}
             onMark={editable && w.quality[slot] && !w.quality[slot]!.issue ? () => setMarking(slot) : undefined} />
         ))}
         <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
@@ -292,7 +301,7 @@ function Picture({ kind, productId, slot, has, quality, disabled, busy, onPick, 
       </div>
       {choosing && onStorePicture && (
         <div className="store-pictures">
-          <span className="hint" style={{ margin: 0 }}>{t('اختر صورة مقصوصة بخلفية شفافة (PNG أو WebP). نفحصها كما نفحص الصورة المرفوعة.', 'Choose a cut-out picture with a transparent background (PNG or WebP). It is checked like an uploaded one.')}</span>
+          <span className="hint" style={{ margin: 0 }}>{t('اختر صورة من متجرك: نزيل خلفيتها (البيضاء أو أي لون واحد) ونقصّها على المنتج، ثم نفحصها كما نفحص الصورة المرفوعة.', 'Choose one of your store’s pictures: its background (white, or any one plain colour) is taken off and it is cropped to the product, then checked like an uploaded one.')}</span>
           <ul>
             {storePictures.map((url, i) => (
               <li key={url}>

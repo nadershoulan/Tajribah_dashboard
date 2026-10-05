@@ -111,7 +111,7 @@ function Preview({ product, title }: { product: ProductRow; title: string }) {
               ? t(`المقاس: ${[d.widthMm, d.heightMm, d.depthMm].filter(Boolean).join(' × ')} مم`, `Size: ${[d.widthMm, d.heightMm, d.depthMm].filter(Boolean).join(' × ')} mm`)
               : t('المقاس غير مضاف بعد — المتسوّق يرى الصور فقط.', 'No size yet — the shopper sees the pictures only.')}
           </p>
-          {product.description && <p className="preview-description">{product.description}</p>}
+          {product.description && <p className="preview-description" tabIndex={0} role="region" aria-label={t('وصف المنتج', 'The product’s description')}>{product.description}</p>}
 
           <Panel title={t('ما يفتحه الزر في متجرك', 'What the button opens in your shop')}>
             <ul className="preview-steps">

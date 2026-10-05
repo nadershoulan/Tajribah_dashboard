@@ -25,10 +25,8 @@
 import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { categories, products, storeConnections, syncJobItems, syncJobs, type Product } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
-import { UNLIMITED } from '@/lib/plans';
 import { connectorFor, TokenRevokedError, type ExternalProduct, type Page } from '@/server/connectors/types';
 import { record } from '@/server/core/audit/audit';
-import { entitlementsOf } from '@/server/core/billing/entitlements';
 import { log } from '@/server/core/observability/log';
 import { systemContext, type TenantContext } from '@/server/core/tenancy/context';
 import { withTenant } from '@/server/core/tenancy/rls';

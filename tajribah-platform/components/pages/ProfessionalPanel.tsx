@@ -16,6 +16,7 @@ import { ROLE_PERMISSIONS } from '@/lib/permissions';
 import { INCLUDED_REVISIONS, OPEN_STATUSES, PRICE_TIERS, STATUS_LABEL, type ProfessionalOrderView } from '@/lib/contracts/professional';
 import { useData, useResource } from '@/lib/data';
 import { formatDateTime } from '@/lib/format';
+import { arabicOf } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
 import { formatMoney } from '@/lib/money';
 import type { ProductRow } from '@/lib/view-models';
@@ -42,7 +43,7 @@ export default function ProfessionalPanel({ product }: { product: ProductRow }) 
   const [busy, setBusy] = useState<'ask' | 'cancel' | 'accept' | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [asking, setAsking] = useState(false); // "are you sure?" before a request goes to the team
-  const say = (m: string) => (lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(m))?.[1] ?? m : m);
+  const say = (m: string) => (lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(m))?.[1] ?? arabicOf(m) ?? 'تعذّر ذلك — حاول مرة أخرى.' : m);
 
   const mine = (data ?? []).filter((o) => o.productId === product.id);
   const open = mine.find((o) => OPEN_STATUSES.includes(o.status)) ?? null;

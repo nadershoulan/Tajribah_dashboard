@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import { useLang } from '@site/lib/i18n';
 import { SiteLink, useSiteEnv } from '@site/lib/site-env';

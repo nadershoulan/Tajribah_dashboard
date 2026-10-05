@@ -24,7 +24,7 @@
  * The result is checked with the widget's own parser before it can be published, so a config the
  * shop cannot read never leaves: the contract has one definition, not two that drift.
  */
-import { kindOf } from '@/lib/tryon';
+import { kindOf, placementFitsKind } from '@/lib/tryon';
 import { and, asc, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import { arConfigs, customDomains, edgeConfigs, hostedPages, modelFiles, models3d, productRelations, products, tenantSettings, tryonConfigs } from '@/db/schema';
 import { isShopUrl, type PublishedPage } from '@/lib/contracts/hosted-page';
@@ -94,9 +94,8 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
   const kind = kindOf(product.productType, tryon?.category);
   const single = kind !== null && kind !== 'watch';
   const flatKey = single ? tryon?.wornKey : tryon?.flatKey;
-  // where each kind may be published: glasses on the face; a bag wherever a bag's button goes (not face or wrist); the rest on the wrist
-  const placementFits = kind === 'glasses' ? button.placement === 'face' : kind === 'bag' ? button.placement !== 'face' && button.placement !== 'wrist' : button.placement === 'wrist';
-  const watch = tryon && tryon.enabled && tryon.wornKey && flatKey && tryon.caseTenthsMm != null && placementFits
+  // complete (tryOnMissing's rule, written out so the types follow) and where that kind's button may go
+  const watch = tryon && tryon.enabled && tryon.wornKey && flatKey && tryon.caseTenthsMm != null && placementFitsKind(kind, button.placement)
     ? {
       ...(single ? { category: kind } : {}),
       worn: files.publicUrl(tryon.wornKey),

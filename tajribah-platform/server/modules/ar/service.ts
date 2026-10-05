@@ -6,7 +6,8 @@
  * the product's whole config, to the store shops read — is `edge/publish.ts` (P1.15); the view
  * carries its status: the version shoppers see, and whether what would be published now differs.
  */
-import { kindOf } from '@/lib/tryon';
+import { likeContains } from '@/server/core/search';
+import { kindOf, tryOnMissing } from '@/lib/tryon';
 import { and, desc, eq, ilike, inArray, isNull, ne, notInArray, or } from 'drizzle-orm';
 import { arConfigs, edgeConfigs, hostedPages, products, tryonConfigs } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
@@ -20,7 +21,6 @@ import { customHostOf, hostedPageViewOf } from '@/server/modules/hosted-pages/vi
 type Product = typeof products.$inferSelect;
 type Config = typeof arConfigs.$inferSelect;
 
-const likeEscape = (text: string) => `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
 export async function listArConfigs(ctx: TenantContext): Promise<ArConfigView[]> {
   return (await listArConfigPage(ctx, { page: 1, pageSize: 500 })).configs;
@@ -35,7 +35,7 @@ export async function listArConfigPage(ctx: TenantContext, query: { page?: numbe
   ctx.require('ar:read');
   const pageSize = Math.min(Math.max(1, query.pageSize ?? 50), 500);
   const search = query.q?.trim()
-    ? or(ilike(products.name, likeEscape(query.q.trim())), ilike(products.nameAr, likeEscape(query.q.trim())), ilike(products.sku, likeEscape(query.q.trim())))
+    ? or(ilike(products.name, likeContains(query.q.trim())), ilike(products.nameAr, likeContains(query.q.trim())), ilike(products.sku, likeContains(query.q.trim())))
     : undefined;
   const listed = and(isNull(products.deletedAt), ne(products.status, 'archived'), search);
   const [saved, tryons, edges, shown] = await Promise.all([
@@ -68,7 +68,7 @@ async function viewsOf(ctx: TenantContext, rows: Product[]): Promise<ArConfigVie
     const c = tryons.find((x) => x.productId === p.id) ?? null;
     const kind = kindOf(p.productType, c?.category);
     if (!kind) return null;
-    return { ready: !!c?.wornKey && (kind !== 'watch' || !!c.flatKey) && c.caseTenthsMm != null };
+    return { ready: tryOnMissing(kind, c).length === 0 };
   };
   return rows.map((p) => ({ ...withEdge(arViewOf(p, configs.find((c) => c.productId === p.id) ?? null), live.get(p.id)), page: pages.get(p.id)!, tryon: tryonOf(p) }));
 }

@@ -8,6 +8,7 @@ import { AppLink } from '@/lib/app-env';
 import { AI_JOB_STAGE_LABELS, AI_JOB_TYPE_LABELS } from '@/lib/ai-jobs';
 import { useData, useResource } from '@/lib/data';
 import { formatNumber, formatRelative } from '@/lib/format';
+import { sayProblem } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
 import type { AiJobView } from '@/lib/view-models';
 import { Shell } from '@/components/dashboard/chrome';
@@ -51,7 +52,7 @@ export default function AiJobs() {
       setConfirming(null);
       setVersion((v) => v + 1);
     } catch (e) {
-      setFailure((e as Error).message);
+      setFailure(sayProblem(e, lang));
     } finally {
       setBusy(null);
     }

@@ -9,6 +9,7 @@ import { AppLink, useEnv } from '@/lib/app-env';
 import { currentStore } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
 import { useData, useResource } from '@/lib/data';
+import { sayProblem } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
 import { loadModelViewer } from '@/lib/model-viewer';
 import { NO_TURN, next, turnedSize, viewerOrientation, type Turns } from '@/lib/model-turn';
@@ -115,7 +116,7 @@ function Editor({ loaded, onSaved }: { loaded: Loaded; onSaved: () => void }) {
       setPictureNote({ ok: true, text: t('صارت هذه الصورة صورة النموذج.', 'This is now the model’s picture.') });
       onSaved();
     } catch (e) {
-      setPictureNote({ ok: false, text: (e as Error).message });
+      setPictureNote({ ok: false, text: sayProblem(e, lang) });
     } finally {
       setPicturing(false);
     }

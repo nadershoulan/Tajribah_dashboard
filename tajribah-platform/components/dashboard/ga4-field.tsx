@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import type { Ga4Picker, Ga4Stream } from '@/lib/contracts/settings';
+import { sayProblem } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
 
 const WHY: Record<string, { ar: string; en: string }> = {
@@ -62,7 +63,7 @@ export function Ga4Field({ id, value, onChange, error, picker, hint, disabled }:
 
   const signIn = async () => {
     setBusy(true); setProblem(null);
-    try { window.location.assign(await picker.start()); } catch (e) { setProblem((e as Error).message); setBusy(false); }
+    try { window.location.assign(await picker.start()); } catch (e) { setProblem(sayProblem(e, lang)); setBusy(false); }
   };
 
   return (

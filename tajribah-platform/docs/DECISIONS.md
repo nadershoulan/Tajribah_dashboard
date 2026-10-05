@@ -1554,3 +1554,26 @@ Every place a merchant could get stuck now leads there:
   step. The step's key is unchanged, and it already counted a finished try-on as done.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T91 · 2026-10-06 · The server's refusals in Arabic; one copy of each rule (you asked)
+
+**Decision.** The server keeps writing its refusals in English (its logs and the API's documents read
+them), and the dashboard says each one in the reader's language. Most screens showed the English line
+as it was. One translator, `lib/problem-text.ts`, now covers them:
+- **In Arabic:** the line in Arabic, worded ones with their numbers ("بقي 3 ويلزم 10"); else the
+  fields' refusals in Arabic; else the Arabic title of the error's kind ("لا تملك صلاحية لهذا").
+  Never English.
+- **In English:** the server's line, as before.
+- **Where:** the shared error box (now titled "تعذّر إكمال ذلك", that did not work, since it reports
+  failed actions as well as loads), the screens that showed messages themselves, and Store connections'
+  feed and sync errors.
+- **The guard:** a test reads every fixed refusal in the merchant-facing server modules from the code
+  and fails if one has no Arabic.
+
+**Also tidied.** Three rules lived in two or three copies that could drift apart. Each now lives once:
+search escaping (products, AR settings, try-on), where each kind's button may go (the published config
+and one-click publishing), and when a try-on is complete (the try-on screen and AR settings). Unused
+imports are removed. The lint warnings left are deliberate: `<img>` for store pictures on other
+domains, and the studio's own code.
+
+**Rollback path.** Revert the commit. Cost: low.

@@ -11,6 +11,7 @@
  *     the next sync, silently. Only the fields the store does not have are editable.
  *  3. **Deleting is soft.** The row stays (orders and analytics still point at it), hidden.
  */
+import { likeContains } from '@/server/core/search';
 import { and, desc, eq, gte, ilike, inArray, isNotNull, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm';
 import { categories, dailyProductStats, edgeConfigs, models3d, products, tryonConfigs, type Product } from '@/db/schema';
 import {
@@ -60,7 +61,6 @@ function sortKey(sort: ProductSort, since: string): SQL {
 }
 
 /** `%` and `_` in a search box are characters, not wildcards. */
-const likeEscape = (text: string) => `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
 export type ProductList = ProductListPage;
 
@@ -68,7 +68,7 @@ export async function listProducts(ctx: TenantContext, query: ProductListQuery):
   ctx.require('products:read');
   const live = isNull(products.deletedAt);
   const search = query.q
-    ? or(ilike(products.name, likeEscape(query.q)), ilike(products.nameAr, likeEscape(query.q)), ilike(products.sku, likeEscape(query.q)))
+    ? or(ilike(products.name, likeContains(query.q)), ilike(products.nameAr, likeContains(query.q)), ilike(products.sku, likeContains(query.q)))
     : undefined;
   // Keyset paging on the id: uuid v7 is time-ordered and never changes, unlike updated_at.
   // T73: or a numbered page (the dashboard's pager), counted from the newest.

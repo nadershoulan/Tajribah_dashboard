@@ -51,6 +51,22 @@ export const kindOf = (productType: string, category?: string | null): TryOnKind
 export const JEWELRY_KINDS = ['ring', 'necklace', 'earring'] as const;
 export type JewelryKind = (typeof JEWELRY_KINDS)[number];
 export const WIDTH_MM: Record<TryOnKind, { min: number; max: number }> = { watch: { min: 5, max: 80 }, glasses: { min: 100, max: 170 }, ring: { min: 14, max: 30 }, necklace: { min: 60, max: 300 }, earring: { min: 5, max: 60 }, bag: { min: 100, max: 600 } };
+/**
+ * Where each kind's button may be published (the published config's rule): glasses on the face; a bag
+ * wherever a bag's button goes, but not on the face or the wrist; everything else on the wrist.
+ */
+export const placementFitsKind = (kind: TryOnKind | null, placement: string): boolean =>
+  kind === 'glasses' ? placement === 'face' : kind === 'bag' ? placement !== 'face' && placement !== 'wrist' : placement === 'wrist';
+
+/** What a try-on still needs before it can go to the shop: its picture, a watch's product shot too, and its width. */
+export function tryOnMissing(kind: TryOnKind, settings: { wornKey?: string | null; flatKey?: string | null; caseTenthsMm?: number | null } | null): ('worn' | 'flat' | 'case')[] {
+  const missing: ('worn' | 'flat' | 'case')[] = [];
+  if (!settings?.wornKey) missing.push('worn');
+  if (kind === 'watch' && !settings?.flatKey) missing.push('flat');
+  if (settings?.caseTenthsMm == null) missing.push('case');
+  return missing;
+}
+
 export const SLOTS_OF: Record<TryOnKind, readonly ('worn' | 'flat')[]> = { watch: ['worn', 'flat'], glasses: ['worn'], ring: ['worn'], necklace: ['worn'], earring: ['worn'], bag: ['worn'] };
 
 export const GLASSES_SLOT: { label: Bi; hint: Bi } = {

@@ -30,10 +30,11 @@
  *  - P5.13: the list shows each watch's last 30 days (views, try-on openings) from the analytics
  *    rollup — never raw events — to anyone who may read analytics.
  */
+import { likeContains } from '@/server/core/search';
 import { and, desc, eq, gte, ilike, inArray, isNull, lte, notInArray, or } from 'drizzle-orm';
 import { dailyProductStats, products, tryonConfigs } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
-import { CUTOUT_ISSUES, JEWELRY_KINDS, RING_PRODUCT_TYPE, SLOTS_OF, TRYON_LISTED_TYPES, WIDTH_MM, kindOf, type JewelryKind, type TryOnKind } from '@/lib/tryon';
+import { CUTOUT_ISSUES, JEWELRY_KINDS, RING_PRODUCT_TYPE, SLOTS_OF, TRYON_LISTED_TYPES, WIDTH_MM, kindOf, tryOnMissing, type JewelryKind, type TryOnKind } from '@/lib/tryon';
 import { CALIBRATE_MIN_PX } from '@/lib/tryon-quality';
 import type { TryOnOne, TryOnScreen, TryOnWatchView } from '@/lib/view-models';
 import { record } from '@/server/core/audit/audit';
@@ -67,10 +68,7 @@ type Last30 = TryOnWatchView['last30'];
 function view(product: Product, config: Config | null, last30: Last30 = null): TryOnWatchView {
   const kind: TryOnKind = kindOf(product.productType, config?.category) ?? 'watch';
   const caseMm = config?.caseTenthsMm != null ? config.caseTenthsMm / 10 : null;
-  const missing: TryOnWatchView['missing'] = [];
-  if (!config?.wornKey) missing.push('worn');
-  if (kind === 'watch' && !config?.flatKey) missing.push('flat');
-  if (caseMm === null) missing.push('case');
+  const missing: TryOnWatchView['missing'] = tryOnMissing(kind, config);
   const wornQuality = config?.wornKey && config.quality?.worn?.key === config.wornKey ? config.quality.worn : null;
   const dims = product.dimensions as { widthMm?: number } | null;
   return {
@@ -115,7 +113,6 @@ async function mayChange(ctx: TenantContext): Promise<void> {
 
 /** API-150 — every watch in the store, with its try-on settings (and, P5.13, its last 30 days). */
 export type TryOnQuery = { page?: number; pageSize?: number; q?: string };
-const likeEscape = (text: string) => `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
 /**
  * T89 — one page of them: products already being set up first (they have try-on settings), then the
@@ -129,7 +126,7 @@ export async function tryOnScreen(ctx: TenantContext, now = new Date(), query: T
   const pageSize = Math.min(Math.max(1, Math.floor(query.pageSize ?? 500)), 500);
   const q = query.q?.trim();
   return withTenant(ctx.tenantId, async (db) => {
-    const search = q ? or(ilike(products.name, likeEscape(q)), ilike(products.nameAr, likeEscape(q)), ilike(products.sku, likeEscape(q))) : undefined;
+    const search = q ? or(ilike(products.name, likeContains(q)), ilike(products.nameAr, likeContains(q)), ilike(products.sku, likeContains(q))) : undefined;
     const listedWhere = and(inArray(products.productType, [...TRYON_LISTED_TYPES]), isNull(products.deletedAt), search);
     const allConfigs = await db.find(tryonConfigs, undefined, { limit: 100_000 });
     const configs = new Map(allConfigs.map((c) => [c.productId, c]));

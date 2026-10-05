@@ -10,6 +10,7 @@ import { AppLink } from '@/lib/app-env';
 import { useAuth } from '@/lib/auth';
 import { planByCode } from '@/lib/plans';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { arabicOf } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
 import { useData, useResource } from '@/lib/data';
 import type { ConnectionDetail, SyncProgress } from '@/lib/view-models';
@@ -297,7 +298,7 @@ function ConnectionPanel({ connection, onChanged }: { connection: ConnectionDeta
           )}
           {connection.lastError && (
             <p role="alert" style={{ margin: '8px 0 0', color: 'var(--bad)', fontSize: 13 }}>
-              <AlertTriangle size={13} aria-hidden /> {connection.lastError}
+              <AlertTriangle size={13} aria-hidden /> {lang === 'ar' ? arabicOf(connection.lastError) ?? connection.lastError : connection.lastError}
             </p>
           )}
           {!active && (
@@ -381,14 +382,14 @@ function SyncLine({ sync }: { sync: SyncProgress }) {
     );
   }
   if (sync.status === 'failed') {
-    return <p className="sync-line" style={{ color: 'var(--bad)' }}>{t('فشلت آخر مزامنة', 'The last sync failed')}{sync.error ? `: ${sync.error}` : ''}</p>;
+    return <p className="sync-line" style={{ color: 'var(--bad)' }}>{t('فشلت آخر مزامنة', 'The last sync failed')}{sync.error ? `: ${lang === 'ar' ? arabicOf(sync.error) ?? sync.error : sync.error}` : ''}</p>;
   }
   if (sync.status === 'done') {
     return (
       <p className="sync-line">
         {t('فُحص في آخر مزامنة', 'Checked in the last sync')}: <span className="num">{n(sync.processed)}</span>
         {sync.failed > 0 && <> · {t('لم يُستورد', 'Not imported')}: <span className="num" style={{ color: 'var(--bad)' }}>{n(sync.failed)}</span></>}
-        {sync.error ? <> · {sync.error}</> : null}
+        {sync.error ? <> · {lang === 'ar' ? arabicOf(sync.error) ?? sync.error : sync.error}</> : null}
       </p>
     );
   }

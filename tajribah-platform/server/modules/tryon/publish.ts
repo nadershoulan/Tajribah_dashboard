@@ -9,6 +9,7 @@
 import { eq } from 'drizzle-orm';
 import { arConfigs } from '@/db/schema';
 import { placementsFor } from '@/lib/contracts/ar-config';
+import { placementFitsKind } from '@/lib/tryon';
 import type { PublishResult } from '@/lib/contracts/ar-config';
 import { auditedUpdate } from '@/server/core/audit/audit';
 import { errors } from '@/server/core/errors/problem';
@@ -22,10 +23,6 @@ const MISSING: Record<'worn' | 'flat' | 'case', string> = {
   case: 'its width',
 };
 
-/** Where each kind's button may go: what the published config accepts (edge/build.ts `placementFits`). */
-const fits = (kind: string, placement: string) =>
-  kind === 'glasses' ? placement === 'face' : kind === 'bag' ? placement !== 'face' && placement !== 'wrist' : placement === 'wrist';
-
 /** API-192 — POST /api/tryon/[productId]/publish. */
 export async function publishTryOn(ctx: TenantContext, productId: string): Promise<PublishResult> {
   ctx.require('tryon:write');
@@ -36,8 +33,8 @@ export async function publishTryOn(ctx: TenantContext, productId: string): Promi
   if (card.missing.length) throw errors.conflict(`finish the try-on first: add ${card.missing.map((m) => MISSING[m]).join(' and ')}`);
   if (!card.enabled) await updateTryOn(ctx, productId, { enabled: true });
   const saved = await ctx.db.findOne(arConfigs, eq(arConfigs.productId, productId));
-  if (saved && !fits(card.kind, saved.placement)) {
-    const placement = placementsFor(one.product.productType).find((p) => fits(card.kind, p));
+  if (saved && !placementFitsKind(card.kind, saved.placement)) {
+    const placement = placementsFor(one.product.productType).find((p) => placementFitsKind(card.kind, p));
     if (placement) await auditedUpdate(ctx, arConfigs, saved.id, { placement }, { resourceType: 'ar_config' });
   }
   return publishProduct(ctx, productId);

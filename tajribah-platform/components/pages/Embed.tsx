@@ -7,6 +7,7 @@ import { useState, type FormEvent } from 'react';
 import { ApiError } from '@/lib/api-client';
 import { AppLink } from '@/lib/app-env';
 import { useData, useResource } from '@/lib/data';
+import { inArabic } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
 import type { Bi } from '@/lib/lang';
 import type { InstallCheck } from '@/lib/view-models';
@@ -36,7 +37,7 @@ const PRODUCT_VERDICT: Record<'live' | 'not_published' | 'withdrawn' | 'unknown'
   live: { tone: 'ok', title: { ar: 'مُركَّب، والزر ظاهر لهذا المنتج', en: 'Installed, and this product’s button is live' },
     fix: { ar: 'إن لم تره بعد فانتظر دقيقة ثم حدّث الصفحة.', en: 'If you do not see it yet, wait a minute and reload the page.' }, link: false },
   not_published: { tone: 'warn', title: { ar: 'مُركَّب، لكن هذا المنتج لم يُنشر بعد', en: 'Installed — but this product is not published yet' },
-    fix: { ar: 'انشره من «إعدادات العرض» (انشر في المتجر)، ويظهر الزر خلال دقيقة تقريبًا.', en: 'Publish it from AR settings (Publish to the store); the button appears within about a minute.' }, link: true },
+    fix: { ar: 'انشره من إعدادات تجربته («انشر في المتجر»)، ويظهر الزر خلال دقيقة تقريبًا.', en: 'Publish it from its try-on settings (Publish to the store); the button appears within about a minute.' }, link: true },
   withdrawn: { tone: 'warn', title: { ar: 'مُركَّب، لكن زر هذا المنتج أُزيل', en: 'Installed — but this product’s button was taken down' },
     fix: { ar: 'لم يعد لدى المنتج ما يفتحه الزر (أُوقف العرض أو التجربة، أو أُرشف المنتج)، أو المتجر موقوف. يعود تلقائيًا حين يكتمل من جديد.', en: 'The product no longer has anything for the button to open (AR or try-on switched off, or the product archived), or the store is paused. It comes back by itself once that is fixed.' }, link: true },
   unknown: { tone: 'warn', title: { ar: 'مُركَّب، لكن لا يوجد منتج بهذا الرقم', en: 'Installed — but no product has this id' },
@@ -111,8 +112,8 @@ export default function Embed() {
       <PageHead
         title={t('التركيب في متجرك', 'Install in your store')}
         lead={t(
-          'سطران داخل قالب صفحة المنتج. لا يغيّران تصميم متجرك، والزر لا يظهر إلا على المنتجات التي نشرتها من «إعدادات العرض».',
-          'Two lines inside your product page template. They do not change your theme, and the button only appears on products you published from AR settings.',
+          'سطران داخل قالب صفحة المنتج. لا يغيّران تصميم متجرك، والزر لا يظهر إلا على المنتجات التي نشرتها.',
+          'Two lines inside your product page template. They do not change your theme, and the button only appears on products you have published.',
         )}
       />
       {error && <ErrorNote error={error} />}
@@ -144,8 +145,8 @@ export default function Embed() {
             )}
             <p className="hint">
               {t(
-                '{{ product.id }} يملؤه قالب متجرك برقم المنتج المعروض. صيغة القالب في سلة وزد تُؤكَّد عند اعتماد تطبيقنا لدى كل منهما.',
-                '{{ product.id }} is filled in by your theme with the product being shown. The exact template syntax for Salla and Zid is confirmed once our app is approved on each.',
+                'ضع مكان {{ product.id }} رقم المنتج المعروض كما في متجرك — وهو «id» في ملف المنتجات. إن كان قالبك يعرف رقم المنتج المعروض، فاكتب متغيّره هنا ليعمل السطر نفسه في كل صفحات المنتجات.',
+                'Put the shown product’s id in place of {{ product.id }}, as your store has it — the “id” in your product feed. If your theme knows the shown product’s id, write its variable here, so the same line works on every product page.',
               )}
             </p>
           </Panel>
@@ -186,8 +187,8 @@ export default function Embed() {
                 <p style={{ margin: '8px 0 0', fontSize: 13.5 }}>{pick(verdict.fix)}</p>
                 {result.status === 'installed' && <p className="hint" style={{ margin: '4px 0 0' }}>{t('رقم المنتج في الصفحة', 'Product id on the page')}: <span className="mm" dir="ltr">{result.productRef}</span>
                   {result.product && <> · {lang === 'ar' ? result.product.nameAr ?? result.product.name : result.product.name}{result.product.state === 'live' ? t(` · نسخة ${result.product.version}`, ` · version ${result.product.version}`) : null}</>}</p>}
-                {productVerdict?.link && <AppLink href="/dashboard/ar-settings" className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>{t('إعدادات العرض', 'AR settings')}</AppLink>}
-                {result.status !== 'installed' && result.detail && <p className="hint" style={{ margin: '4px 0 0' }} dir="auto">{result.detail}</p>}
+                {productVerdict?.link && <AppLink href={result.status === 'installed' && result.product ? `/dashboard/tryon/${encodeURIComponent(result.product.productId)}` : '/dashboard/tryon'} className="btn btn-primary btn-sm" style={{ marginTop: 8 }}>{t('إعدادات التجربة', 'Try-on settings')}</AppLink>}
+                {result.status !== 'installed' && result.detail && <p className="hint" style={{ margin: '4px 0 0' }} dir="auto">{lang === 'ar' ? inArabic(result.detail) : result.detail}</p>}
               </div>
             )}
           </Panel>

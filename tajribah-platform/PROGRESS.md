@@ -6,7 +6,7 @@ _Last updated: 2026-10-05 · updated after every package_
 > **Just finished (2026-10-05):** **Earrings on the shopper's own photo**: upload a side photo, tap the top of the ear and the earlobe, and the earring hangs from the lobe at its real size. The jewellery page's out-of-date FAQ answered. Before that: one domain (tajribah.com) and QR testing on your Wi-Fi, store linking to version 2.
 > **Next:** whatever you choose next — the feed-only version is complete end to end on your computer.
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
-> **Waiting on you:** **the Google sign-in button** needs one Google Cloud "OAuth client" (10 minutes, steps in `docs/HOSTING.md` → "Google sign-in for GA4"); until then the id is pasted, which works fully. **A GA4 measurement id** when you want website analytics on (analytics.google.com → a property for tajribah.sa → a web stream → `G-…`, then the console's Website page). **The short domain** (when you buy the domains): products' own pages and QR codes go on it — until then the links read `tajribah.sa/p/…`, and nothing is shared before launch, so one setting changes them all (`HOSTED_PAGE_BASE`, GO-LIVE §4). Then the **Hetzner server**, and the accounts below — Salla, Zid, Cloudflare, the domain, Moyasar and a 3D-generation provider.
+> **Waiting on you:** **the Google sign-in button** needs one Google Cloud "OAuth client" (10 minutes, steps in `docs/HOSTING.md` → "Google sign-in for GA4"); until then the id is pasted, which works fully. **A GA4 measurement id** when you want website analytics on (analytics.google.com → a property for tajribah.com → a web stream → `G-…`, then the console's Website page). **The short domain** (when you buy the domains): products' own pages and QR codes go on it — until then the links read `tajribah.com/p/…`, and nothing is shared before launch, so one setting changes them all (`HOSTED_PAGE_BASE`, GO-LIVE §4). Then the **Hetzner server**, and the accounts below — Cloudflare, the domain (tajribah.com), Moyasar and a 3D-generation provider (Salla, Zid and Shopify wait for version 2).
 
 ```
 P0 Foundation     ██████████████████████████████░░  21 / 22   (1 blocked: staging server)
@@ -170,7 +170,7 @@ The public site that sells Tajribah, Arabic first.
 | ✅ | M11 Legal pages | Privacy, terms, refunds, cookies — need a lawyer's review before launch |
 | ✅ | M1 Site setup | Built; site analytics (Google Analytics 4) behind an Arabic-first consent banner — nothing loads before "Accept", ads always off; on once you give a GA4 id |
 | ◐ | M9 Customer stories | The page exists, with its stories clearly marked as examples; real ones need real customers |
-| ◐ | M12 Search engines & conversion | Sitemap, page titles and share cards done, all on **tajribah.sa** (T29). **Conversion (T32):** "Start with this plan" now opens the dashboard's sign-up at app.tajribah.sa with the plan (Enterprise: talk to sales); the install lines on the Integrations page fixed (wrong script address, no store key) and a claim of a feature that is not built removed. **Left:** the domains themselves (DNS) |
+| ◐ | M12 Search engines & conversion | Sitemap, page titles and share cards done, all on **tajribah.com** (T82; was tajribah.sa, T29). **Conversion (T32):** "Start with this plan" now opens the dashboard's sign-up at app.tajribah.sa with the plan (Enterprise: talk to sales); the install lines on the Integrations page fixed (wrong script address, no store key) and a claim of a feature that is not built removed. **Left:** the domains themselves (DNS) |
 
 ## P4 — analytics (started 2026-09-27, shared with the other session)
 
@@ -298,14 +298,14 @@ The public site that sells Tajribah, Arabic first.
 
 | | Account | Blocks |
 |---|---|---|
-| ⬜ | Salla Partner + app registration | P1's store link: the Salla connection is **built** (reading, linking, messages) and waits only for the app to be registered and tried on a demo store |
-| ⬜ | Zid Partner + app registration | The Zid connection is **built** (reading, connecting, messages); it waits for the app to be registered and tried on a demo store |
+| ⏭ v2 | Salla Partner + app registration | Version 2 (T81) — not needed now. P1's store link: the Salla connection is **built** (reading, linking, messages) and waits only for the app to be registered and tried on a demo store |
+| ⏭ v2 | Zid Partner + app registration | Version 2 (T81) — not needed now. The Zid connection is **built** (reading, connecting, messages); it waits for the app to be registered and tried on a demo store |
 | ⬜ | Cloudflare (R2, Workers, KV, DNS) | File storage, the live AR viewer |
-| ⬜ | Domains: **tajribah.sa** (the website and the try-on — your decision, T29) and **tajribah.com** (the dashboard's services: configs, files, events) + a short domain | AR pages, QR codes, email links |
+| ⬜ | Domain: **tajribah.com** — everything on it, with `cdn.`, `cfg.` and `ev.` subdomains (T82, `docs/DOMAINS.md`); a short domain later for printed QR codes if you want one | AR pages, QR codes, email links |
 | ⬜ | Moyasar merchant account | Billing (P2) |
 | ⬜ | ZATCA Fatoora onboarding | E-invoicing (P2) |
 | ⬜ | Unifonic (SMS / WhatsApp) | Real phone OTP |
-| ⬜ | Shopify Partner account | Connecting Shopify shops (P6) — the connection itself is built |
+| ⏭ v2 | Shopify Partner account | Version 2 (T81) — not needed now. Connecting Shopify shops (P6) — the connection itself is built |
 | ⬜ | 3D generation API (Meshy / Tripo3D / CSM) | Generating models from photos (P3.4 onwards) |
 | ⬜ | **Hetzner server** (for Postgres) | Staging and going live — the platform itself now runs on PostgreSQL (tried here, `docs/DATABASE.md`) |
 

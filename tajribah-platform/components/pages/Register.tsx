@@ -2,6 +2,7 @@
 
 // AUTH-002 — Create an account
 
+import { STORE_LINKING } from '@/lib/features';
 import { useState, type FormEvent } from 'react';
 import { Check } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
@@ -84,7 +85,7 @@ export default function Register() {
         {!invitation && <ul>
           {[
             t('بدون بطاقة بنكية', 'No card required'),
-            t('اربط سلة أو زد واستورد منتجاتك في دقائق', 'Connect Salla or Zid and import your catalogue in minutes'),
+            STORE_LINKING ? t('اربط سلة أو زد واستورد منتجاتك في دقائق', 'Connect Salla or Zid and import your catalogue in minutes') : t('استورد منتجاتك من رابط متجرك أو ملف في دقائق', 'Import your products from your store’s feed link or a file in minutes'),
             t('ألغِ في أي وقت', 'Cancel any time'),
           ].map((line) => (
             <li key={line}><Check size={16} aria-hidden />{line}</li>
@@ -98,7 +99,7 @@ export default function Register() {
           <h1>{invitation ? t('أنشئ حسابك للانضمام إلى الفريق', 'Create your account to join the team') : t('أنشئ متجرك على تجربة', 'Create your store on Tajribah')}</h1>
           <p>{invitation
             ? t('استخدم البريد الذي وصلته الدعوة. تنضم إلى الفريق مباشرة، دون متجر خاص بك.', 'Use the email address the invitation was sent to. You join the team straight away, with no store of your own.')
-            : t('دقيقتان، ثم نربط متجرك.', 'Two minutes, then we connect your store.')}</p>
+            : STORE_LINKING ? t('دقيقتان، ثم نربط متجرك.', 'Two minutes, then we connect your store.') : t('دقيقتان، ثم نستورد منتجاتك.', 'Two minutes, then we import your products.')}</p>
           {chosen && !invitation && (
             <p className="auth-plan-note" role="note">
               {chosen.code === TRIAL_PLAN

@@ -79,7 +79,7 @@ export default function ArSettings() {
       {error && <ErrorNote error={error} />}
       {data && data.length === 0 && !q && (
         <Empty icon={<Box size={22} />} title={t('لا توجد منتجات بعد', 'No products yet')}
-          body={t('اربط متجرك أو أضف منتجًا، ثم اضبط عرضه هنا.', 'Connect your store or add a product, then set up its AR here.')}
+          body={t('استورد منتجاتك أو أضف منتجًا، ثم اضبط عرضه هنا.', 'Import your products or add one, then set up its AR here.')}
           action={<AppLink href="/dashboard/products" className="btn btn-ghost">{t('المنتجات', 'Products')}</AppLink>} />
       )}
       {data && (current || q) && (

@@ -1345,3 +1345,24 @@ background, refused with the check's own words ("has no transparency"). The thir
 which was accepted and attached.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T81 · 2026-10-05 · Store linking moves to version 2; a feed link or a file is the way in (you asked)
+
+**Decision.** You chose to settle, for now, on bringing products in "without linking the store: from a
+link or a file", as Google Merchant Center does. Linking a store's platform (Salla, Zid, Shopify,
+WooCommerce) moves to version 2. One switch, `STORE_LINKING = false` (`lib/features.ts`), hides it:
+- **Store connections:** the four platform cards are gone, and the feed-link and file panel leads. The
+  page's lead and its "what we read" line now describe a feed: re-read every 24 hours or on "Sync now",
+  and a file imported once.
+- **Elsewhere:** the home screen's empty state, Products' empty state, AR settings, sign-up and the setup
+  guide's "connect" step point to importing from a feed link or a file, not to Salla or Zid.
+- **Kept:** the connectors, their endpoints, webhooks and tests stay and keep passing. Turning the
+  switch on brings everything back. Existing connections still show (a disconnected one can now be
+  removed, T78).
+- **The plan:** PROGRESS lists P1.4, P1.5, Zid, Shopify (and WooCommerce, built, now hidden) and P4.7
+  under "Version 2 — later". The phase totals no longer count them.
+
+**Not changed.** The website's integration pages (/salla, /zid, /integrations) are marketing, not the
+dashboard; they're left for your word.
+
+**Rollback path.** `STORE_LINKING = true`. Cost: none.

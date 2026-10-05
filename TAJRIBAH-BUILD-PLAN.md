@@ -887,6 +887,12 @@ regression blocks the gate.
 
 ## 9. The build plan — phases, packages, gates
 
+> **Amended 2026-10-05 (Nader's decision, DECISIONS T81).** This version brings a store's products in from its
+> **product feed link or a file** (Google Merchant Center's way) — not by linking its platform. Linking Salla, Zid,
+> Shopify and WooCommerce moves to **version 2**: P1.4, P1.5, P4.7 and the P6 connectors are built where they could
+> be, kept and tested, but not offered (`STORE_LINKING` in `tajribah-platform/lib/features.ts`). Where this plan says
+> "connect Salla", read "import from a feed link or a file" until then. PROGRESS.md has the "Version 2 — later" list.
+
 **231 work packages. One package ≈ one focused work session (half a day to two days).**
 
 ### The shape

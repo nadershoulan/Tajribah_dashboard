@@ -2,6 +2,7 @@
 
 // MD-001 — Dashboard home
 
+import { STORE_LINKING } from '@/lib/features';
 import { ArrowUpRight, Boxes, Package, Play, RefreshCw, Sparkles } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
@@ -193,8 +194,8 @@ export default function DashboardHome() {
               <Empty
                 icon={<Boxes size={22} />}
                 title={t('لم يُربط متجر بعد', 'No store connected')}
-                body={t('اربط سلة أو زد لاستيراد منتجاتك تلقائيًا.', 'Connect Salla or Zid to import your catalogue automatically.')}
-                action={<AppLink href="/dashboard/connections" className="btn btn-accent">{t('اربط متجرك', 'Connect your store')}</AppLink>}
+                body={STORE_LINKING ? t('اربط سلة أو زد لاستيراد منتجاتك تلقائيًا.', 'Connect Salla or Zid to import your catalogue automatically.') : t('أضف رابط منتجات متجرك أو ارفع ملفًا لاستيراد منتجاتك.', 'Add your store’s product feed link or upload a file to import your products.')}
+                action={<AppLink href="/dashboard/connections" className="btn btn-accent">{STORE_LINKING ? t('اربط متجرك', 'Connect your store') : t('استورد منتجاتك', 'Import your products')}</AppLink>}
               />
             )}
           </Panel>

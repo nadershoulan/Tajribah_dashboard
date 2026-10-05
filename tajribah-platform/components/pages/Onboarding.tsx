@@ -3,6 +3,7 @@
 // ONB-01 — Welcome / what to expect · ONB-02 — Business profile · ONB-21 — Finish later
 // AUTH-05 — Email verification: check your inbox (shown here until the address is confirmed)
 
+import { STORE_LINKING } from '@/lib/features';
 import { useWriteLock } from '@/components/dashboard/write-lock';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { CheckCircle2, Link2, Mail, Undo2 } from 'lucide-react';
@@ -204,11 +205,14 @@ function StepPanel({ step, onMoved }: { step: StepState; onMoved: (view: Onboard
     case 'connect':
       body = (
         <>
-          <p>{t(
+          <p>{STORE_LINKING ? t(
             'نستورد منتجاتك من سلة تلقائيًا ونُبقيها محدّثة. يمكنك التخطي الآن وإكمال الإعداد، ثم الربط لاحقًا.',
             'We import your catalogue from Salla automatically and keep it current. You can skip for now, finish setting up, and connect later.',
+          ) : t(
+            'نستورد منتجاتك من رابط منتجات متجرك (مثل رابط Google Merchant) أو من ملف، ونقرأ الرابط من جديد كل يوم. يمكنك التخطي الآن والاستيراد لاحقًا.',
+            'We import your products from your store’s product feed link (like the one for Google Merchant) or a file, and read the link again every day. You can skip for now and import later.',
           )}</p>
-          {!step.done && (
+          {STORE_LINKING && !step.done && (
             <p className="hint"><Link2 size={13} aria-hidden style={{ verticalAlign: -2 }} /> {t('ربط سلة بانتظار اعتماد حساب شريك سلة.', 'Connecting Salla is waiting on Salla partner account approval.')}</p>
           )}
           <div className="btn-row">{skipButton}<AppLink href={copy.href} className="btn btn-ghost">{t('صفحة الربط', 'Store connections')}</AppLink></div>

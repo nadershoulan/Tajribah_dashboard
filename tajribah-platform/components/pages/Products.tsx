@@ -2,6 +2,7 @@
 
 // MD-010 — Products table view
 
+import { STORE_LINKING } from '@/lib/features';
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, Eye, Package, Plus, Ruler, Search, Upload } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
@@ -176,8 +177,8 @@ export default function Products() {
           <Empty
             icon={<Package size={22} />}
             title={t('لا نتائج', 'Nothing here')}
-            body={t('جرّب مرشّحًا آخر، أو اربط متجرك لاستيراد منتجاتك.', 'Try another filter, or connect your store to import your catalogue.')}
-            action={<AppLink href="/dashboard/connections" className="btn btn-accent">{t('اربط متجرك', 'Connect your store')}</AppLink>}
+            body={!STORE_LINKING ? t('جرّب مرشّحًا آخر، أو استورد منتجاتك من رابط متجرك أو ملف.', 'Try another filter, or import your products from your store’s feed link or a file.') : t('جرّب مرشّحًا آخر، أو اربط متجرك لاستيراد منتجاتك.', 'Try another filter, or connect your store to import your catalogue.')}
+            action={<AppLink href="/dashboard/connections" className="btn btn-accent">{STORE_LINKING ? t('اربط متجرك', 'Connect your store') : t('استورد منتجاتك', 'Import your products')}</AppLink>}
           />
         )}
 

@@ -2,6 +2,7 @@
 
 // MD-030 — Store connections
 
+import { STORE_LINKING } from '@/lib/features';
 import { useWriteLock } from '@/components/dashboard/write-lock';
 import { AlertTriangle, CheckCircle2, Link2, RefreshCw, ShoppingBag } from 'lucide-react';
 import { currentStore } from '@/lib/api-client';
@@ -93,9 +94,12 @@ export default function Connections() {
     <Shell tenant={null} crumbs={crumbs}>
       <PageHead
         title={t('ربط المتجر', 'Store connections')}
-        lead={t(
+        lead={STORE_LINKING ? t(
           'اربط متجرك مرة واحدة، ونستورد منتجاتك ومقاساتها وصورها، ونبقيها محدّثة كلما غيّرت شيئًا.',
           'Connect your store once. We import your products, their sizes and their images, and keep them current as you change them.',
+        ) : t(
+          'أعطنا رابط منتجات متجرك (مثل رابط Google Merchant) أو ارفع ملفًا، ونستورد منتجاتك وصورها وأسعارها وتصنيفاتها.',
+          'Give us your store’s product feed link (like the one for Google Merchant) or upload a file, and we import your products, their pictures, prices and categories.',
         )}
       />
 
@@ -141,7 +145,10 @@ export default function Connections() {
         <ConnectionPanel key={connection.id} connection={connection} onChanged={() => setVersion((v) => v + 1)} />
       ))}
 
-      <div className="grid grid-2" style={{ marginTop: 18 }}>
+      {!STORE_LINKING && <div style={{ marginTop: 18 }}><FeedImportPanel onImported={() => setVersion((v) => v + 1)} /></div>}
+
+      {/* T81: linking a platform (Salla, Zid, Shopify, WooCommerce) is version 2 — see lib/features.ts. */}
+      {STORE_LINKING && <div className="grid grid-2" style={{ marginTop: 18 }}>
         {PROVIDERS.map((provider) => {
           const connected = linked.has(provider.id);
           return (
@@ -176,15 +183,17 @@ export default function Connections() {
             </section>
           );
         })}
-      </div>
+      </div>}
 
-      <div style={{ marginTop: 18 }}><FeedImportPanel onImported={() => setVersion((v) => v + 1)} /></div>
+      {STORE_LINKING && <div style={{ marginTop: 18 }}><FeedImportPanel onImported={() => setVersion((v) => v + 1)} /></div>}
 
       <Panel title={t('ماذا نقرأ من متجرك', 'What we read from your store')} >
         <ul style={{ margin: 0, paddingInlineStart: 18, color: 'var(--text-2)', fontSize: 14, lineHeight: 2 }}>
           <li>{t('اسم المنتج ووصفه وسعره وصوره وحالته.', 'Product name, description, price, images and status.')}</li>
           <li>{t('المقاسات إن كانت موجودة — وإلا نطلبها منك، فهي أساس الحجم الحقيقي.', 'Dimensions where they exist — otherwise we ask you for them, since true size depends on them.')}</li>
-          <li>{t('تحديثات عند كل تغيير في متجرك: فورًا حيث تُرسل منصتك إشعارًا بالتغيير (سلة وزد)، وإلا بمزامنة كل ساعة.', 'Updates whenever your store changes: at once where your platform sends change notices (Salla, Zid), otherwise by a sync every hour.')}</li>
+          <li>{STORE_LINKING
+            ? t('تحديثات عند كل تغيير في متجرك: فورًا حيث تُرسل منصتك إشعارًا بالتغيير (سلة وزد)، وإلا بمزامنة كل ساعة.', 'Updates whenever your store changes: at once where your platform sends change notices (Salla, Zid), otherwise by a sync every hour.')
+            : t('رابط المنتجات يُقرأ من جديد كل 24 ساعة، أو متى ضغطت «زامن الآن». الملف يُستورد مرة واحدة.', 'A feed link is read again every 24 hours, or whenever you press “Sync now”. A file is imported once.')}</li>
         </ul>
         <p className="hint">
           {t(

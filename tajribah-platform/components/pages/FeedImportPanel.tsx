@@ -2,6 +2,7 @@
 
 // MD-030 (part) — Store connections: products without linking the store, from a link or a file
 
+import { STORE_LINKING } from '@/lib/features';
 import { useState, type FormEvent } from 'react';
 import { AlertTriangle, Link2, RefreshCw } from 'lucide-react';
 import { useWriteLock } from '@/components/dashboard/write-lock';
@@ -79,7 +80,7 @@ export default function FeedImportPanel({ onImported }: { onImported: () => void
 
   return (
     <Panel title={t('بدون ربط المتجر: من رابط أو ملف', 'Without linking your store: from a link or a file')}
-      sub={t('إن لم ترغب في ربط متجرك — كما في Google Merchant Center', 'If you would rather not link your store — as in Google Merchant Center')}>
+      sub={STORE_LINKING ? t('إن لم ترغب في ربط متجرك — كما في Google Merchant Center', 'If you would rather not link your store — as in Google Merchant Center') : t('كما في Google Merchant Center: رابط منتجات متجرك أو ملف', 'As in Google Merchant Center: your store’s product feed link, or a file')}>
       <div className="grid grid-2" style={{ gap: 12, marginBottom: 16 }}>
         {option('link', t('رابط ملف المنتجات', 'A link to your product file'), t('رابط Google Merchant الذي تولّده منصة متجرك. يُضبط مرة واحدة.', 'The Google Merchant link your store’s platform makes. Set once.'), true)}
         {option('file', t('ارفع ملفًا من جهازك', 'Upload a file from your computer'), t('جدول CSV أو Excel، أو ملف XML بصيغة Google Merchant.', 'A CSV or Excel sheet, or a Google Merchant XML file.'), false)}

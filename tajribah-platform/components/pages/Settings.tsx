@@ -8,6 +8,7 @@ import { BarChart3, Building2, Globe, Palette, ShieldCheck } from 'lucide-react'
 import { ApiError } from '@/lib/api-client';
 import { SettingsPatch, type StoreSettings } from '@/lib/contracts/settings';
 import { useData, useResource } from '@/lib/data';
+import { inArabic } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
 import { Shell } from '@/components/dashboard/chrome';
 import { ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
@@ -73,7 +74,7 @@ function SettingsForm({ settings, onSaved, wasSaved }: { settings: StoreSettings
   const [failure, setFailure] = useState<Error | null>(null);
   const [justSaved, setJustSaved] = useState(wasSaved);
 
-  const say = (message: string) => (lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(message))?.[1] ?? message : message);
+  const say = (message: string) => (lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(message))?.[1] ?? inArabic(message) : message);
   const set = <K extends keyof Form>(key: K) => (value: Form[K]) => { setJustSaved(false); setForm((f) => ({ ...f, [key]: value })); };
   const errorOf = (key: string) => errors[key]?.[0];
 

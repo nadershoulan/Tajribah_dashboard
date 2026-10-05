@@ -10,7 +10,7 @@ import { ApiError, currentStore } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
 import { useData, useResource } from '@/lib/data';
 import { formatBytes, formatNumber } from '@/lib/format';
-import { arabicOf } from '@/lib/problem-text';
+import { inArabic } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
 import { ROLE_PERMISSIONS } from '@/lib/permissions';
 import type { GenerationPhotoView, ProductRow } from '@/lib/view-models';
@@ -40,7 +40,7 @@ function reasonOf(error: unknown): Bi {
   }
   const storage = /plan limit reached for storage_gb \((\d+)\)/.exec(message);
   if (storage) return { ar: `مساحة التخزين في باقتك ممتلئة (${storage[1]} GB).`, en: `Your plan’s storage is full (${storage[1]} GB).` };
-  return { ar: arabicOf(message) ?? 'تعذّر ذلك — حاول مرة أخرى.', en: message };
+  return { ar: inArabic(message), en: message };
 }
 
 export default function ProductPhotos({ product }: { product: ProductRow }) {

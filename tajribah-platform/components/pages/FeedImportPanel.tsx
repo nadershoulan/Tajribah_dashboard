@@ -8,6 +8,7 @@ import { AlertTriangle, Link2, RefreshCw } from 'lucide-react';
 import { useWriteLock } from '@/components/dashboard/write-lock';
 import { useData } from '@/lib/data';
 import { formatNumber } from '@/lib/format';
+import { inArabic } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
 import type { FeedImport } from '@/lib/view-models';
 import { Panel } from '@/components/dashboard/ui';
@@ -44,7 +45,7 @@ export default function FeedImportPanel({ onImported }: { onImported: () => void
   const [problem, setProblem] = useState<string | null>(null);
   const [done, setDone] = useState<FeedImport | null>(null);
   const n = (value: number) => formatNumber(value, lang);
-  const say = (message: string) => (lang === 'ar' ? FEED_AR.find(([p]) => p.test(message))?.[1] ?? message : message);
+  const say = (message: string) => (lang === 'ar' ? FEED_AR.find(([p]) => p.test(message))?.[1] ?? inArabic(message) : message);
 
   const run = async (work: () => Promise<FeedImport>) => {
     setBusy(true); setProblem(null); setDone(null);

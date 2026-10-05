@@ -6,6 +6,7 @@ import { CREDITS_PER_3D_GENERATION } from '@/lib/ai-credits';
 import { useState } from 'react';
 import { CheckCircle2, Clock, CreditCard, FileText, Lock, Mail, Phone, Sparkles, X } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
+import { inArabic } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
 import { useData, useResource, type CouponQuote } from '@/lib/data';
 import { ApiError } from '@/lib/api-client';
@@ -298,7 +299,7 @@ function Checkout({ data, plan, cycle, onCycle, onClose }: {
     } catch (error) {
       setCoupon(null);
       const message = error instanceof ApiError && error.fields?.code ? error.fields.code[0] : (error as Error).message;
-      setCouponError(lang === 'ar' ? COUPON_AR.find(([p]) => p.test(message))?.[1] ?? message : message);
+      setCouponError(lang === 'ar' ? COUPON_AR.find(([p]) => p.test(message))?.[1] ?? inArabic(message) : message);
     } finally {
       setChecking(false);
     }

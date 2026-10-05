@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { ApiError } from '@/lib/api-client';
-import { arabicOf, sayProblem } from '@/lib/problem-text';
+import { ARABIC_FALLBACK, arabicOf, inArabic, sayProblem } from '@/lib/problem-text';
 
 const MERCHANT = ['tryon', 'products', 'ar', 'edge', 'connections', 'sync', 'uploads', 'models', 'hosted-pages', 'team', 'onboarding', 'professional', 'auth', 'dashboard', 'settings'];
 const files = (dir: string): string[] => readdirSync(dir).flatMap((f) => {
@@ -52,7 +52,13 @@ test('in Arabic, never English: the line, else the fields, else the kind’s tit
   assert.match(sayProblem(fields, 'ar'), /بلا شفافية/);
   const unknown = new ApiError(403, 'forbidden', 'staff only: the console needs a second step');
   assert.equal(sayProblem(unknown, 'ar'), 'لا تملك صلاحية لهذا');
-  assert.equal(sayProblem(new ApiError(500, 'weird_code', 'boom'), 'ar'), 'حدث خطأ — حاول مرة أخرى.');
+  assert.equal(sayProblem(new ApiError(500, 'weird_code', 'boom'), 'ar'), ARABIC_FALLBACK);
   assert.equal(sayProblem(new Error('لا صورة'), 'ar'), 'لا صورة', 'a screen’s own Arabic stays');
   assert.doesNotMatch(sayProblem(new ApiError(409, 'conflict', 'something new and English'), 'ar'), /[A-Za-z]/);
+});
+
+test('a screen’s own list had no words: ours, then a plain Arabic line — its Arabic kept as it is', () => {
+  assert.equal(inArabic('this product is not published'), 'هذا المنتج غير منشور.');
+  assert.equal(inArabic('a brand new English refusal'), ARABIC_FALLBACK);
+  assert.equal(inArabic('رسالة بالعربية'), 'رسالة بالعربية');
 });

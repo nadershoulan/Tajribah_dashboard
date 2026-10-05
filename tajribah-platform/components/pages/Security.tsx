@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Copy, Download, KeyRound, MessageSquare, ShieldCheck, Smartphone } from 'lucide-react';
 import { ApiError, type TwoFactorStatus } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
+import { inArabic } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
@@ -134,7 +135,7 @@ function PasswordStep({ purpose, onCancel, onSetup, onCodes, onDisabled }: {
   const [busy, setBusy] = useState(false);
   const [fields, setFields] = useState<Record<string, string[]>>({});
   const [failure, setFailure] = useState<string | null>(null);
-  const say = (m?: string) => (m && lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(m))?.[1] ?? m : m);
+  const say = (m?: string) => (m && lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(m))?.[1] ?? inArabic(m) : m);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -213,7 +214,7 @@ function ScanStep({ secret, otpauthUrl, onCancel, onEnabled }: {
       onEnabled((await auth.twoFactor.enable(code)).backupCodes);
     } catch (e) {
       const message = e instanceof ApiError && e.fields?.code ? e.fields.code[0] : authErrorMessage(e, t);
-      setError(lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(message))?.[1] ?? message : message);
+      setError(lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(message))?.[1] ?? inArabic(message) : message);
     } finally {
       setBusy(false);
     }

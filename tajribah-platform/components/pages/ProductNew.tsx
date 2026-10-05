@@ -7,6 +7,7 @@ import { useWriteLock } from '@/components/dashboard/write-lock';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { ApiError } from '@/lib/api-client';
 import { useData } from '@/lib/data';
+import { inArabic } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
 import { toMinor } from '@/lib/money';
 import { newProductErrors, parseMm, type FieldErrors, type NewProduct } from '@/lib/product-edit';
@@ -45,7 +46,7 @@ export default function ProductNew() {
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<Error | null>(null);
   const set = (key: keyof typeof v) => (value: string) => setV((old) => ({ ...old, [key]: value }));
-  const say = (message: string) => (lang === 'ar' ? MESSAGE_AR[message] ?? message : message);
+  const say = (message: string) => (lang === 'ar' ? MESSAGE_AR[message] ?? inArabic(message) : message);
 
   const save = async () => {
     setFailure(null);

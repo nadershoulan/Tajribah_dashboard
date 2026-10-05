@@ -155,6 +155,12 @@ export function arabicOf(line: string): string | null {
 
 const ARABIC = /[؀-ۿ]/;
 
+/** What the Arabic dashboard says when no screen and no list has the words for a refusal. */
+export const ARABIC_FALLBACK = 'تعذّر ذلك — حاول مرة أخرى.';
+
+/** After a screen's own words (its list had none): ours, then the plain line — never English. */
+export const inArabic = (line: string): string => (ARABIC.test(line) ? line : arabicOf(line) ?? ARABIC_FALLBACK);
+
 /**
  * What to tell the reader about a failed request. English: the server's own line. Arabic: the line in
  * Arabic, or each field's refusal in Arabic, or the Arabic title of its kind — never English.
@@ -169,5 +175,5 @@ export function sayProblem(error: unknown, lang: Lang): string {
   const fields = Object.values(e?.fields ?? {}).flat();
   const saidFields = fields.map((f) => (ARABIC.test(f) ? f : arabicOf(f))).filter((f): f is string => !!f);
   if (saidFields.length) return [...new Set(saidFields)].join(' ');
-  return PROBLEM_TITLE_AR[e?.code ?? ''] ?? 'حدث خطأ — حاول مرة أخرى.';
+  return PROBLEM_TITLE_AR[e?.code ?? ''] ?? ARABIC_FALLBACK;
 }

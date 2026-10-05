@@ -10,6 +10,7 @@ import { ApiError } from '@/lib/api-client';
 import { useData, useResource } from '@/lib/data';
 import { formatRelative } from '@/lib/format';
 import { formatMoney } from '@/lib/money';
+import { inArabic } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
 import { editErrors, parseMm, type FieldErrors, type ProductEdit } from '@/lib/product-edit';
 import { isSized } from '@/lib/product-list';
@@ -106,7 +107,7 @@ function Editor({ product, onSaved, wasSaved }: { product: ProductRow; onSaved: 
   const [failure, setFailure] = useState<Error | null>(null);
   const [justSaved, setJustSaved] = useState(wasSaved);
 
-  const say = (message: string) => (lang === 'ar' ? MESSAGE_AR[message] ?? message : message);
+  const say = (message: string) => (lang === 'ar' ? MESSAGE_AR[message] ?? inArabic(message) : message);
   const fieldError = (key: string) => errors[key]?.[0];
   /** Any change after a save means the confirmation no longer describes the form. */
   const touched = <T,>(set: (v: T) => void) => (v: T) => { setJustSaved(false); set(v); };

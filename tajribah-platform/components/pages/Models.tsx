@@ -6,6 +6,7 @@ import { useWriteLock } from '@/components/dashboard/write-lock';
 import { Fragment, useRef, useState, type DragEvent } from 'react';
 import { Box, ChevronDown, CloudUpload, Wand2 } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
+import { inArabic } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
 import { useData, useResource } from '@/lib/data';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
@@ -39,7 +40,7 @@ const UPLOAD_AR: [RegExp, string][] = [
 
 /** A checker's reason, in the reader's language; unmapped reasons stay as written. */
 const sayProblem = (message: string, lang: string) =>
-  (lang === 'ar' ? UPLOAD_AR.find(([pattern]) => pattern.test(message))?.[1] ?? message : message);
+  (lang === 'ar' ? UPLOAD_AR.find(([pattern]) => pattern.test(message))?.[1] ?? inArabic(message) : message);
 
 export default function Models() {
   const { t, pick, lang } = useLang();

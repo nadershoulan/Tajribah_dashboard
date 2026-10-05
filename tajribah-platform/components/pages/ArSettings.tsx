@@ -11,7 +11,7 @@ import { ArConfigInput, placementErrors, placementsFor, type ArConfigView, type 
 import { HostedPageInput, type HostedPageView } from '@/lib/contracts/hosted-page';
 import { useData, useResource } from '@/lib/data';
 import { formatDateTime, formatNumber } from '@/lib/format';
-import { arabicOf } from '@/lib/problem-text';
+import { inArabic } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
 import type { Bi } from '@/lib/lang';
 import { Shell } from '@/components/dashboard/chrome';
@@ -141,7 +141,7 @@ function Editor({ config, name, brandColor, radius, onSaved }: {
   const [removing, setRemoving] = useState<'ask' | 'busy' | null>(null);
   const lock = useWriteLock(); // T50: a read-only store or a staff view changes nothing
   const set = <K extends keyof ArConfigInput>(key: K) => (value: ArConfigInput[K]) => setForm((f) => ({ ...f, [key]: value }));
-  const say = (m: string) => (lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(m))?.[1] ?? arabicOf(m) ?? 'تعذّر ذلك — حاول مرة أخرى.' : m);
+  const say = (m: string) => (lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(m))?.[1] ?? inArabic(m) : m);
   const err = (key: string) => errors[key]?.[0];
 
   const save = async () => {
@@ -323,7 +323,7 @@ function ProductPage({ productId, page, onSaved }: { productId: string; page: Ho
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const say = (m: string) => (lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(m))?.[1] ?? arabicOf(m) ?? 'تعذّر ذلك — حاول مرة أخرى.' : m);
+  const say = (m: string) => (lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(m))?.[1] ?? inArabic(m) : m);
   const dirty = active !== page.active || (shopUrl.trim() || null) !== page.shopUrl;
 
   const save = async () => {

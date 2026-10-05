@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth';
 import { SettingsPatch, type StoreSettings } from '@/lib/contracts/settings';
 import { useData, useResource } from '@/lib/data';
 import { formatDate } from '@/lib/format';
+import { inArabic } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
 import { PLAN_STEP_COPY, STEP_COPY } from '@/lib/onboarding-steps';
 import { can, permissionsFor, type MemberRole } from '@/lib/permissions';
@@ -334,7 +335,7 @@ function StoreForm({ settings, mayChange, onSaved, onMoved }: {
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Error | null>(null);
 
-  const say = (message: string) => (lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(message))?.[1] ?? message : message);
+  const say = (message: string) => (lang === 'ar' ? MESSAGE_AR.find(([p]) => p.test(message))?.[1] ?? inArabic(message) : message);
   const set = (key: keyof StoreFields) => (value: string) => setForm((f) => ({ ...f, [key]: value }));
 
   const submit = async (event: FormEvent) => {

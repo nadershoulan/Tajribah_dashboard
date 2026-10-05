@@ -1058,3 +1058,8 @@ table.data .cell-main { min-width: 220px; }
 .store-pictures button:focus-visible { outline: 2px solid var(--aqua); outline-offset: 2px; }
 .store-pictures img { width: 100%; height: 100%; object-fit: contain; }
 
+
+/* T85 — the try-on on the product's preview: the shop's own frame */
+.preview-tryon-kinds { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 12px; }
+.preview-tryon-notes { margin: 0 0 12px; padding: 0; list-style: none; display: grid; gap: 6px; color: var(--text-2); font-size: 13px; }
+.preview-tryon-frame { display: block; width: 100%; height: min(820px, 85vh); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }

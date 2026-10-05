@@ -32,6 +32,7 @@ const load = cache(async (store: string, product: string, base: string, local: b
 });
 
 async function initialOf(query: Record<string, string | string[] | undefined>) {
+  if (one(query.preview)) return undefined; // T85: the dashboard's preview hands its settings over in the browser
   const h = await headers();
   const host = (h.get('host') ?? '').replace(/:\d+$/, '');
   // T75: on this computer, this app's own configs (`/v1`) unless `base` names another local server.

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { route } from '@/server/core/observability/request';
 import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@/server/core/http/api';
 import { errors } from '@/server/core/errors/problem';
+import { tryOnPreview } from './preview';
 import { calibrateCutoutEdges, confirmCutout, cutoutFile, cutoutFromStorePicture, startCutoutUpload, tryOnScreen, updateTryOn } from './service';
 
 /** The `[productId]` segment `fromEnd` places from the end; a malformed id is a 404. */
@@ -45,6 +46,13 @@ export const cutoutFromStoreHandler = route(async (request) => {
   assertSameOrigin(request, config);
   const ctx = await tenantContextFor(request, config);
   return json(await cutoutFromStorePicture(ctx, productAt(request, 2), await readJson(request, z.object({ slot: SLOT, url: z.string().url().max(2048) }))));
+});
+
+/** API-189 — GET /api/tryon/[productId]/preview?as=: the try-on as a shopper sees it, from the drafts (T85). */
+export const tryOnPreviewHandler = route(async (request) => {
+  const ctx = await tenantContextFor(request);
+  const as = z.enum(['watch', 'glasses', 'ring', 'necklace', 'earring', 'bag']).nullable().catch(null).parse(new URL(request.url).searchParams.get('as'));
+  return json(await tryOnPreview(ctx, productAt(request, 1), as));
 });
 
 /** API-153 — PATCH /api/tryon/[productId]: case width, finish, on/off. */

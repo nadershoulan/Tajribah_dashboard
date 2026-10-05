@@ -111,7 +111,7 @@ test('the website’s pages keep the website’s policy; the dashboard’s keep 
   const policy = async (path: string) => (await proxy(new NextRequest(`https://tajribah.sa${path}`))).headers.get('content-security-policy') ?? '';
   // The website's: the config host for the try-on, and /embed framed by any https shop.
   for (const path of ['/', '/pricing', '/demo', '/p/oud/sa-77']) assert.match(directive(await policy(path), 'connect-src'), /cfg\.tajribah\.com/, path);
-  assert.equal(directive(await policy('/embed/try-on'), 'frame-ancestors'), 'frame-ancestors https:');
+  assert.equal(directive(await policy('/embed/try-on'), 'frame-ancestors'), "frame-ancestors 'self' https:", 'any https shop, and (T85) the dashboard on this same address');
   // The dashboard's: none of the website's hosts.
   for (const path of ['/dashboard', '/login', '/admin']) assert.doesNotMatch(directive(await policy(path), 'connect-src'), /cfg\.tajribah\.com/, path);
 });

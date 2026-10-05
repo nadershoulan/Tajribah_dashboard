@@ -13,7 +13,7 @@ import {
   DEMO_AI_JOBS, DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
 } from './demo-data';
 import type {
-  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, FeedImport, SallaAppView, SsoSettingsView, ReportSubscriptionView, LiveActivityView, SessionListView, SessionPathView, StoreOverview, CustomDomainView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, FeedImport, SallaAppView, SsoSettingsView, ReportSubscriptionView, LiveActivityView, SessionListView, SessionPathView, StoreOverview, CustomDomainView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnPreview, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
@@ -129,6 +129,8 @@ export interface DataSource {
   removeProductPhoto(productId: string, photoId: string): Promise<void>;
   /** P5.10: every watch and its try-on settings, and whether the plan includes try-on. */
   tryOn(): Promise<TryOnScreen>;
+  /** T85 (API-189): a product's try-on as a shopper sees it, tried as `as` or as what it is. */
+  tryOnPreview(productId: string, as?: TryOnPreview['kind']): Promise<TryOnPreview>;
   /** P5.10: start → PUT straight to storage → the server's check of the picture (422 with the reason). */
   uploadCutout(productId: string, slot: 'worn' | 'flat', file: File): Promise<TryOnWatchView>;
   /** T80: one of the product's store pictures as its try-on picture. */
@@ -367,6 +369,7 @@ export function apiSource(client: ApiClient): DataSource {
       return client.call<ProfessionalOrderView>(`/api/professional/${encodeURIComponent(orderId)}/accept`, { method: 'POST' });
     },
     async tryOn() { return client.call<TryOnScreen>('/api/tryon'); },
+    async tryOnPreview(productId, as) { return client.call<TryOnPreview>(`/api/tryon/${encodeURIComponent(productId)}/preview${as ? `?as=${as}` : ''}`); },
     async uploadCutout(productId, slot, file) {
       const base = `/api/tryon/${encodeURIComponent(productId)}/images`;
       const started = await client.call<{ key: string; uploadUrl: string; contentType: string }>(base, {
@@ -917,6 +920,12 @@ export const demoSource: DataSource = {
   },
   async modelFile() {
     throw new ApiError(404, 'not_found', 'the preview has no 3D files — open a model in the live dashboard to see it');
+  },
+  // T85: the demo has no server to build the frame's settings — the screen says what the preview needs.
+  async tryOnPreview(productId, as) {
+    const p = [...demoAdded, ...DEMO_PRODUCTS].find((x) => x.id === productId);
+    const own = p ? kindOf(p.productType, demoTryOn.get(p.id)?.jewelry) : null;
+    return { kind: as ?? own, own, guessed: false, picture: null, size: null, config: null, onMe: DEMO_TRYON_ON_ME };
   },
   async tryOn() {
     const isSet = (p: ProductRow) => kindOf(p.productType, demoTryOn.get(p.id)?.jewelry);

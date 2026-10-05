@@ -496,6 +496,23 @@ export type TryOnWatchView = {
   quality: { worn: SlotQuality | null; flat: SlotQuality | null; score: number | null };
 };
 
+/**
+ * T85 — a product's try-on as a shopper sees it, in the dashboard (API-189): what to try it as, where
+ * its picture and size come from, and the settings the shop's frame would read (null: no picture).
+ */
+export type TryOnPreview = {
+  kind: 'watch' | 'glasses' | 'ring' | 'necklace' | 'earring' | 'bag' | null;
+  /** What the product is by its type (and, for Jewelry, what it was marked as); null: not set. */
+  own: TryOnPreview['kind'];
+  /** No kind was set: `kind` was read from the product's category or name — the screen says so. */
+  guessed: boolean;
+  /** 'cutout': its own try-on picture; 'store': its store picture as it is (the background shows). */
+  picture: 'cutout' | 'store' | null;
+  size: { mm: number; from: 'settings' | 'product' | 'example' } | null;
+  config: { v: 1; product: { name: string; nameAr: string | null }; tryon: Record<string, unknown> } | null;
+  onMe: boolean;
+};
+
 export type TryOnScreen = {
   /**
    * T33: every plan sets watches up for the studio (on the model, true-size comparison); this says

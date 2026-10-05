@@ -19,13 +19,19 @@
  *
  * T61 — white-label: an Enterprise store's config carries its name and logo, and the bar and the
  * page title show them in place of Tajribah's.
+ *
+ * T85 — `?preview=1`: the dashboard frames this page to show a merchant any product as a shopper would
+ * see it, from its drafts. The dashboard reads them with the merchant's sign-in and hands them over by
+ * message; only a parent page on this same address is listened to, so another site framing this page
+ * can show nothing but what it could already put on its own page. No close button: the dashboard is
+ * the page around it.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { ShieldCheck, X } from 'lucide-react';
 import { useLang } from '@site/lib/i18n';
 import { SiteEnvContext, SiteLink, useSiteEnv } from '@site/lib/site-env';
 import type { TryOnProduct } from '@site/lib/demo-product';
-import { brandFrom, CLOSE_MESSAGE, configBase, configUrl, embedTitle, isLocalHost, tryOnProductFrom, validRefs, type StoreBrand } from '@site/lib/tryon-config';
+import { brandFrom, CLOSE_MESSAGE, PREVIEW_CONFIG, PREVIEW_READY, configBase, configUrl, embedTitle, isLocalHost, tryOnProductFrom, validRefs, type StoreBrand } from '@site/lib/tryon-config';
 import { servesHere } from '@site/lib/store-host';
 import { StoreMark } from '@site/components/site/store-mark';
 import Studio from '@site/components/studio/Studio';
@@ -52,8 +58,25 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
     if ((wanted === 'ar' || wanted === 'en') && wanted !== lang) setLang(wanted);
   }, [lang, setLang]);
 
+  const [previewing, setPreviewing] = useState(false); // once the dashboard has answered: the server drew the page without it
+
   useEffect(() => {
-    if (initial) return; // the server already answered
+    if (!params().get('preview') || window.parent === window) return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== location.origin || event.source !== window.parent) return;
+      const data = event.data as { type?: unknown; config?: unknown } | null;
+      if (data?.type !== PREVIEW_CONFIG) return;
+      const found = tryOnProductFrom(data.config, onThisMachine());
+      setPreviewing(true);
+      setState(found ? { kind: 'ready', product: found } : { kind: 'unavailable' });
+    };
+    window.addEventListener('message', onMessage);
+    window.parent.postMessage({ type: PREVIEW_READY }, location.origin);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
+  useEffect(() => {
+    if (initial || params().get('preview')) return; // the server already answered, or the dashboard's preview
     const p = params();
     const store = p.get('store') ?? '';
     const product = p.get('product') ?? '';
@@ -87,13 +110,13 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
         <SiteLink href="/try-on-privacy" target="_blank" rel="noopener" className="embed-privacy">
           <ShieldCheck size={15} aria-hidden />{t('تُعالج صورك على جهازك', 'Your photos are processed on your device')}
         </SiteLink>
-        <button type="button" className="embed-close" onClick={close} aria-label={t('أغلق التجربة', 'Close the try-on')}><X size={20} aria-hidden /></button>
+        {!previewing && <button type="button" className="embed-close" onClick={close} aria-label={t('أغلق التجربة', 'Close the try-on')}><X size={20} aria-hidden /></button>}
       </div>
       {state.kind === 'loading' && <p className="embed-note" role="status">{t('جارٍ التحميل…', 'Loading…')}</p>}
       {state.kind === 'unavailable' && (
         <div className="embed-note">
-          <p>{t('التجربة غير متاحة لهذا المنتج الآن.', 'The try-on is not available for this product right now.')}</p>
-          <button type="button" className="primary-button" onClick={close}>{t('العودة إلى المنتج', 'Back to the product')}</button>
+          <p>{previewing ? t('لا صورة لهذا المنتج نجرّبها بعد.', 'This product has no picture to try on yet.') : t('التجربة غير متاحة لهذا المنتج الآن.', 'The try-on is not available for this product right now.')}</p>
+          {!previewing && <button type="button" className="primary-button" onClick={close}>{t('العودة إلى المنتج', 'Back to the product')}</button>}
         </div>
       )}
       {state.kind === 'ready' && (

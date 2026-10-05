@@ -26,9 +26,9 @@ test('scripts run only by the page’s nonce; WebAssembly compiles, JavaScript e
   assert.equal(atob(newNonce()).length, 16, '128 bits');
 });
 
-test('only the try-on frame may be framed, by https pages; local test servers only on this machine', () => {
+test('only the try-on frame may be framed, by https pages and (T85) the dashboard on this same address; local test servers only on this machine', () => {
   assert.deepEqual(directives(pageCsp('x'))['frame-ancestors'], ["'none'"]);
-  assert.deepEqual(directives(pageCsp('x', { framed: true }))['frame-ancestors'], ['https:']);
+  assert.deepEqual(directives(pageCsp('x', { framed: true }))['frame-ancestors'], ["'self'", 'https:']);
   assert.ok(!pageCsp('x').includes('localhost'), 'a public page never names a local server');
   assert.ok(directives(pageCsp('x', { local: true }))['connect-src']!.includes('http://127.0.0.1:*'));
   const proxy = readFileSync(sitePath('proxy.ts'), 'utf8');

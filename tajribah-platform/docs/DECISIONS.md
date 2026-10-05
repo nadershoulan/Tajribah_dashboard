@@ -1442,3 +1442,33 @@ to test only, not shipped): the hand was found and the bag hung from her fingers
 taps placed it too.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T85 · 2026-10-05 · Try any product on, in the dashboard, as a shopper sees it (you asked)
+
+**Decision.** Each product's preview page now has the try-on itself: the same page the shop opens over a
+product (`/embed/try-on`) with your studio, framed inside the dashboard. It is built from the product's
+drafts, so nothing needs to be published or switched on first:
+- **What to try it as**: the product's own kind (its type, and what a Jewelry product was marked as);
+  else a guess from its category, then its name, using the feed's own words ("خواتم نسائية" → a ring,
+  "تعليقة مع حلق" → an earring), said on the page as a guess; or any kind the merchant picks. A word that
+  could be anything (أساور, أطقم, إكسسوارات) names nothing, and the page asks; for a bracelet it suggests
+  "watch", which sits on the wrist.
+- **The picture**: the product's own cut-out when it has one for that kind; else its store picture as it
+  is, and the page says the background shows until a cut-out is added. A frame's cut-out is not used for a
+  bag: settings belong to the kind they were made for.
+- **The size**: the try-on settings' width, else the product's width when it fits the kind, else the
+  example product's measured width (the demo's: 29.3 mm watch, 20.5 mm ring…), said as the example's,
+  never as the product's.
+- **On me**: as the plan allows, the same as on the shop.
+
+**How the frame gets the settings.** The dashboard signs in with a token kept in the page, not a cookie,
+so the frame cannot call the API itself. The dashboard reads the settings (API-189) and hands them to the
+frame by message. The frame listens only to a parent page on this same address, and the dashboard answers
+only its own frame, so another site framing the try-on page can't get anything this way. The try-on page
+may now be framed by this same address as well as by https shops (`frame-ancestors 'self' https:`).
+
+**Seen.** On this computer, on Failet products from the feed: a silver bracelet tried as a watch (on the
+model's wrist, its white background showing, as the page says); a ring guessed from "خواتم نسائية"; the
+sample watch with its cut-outs, exactly as on the shop, "on me" included (Pro).
+
+**Rollback path.** Revert the commit. Cost: low.

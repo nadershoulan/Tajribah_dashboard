@@ -95,6 +95,19 @@ export function typeFromCategory(text: string): FeedProductType | null {
   return null;
 }
 
+/**
+ * T85 — which piece of jewelry a name or category names, for the dashboard's try-on preview to start
+ * from (the merchant can change it; nothing is saved). Earrings before rings: "earrings" is its own word.
+ */
+const JEWELRY_WORDS: ['earring' | 'necklace' | 'ring', RegExp][] = [
+  ['earring', words(['حلق', 'أقراط', 'اقراط', 'قرط'], ['earrings?'])],
+  ['necklace', words(['سلسال', 'سلاسل', 'قلاد[ةا]', 'قلائد', 'تعليق[ةه]', 'تشوكر'], ['necklaces?', 'pendants?', 'chokers?'])],
+  ['ring', words(['خاتم', 'خواتم'], ['rings?'])],
+];
+export function jewelryKindOf(text: string): 'earring' | 'necklace' | 'ring' | null {
+  return JEWELRY_WORDS.find(([, pattern]) => pattern.test(text))?.[0] ?? null;
+}
+
 const ARABIC = /[\u0600-\u06FF]/;
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };

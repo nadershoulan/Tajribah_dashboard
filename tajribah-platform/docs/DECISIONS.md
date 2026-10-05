@@ -1584,6 +1584,6 @@ domains, and the studio's own code.
 only a picture that was already a transparent PNG or WebP, and almost every store picture is a JPEG on
 white. It now does what the preview's one click does: it takes the plain background off in the browser,
 crops to the product, and uploads the result, checked like any cut-out. Merchants can now finish a
-product (picture, width, publish) on one page. One routine () serves both places.
+product (picture, width, publish) on one page. One routine (`lib/clear-picture.ts`) serves both places.
 
 **Rollback path.** Revert the commit. Cost: low.

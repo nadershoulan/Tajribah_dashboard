@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { newNonce, pageCsp, SALLA_APP_PATH, SALLA_DASHBOARD } from "./server/core/http/security-headers";
 import { isSitePath } from "./lib/site-paths";
 import { pageCsp as sitePageCsp } from "./site/lib/security";
-import { isLocalHost } from "./site/lib/tryon-config";
+import { isLocalHost, isPrivateLanAddress } from "./site/lib/tryon-config";
 import { siteGaId } from "./site/lib/site-settings";
 
 /**
@@ -23,11 +23,11 @@ export async function proxy(request: NextRequest) {
     // T69: GA4 may send from the website when staff set its id, and from a product's own page when its
     // store set one (the page loads it only after the shopper agrees; the policy cannot know the store's).
     const analytics = pathname.startsWith("/p/") || (await siteGaId()) !== null;
-    csp = sitePageCsp(newNonce(), { dev, local: isLocalHost(hostname), framed: pathname.startsWith("/embed/"), analytics });
+    csp = sitePageCsp(newNonce(), { dev, local: isLocalHost(hostname), lanHost: isPrivateLanAddress(hostname) ? hostname : undefined, framed: pathname.startsWith("/embed/"), analytics });
   } else {
     // T61: the Salla app page is framed by Salla's merchant dashboard, and by nothing else.
     const framedBy = pathname.replace(/\/$/, "") === SALLA_APP_PATH ? SALLA_DASHBOARD : undefined;
-    csp = pageCsp(newNonce(), { dev, framedBy, local: isLocalHost(hostname) });
+    csp = pageCsp(newNonce(), { dev, framedBy, local: isLocalHost(hostname), lanHost: isPrivateLanAddress(hostname) ? hostname : undefined });
   }
   const headers = new Headers(request.headers);
   headers.set("content-security-policy", csp);

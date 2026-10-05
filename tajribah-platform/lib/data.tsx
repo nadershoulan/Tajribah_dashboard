@@ -800,7 +800,7 @@ export const demoSource: DataSource = {
   async connectionProviders() { return { woocommerce: true, shopify: false, salla: false, zid: false, feed: true }; },
   // P8: single sign-on is Enterprise — the preview's Growth store has none and cannot set one.
   async ssoSettings() {
-    return { configured: false, enabled: false, issuer: null, clientId: null, emailDomains: [], redirectUri: 'https://app.tajribah.sa/login/sso', signInUrl: 'https://app.tajribah.sa/login/sso?store=failet', updatedAt: null };
+    return { configured: false, enabled: false, issuer: null, clientId: null, emailDomains: [], redirectUri: 'https://tajribah.com/login/sso', signInUrl: 'https://app.tajribah.sa/login/sso?store=failet', updatedAt: null };
   },
   async saveSsoSettings() { throw new ApiError(402, 'plan_required', 'sso is not included in this plan'); },
   async startShopifyConnect() { throw new ApiError(501, 'not_implemented', 'Shopify shops can be connected once the Tajribah Shopify app is registered'); },

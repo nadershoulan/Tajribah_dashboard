@@ -102,11 +102,11 @@ export const REGISTRY = {
   }),
   CUSTOM_DOMAIN_TARGET: entry({
     schema: z.string().regex(/^[a-z0-9.-]+\.[a-z]{2,}$/, 'a hostname').optional(), scope: 'runtime',
-    doc: 'Where Enterprise stores point their own address (CNAME) — the Cloudflare for SaaS fallback origin (T62). Default domains.tajribah.sa.',
+    doc: 'Where Enterprise stores point their own address (CNAME) — the Cloudflare for SaaS fallback origin (T62). Default domains.tajribah.com.',
   }),
   HOSTED_PAGE_BASE: entry({
-    schema: z.string().regex(/^(?:https:\/\/[a-z0-9.-]+\.[a-z]{2,}|http:\/\/(?:localhost|127\.0\.0\.1)(?::\d{2,5})?)(?:\/[a-z0-9-]+)*$/, 'an https address (http only on this machine), no trailing slash').optional(), scope: 'runtime',
-    doc: 'Where products’ own pages live (P1.19): {base}/{store}/{product}. Default https://tajribah.sa/p — set to the short domain before launch; locally, the website’s dev address.',
+    schema: z.string().regex(/^(?:https:\/\/[a-z0-9.-]+\.[a-z]{2,}|http:\/\/(?:localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(?::\d{2,5})?)(?:\/[a-z0-9-]+)*$/, 'an https address (http only on this machine or its Wi-Fi address), no trailing slash').optional(), scope: 'runtime',
+    doc: 'Where products’ own pages live (P1.19): {base}/{store}/{product}. Default https://tajribah.com/p — set to the short domain before launch; locally, the website’s dev address.',
   }),
   CLOUDFLARE_SAAS_ZONE_ID: entry({
     schema: z.string().regex(/^[0-9a-f]{32}$/, 'a Cloudflare zone id (32 hex characters)').optional(), scope: 'runtime',

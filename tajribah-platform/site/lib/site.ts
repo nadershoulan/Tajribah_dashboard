@@ -29,7 +29,7 @@ export const COMPANY = {
    * confirmed yet: set NEXT_PUBLIC_SITE_URL at deploy; the default is a guess until then.
    */
   // `typeof` guard: the static preview's browser bundle has no `process`.
-  siteUrl: ((typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SITE_URL) || 'https://tajribah.sa').replace(/\/$/, ''),
+  siteUrl: ((typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SITE_URL) || 'https://tajribah.com').replace(/\/$/, ''),
   /**
    * The merchant dashboard — sign-up and sign-in. The same app since the website moved into the
    * platform, so links are on this site ('' → `/register`); NEXT_PUBLIC_APP_URL still overrides it

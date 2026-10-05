@@ -14,6 +14,7 @@ import { entitlementsOf } from '@/server/core/billing/entitlements';
 import { loadEnv } from '@/server/core/config/env';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { customHostOf, hostedPageViewOf } from './view';
+import { isLocalHost } from '@site/lib/tryon-config';
 
 /** The short domain, when it has been set for real — not the default, and never a local test address. */
 function finalBase(): string | null {
@@ -22,15 +23,22 @@ function finalBase(): string | null {
   return base && base !== DEFAULT_HOSTED_PAGE_BASE && base.startsWith('https://') ? base : null;
 }
 
+/** T82: the page base is this computer (http on localhost or its Wi-Fi address): codes to test with, not to print. */
+function onThisComputer(): boolean {
+  let base: string | undefined;
+  try { base = loadEnv().HOSTED_PAGE_BASE; } catch { base = undefined; }
+  try { return !!base && base.startsWith('http://') && isLocalHost(new URL(base).hostname); } catch { return false; }
+}
+
 export async function qrCodesFor(ctx: TenantContext): Promise<QrScreen> {
   ctx.require('ar:read');
   const customHost = await customHostOf(ctx);
   const base = customHost ? `https://${customHost}/p` : finalBase() ?? DEFAULT_HOSTED_PAGE_BASE;
   const printable = !!customHost || finalBase() !== null;
-  if (!(await entitlementsOf(ctx)).has('qr_codes')) return { included: false, printable, base, products: [] };
+  if (!(await entitlementsOf(ctx)).has('qr_codes')) return { included: false, printable, testOnly: !printable && onThisComputer(), base, products: [] };
 
   const live = await ctx.db.find(edgeConfigs, and(isNotNull(edgeConfigs.key), isNull(edgeConfigs.withdrawnAt)));
-  if (!live.length) return { included: true, printable, base, products: [] };
+  if (!live.length) return { included: true, printable, testOnly: !printable && onThisComputer(), base, products: [] };
   const ids = live.map((e) => e.productId);
   const [rows, pages] = await Promise.all([
     ctx.db.find(products, and(inArray(products.id, ids), isNull(products.deletedAt))),
@@ -46,5 +54,5 @@ export async function qrCodesFor(ctx: TenantContext): Promise<QrScreen> {
     out.push({ id: product.id, name: product.name, nameAr: product.nameAr ?? null, url: qrUrl(view.url) });
   }
   out.sort((a, b) => a.name.localeCompare(b.name));
-  return { included: true, printable, base, products: out };
+  return { included: true, printable, testOnly: !printable && onThisComputer(), base, products: out };
 }

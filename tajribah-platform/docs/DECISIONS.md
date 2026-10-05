@@ -1366,3 +1366,30 @@ WooCommerce) moves to version 2. One switch, `STORE_LINKING = false` (`lib/featu
 dashboard; they're left for your word.
 
 **Rollback path.** `STORE_LINKING = true`. Cost: none.
+
+## T82 · 2026-10-05 · One domain, tajribah.com, with its subdomains; the QR tested with a phone on your Wi-Fi (you asked)
+
+**Decision.** Everything runs on **`tajribah.com`**: one Worker serves the website, sign-in, the
+dashboard, the staff console, products' pages (`/p`), the shop try-on (`/embed/try-on`), the phone page
+(`/capture`) and the API. Three subdomains hold what must live apart: `cdn.` (files), `cfg.` (published
+settings, read without the database) and `ev.` (shop events). `domains.` is the name stores point their
+own domain at. The code mixed `tajribah.sa` (site, dashboard, product pages) with `tajribah.com`
+(services). Its defaults are now all `tajribah.com`: `DEFAULT_HOSTED_PAGE_BASE`, `DEFAULT_TRYON`, the
+site's URL, the domains target, the problem-type links, and `.env.example`. GO-LIVE, HOSTING, ARCHITECTURE
+and RUNNING-LOCALLY say the same. `docs/DOMAINS.md` describes it all.
+
+**The QR, locally.** A phone can't open `127.0.0.1`, so the computer can serve on its **Wi-Fi address**
+(`bash start-storage.sh lan` and `bash start-dashboard.sh lan`, which find and print it). The local
+stand-ins (http pictures, this Worker answering `/v1`, the page policies' local servers) now switch on
+for private network addresses (10.x, 172.16–31.x, 192.168.x) as well as localhost and 127.0.0.1
+(`isPrivateLanAddress`). No outside network can reach such an address, so a public site never has one.
+The QR page gets a third state, **test only**: when the product-page address is this computer, its codes
+are scannable by a phone on the network but can't be printed or downloaded. A printed code still
+requires the final https address.
+
+**Seen** (computer at 192.168.100.8): a product page opened at the Wi-Fi address with its pictures; the
+QR page showed a scannable test code with no downloads; the phone-to-computer photo arrived whole
+(52,501 of 52,501 bytes).
+
+**Rollback path.** Revert the commit. Addresses go back to the mixed defaults, and Wi-Fi testing stops.
+Cost: low.

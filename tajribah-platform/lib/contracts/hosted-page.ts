@@ -10,7 +10,7 @@
 import { z } from 'zod';
 
 /** The page's address before the short domain (T29: the try-on's site). One setting changes it. */
-export const DEFAULT_HOSTED_PAGE_BASE = 'https://tajribah.sa/p';
+export const DEFAULT_HOSTED_PAGE_BASE = 'https://tajribah.com/p'; // T82: one domain, tajribah.com
 
 /** `{base}/{store key}/{product ref}` — the two segments encoded exactly as the config's key is. */
 export function hostedPageUrl(base: string, store: string, productRef: string): string {
@@ -52,6 +52,11 @@ export type HostedPageView = {
 export type QrScreen = {
   included: boolean;
   printable: boolean;
+  /**
+   * T82: the codes point at this computer (its Wi-Fi address or localhost) — scannable by a phone on the
+   * same network to test, never printable or downloadable.
+   */
+  testOnly?: boolean;
   /** Where the codes point: the store's own address, the short domain, or Tajribah's default. */
   base: string;
   products: { id: string; name: string; nameAr: string | null; url: string }[];

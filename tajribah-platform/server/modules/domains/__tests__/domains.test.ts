@@ -17,7 +17,7 @@ import { DEFAULT_TARGET, checkCustomDomain, customDomain, hostnameOf, removeCust
 
 setLogLevel('error');
 resetEnv();
-loadEnv({ APP_URL: 'https://app.tajribah.sa', AUTH_SECRET: 's'.repeat(40), ENCRYPTION_KEY: 'e'.repeat(40) });
+loadEnv({ APP_URL: 'https://app.tajribah.com', AUTH_SECRET: 's'.repeat(40), ENCRYPTION_KEY: 'e'.repeat(40) });
 
 /** A stand-in resolver: the records the merchant has added so far. */
 function resolver(records: { txt?: Record<string, string[]>; cname?: Record<string, string> } = {}, status = 0) {
@@ -48,7 +48,7 @@ test('which names are accepted: a subdomain of the store’s own, in its ASCII f
   assert.equal(hostnameOf('ar.theirstore.com.'), 'ar.theirstore.com');
   assert.equal(hostnameOf('عرض.متجري.com'), 'xn--wgbkh.xn--pgbep1f2a.com', 'an Arabic name, as DNS holds it (checked against Python’s IDNA codec)');
   const refused = (input: string) => assert.throws(() => hostnameOf(input), (e: any) => e.code === 'validation_failed', input);
-  for (const bad of ['theirstore.com', 'localhost', 'ar.tajribah.sa', 'tajribah.com', 'x.y.tajribah.com', '10.0.0.1', '1.2.3.4', 'ar.store.com:8443', 'user@ar.store.com', '-bad.store.com', 'a..b.com', `${'a'.repeat(64)}.store.com`, 'ar.shop.localhost', '']) refused(bad);
+  for (const bad of ['theirstore.com', 'localhost', 'ar.tajribah.com', 'tajribah.com', 'x.y.tajribah.com', '10.0.0.1', '1.2.3.4', 'ar.store.com:8443', 'user@ar.store.com', '-bad.store.com', 'a..b.com', `${'a'.repeat(64)}.store.com`, 'ar.shop.localhost', '']) refused(bad);
 });
 
 test('the resolver’s answers, as the real one gives them', async () => {
@@ -87,7 +87,7 @@ test('set, check, and the four standings: pending → verified → ready; anothe
     view = await checkCustomDomain(ctx, { fetch: resolver({ txt: { '_tajribah-verify.ar.bigco.sa': ['google-site-verification=x', txt!.value] }, cname: { 'ar.bigco.sa': 'old-host.example.com' } }), now: verifiedAt });
     assert.deepEqual([view.status, view.pointsTo, view.verifiedAt], ['verified', 'old-host.example.com', verifiedAt.toISOString()]);
     // Both: ready — waiting for Tajribah to switch it on.
-    view = await checkCustomDomain(ctx, { fetch: resolver({ txt: { '_tajribah-verify.ar.bigco.sa': [txt!.value] }, cname: { 'ar.bigco.sa': 'domains.tajribah.sa' } }), now: new Date('2026-10-01T10:00:00Z') });
+    view = await checkCustomDomain(ctx, { fetch: resolver({ txt: { '_tajribah-verify.ar.bigco.sa': [txt!.value] }, cname: { 'ar.bigco.sa': 'domains.tajribah.com' } }), now: new Date('2026-10-01T10:00:00Z') });
     assert.deepEqual([view.status, view.records.map((r) => r.seen), view.verifiedAt], ['ready', [true, true], verifiedAt.toISOString()], 'proven once, the first time stays');
 
     // Saving the same name again (another spelling of it) keeps its token and standing — the records already added still count.

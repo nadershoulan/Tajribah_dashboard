@@ -12,9 +12,9 @@ the plan's shape. Nothing here is a silent substitution.
 
 ```
 Cloudflare
-  tajribah.sa ............ the website + try-on studio (`/`), dashboard (`/dashboard`), staff console, API
+  tajribah.com ............ the website + try-on studio (`/`), dashboard (`/dashboard`), staff console, API
                            (this repo, one Worker; cron + queue for background work — T70: the website moved in)
-  app.tajribah.sa ........ the same Worker (optional, for old links)
+  app.tajribah.com ........ the same Worker (optional, for old links)
   cfg.tajribah.com ....... each published product's config   (a small Worker reading KV)
   cdn.tajribah.com ....... widget, 3D files, pictures         (R2)
   ev.tajribah.com ........ shop analytics collector           (the dashboard Worker)

@@ -60,7 +60,7 @@ test('P5.12: a try-on button warms the studio host once — its origin only, not
   };
   assert.equal(warmTryOn(doc, DEFAULT_TRYON), true);
   assert.equal(warmTryOn(doc, `${DEFAULT_TRYON}?store=s&product=p`), false, 'once per page');
-  assert.deepEqual(links, [{ rel: 'preconnect', href: 'https://tajribah.sa' }], 'the website, where the try-on lives (T29)');
+  assert.deepEqual(links, [{ rel: 'preconnect', href: 'https://tajribah.com' }], 'the website, where the try-on lives (T29)');
   assert.equal(warmTryOn(doc, 'not a url'), false);
   assert.equal(warmTryOn({ ...doc, head: null }, DEFAULT_TRYON), false, 'no head, no harm');
   assert.equal(links.length, 1);

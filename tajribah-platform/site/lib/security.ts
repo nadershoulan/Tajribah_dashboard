@@ -25,8 +25,9 @@ export const FILE_HOST = 'https://cdn.tajribah.com';
 /** The collector: a product page's visits go to the merchant's Analytics, as the shop widget's do. */
 export const EVENTS_HOST = 'https://ev.tajribah.com';
 
-export function pageCsp(nonce: string, { dev = false, local = false, framed = false, analytics = false }: { dev?: boolean; local?: boolean; framed?: boolean; analytics?: boolean } = {}): string {
-  const here = local ? ' http://localhost:* http://127.0.0.1:*' : '';
+export function pageCsp(nonce: string, { dev = false, local = false, framed = false, analytics = false, lanHost }: { dev?: boolean; local?: boolean; framed?: boolean; analytics?: boolean; lanHost?: string } = {}): string {
+  // T82: opened at this computer's Wi-Fi address (a phone testing the QR), its own servers there too.
+  const here = local ? ` http://localhost:* http://127.0.0.1:*${lanHost ? ` http://${lanHost}:*` : ''}` : '';
   // T68: GA4 sends only where analytics is on (a measurement id is set), and never from the try-on frame.
   const ga = analytics && !framed ? ` ${GA_CONNECT.join(' ')}` : '';
   return [

@@ -117,7 +117,7 @@ export function toProblem(
   const app = isAppError(error) ? error : new AppError('internal', { cause: error });
   const def = CATALOGUE[app.code];
   return {
-    type: `https://tajribah.sa/problems/${app.code}`,
+    type: `https://tajribah.com/problems/${app.code}`,
     title: def.title[lang],
     status: def.status,
     code: app.code,

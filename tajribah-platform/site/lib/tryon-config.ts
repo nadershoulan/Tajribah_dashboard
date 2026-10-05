@@ -17,7 +17,18 @@ export const CONFIG_BASE = 'https://cfg.tajribah.com/v1';
 export const CLOSE_MESSAGE = 'tajribah:tryon:close';
 
 const LOCAL = ['localhost', '127.0.0.1'];
-export const isLocalHost = (hostname: string) => LOCAL.includes(hostname);
+/**
+ * This computer: localhost, 127.0.0.1 — or (T82) a private network address (10.x, 172.16–31.x,
+ * 192.168.x), so a phone on the same Wi-Fi can open the computer's pages to test the QR. A private
+ * address is never a public site: no one outside that network can reach it.
+ */
+export const isPrivateLanAddress = (hostname: string): boolean => {
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
+  if (!m || m.slice(1).some((part) => Number(part) > 255)) return false;
+  const [a, b] = [Number(m[1]), Number(m[2])];
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+};
+export const isLocalHost = (hostname: string) => LOCAL.includes(hostname) || isPrivateLanAddress(hostname);
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const str = (v: unknown, max = 200): v is string => typeof v === 'string' && v.length > 0 && v.length <= max;

@@ -2,7 +2,7 @@
 
 **No Docker is needed** for any of it. Everything below has been run on this Windows machine.
 
-Everything is one app, `tajribah-platform`: the website (tajribah.sa) and the try-on studio shoppers
+Everything is one app, `tajribah-platform`: the website (tajribah.com) and the try-on studio shoppers
 open (`site/`, pages at `/`), the merchant dashboard (`/dashboard`), the staff console (`/admin`), the
 API and the shop widget. (`tajribah-try-on` is the website's old copy, kept only until it is deleted.)
 
@@ -85,6 +85,9 @@ SeaweedFS (a single program, no Docker). Without it, uploads wait in "processing
 storage on the real host — locally, publishing works for this computer only (T75): the product's own
 page at `http://127.0.0.1:8799/p/…` shows it. Published settings are kept in the local storage, so they
 survive a restart.
+
+**Testing the QR with your phone, and the one-domain layout:** `docs/DOMAINS.md` (start both
+scripts with `lan`; the phone opens the computer's Wi-Fi address on the same network).
 
 ## The checks
 

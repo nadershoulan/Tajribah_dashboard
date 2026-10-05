@@ -4,8 +4,8 @@
 
 | Piece | Runs on | Why there |
 |---|---|---|
-| Website + try-on (`tajribah.sa`) | **Cloudflare Workers** | Served from Cloudflare's network close to every shopper; nothing to keep running |
-| Dashboard + API (`app.tajribah.sa`) | **Cloudflare Workers** | The same |
+| Website + try-on (`tajribah.com`) | **Cloudflare Workers** | Served from Cloudflare's network close to every shopper; nothing to keep running |
+| Dashboard + API (`app.tajribah.com`) | **Cloudflare Workers** | The same |
 | Shop widget, 3D files, pictures (`cdn.tajribah.com`) | **Cloudflare R2** | Storage with no charge for downloads — shoppers download a lot |
 | What each shop button shows (`cfg.tajribah.com`) | **Cloudflare Workers + KV** | Shops read it on every product page; it must never wait on the database |
 | The database (PostgreSQL 16) | **A Hetzner Cloud server** | Your decision (DECISIONS T11) |
@@ -56,7 +56,7 @@ Analytics). To also offer "Pick it by signing in with Google", make one OAuth cl
    `.../auth/analytics.readonly`. (Read-only Analytics is a "sensitive" scope: until Google verifies
    the app, only test users you list can sign in — enough for you and the first stores.)
 3. **Credentials → Create OAuth client ID → Web application**; authorised redirect URI:
-   `https://app.tajribah.sa/api/google/callback` (and `http://localhost:8799/api/google/callback`
+   `https://app.tajribah.com/api/google/callback` (and `http://localhost:8799/api/google/callback`
    for this machine).
 4. Put the two values on the dashboard Worker: `GOOGLE_CLIENT_ID` (a variable) and
    `GOOGLE_CLIENT_SECRET` (`wrangler secret put`). The button appears on both screens.

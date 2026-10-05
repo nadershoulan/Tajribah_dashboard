@@ -30,7 +30,7 @@ import { errors, isUniqueViolation } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
 
 export const VERIFY_LABEL = '_tajribah-verify';
-export const DEFAULT_TARGET = 'domains.tajribah.sa';
+export const DEFAULT_TARGET = 'domains.tajribah.com';
 const OURS = ['tajribah.sa', 'tajribah.com'];
 const LABEL = /^(?!-)[a-z0-9-]{1,63}(?<!-)$/;
 

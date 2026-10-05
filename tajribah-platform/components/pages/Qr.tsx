@@ -41,7 +41,15 @@ function Codes({ screen }: { screen: QrScreen }) {
   }
   return (
     <>
-      {!screen.printable && (
+      {screen.testOnly && (
+        <Panel title={t('للتجربة على شبكتك فقط', 'For testing on your network only')} actions={<QrCode size={20} aria-hidden style={{ color: 'var(--text-3)' }} />}>
+          <p style={{ margin: 0 }}>{t(
+            'هذه الرموز تشير إلى جهازك هذا. امسحها بجوال متصل بنفس شبكة الواي فاي لتجرّب صفحة المنتج. لا تُطبع ولا تُنزَّل: الرمز المطبوع يحمل عنوان تجربة النهائي.',
+            'These codes point at this computer. Scan one with a phone on the same Wi-Fi to try the product’s page. They cannot be printed or downloaded: a printed code carries Tajribah’s final address.',
+          )}</p>
+        </Panel>
+      )}
+      {!screen.printable && !screen.testOnly && (
         <Panel title={t('معاينة — لا تطبعها بعد', 'Preview — do not print yet')} actions={<QrCode size={20} aria-hidden style={{ color: 'var(--text-3)' }} />}>
           <p style={{ marginTop: 0 }}>{t(
             'الرمز المطبوع يبقى كما هو لسنوات، لذلك يجب أن يحمل عنوان تجربة القصير النهائي. هذا العنوان لم يُعتمد بعد، فالرموز هنا معاينة لا تُمسح ولا تُنزَّل. حين يُعتمد، تصبح جاهزة للطباعة هنا دون أي خطوة منك.',
@@ -57,7 +65,7 @@ function Codes({ screen }: { screen: QrScreen }) {
         </Panel>
       ) : (
         <ul className="qr-grid" style={{ listStyle: 'none', padding: 0, margin: '16px 0 0', display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
-          {screen.products.map((p) => <Code key={p.id} product={p} printable={screen.printable} />)}
+          {screen.products.map((p) => <Code key={p.id} product={p} printable={screen.printable} scannable={screen.printable || !!screen.testOnly} />)}
         </ul>
       )}
     </>
@@ -66,7 +74,7 @@ function Codes({ screen }: { screen: QrScreen }) {
 
 const slugOf = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'product';
 
-function Code({ product, printable }: { product: QrScreen['products'][number]; printable: boolean }) {
+function Code({ product, printable, scannable }: { product: QrScreen['products'][number]; printable: boolean; scannable: boolean }) {
   const { t } = useLang();
   const [svg, setSvg] = useState<string | null>(null);
   useEffect(() => {
@@ -92,7 +100,7 @@ function Code({ product, printable }: { product: QrScreen['products'][number]; p
       <div style={{ position: 'relative', aspectRatio: '1', background: '#fff', borderRadius: 8, overflow: 'hidden' }}
         role="img" aria-label={printable ? t(`رمز QR لصفحة ${name}`, `QR code for ${name}’s page`) : t(`معاينة رمز QR لصفحة ${name} — غير قابلة للمسح`, `Preview of the QR code for ${name}’s page — not scannable`)}>
         {svg && <div aria-hidden style={{ width: '100%', height: '100%' }} dangerouslySetInnerHTML={{ __html: svg.replace('<svg ', '<svg width="100%" height="100%" ') }} />}
-        {!printable && (
+        {!scannable && (
           // Covers the code's middle band: a preview that a screenshot could not turn into a working print.
           <div aria-hidden style={{ position: 'absolute', insetInline: 0, top: '38%', height: '24%', background: 'var(--surface, #fff)', display: 'grid', placeItems: 'center', borderBlock: '1px dashed var(--border, #ccc)' }}>
             <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-2)' }}>{t('معاينة', 'Preview')}</span>

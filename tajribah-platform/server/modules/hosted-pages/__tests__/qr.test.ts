@@ -58,7 +58,7 @@ test('a code per live product page, tagged as from a QR code; a page switched of
   const harness = await createTestDb();
   try {
     const { ctx, tenantId } = await store(harness, 'oud', 'starter');
-    assert.deepEqual(await qrCodesFor(ctx), { included: true, printable: false, base: 'https://tajribah.sa/p', products: [] }, 'nothing published: no codes');
+    assert.deepEqual(await qrCodesFor(ctx), { included: true, printable: false, testOnly: false, base: 'https://tajribah.com/p', products: [] }, 'nothing published: no codes');
 
     const arc = await lamp(harness, tenantId, 'sa-77', 'Arc lamp');
     const bowl = await lamp(harness, tenantId, 'sa 9/1', 'Brass bowl');
@@ -68,8 +68,8 @@ test('a code per live product page, tagged as from a QR code; a page switched of
 
     const screen = await qrCodesFor(ctx);
     assert.deepEqual(screen.products.map((p) => [p.name, p.url]), [
-      ['Arc lamp', 'https://tajribah.sa/p/oud/sa-77?s=qr'],
-      ['Brass bowl', 'https://tajribah.sa/p/oud/sa%209%2F1?s=qr'],
+      ['Arc lamp', 'https://tajribah.com/p/oud/sa-77?s=qr'],
+      ['Brass bowl', 'https://tajribah.com/p/oud/sa%209%2F1?s=qr'],
     ], 'the page’s own address, the product reference encoded as the page reads it');
     assert.equal(screen.products[0]!.nameAr, 'Arc lamp (ع)');
     assert.equal(viaOf(new URL(screen.products[0]!.url).search), 'qr', 'the website counts the visit as from a code');
@@ -94,10 +94,17 @@ test('printable only on a final address: the short domain once set, or the store
     {
       const { ctx } = await store(harness, 'local', 'starter', { HOSTED_PAGE_BASE: 'http://localhost:5173/p' });
       assert.equal((await qrCodesFor(ctx)).printable, false, 'a test address on this machine is never printed');
+      assert.equal((await qrCodesFor(ctx)).testOnly, true, 'but a phone on the network may scan it, to test');
     }
     {
-      const { ctx } = await store(harness, 'same', 'starter', { HOSTED_PAGE_BASE: 'https://tajribah.sa/p' });
+      const { ctx } = await store(harness, 'wifi', 'starter', { HOSTED_PAGE_BASE: 'http://192.168.1.20:8799/p' });
+      const screen = await qrCodesFor(ctx);
+      assert.deepEqual([screen.printable, screen.testOnly], [false, true], 'T82: this computer’s Wi-Fi address — test only, never printed');
+    }
+    {
+      const { ctx } = await store(harness, 'same', 'starter', { HOSTED_PAGE_BASE: 'https://tajribah.com/p' });
       assert.equal((await qrCodesFor(ctx)).printable, false, 'the default, written out, is still the default');
+      assert.equal((await qrCodesFor(ctx)).testOnly, false, 'the default is not this computer');
     }
     {
       const { ctx, tenantId } = await store(harness, 'own', 'enterprise');

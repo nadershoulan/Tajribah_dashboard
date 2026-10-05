@@ -149,7 +149,7 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
 }
 
 /**
- * T75 — storage on this computer (`http://127.0.0.1:…` or `http://localhost:…`, docs/DATABASE.md) serves
+ * T75 — storage on this computer (`http://127.0.0.1:…`, `http://localhost:…`, or its Wi-Fi address, T82) serves
  * plain http, which the widget's parser refuses: it runs on shops, where only https may load. So that a
  * product can be published and tried here, the check reads this storage's own address as https. The
  * config keeps its real address — the website's try-on pages accept http from a local host when they
@@ -157,7 +157,7 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
  * Real storage is https, and nothing changes for it.
  */
 export function checkable(body: string, storageBase: string): string {
-  const local = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\//.exec(storageBase)?.[0];
+  const local = /^http:\/\/(?:localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(?::\d+)?\//.exec(storageBase)?.[0]; // T82: or this computer's Wi-Fi address
   return local ? body.split(local).join(`https${local.slice(4)}`) : body;
 }
 

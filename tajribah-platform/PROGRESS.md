@@ -3,8 +3,8 @@
 _Last updated: 2026-10-05 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: one on analytics (now end to end), store connections, enterprise features and security; the other on the website and the shop-facing pages.
-> **Just finished (2026-10-05):** **Store linking moved to version 2** (your call): the dashboard no longer offers Salla, Zid, Shopify or WooCommerce — your products come in from your store's **product feed link or a file**, which is all this version needs. The code stays, behind one switch (`lib/features.ts`). Before that: a store picture for the try-on, preview any product, the feed's categories and types.
-> **Next:** how to test the QR locally, and running on one domain with its subdomains (tajribah.com).
+> **Just finished (2026-10-05):** **One domain, `tajribah.com`**, with `cdn.`, `cfg.` and `ev.` subdomains (docs/DOMAINS.md). **Test QR codes with your phone**: start both local scripts with `lan`, open the address they print, scan — product pages and "try it on me" both work over your Wi-Fi. Before that: store linking moved to version 2, a store picture for the try-on, preview any product.
+> **Next:** whatever you choose next — the feed-only version is complete end to end on your computer.
 > **For the day the accounts exist:** `docs/GO-LIVE.md` lists every Cloudflare step the code already expects (storage, the fast config host, the dashboard, the website, DNS), each with how to check it worked.
 > **Waiting on you:** **the Google sign-in button** needs one Google Cloud "OAuth client" (10 minutes, steps in `docs/HOSTING.md` → "Google sign-in for GA4"); until then the id is pasted, which works fully. **A GA4 measurement id** when you want website analytics on (analytics.google.com → a property for tajribah.sa → a web stream → `G-…`, then the console's Website page). **The short domain** (when you buy the domains): products' own pages and QR codes go on it — until then the links read `tajribah.sa/p/…`, and nothing is shared before launch, so one setting changes them all (`HOSTED_PAGE_BASE`, GO-LIVE §4). Then the **Hetzner server**, and the accounts below — Salla, Zid, Cloudflare, the domain, Moyasar and a 3D-generation provider.
 
@@ -543,3 +543,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-10-05 | Preview any product from its store's pictures (no 3D model); pictures shown across the dashboard | new tests, two rules broken on purpose and caught; seen in Chrome with Failet's feed |
 | 2026-10-05 | Use a store picture (from the feed) for the try-on — fetched safely, checked like an upload | new tests, two guards broken on purpose and caught; seen with Failet's real pictures |
 | 2026-10-05 | Store linking (Salla, Zid, Shopify, WooCommerce) moved to version 2; a feed link or file is the way in | the dashboard's words checked with the switch off; full gate |
+| 2026-10-05 | One domain (tajribah.com) and its subdomains; QR codes and "try it on me" tested with a phone on the Wi-Fi | new tests, a rule broken on purpose and caught; seen on the Wi-Fi address |

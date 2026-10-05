@@ -57,9 +57,9 @@ export class LocalStorageConfigStore implements ConfigStore {
   async delete(key: string) { await this.objects.delete(this.prefix + key); }
 }
 
-/** Storage on this computer: an S3 endpoint at localhost or 127.0.0.1. */
+/** Storage on this computer: an S3 endpoint at localhost, 127.0.0.1 or (T82) its Wi-Fi address. */
 export const isLocalStorage = (config: { STORAGE_PROVIDER?: string; S3_ENDPOINT?: string }): boolean =>
-  config.STORAGE_PROVIDER === 's3' && /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(?:\/|$)/.test(config.S3_ENDPOINT ?? '');
+  config.STORAGE_PROVIDER === 's3' && /^http:\/\/(?:localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(?::\d+)?(?:\/|$)/.test(config.S3_ENDPOINT ?? '');
 
 let current: ConfigStore = new MemoryConfigStore();
 export function setConfigStore(store: ConfigStore): void { current = store; }

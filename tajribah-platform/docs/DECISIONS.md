@@ -1472,3 +1472,23 @@ model's wrist, its white background showing, as the page says); a ring guessed f
 sample watch with its cut-outs, exactly as on the shop, "on me" included (Pro).
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T86 · 2026-10-05 · The website says what is true today: products from a link or a file
+
+**Decision.** Your T81 call (store linking to version 2) now reaches the website too, which I had left
+for your word; "you decide" covers it, and it's easy to revert. Every page a merchant reads now says the
+same thing as the dashboard. Today, products come from a product feed link (as for Google Merchant
+Center) or a file, from any platform. Linking Salla, Zid, Shopify and WooCommerce directly, through an
+app in each platform's store, comes in version 2. Changed: the integrations page, the Salla and Zid pages
+(steps, what we read, questions, the main button now leads to sign-up), Home, How it works, the FAQ, and
+the help centre, where one article on adding products from a link or a file replaces the three "connect
+your store" articles. The Growth plan's "Direct Salla and Zid integration" line in billing is marked
+"version 2" (coming).
+
+**What it does not claim.** Whether each platform's theme accepts custom code isn't verified, so the
+pages say "where your theme takes two lines of code". Each product's own page and QR code on Tajribah
+work with nothing installed. For Salla, the route given is the dashboard's own: a Google Merchant feed
+app from Salla's app store, and its "service link".
+
+**Rollback path.** Revert the commit. When `STORE_LINKING` is switched on, the new test steps aside.
+Cost: low.

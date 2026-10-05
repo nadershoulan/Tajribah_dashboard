@@ -41,7 +41,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
       { ar: 'أكمل خطوات الإعداد في الصفحة الرئيسية بالترتيب الذي يناسبك.', en: 'Work through the setup steps on the home page in whatever order suits you.' },
     ],
     body: [
-      { ar: 'يبدأ كل متجر بتجربة مجانية لمدة 14 يومًا بمزايا باقة «النمو» — ومنها ربط متجرك على سلة أو زد — دون بطاقة دفع. تظهر المدة المتبقية أسفل القائمة الجانبية، وتختار باقتك قبل نهايتها.', en: 'Every store starts with a 14-day free trial with the Growth plan’s features — connecting your Salla or Zid store included — and no card required. The days left show at the bottom of the side menu; you choose your plan before they run out.' },
+      { ar: 'يبدأ كل متجر بتجربة مجانية لمدة 14 يومًا بمزايا باقة «النمو» دون بطاقة دفع. تظهر المدة المتبقية أسفل القائمة الجانبية، وتختار باقتك قبل نهايتها.', en: 'Every store starts with a 14-day free trial with the Growth plan’s features and no card required. The days left show at the bottom of the side menu; you choose your plan before they run out.' },
       { ar: 'يمكنك تخطي أي خطوة إعداد والعودة إليها لاحقًا من «دليل الإعداد».', en: 'You can skip any setup step and come back to it later from the “Setup guide”.' },
     ],
   },
@@ -50,50 +50,24 @@ export const HELP_ARTICLES: HelpArticle[] = [
     title: { ar: 'خطوات الإعداد الست', en: 'The six setup steps' },
     summary: { ar: 'ما الذي تطلبه كل خطوة ولماذا.', en: 'What each step asks for, and why.' },
     body: [
-      { ar: 'إنشاء الحساب، ثم بيانات المتجر (الاسم والسجل التجاري والرقم الضريبي إن وُجد — تظهر في فواتيرك)، ثم ربط المتجر، ثم مراجعة المقاسات، ثم أول نموذج ثلاثي الأبعاد، ثم تركيب الزر في متجرك.', en: 'Create the account; store details (name, CR and VAT number if you have one — they appear on your invoices); connect your store; check your dimensions; your first 3D model; install the button in your store.' },
+      { ar: 'إنشاء الحساب، ثم بيانات المتجر (الاسم والسجل التجاري والرقم الضريبي إن وُجد — تظهر في فواتيرك)، ثم إضافة منتجاتك من رابط أو ملف، ثم مراجعة المقاسات، ثم أول نموذج ثلاثي الأبعاد، ثم تركيب الزر في متجرك.', en: 'Create the account; store details (name, CR and VAT number if you have one — they appear on your invoices); add your products from a link or a file; check your dimensions; your first 3D model; install the button in your store.' },
       { ar: 'خطوة المقاسات هي الأهم: المقارنة بالحجم الحقيقي لا تظهر لمنتج بلا عرض وارتفاع بالمليمتر، حتى لا يرى عميلك رقمًا غير دقيق.', en: 'The dimensions step matters most: true-size comparison does not show for a product without a width and height in millimetres, so your shopper never sees a wrong number.' },
     ],
   },
   {
-    slug: 'connect-salla', category: 'connect', updated: '2026-09-24',
-    title: { ar: 'ربط متجرك على سلة', en: 'Connect your Salla store' },
-    summary: { ar: 'موافقة واحدة، ثم تُستورد منتجاتك وتبقى محدّثة.', en: 'One approval, then your products import and stay current.' },
+    slug: 'import-products', category: 'connect', updated: '2026-10-05',
+    title: { ar: 'أضف منتجاتك من رابط أو ملف', en: 'Add your products from a link or a file' },
+    summary: { ar: 'رابط ملف المنتجات كما في Google Merchant Center، أو ملف — من أي منصة.', en: 'A product feed link as for Google Merchant Center, or a file — from any platform.' },
     steps: [
-      { ar: 'من لوحة التحكم افتح «ربط المتجر» واختر سلة.', en: 'In the dashboard open “Store connections” and choose Salla.' },
-      { ar: 'سجّل الدخول إلى سلة ووافق على الصلاحيات المطلوبة.', en: 'Sign in to Salla and approve the requested permissions.' },
-      { ar: 'تبدأ أول مزامنة تلقائيًا، وترى تقدّمها في الصفحة نفسها.', en: 'The first sync starts on its own; you can watch its progress on the same page.' },
+      { ar: 'من لوحة التحكم افتح «ربط المتجر».', en: 'In the dashboard open “Store connections”.' },
+      { ar: 'الصق رابط ملف المنتجات واضغط «استورد المنتجات» — أو اسحب ملفًا إلى المربع.', en: 'Paste the product feed link and press “Import products” — or drag a file into the box.' },
+      { ar: 'تظهر منتجاتك في «المنتجات» بصورها وأسعارها وتصنيفاتها، ثم أضف المقاسات وجرّب كل منتج من معاينته.', en: 'Your products appear under “Products” with their pictures, prices and categories; then add the sizes and try each product from its preview.' },
     ],
     body: [
-      { ar: 'بعد الربط، يصلنا أي تعديل على منتج في سلة تلقائيًا، وتجري مزامنة دورية أيضًا تحسّبًا لأي تعديل فاتنا.', en: 'Once connected, product edits in Salla reach us automatically, and a scheduled sync also runs in case anything was missed.' },
-      { ar: 'إذا توقف الاتصال (مثلًا بعد إلغاء التطبيق من سلة) تظهر الحالة «يحتاج إعادة ربط» مع زر لإعادة الربط.', en: 'If the connection stops (for example after removing the app in Salla), the status shows “Needs reconnecting” with a button to reconnect.' },
-    ],
-  },
-  {
-    slug: 'connect-zid', category: 'connect', updated: '2026-09-24',
-    title: { ar: 'ربط متجرك على زد', en: 'Connect your Zid store' },
-    summary: { ar: 'الخطوات نفسها كسلة، من سوق تطبيقات زد.', en: 'The same steps as Salla, from the Zid app market.' },
-    steps: [
-      { ar: 'افتح «ربط المتجر» واختر زد.', en: 'Open “Store connections” and choose Zid.' },
-      { ar: 'وافق على الصلاحيات من حسابك في زد.', en: 'Approve the permissions from your Zid account.' },
-      { ar: 'انتظر اكتمال أول مزامنة، ثم راجع المقاسات.', en: 'Wait for the first sync to finish, then check your dimensions.' },
-    ],
-    body: [
-      { ar: 'نعمل حاليًا مع المتاجر الأولى بالتنسيق المباشر؛ إن لم يظهر لك خيار زد بعد، تواصل معنا لنفعّله لمتجرك.', en: 'We are onboarding our first stores directly; if the Zid option is not showing for you yet, contact us and we will enable it for your store.' },
-    ],
-  },
-  {
-    slug: 'connect-woocommerce', category: 'connect', updated: '2026-09-30',
-    title: { ar: 'ربط متجرك على WooCommerce', en: 'Connect your WooCommerce store' },
-    summary: { ar: 'توافق من لوحة ووردبريس نفسها — لا إضافة ولا مفاتيح تنسخها.', en: 'You approve it on your own WordPress site — no plugin, no keys to copy.' },
-    steps: [
-      { ar: 'افتح «ربط المتجر»، واكتب عنوان متجرك في خانة WooCommerce (يبدأ بـ ⁦https://⁩)، ثم اضغط «اربط عبر WooCommerce».', en: 'Open “Store connections”, type your store’s address in the WooCommerce box (it starts with https://), then press “Connect with WooCommerce”.' },
-      { ar: 'ننقلك إلى متجرك: سجّل الدخول إلى ووردبريس إن طُلب منك، ووافق على منح تجربة صلاحية القراءة.', en: 'We take you to your store: sign in to WordPress if asked, and approve read access for Tajribah.' },
-      { ar: 'تعود إلى «ربط المتجر» وتبدأ أول مزامنة تلقائيًا، ثم نزامن كل ساعة.', en: 'You come back to “Store connections” and the first sync starts on its own; after that we sync every hour.' },
-    ],
-    body: [
-      { ar: 'ربط WooCommerce ضمن باقتي «الاحترافية» و«المؤسسات». نقرأ المنتجات فقط: الاسم والوصف والسعر والصور والحالة — المسودات والمنتجات الخاصة تبقى مخفية كما هي في متجرك.', en: 'Connecting WooCommerce comes with the Pro and Enterprise plans. We only read products: name, description, price, pictures and status — drafts and private products stay hidden, as they are in your store.' },
-      { ar: 'الزر في صفحات منتجاتك يُركَّب بسطر التضمين من صفحة «التركيب في متجرك».', en: 'The button on your product pages goes in with the embed line from the “Install in your store” page.' },
-      { ar: 'إذا ألغيت صلاحية تجربة في WooCommerce (الإعدادات ← متقدم ← REST API)، تظهر الحالة «يحتاج إعادة ربط» — اربطه من جديد بالخطوات نفسها.', en: 'If you revoke Tajribah’s access in WooCommerce (Settings → Advanced → REST API), the status shows “Needs reconnecting” — connect again with the same steps.' },
+      { ar: 'في سلة: ثبّت من متجر تطبيقات سلة تطبيقًا يولّد رابط Google Merchant، ثم انسخ «رابط الخدمة» والصقه في تجربة. يصلح أي رابط بصيغة Google Merchant (XML) أو جدول CSV/TSV.', en: 'On Salla: install an app from the Salla App Store that makes a Google Merchant link, then copy its “service link” and paste it into Tajribah. Any link in Google Merchant format (XML) or a CSV/TSV table works.' },
+      { ar: 'نقرأ الرابط فور لصقه، ثم تلقائيًا كل 24 ساعة: ما تغيّره في متجرك يصل مع القراءة التالية.', en: 'We read the link as soon as you paste it, then automatically every 24 hours: what you change in your store arrives with the next reading.' },
+      { ar: 'الملف: CSV أو TSV أو Excel أو XML بصيغة Google Merchant، حتى 30 ميغابايت، وأسماء الأعمدة في الصف الأول (مثل id و title و price و image_link). إن غيّرت الملف فارفعه مرة أخرى.', en: 'A file: CSV, TSV, Excel, or XML in Google Merchant format, up to 30 MB, with the column names in the first row (such as id, title, price and image_link). If you change the file, upload it again.' },
+      { ar: 'الربط المباشر بسلة وزد وShopify وWooCommerce — بتطبيق من متجر تطبيقات منصتك ومزامنة فورية لكل تعديل — يأتي في الإصدار الثاني.', en: 'Linking directly with Salla, Zid, Shopify and WooCommerce — through an app from your platform’s app store, with every change synced at once — comes in version 2.' },
     ],
   },
   {

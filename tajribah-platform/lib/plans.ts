@@ -65,7 +65,8 @@ export const PLANS: PlanDefinition[] = [
     features: ['ar_viewer', 'hosted_pages', 'qr_codes', 'size_comparison', 'full_analytics', 'salla', 'zid'],
     highlights: [
       { ar: '200 منتج، ومقارنة الحجم بأشياء يعرفها العميل', en: '200 products, plus size comparison with familiar objects' },
-      { ar: 'ربط مباشر مع سلة وزد', en: 'Direct Salla and Zid integration' },
+      // T81/T86: store linking is version 2; today products come from a feed link or a file, on every plan.
+      { ar: 'ربط مباشر مع سلة وزد (الإصدار الثاني)', en: 'Direct Salla and Zid integration (version 2)', soon: true },
       { ar: 'تقارير التحويل', en: 'Conversion reporting' },
       // T34: returns come from the store platform (P4.7), and no store connection is live yet.
       { ar: 'تقارير معدل الإرجاع', en: 'Return-rate reporting', soon: true },

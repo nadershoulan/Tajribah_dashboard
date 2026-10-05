@@ -9,10 +9,10 @@ export default function HowItWorks() {
 
   const merchant = [
     { h: t('اختر باقتك', 'Pick a plan'), p: t('سجّل متجرك واختر الباقة التي تناسب عدد منتجاتك. يمكنك الترقية لاحقًا في أي وقت.', 'Register your store and choose the plan that fits your product count. Upgrade any time.') },
-    { h: t('اربط متجرك', 'Connect your store'), p: t('وافق على الربط من سلة أو زد أو Shopify أو WooCommerce، أو أضف سطر التضمين إلى قالب صفحة المنتج.', 'Approve the connection from Salla, Zid, Shopify or WooCommerce, or add the embed line to your product-page template.') },
-    { h: t('يصلنا كتالوجك', 'Your catalogue arrives'), p: t('تُستورد المنتجات والصور والأسعار تلقائيًا، وتبقى متزامنة مع كل تعديل في متجرك.', 'Products, images and prices import automatically and stay in sync with every change in your store.') },
+    { h: t('أضف منتجاتك', 'Add your products'), p: t('الصق رابط ملف منتجاتك (كما في Google Merchant Center) أو ارفع ملفًا. الربط المباشر بسلة وزد وShopify وWooCommerce في الإصدار الثاني.', 'Paste your product feed link (as for Google Merchant Center) or upload a file. Direct linking with Salla, Zid, Shopify and WooCommerce is in version 2.') },
+    { h: t('يصلنا كتالوجك', 'Your catalogue arrives'), p: t('تُستورد المنتجات والصور والأسعار والتصنيفات، ونقرأ الرابط من جديد كل 24 ساعة.', 'Products, pictures, prices and categories import, and we read the link again every 24 hours.') },
     { h: t('جهّز المنتج', 'Prepare the product'), p: t('اختر المنتج، وأضف صورته الواضحة وأبعاده بالمليمتر. للواقع المعزز، ارفع صورًا من ثلاث زوايا أو اطلب منا النمذجة.', 'Choose a product and add a clean photo and its millimetre dimensions. For AR, upload photos from three angles or ask us to model it.') },
-    { h: t('انشر الزر', 'Publish the button'), p: t('يظهر زر «جرّبها» في صفحة المنتج بلون متجرك. لا تغيير على صفحة الدفع ولا على السلة.', 'A “Try it” button appears on the product page in your store’s colour. Checkout and cart stay untouched.') },
+    { h: t('انشر وشارك', 'Publish and share'), p: t('لكل منتج منشور صفحة ورمز QR على تجربة، وزر «جرّبها» بلون متجرك في صفحة منتجك حيث يقبل قالبك سطرين من الكود. لا تغيير على صفحة الدفع ولا على السلة.', 'Each published product gets a page and a QR code on Tajribah, and a “Try it” button in your store’s colour on your product page wherever your theme takes two lines of code. Checkout and cart stay untouched.') },
     { h: t('راقب الأثر', 'Watch the effect'), p: t('تعرض لوحة التحكم عدد الجلسات والتجارب والمنتجات الأكثر تجربة، ونسبة الشراء بعد التجربة.', 'The dashboard shows sessions, try-ons, the most-tried products and how often a try-on leads to a purchase.') },
   ];
 

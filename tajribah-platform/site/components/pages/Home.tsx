@@ -39,9 +39,9 @@ export default function Home() {
   ];
 
   const steps = [
-    { h: t('اربط متجرك', 'Connect your store'), p: t('سلة أو زد أو Shopify أو WooCommerce، أو أي متجر عبر سطر تضمين واحد.', 'Salla, Zid, Shopify or WooCommerce — or any store with a single embed line.') },
+    { h: t('أضف منتجاتك', 'Add your products'), p: t('من رابط ملف منتجاتك (كما في Google Merchant Center) أو من ملف، من أي منصة.', 'From your product feed link (as for Google Merchant Center) or a file, from any platform.') },
     { h: t('أضف الصور والمقاسات', 'Add photos and dimensions'), p: t('صورة واضحة للمنتج وأبعاده بالمليمتر. ويمكننا تجهيزها عنك.', 'A clean product photo and its dimensions in millimetres. We can prepare them for you.') },
-    { h: t('فعّل زر «جرّبها»', 'Switch on “Try it”'), p: t('يظهر الزر في صفحة المنتج، ويبدأ عملاؤك التجربة مباشرة.', 'The button appears on the product page and shoppers start trying immediately.') },
+    { h: t('شاركها مع عملائك', 'Share it with your shoppers'), p: t('لكل منتج صفحة ورمز QR على تجربة، وزر «جرّبها» في صفحة منتجك حيث يقبل قالبك سطرين من الكود.', 'Each product gets a page and a QR code on Tajribah, and a “Try it” button on your product page wherever your theme takes two lines of code.') },
   ];
 
   const categories = [
@@ -124,8 +124,9 @@ export default function Home() {
             <div className="panel-card">
               <h3>{t('المنصات', 'Platforms')}</h3>
               <ul className="platforms">
+                <li className="any">{t('أي منصة: من رابط ملف المنتجات أو ملف', 'Any platform: from a product feed link or a file')}</li>
                 {['سلة Salla', 'زد Zid', 'Shopify', 'WooCommerce'].map((p) => <li key={p}>{p}</li>)}
-                <li className="any">{t('أي متجر عبر كود التضمين', 'Any store via embed code')}</li>
+                <li className="any">{t('الربط المباشر بالمنصات: في الإصدار الثاني', 'Direct platform linking: in version 2')}</li>
               </ul>
             </div>
             <div className="panel-card">

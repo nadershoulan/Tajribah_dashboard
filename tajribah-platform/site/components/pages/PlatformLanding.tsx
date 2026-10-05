@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import { useLang } from '@site/lib/i18n';
 import { pick } from '@site/lib/lang';
 import { SiteLink } from '@site/lib/site-env';
+import { COMPANY } from '@site/lib/site';
 import { PLATFORM_PAGES, TRADEMARK_NOTE, type PlatformPage } from '@site/content/platforms';
 import { Forward, Shell } from '@site/components/site/chrome';
 import { Checks, CtaBand, PageHero, SectionHead } from '@site/components/site/ui';
@@ -16,28 +17,28 @@ function PlatformLanding({ page }: { page: PlatformPage }) {
     <Shell current="/integrations">
       <PageHero eyebrow={t(`لمتاجر ${page.name.ar}`, `For ${page.name.en} stores`)} title={p(page.hero.title)} lead={p(page.hero.lead)}>
         <div className="hero-actions">
-          <SiteLink href="/contact" className="btn btn-primary">{t('أضف متجري إلى الدفعة القادمة', 'Add my store to the next group')}<Forward /></SiteLink>
+          <SiteLink href={`${COMPANY.appUrl}/register`} className="btn btn-primary">{t('ابدأ من رابط منتجاتك', 'Start from your product feed')}<Forward /></SiteLink>
           <SiteLink href="/demo" className="btn btn-ghost">{t('جرّب العرض التجريبي', 'Try the live demo')}</SiteLink>
         </div>
       </PageHero>
 
       <section className="sec">
         <div className="wrap">
-          <SectionHead eyebrow={t('التركيب', 'Setup')} title={t(`من ${p(page.appStore)} إلى أول تجربة`, `From ${p(page.appStore)} to the first try-on`)} />
+          <SectionHead eyebrow={t('التركيب', 'Setup')} title={t(`من متجرك على ${page.name.ar} إلى أول تجربة`, `From your ${page.name.en} store to the first try-on`)} />
           <ol className="steps">
             {page.steps.map((s, i) => (
               <li key={s.title.en}><span className="step-n">{i + 1}</span><div><h3>{p(s.title)}</h3><p>{p(s.body)}</p></div></li>
             ))}
           </ol>
-          <p className="fine">{t('نعمل حاليًا مع المتاجر الأولى بالتنسيق المباشر قبل فتح الإدراج العام في متجر التطبيقات.',
-            'We are onboarding our first stores directly before the public app-store listing opens.')}</p>
+          <p className="fine">{t(`الربط المباشر بـ${page.name.ar} عبر تطبيق في ${p(page.appStore)} يأتي في الإصدار الثاني.`,
+            `Linking directly with ${page.name.en}, through an app in ${p(page.appStore)}, comes in version 2.`)}</p>
         </div>
       </section>
 
       <section className="sec sec-tint">
         <div className="wrap split">
           <div>
-            <SectionHead eyebrow={t('ما يُزامَن', 'What syncs')} title={t(`كتالوجك في ${page.name.ar} يبقى مصدر الحقيقة`, `Your ${page.name.en} catalogue stays the source of truth`)} />
+            <SectionHead eyebrow={t('ما نقرؤه', 'What we read')} title={t(`كتالوجك في ${page.name.ar} يبقى مصدر الحقيقة`, `Your ${page.name.en} catalogue stays the source of truth`)} />
             <Checks items={page.syncs.map(p)} />
           </div>
           <div className="stack-cards">

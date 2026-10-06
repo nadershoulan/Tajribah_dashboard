@@ -156,6 +156,8 @@ export const edgeConfigs = pgTable('edge_configs', {
   tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
   productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
   key: text('key'),
+  /** T95 (0044): the same config's second address — its store page's ref (`page:p…`) — or null. */
+  pageKey: text('page_key'),
   version: integer('version').notNull().default(0),
   fingerprint: text('fingerprint'),
   publishedAt: ts('published_at'),

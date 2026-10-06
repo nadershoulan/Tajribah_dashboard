@@ -183,6 +183,8 @@ export const products = pgTable('products', {
   tryonEnabled: bool('tryon_enabled').notNull().default(false),
   aiEnabled: bool('ai_enabled').notNull().default(false),
   primaryModelId: uuid('primary_model_id'),
+  /** T95 (0044): the product's page in the store, from its feed (`link`) — how a page-wide tag finds it. */
+  pageUrl: text('page_url'),
   // `embedding vector(768)` (pgvector, §7.6) arrives with P6.1; the extension has to be
   // enabled on the cluster first, and an unused index is a cost with no benefit.
   syncedAt: ts('synced_at'),

@@ -62,3 +62,15 @@ test('a screen’s own list had no words: ours, then a plain Arabic line — its
   assert.equal(inArabic('a brand new English refusal'), ARABIC_FALLBACK);
   assert.equal(inArabic('رسالة بالعربية'), 'رسالة بالعربية');
 });
+
+test('T95: every reason the install checker gives for a page (and its Tag Manager container) has its Arabic', () => {
+  const lines = new Set<string>();
+  for (const file of ['service.ts'].map((f) => join(process.cwd(), 'server', 'modules', 'embed', f))) {
+    for (const m of readFileSync(file, 'utf8').matchAll(/detail: '([^']{3,200})'/g)) lines.add(m[1]!);
+  }
+  lines.add('preview — the real app fetches the page and checks it'); // the preview's own answer (lib/data.tsx)
+  assert.ok(lines.size >= 6, `read the checker’s lines: ${[...lines].join(' | ')}`);
+  for (const line of lines) assert.ok(arabicOf(line), `no Arabic for the checker’s "${line}"`);
+  assert.match(arabicOf('the page answered 403')!, /403/);
+  assert.match(arabicOf('redirected somewhere we will not follow: must be a domain name, not an IP address')!, /تحوّل/);
+});

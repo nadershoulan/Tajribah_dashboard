@@ -13,6 +13,9 @@
  *    and its phone page show in Tajribah's place. Only with a try-on; null on every other plan.
  *  - **Host** (T62, custom domains — Enterprise): the store's own address, once it is switched on
  *    (`active`); the shop's widget then opens the try-on there instead of on Tajribah's address.
+ *  - **Page key** (T95): a product whose feed gave its store page (Salla's `/p1412564664`) is published
+ *    there too (`pageKey`), and that config names the product's own ref (`ref`): a tag added once in
+ *    Google Tag Manager knows the page's address, not the feed's id.
  *  - **Page** (P1.19): what the product's own page on the website shows beside the product — the
  *    store's name, the merchant's link to buy it in their shop, and whether "Made with Tajribah" is
  *    shown (not under white-label), and the store's own address once it is switched on — the website
@@ -36,6 +39,7 @@ import { forTenant } from '@/server/core/storage/storage';
 import type { TenantContext } from '@/server/core/tenancy/context';
 import { arViewOf } from '@/server/modules/ar/service';
 import { fileFor } from '@/server/modules/models/files';
+import { pageRefOf } from '@/widget/src/auto';
 import { parseConfig, type ViewerConfig } from '@/widget/src/config';
 
 /** Why a product has no config. */
@@ -49,7 +53,9 @@ export const BLOCK_TEXT: Record<EdgeBlock, string> = {
 };
 
 /** What is published: the widget's contract, plus what only the website reads — the finish line, the brand and the product's page. */
-export type PublishedConfig = Omit<ViewerConfig, 'tryon'> & {
+export type PublishedConfig = Omit<ViewerConfig, 'tryon' | 'ref'> & {
+  /** T95: the product's own ref — only in a config also published at its store page's ref (absent otherwise, so other configs are unchanged). */
+  ref?: string;
   tryon: (NonNullable<ViewerConfig['tryon']> & { finish: { ar: string; en: string } | null }) | null;
   brand: StoreBrand | null;
   page: PublishedPage | null;
@@ -62,7 +68,7 @@ export type PublishedConfig = Omit<ViewerConfig, 'tryon'> & {
 export type StoreBrand = { name: string; nameAr: string | null; logo: string | null };
 
 export type EdgeBuild =
-  | { ok: true; key: string; config: PublishedConfig; body: string; fingerprint: string }
+  | { ok: true; key: string; pageKey: string | null; config: PublishedConfig; body: string; fingerprint: string }
   | { ok: false; key: string | null; reason: EdgeBlock };
 
 const CLOSED = new Set(['suspended', 'cancelled']);
@@ -72,8 +78,13 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
   const tenant = ctx.tenant;
   const product = await db.findById(products, productId);
   if (!product || product.deletedAt || product.status === 'archived') return { ok: false, key: null, reason: 'unavailable' };
-  const key = configKey(tenant.slug, product.externalId ?? product.id);
+  const ownRef = product.externalId ?? product.id;
+  const key = configKey(tenant.slug, ownRef);
   if (CLOSED.has(tenant.status)) return { ok: false, key, reason: 'store_closed' };
+  // T95: a product whose feed gave its store page is also published at that page's ref, which a
+  // page-wide tag (Google Tag Manager on Salla) reads from the address
+  const pageRef = product.pageUrl ? pageRefOf(product.pageUrl) : null;
+  const pageKey = pageRef ? configKey(tenant.slug, pageRef) : null;
 
   const [ar, tryon, settings, domain, hosted] = await Promise.all([
     db.findOne(arConfigs, eq(arConfigs.productId, productId)),
@@ -128,6 +139,7 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
     related: entitlements.has('recommendations') ? await relatedLive(ctx, productId) : null,
     brand: watch && entitlements.has('white_label') ? brandOf(tenant, settings?.branding?.logoUrl) : null,
     host: watch && domain ? domain.hostname : null,
+    ...(pageKey ? { ref: ownRef } : {}),
     // No row: the page is on (every plan has it). A stored link is checked again: it reaches shoppers.
     page: entitlements.has('hosted_pages') && (hosted?.isActive ?? true)
       ? {
@@ -144,7 +156,7 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
     log.error('edge config refused by the widget parser', { tenantId: ctx.tenantId, productId });
     return { ok: false, key, reason: 'invalid' };
   }
-  return { ok: true, key, config, body, fingerprint: await sha256(body) };
+  return { ok: true, key, pageKey, config, body, fingerprint: await sha256(body) };
 }
 
 /**

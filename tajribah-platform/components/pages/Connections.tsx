@@ -194,7 +194,7 @@ export default function Connections() {
           <li>{t('المقاسات إن كانت موجودة — وإلا نطلبها منك، فهي أساس الحجم الحقيقي.', 'Dimensions where they exist — otherwise we ask you for them, since true size depends on them.')}</li>
           <li>{STORE_LINKING
             ? t('تحديثات عند كل تغيير في متجرك: فورًا حيث تُرسل منصتك إشعارًا بالتغيير (سلة وزد)، وإلا بمزامنة كل ساعة.', 'Updates whenever your store changes: at once where your platform sends change notices (Salla, Zid), otherwise by a sync every hour.')
-            : t('رابط المنتجات يُقرأ من جديد كل 24 ساعة، أو متى ضغطت «زامن الآن». الملف يُستورد مرة واحدة.', 'A feed link is read again every 24 hours, or whenever you press “Sync now”. A file is imported once.')}</li>
+            : t('رابط المنتجات يُقرأ من جديد كل 24 ساعة، أو متى ضغطت «مزامنة الآن». الملف يُستورد مرة واحدة.', 'A feed link is read again every 24 hours, or whenever you press “Sync now”. A file is imported once.')}</li>
         </ul>
         <p className="hint">
           {t(

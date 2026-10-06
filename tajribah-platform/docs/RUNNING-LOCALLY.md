@@ -82,11 +82,26 @@ picture run in a separate Node process (`node scripts/worker-node.mjs`) and need
 this on your computer, `DATABASE.md` → "Model and picture work on this machine" shows how with
 SeaweedFS (a single program, no Docker). Without it, uploads wait in "processing". With the local start scripts
 (`~/tajribah-local`): `start-storage.sh`, then `start-dashboard.sh` and `start-worker.sh` (the worker reads the
-dashboard script's settings; without it, a new try-on picture stays "checking the size…"). The dashboard's pages, when opened at
+dashboard script's settings; without it, a new try-on picture stays "checking the size…"). On this computer the worker also
+runs what the Cloudflare Worker runs in production (`WORKER_ALL_QUEUES=1`, set by `start-worker.sh`): after "Sync now" on a feed,
+your published buttons are refreshed by it. The dashboard's pages, when opened at
 127.0.0.1 or localhost, may upload to storage on this computer; publishing to a shop still needs https
 storage on the real host — locally, publishing works for this computer only (T75): the product's own
 page at `http://127.0.0.1:8799/p/…` shows it. Published settings are kept in the local storage, so they
 survive a restart.
+
+**Trying the Google Tag Manager install on your store's real pages (T95):** with the dashboard (and storage and the
+worker) running, and at least one product published,
+
+```sh
+node widget/build.mjs
+node scripts/dev/test-shop.mjs --store <your store key> --from https://failet.sa
+```
+
+then open `http://127.0.0.1:8812/ar/x/p<the product's number on Salla>`. The page is your store's own, read
+live, with the tag added the way Tag Manager adds it: the button appears under the product's options, and
+opens the try-on. The store key is the one in the tag on «التركيب في متجرك». Your products must have their
+store pages first: «مزامنة الآن» on Store connections reads them from the feed.
 
 **Testing the QR with your phone, and the one-domain layout:** `docs/DOMAINS.md` (start both
 scripts with `lan`; the phone opens the computer's Wi-Fi address on the same network).
@@ -107,4 +122,5 @@ These are what GitHub runs on every push.
 - **Store connections (Salla, Zid, Shopify)** — each needs its app registered with the platform first.
 - **Card payments, phone codes by SMS, generating 3D models from photos** — each needs its provider's account.
 - **Real emails** — printed to the terminal until a mail provider is set.
-- **Background work** (a product feed's sync, model and picture checks) — no queue consumer runs on this machine, so a linked feed waits in "queued"; a file upload imports at once.
+- **Background work without `start-worker.sh`** (a product feed's scheduled sync, model and picture checks, refreshing published buttons) — nothing else consumes the queue on this machine; "Sync now" and a file upload import at once.
+- **Checking the install on a page of this computer** — the checker opens public https pages only; it checks your real store's pages (and their Google Tag Manager containers) from here.

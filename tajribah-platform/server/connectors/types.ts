@@ -33,6 +33,8 @@ export type ExternalProduct = {
   productType?: 'watch' | 'jewelry' | 'eyewear' | 'bag' | 'apparel' | 'furniture' | null;
   /** T77: the store's own category name ("ساعات نسائية"). The store's: it follows the source on every sync. */
   category?: string | null;
+  /** T95: the product's page in the store (a feed's `link`). The store's: it follows the source on every sync; undefined leaves it alone. */
+  pageUrl?: string | null;
 };
 
 /** `total`, when the store reports it, is what makes progress a percentage. */

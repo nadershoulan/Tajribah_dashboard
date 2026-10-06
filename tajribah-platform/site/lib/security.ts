@@ -43,7 +43,8 @@ export function pageCsp(nonce: string, { dev = false, local = false, framed = fa
     "base-uri 'self'",
     "form-action 'self'",
     // T85: the dashboard (this same address) frames the try-on to preview a product as a shopper sees it.
-    `frame-ancestors ${framed ? "'self' https:" : "'none'"}`,
+    // T95: on this machine, a local test shop too (scripts/dev/test-shop.mjs serves plain http).
+    `frame-ancestors ${framed ? `'self' https:${here}` : "'none'"}`,
   ].join('; ');
 }
 

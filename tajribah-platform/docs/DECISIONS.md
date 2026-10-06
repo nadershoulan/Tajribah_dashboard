@@ -1605,3 +1605,36 @@ product now shows what matters today: "منشور" (live), "جاهز للنشر"
 a box pointing to its preview, where it can be tried as a watch and its picture cleared in one click.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T95 · 2026-10-07 · The button on every Salla product page through Google Tag Manager
+
+**Context.** Nader wants the store owner to add the try-on button once, for every published product, with
+Salla's own "Google Tags Manager" app: the owner links a container, adds one Custom HTML tag, and every product
+page gets its button. A tag added that way has no theme template, so no `{{ product.id }}`: it knows only the
+page's address. Salla's product address ends in `/p` and Salla's number for the product (`/p1412564664`),
+while the feed's id is the model number (`244167095`) — the two have to meet.
+
+**Decision.**
+- **The feed's link is kept** (`products.page_url`, migration 0044), normalised as a browser writes it (Failet's
+  feed has raw Arabic and `{Name}  {Category}` placeholders with spaces — refusing those lost 838 of 2170 pages).
+- **A published product is also written at its page's ref** (`page:p<number>`, `edge_configs.page_key`), the
+  same body, which then names the product's own ref (`ref`, optional, no version bump; absent for every other
+  product so their configs are byte-for-byte unchanged). Both addresses are written, rewritten, withdrawn and
+  removed together. The shop's path still never reads the database.
+- **The widget places itself** with `data-tajribah-auto="salla"`: the ref from the address, the box after Salla's
+  `product:single.form.end` hook (every Salla theme renders it), else before the add-to-cart button, or after the
+  owner's own selector. No product number, no box, nothing fetched. Found by its page, the product is reported
+  and opened under its own ref, so analytics and the try-on name it as the dashboard does.
+- **The install checker reads the containers** a page loads from `googletagmanager.com` (a fixed host; only the
+  `GTM-…` id varies, checked first) — only what the owner published is in them — and says which step is missing.
+- **On this computer** the Node worker may run every queue (`WORKER_ALL_QUEUES=1`, refused with the KV store),
+  and the try-on frame may be framed by a local http test shop (`scripts/dev/test-shop.mjs`), as other local
+  servers already are; a public page is never local.
+
+**Rejected.** Reading the model number from the page (Salla shows it only in a theme's detail block, or inside
+its analytics payload — neither is a contract). A lookup API the widget calls (the shop's path would reach our
+database). Changing the config key to the page's number (every installed theme snippet would break).
+
+**Rollback path.** Revert the commit; 0044's ROLLBACK drops the two columns. Entries written at page keys stay
+in the config store until the product is published or removed again; the shop's button then finds none and
+draws nothing. Cost: low.

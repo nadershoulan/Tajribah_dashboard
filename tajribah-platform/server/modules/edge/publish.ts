@@ -23,8 +23,13 @@
  * The config store is written before the row: if the row's write fails, the next refresh finds a
  * fingerprint that differs and writes again. A key that changed (the product's platform id) has
  * its old entry deleted, so one product never answers at two addresses.
+ *
+ * T95: except its store page's — a product whose feed gave its page is written at that page's ref as
+ * well (`page_key`), for a tag added once in Google Tag Manager. The two are written, rewritten and
+ * taken down together.
  */
-import { and, eq, inArray, isNotNull, isNull, or } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
+import { PAGE_REF_PREFIX } from '@/widget/src/auto';
 import { edgeConfigs, productRelations, products } from '@/db/schema';
 import type { Job } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
@@ -101,7 +106,7 @@ export async function refreshProduct(ctx: TenantContext, productId: string, enti
     onWithdrawn?.(productId, build.reason);
     return 'withdrawn';
   }
-  if (!row.withdrawnAt && build.key === row.key && build.fingerprint === row.fingerprint) return 'unchanged';
+  if (!row.withdrawnAt && build.key === row.key && build.fingerprint === row.fingerprint && build.pageKey === row.pageKey) return 'unchanged';
   await write(ctx, productId, build, row, 'system');
   return 'rewritten';
 }
@@ -180,7 +185,7 @@ export async function edgeStatuses(ctx: TenantContext, productIds: readonly stri
     const build = await buildEdgeConfig(ctx, row.productId, entitlements!);
     out.set(row.productId, {
       version: row.version, publishedAt: row.publishedAt?.toISOString() ?? null,
-      outdated: !build.ok || build.key !== row.key || build.fingerprint !== row.fingerprint,
+      outdated: !build.ok || build.key !== row.key || build.fingerprint !== row.fingerprint || build.pageKey !== row.pageKey,
     });
   }
   return out;
@@ -193,13 +198,34 @@ export async function edgeStatuses(ctx: TenantContext, productIds: readonly stri
  */
 export async function publicationOf(ctx: TenantContext, productRef: string): Promise<Publication | null> {
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productRef);
-  const found = await ctx.db.find(products, and(isNull(products.deletedAt),
+  // T95: a page-wide tag names the product by its store page
+  const found = productRef.startsWith(PAGE_REF_PREFIX) ? await productsAtPage(ctx, productRef) : await ctx.db.find(products, and(isNull(products.deletedAt),
     uuid ? or(eq(products.externalId, productRef), and(isNull(products.externalId), eq(products.id, productRef))) : eq(products.externalId, productRef)), { limit: 2 });
   const product = found[0];
   if (!product) return null;
   const row = await rowOf(ctx, product.id);
   const state = !row?.key ? 'not_published' : row.withdrawnAt ? 'withdrawn' : 'live';
   return { productId: product.id, name: product.name, nameAr: product.nameAr, state, version: state === 'live' ? row!.version : 0 };
+}
+
+/**
+ * T95 — a page key's entry leaves with its config, unless another product of the store is live at the same
+ * page (the same product imported twice, from a feed and from a file): that product's button stays.
+ */
+async function dropPageKey(ctx: TenantContext, pageKey: string, productId: string): Promise<void> {
+  const shared = await ctx.db.find(edgeConfigs, and(eq(edgeConfigs.pageKey, pageKey), ne(edgeConfigs.productId, productId), isNotNull(edgeConfigs.key), isNull(edgeConfigs.withdrawnAt)), { limit: 1 });
+  if (shared.length === 0) await configStore().delete(pageKey);
+}
+
+/** T95: the products of this store whose page is the one a page ref names (`page:p1412564664`), the live one first. */
+async function productsAtPage(ctx: TenantContext, pageRef: string) {
+  const number = /^page:p(\d{3,20})$/.exec(pageRef)?.[1];
+  if (!number) return [];
+  // the address's path ends in /p<number>, maybe followed by a slash, a query or a fragment (digits only: safe in a pattern)
+  const found = await ctx.db.find(products, and(isNull(products.deletedAt), sql`${products.pageUrl} ~ ${`/p${number}/?([?#].*)?$`}`), { limit: 5 });
+  if (found.length < 2) return found;
+  const live = await ctx.db.find(edgeConfigs, and(inArray(edgeConfigs.productId, found.map((p) => p.id)), isNotNull(edgeConfigs.key), isNull(edgeConfigs.withdrawnAt)), { limit: found.length });
+  return [...found].sort((a, b) => Number(live.some((r) => r.productId === b.id)) - Number(live.some((r) => r.productId === a.id)));
 }
 
 async function rowOf(ctx: TenantContext, productId: string): Promise<EdgeRow | null> {
@@ -209,12 +235,14 @@ async function rowOf(ctx: TenantContext, productId: string): Promise<EdgeRow | n
 async function write(ctx: TenantContext, productId: string, build: Extract<EdgeBuild, { ok: true }>, row: EdgeRow | null, actor: 'user' | 'system'): Promise<EdgeRow> {
   const now = new Date();
   await configStore().put(build.key, build.body, (row?.version ?? 0) + 1);
+  if (build.pageKey) await configStore().put(build.pageKey, build.body, (row?.version ?? 0) + 1); // T95
   if (row?.key && row.key !== build.key && !row.withdrawnAt) await configStore().delete(row.key);
+  if (row?.pageKey && row.pageKey !== build.pageKey && !row.withdrawnAt) await dropPageKey(ctx, row.pageKey, productId);
   return withTenant(ctx.tenantId, async (db) => {
     // The version is counted under the row's lock, so two publishes at once are 2 and 3, not 2 and 2.
     const locked = row ? await db.lockById(edgeConfigs, row.id) : null;
     const version = (locked?.version ?? 0) + 1;
-    const values = { key: build.key, version, fingerprint: build.fingerprint, publishedAt: now, withdrawnAt: null, updatedAt: now };
+    const values = { key: build.key, pageKey: build.pageKey, version, fingerprint: build.fingerprint, publishedAt: now, withdrawnAt: null, updatedAt: now };
     const saved = locked
       ? await db.updateById(edgeConfigs, locked.id, values)
       : await db.insert(edgeConfigs, { id: uuidv7(), tenantId: ctx.tenantId, productId, ...values });
@@ -248,6 +276,7 @@ export async function refreshListers(tenantId: string, productId: string): Promi
 
 async function withdraw(ctx: TenantContext, row: EdgeRow, reason: EdgeBlock): Promise<void> {
   await configStore().delete(row.key!);
+  if (row.pageKey) await dropPageKey(ctx, row.pageKey, row.productId);
   const now = new Date();
   await withTenant(ctx.tenantId, async (db) => {
     // The key stays: it is where the product is published again if it qualifies again.
@@ -263,9 +292,10 @@ async function withdraw(ctx: TenantContext, row: EdgeRow, reason: EdgeBlock): Pr
 /** T40: the entry deleted and the key cleared — nothing brings it back but publishing again. */
 async function takeDown(ctx: TenantContext, row: EdgeRow, actor: 'user' | 'system', reason: string): Promise<void> {
   await configStore().delete(row.key!); // already gone after a withdrawal; deleting again is harmless
+  if (row.pageKey) await dropPageKey(ctx, row.pageKey, row.productId);
   const now = new Date();
   await withTenant(ctx.tenantId, async (db) => {
-    await db.updateById(edgeConfigs, row.id, { key: null, withdrawnAt: now, updatedAt: now });
+    await db.updateById(edgeConfigs, row.id, { key: null, pageKey: null, withdrawnAt: now, updatedAt: now });
     await record(ctx, {
       action: 'unpublish', resourceType: 'edge_config', resourceId: row.productId, actorType: actor,
       before: { version: row.version, key: row.key }, after: { reason },

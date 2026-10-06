@@ -13,7 +13,7 @@ import {
   DEMO_AI_JOBS, DEMO_ANALYTICS, DEMO_BILLING, DEMO_CONNECTION, DEMO_DASHBOARD, DEMO_MODELS, DEMO_NOTIFICATIONS, DEMO_PRODUCTS, DEMO_SYNC, DEMO_TEAM, DEMO_WEBHOOKS, demoTryonSessions30,
 } from './demo-data';
 import type {
-  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, FeedImport, SallaAppView, SsoSettingsView, ReportSubscriptionView, LiveActivityView, SessionListView, SessionPathView, StoreOverview, CustomDomainView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnOne, TryOnPreview, TryOnScreen, TryOnWatchView, InstallCheck, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
+  AiJobView, AnalyticsView, ApiKeyView, BillingSummary, CustomRoleView, WebhookDeliveryView, WebhookEndpointView, ConnectionDetail, ConnectionProviders, ConnectionSummary, FeedImport, SallaAppView, SsoSettingsView, ReportSubscriptionView, LiveActivityView, SessionListView, SessionPathView, StoreOverview, CustomDomainView, DashboardSummary, GenerationPhotoSet, GenerationPhotoView, TryOnOne, TryOnPreview, TryOnScreen, TryOnWatchView, InstallCheck, EmbedInfo, ModelRow, ModelVersionRow, NotificationItem, ProductRow, SyncProgress, TeamMemberRow, TenantSummary,
 } from './view-models';
 import { ANGLE_SLOTS, PHOTO_ISSUES, photoIssueViews, type GenerationAngle } from './ai-jobs';
 import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, checkPhoto, sha256Hex } from '@/server/modules/ai-jobs/photo-check';
@@ -33,7 +33,7 @@ import { pageOf } from './product-list';
 import { DEFAULT_HOSTED_PAGE_BASE, HostedPageInput, hostedPageUrl, qrUrl, type HostedPageView, type QrScreen } from './contracts/hosted-page';
 import { RequestInput as ProfessionalRequest, type ProfessionalOrderView } from './contracts/professional';
 import { MODEL_TARGET_BYTES } from './model-size';
-import { embedSnippet } from '../widget/src/snippet';
+import { embedSnippet, tagManagerSnippet } from '../widget/src/snippet';
 import { applyEdit, editErrors, newProductErrors, type NewProduct, type ProductEdit } from './product-edit';
 import { STEP_COPY } from './onboarding-steps';
 import { priceInvoiceLines, type InvoiceDocument } from './contracts/invoices';
@@ -176,7 +176,7 @@ export interface DataSource {
   /** P1.25. Refusals: `ApiError` 422 with per-field messages. */
   settings(): Promise<StoreSettings>;
   /** P1.17: the snippet to paste, and a live check of a product page. */
-  embed(): Promise<{ storeKey: string; snippet: string; storeHost: string | null }>;
+  embed(): Promise<EmbedInfo>;
   checkInstall(url: string): Promise<InstallCheck>;
   /** P1.23: the signed-in person's own notifications, newest first. */
   notifications(): Promise<{ items: NotificationItem[]; unread: number }>;
@@ -436,7 +436,7 @@ export function apiSource(client: ApiClient): DataSource {
     },
     async notifications() { return client.call<{ items: NotificationItem[]; unread: number }>('/api/notifications'); },
     async announcements() { return (await client.call<{ announcements: Announcement[] }>('/api/announcements')).announcements; },
-    async embed() { return client.call<{ storeKey: string; snippet: string; storeHost: string | null }>('/api/embed'); },
+    async embed() { return client.call<EmbedInfo>('/api/embed'); },
     async checkInstall(url) { return client.call<InstallCheck>('/api/embed/check', { method: 'POST', body: { url } }); },
     async markNotificationsRead(ids) {
       await client.call('/api/notifications/read', { method: 'POST', body: ids === 'all' ? { all: true } : { ids } });
@@ -1055,7 +1055,8 @@ export const demoSource: DataSource = {
   async billing() { return DEMO_BILLING; },
   async settings() { return { ...demoSettings }; },
   async embed() {
-    return { storeKey: DEMO_DASHBOARD.tenant.slug, snippet: embedSnippet(DEMO_DASHBOARD.tenant.slug), storeHost: null };
+    const key = DEMO_DASHBOARD.tenant.slug;
+    return { storeKey: key, snippet: embedSnippet(key), tagSnippet: tagManagerSnippet(key), storeHost: null, published: 0, publishedFromStore: 0, publishedWithPage: 0 };
   },
   async checkInstall(url) {
     // The preview has no server to fetch the page from: it says so instead of pretending.

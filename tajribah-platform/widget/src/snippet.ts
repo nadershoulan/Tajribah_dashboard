@@ -14,6 +14,20 @@ export const PRODUCT_PLACEHOLDER = '{{ product.id }}';
  * `consent` (T48): the shop asks shoppers for consent first — nothing is measured until its banner
  * grants it (`CONSENT_LINE` in main.ts).
  */
+/**
+ * T95 — the tag a Salla store adds in Google Tag Manager (Custom HTML, fired on all pages): the script
+ * alone, told to find the product and the button's spot on each page (`auto.ts`). It does nothing on a
+ * page that is not a product's, and draws nothing for a product that is not published.
+ */
+export function tagManagerSnippet(storeKey: string, options: { consent?: boolean; anchor?: string } = {}): string {
+  const safe = storeKey.replace(/[^a-z0-9-]/gi, '');
+  const consent = options.consent ? ` ${ATTR.consent}="required"` : '';
+  // the owner's own spot (a CSS selector): quotes and angle brackets would end the attribute, so they go
+  const spot = options.anchor?.replace(/["<>&]/g, '').trim().slice(0, 200);
+  const anchor = spot ? ` ${ATTR.anchor}="${spot}"` : '';
+  return `<script src="${WIDGET_SRC}" ${ATTR.store}="${safe}" ${ATTR.auto}="salla"${anchor}${consent} async></script>`;
+}
+
 export function embedSnippet(storeKey: string, productRef = PRODUCT_PLACEHOLDER, options: { consent?: boolean } = {}): string {
   const safe = storeKey.replace(/[^a-z0-9-]/gi, '');
   const consent = options.consent ? ` ${ATTR.consent}="required"` : '';

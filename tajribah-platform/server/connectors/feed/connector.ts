@@ -92,6 +92,7 @@ function toExternal(p: FeedProduct, now: Date): ExternalProduct {
     dimensions: p.dimensions,
     productType: p.productType,
     category: p.category,
+    pageUrl: p.link, // T95: how a page-wide tag (Google Tag Manager) finds the product
   };
 }
 

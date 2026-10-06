@@ -45,6 +45,37 @@ export function inspectHtml(html: string, storeKey: string): InstallStatus {
 }
 
 /**
+ * T95 — the Google Tag Manager containers a page loads (`GTM-K4ZVD3HX`), at most four. A Salla page
+ * loads Salla's own container next to the store's; both are read, since the page cannot say which is which.
+ */
+export function tagManagerIds(html: string): string[] {
+  return [...new Set([...html.matchAll(/\bGTM-[A-Z0-9]{4,12}\b/g)].map((m) => m[0]))].slice(0, 4);
+}
+
+export type ContainerVerdict =
+  | { status: 'ok' | 'missing' | 'not_auto' }
+  | { status: 'wrong_store'; key: string | null };
+
+/**
+ * T95 — what a published container (`gtm.js`) says about our tag. A Custom HTML tag is in it as a
+ * JavaScript string (`<script src=\"https:\/\/…`), so the escapes are undone first and the tag
+ * is then read like a page's: our script, this store's key, and the self-placing switch the
+ * page-wide tag needs (`data-tajribah-auto`). Only what the owner pressed "Publish" on is in it.
+ */
+export function inspectContainer(js: string, storeKey: string): ContainerVerdict {
+  const text = js
+    .replace(/\\u003c|\\x3c/gi, '<').replace(/\\u003e|\\x3e/gi, '>').replace(/\\u0022|\\x22/gi, '"')
+    .replace(/\\u0027|\\x27/gi, "'").replace(/\\u0026|\\x26/gi, '&').replace(/\\u002f/gi, '/')
+    .replace(/\\\//g, '/').replace(/\\"/g, '"');
+  const ours = [...text.matchAll(/<script\b[^>]*>/gi)].map((m) => m[0]).filter((tag) => tag.includes(WIDGET_SRC) || /\/w\/v\d+\/widget\.js/.test(tag));
+  if (!ours.length) return { status: 'missing' };
+  const keyOf = (tag: string) => new RegExp(`${ATTR.store}\\s*=\\s*["']?([^"'\\s>]+)`, 'i').exec(tag)?.[1] ?? null;
+  const mine = ours.find((tag) => keyOf(tag) === storeKey);
+  if (!mine) return { status: 'wrong_store', key: keyOf(ours[0]!) };
+  return new RegExp(`${ATTR.auto}\\s*=\\s*["']?salla\\b`, 'i').test(mine) ? { status: 'ok' } : { status: 'not_auto' };
+}
+
+/**
  * P7.7 — DNS rebinding: a public-looking name can resolve to a private or reserved address, which
  * `safeTarget` cannot see. The service resolves each hop's host first and refuses these ranges.
  * (Rebinding *between* that lookup and the fetch remains; a Worker cannot reach private networks

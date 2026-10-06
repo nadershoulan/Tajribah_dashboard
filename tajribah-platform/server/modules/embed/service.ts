@@ -9,14 +9,16 @@
  * a private or reserved address is refused (`isPrivateAddress`). A failed lookup refuses too — the
  * checker never fetches a page it could not place.
  */
-import { storeConnections } from '@/db/schema';
+import { and, inArray, isNotNull, isNull } from 'drizzle-orm';
+import { edgeConfigs, products, storeConnections } from '@/db/schema';
 import { errors } from '@/server/core/errors/problem';
 import { LIMITS, rateLimiter } from '@/server/core/ratelimit/limiter';
 import type { TenantContext } from '@/server/core/tenancy/context';
-import { embedSnippet } from '@/widget/src/snippet';
-import type { InstallCheck } from '@/lib/view-models';
+import { pageRefOf } from '@/widget/src/auto';
+import { embedSnippet, tagManagerSnippet } from '@/widget/src/snippet';
+import type { EmbedInfo, InstallCheck } from '@/lib/view-models';
 import { publicationOf } from '@/server/modules/edge/publish';
-import { inspectHtml, isPrivateAddress, safeTarget } from './check';
+import { inspectContainer, inspectHtml, isPrivateAddress, safeTarget, tagManagerIds, type ContainerVerdict } from './check';
 
 export const CHECK_TIMEOUT_MS = 8000;
 export const CHECK_MAX_BYTES = 1024 * 1024;
@@ -43,10 +45,19 @@ export function dohResolver(fetchImpl: typeof fetch): Resolver {
   };
 }
 
-/** The store key merchants paste: the store's slug — already public in its URLs. */
-export async function snippetFor(ctx: TenantContext): Promise<{ storeKey: string; snippet: string; storeHost: string | null }> {
+/**
+ * The store key merchants paste: the store's slug — already public in its URLs. T95: with the Tag Manager
+ * tag, and how many live products a page-wide tag can find (those whose store page is known).
+ */
+export async function snippetFor(ctx: TenantContext): Promise<EmbedInfo> {
   ctx.require('ar:read');
-  return { storeKey: ctx.tenant.slug, snippet: embedSnippet(ctx.tenant.slug), storeHost: await storeHost(ctx) };
+  const live = await ctx.db.find(edgeConfigs, and(isNotNull(edgeConfigs.key), isNull(edgeConfigs.withdrawnAt)), { limit: 5000 });
+  // a product made in Tajribah has no page in the store: only imported ones can be found by a page-wide tag
+  const imported = live.length ? await ctx.db.find(products, and(inArray(products.id, live.map((r) => r.productId)), isNotNull(products.connectionId)), { limit: live.length }) : [];
+  return {
+    storeKey: ctx.tenant.slug, snippet: embedSnippet(ctx.tenant.slug), tagSnippet: tagManagerSnippet(ctx.tenant.slug), storeHost: await storeHost(ctx),
+    published: live.length, publishedFromStore: imported.length, publishedWithPage: live.filter((r) => r.pageKey).length,
+  };
 }
 
 export async function checkInstall(ctx: TenantContext, url: string, fetchImpl: typeof fetch = fetch, resolve: Resolver = dohResolver(fetchImpl)): Promise<InstallCheck> {
@@ -81,10 +92,47 @@ export async function checkInstall(ctx: TenantContext, url: string, fetchImpl: t
     const html = await readCapped(response).finally(() => clearTimeout(timer));
     const found = inspectHtml(html, ctx.tenant.slug);
     // T37: installed right is half the answer — is this product's button live?
-    if (found.status === 'installed') return { ...found, url: target.url.href, product: await publicationOf(ctx, found.productRef) };
+    if (found.status === 'installed') return { ...found, url: target.url.href, product: await publicationOf(ctx, found.productRef), via: 'page' };
+    // T95: not in the page's own HTML — maybe in the Tag Manager container the page loads
+    if (found.status === 'missing_script') {
+      const viaTags = await throughTagManager(ctx, html, target.url.href, fetchImpl);
+      if (viaTags) return viaTags;
+    }
     return { ...found, url: target.url.href };
   }
   return { status: 'unreachable', detail: 'too many redirects', url };
+}
+
+/** T95: Google serves each published container here; only the id varies, and it is checked first. */
+export const TAG_MANAGER_URL = 'https://www.googletagmanager.com/gtm.js?id=';
+/** A busy container is a few hundred kilobytes. */
+export const CONTAINER_MAX_BYTES = 4 * 1024 * 1024;
+
+/**
+ * T95 — a page without our script in its HTML may still run it: Google Tag Manager adds it after the
+ * page loads. The containers the page names are read from Google (a fixed host, so nothing the
+ * merchant typed is fetched) and searched for our tag. Null when the page loads no container.
+ */
+async function throughTagManager(ctx: TenantContext, html: string, url: string, fetchImpl: typeof fetch): Promise<InstallCheck | null> {
+  const ids = tagManagerIds(html);
+  if (!ids.length) return null;
+  const verdicts: ContainerVerdict[] = [];
+  for (const id of ids) {
+    try {
+      const response = await fetchImpl(TAG_MANAGER_URL + encodeURIComponent(id), { signal: AbortSignal.timeout(CHECK_TIMEOUT_MS), headers: { 'user-agent': 'TajribahInstallCheck/1.0' } });
+      if (response.ok) verdicts.push(inspectContainer(await readCapped(response, CONTAINER_MAX_BYTES), ctx.tenant.slug));
+    } catch { /* that container could not be read; the others may answer */ }
+  }
+  if (verdicts.some((v) => v.status === 'ok')) {
+    const ref = pageRefOf(url);
+    if (!ref) return { status: 'not_product_page', detail: null, url };
+    return { status: 'installed', productRef: ref, url, product: await publicationOf(ctx, ref), via: 'tag_manager' };
+  }
+  const wrong = verdicts.find((v) => v.status === 'wrong_store');
+  if (wrong) return { status: 'wrong_store', detail: wrong.key, url };
+  if (verdicts.some((v) => v.status === 'not_auto')) return { status: 'tag_needs_update', detail: null, url };
+  if (!verdicts.length) return { status: 'unreachable', detail: 'we could not read your Google Tag Manager container', url };
+  return { status: 'tag_manager_missing', detail: ids.join(', '), url };
 }
 
 async function storeHost(ctx: TenantContext): Promise<string | null> {
@@ -93,20 +141,20 @@ async function storeHost(ctx: TenantContext): Promise<string | null> {
   try { return withUrl?.storeUrl ? new URL(withUrl.storeUrl).hostname : null; } catch { return null; }
 }
 
-/** The first `CHECK_MAX_BYTES` of the body as text; the rest is never read. */
-async function readCapped(response: Response): Promise<string> {
+/** The first `max` bytes of the body as text; the rest is never read. */
+async function readCapped(response: Response, max = CHECK_MAX_BYTES): Promise<string> {
   if (!response.body) return '';
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
-  while (size < CHECK_MAX_BYTES) {
+  while (size < max) {
     const { value, done } = await reader.read();
     if (done) break;
     chunks.push(value);
     size += value.byteLength;
   }
   await reader.cancel().catch(() => undefined);
-  const out = new Uint8Array(Math.min(size, CHECK_MAX_BYTES));
+  const out = new Uint8Array(Math.min(size, max));
   let at = 0;
   for (const c of chunks) { const take = Math.min(c.byteLength, out.byteLength - at); out.set(c.subarray(0, take), at); at += take; if (at >= out.byteLength) break; }
   return new TextDecoder().decode(out);

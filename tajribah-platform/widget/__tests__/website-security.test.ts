@@ -31,6 +31,9 @@ test('only the try-on frame may be framed, by https pages and (T85) the dashboar
   assert.deepEqual(directives(pageCsp('x', { framed: true }))['frame-ancestors'], ["'self'", 'https:']);
   assert.ok(!pageCsp('x').includes('localhost'), 'a public page never names a local server');
   assert.ok(directives(pageCsp('x', { local: true }))['connect-src']!.includes('http://127.0.0.1:*'));
+  // T95: a local test shop (plain http) may frame the try-on on this machine — and only here
+  assert.ok(directives(pageCsp('x', { framed: true, local: true }))['frame-ancestors']!.includes('http://127.0.0.1:*'));
+  assert.deepEqual(directives(pageCsp('x', { local: true }))['frame-ancestors'], ["'none'"], 'a page that is not the frame is never framed, even here');
   const proxy = readFileSync(sitePath('proxy.ts'), 'utf8');
   assert.match(proxy, /framed: pathname\.startsWith\(["']\/embed\/["']\)/, 'framed means the try-on frame');
   assert.match(proxy, /local: isLocalHost\(hostname\)/, 'local means the page is on this machine');

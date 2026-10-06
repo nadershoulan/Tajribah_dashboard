@@ -46,6 +46,13 @@ export type ViewerConfig = {
    * plain hostname is ignored (the try-on then opens on Tajribah's address, as before).
    */
   host: string | null;
+  /**
+   * T95: the product's own ref (its id in the store's feed), set when the config is also published at the
+   * ref of its store page (`page:p…`, `auto.ts`). A widget that found the product by its page reports
+   * events and opens the try-on under this ref, so both name the product as the dashboard does. Optional,
+   * added without a version bump; anything but a plain short string is ignored.
+   */
+  ref: string | null;
 };
 
 /** A config with a 3D model — what AR and the in-page viewer need. */
@@ -121,6 +128,7 @@ export function parseConfig(input: unknown): ViewerConfig | null {
       shadow: input.shadow,
       tryon,
       host: hostOf(input.host),
+      ref: str(input.ref, 200) ? input.ref : null,
     };
   } catch {
     return null;

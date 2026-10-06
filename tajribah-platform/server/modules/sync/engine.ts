@@ -271,7 +271,21 @@ async function finish(
 
 // ------------------------------------------------------------------ mapping
 
-type StoreFields = Pick<Product, 'name' | 'nameAr' | 'sku' | 'description' | 'priceMinor' | 'currency' | 'images' | 'status'>;
+type StoreFields = Pick<Product, 'name' | 'nameAr' | 'sku' | 'description' | 'priceMinor' | 'currency' | 'images' | 'status'> & { pageUrl?: string | null };
+
+/**
+ * T95: a product page's address worth keeping (http or https, not absurdly long), written the one way a
+ * browser would (`URL.href`: an Arabic name or a space in it percent-encoded, a stray line break dropped),
+ * or null.
+ */
+export function pageUrlOf(value: string | null): string | null {
+  const v = value?.trim() ?? '';
+  if (!v || v.length > 2048) return null;
+  try {
+    const url = new URL(v);
+    return /^https?:$/.test(url.protocol) && url.href.length <= 2048 ? url.href : null;
+  } catch { return null; }
+}
 
 function storeFields(item: ExternalProduct): StoreFields {
   return {
@@ -283,6 +297,8 @@ function storeFields(item: ExternalProduct): StoreFields {
     currency: item.currency,
     images: item.images,
     status: item.status,
+    // T95: a connector that reports no page (undefined) leaves the product's alone
+    ...(item.pageUrl !== undefined ? { pageUrl: pageUrlOf(item.pageUrl) } : {}),
   };
 }
 
@@ -290,7 +306,8 @@ function unchanged(current: Product, fields: StoreFields): boolean {
   return current.name === fields.name && current.nameAr === fields.nameAr && current.sku === fields.sku
     && current.description === fields.description && current.priceMinor === fields.priceMinor
     && current.currency === fields.currency && current.status === fields.status
-    && JSON.stringify(current.images ?? []) === JSON.stringify(fields.images ?? []);
+    && JSON.stringify(current.images ?? []) === JSON.stringify(fields.images ?? [])
+    && (fields.pageUrl === undefined || current.pageUrl === fields.pageUrl);
 }
 
 /** Why the store's product cannot be stored, or null. */

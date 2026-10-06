@@ -17,7 +17,8 @@ import * as schema from '@/db/schema';
 import { registerDb, type Db } from '@/db/client';
 import { loadEnv } from '@/server/core/config/env';
 import { configureNotify } from '@/server/core/notify/notify';
-import { configureStorage } from '@/server/core/storage/storage';
+import { configureStorage, storage } from '@/server/core/storage/storage';
+import { configureConfigStore } from '@/server/core/edge/configs';
 import { log, setLogLevel } from '@/server/core/observability/log';
 import { registerNodeHandlers } from './handlers';
 import { chooseHandlers } from './passes';
@@ -31,6 +32,13 @@ configureNotify(env);
 configureStorage(env);
 const pool = (url: string) => new Pool({ connectionString: url, max: 4 });
 registerDb(drizzle(pool(env.DATABASE_APP_URL), { schema }) as unknown as Db, drizzle(pool(env.DATABASE_ADMIN_URL), { schema }) as unknown as Db);
-chooseHandlers(registerNodeHandlers); // after main.ts chose every handler on import: this one runs only the Node jobs
-log.info('node worker starting', { queues: 'ai.postprocess, tryon.quality' });
+// T95: on a computer with no Cloudflare Worker (local development), nothing else ever runs the other queues —
+// a store's refresh after a sync, a colour change reaching live buttons — so there it keeps every handler.
+const everyQueue = process.env.WORKER_ALL_QUEUES === '1';
+if (everyQueue) {
+  // a refresh writes published configs: to the same local storage the dashboard reads (T75), never to memory
+  if (env.CONFIG_STORE === 'kv') throw new Error('WORKER_ALL_QUEUES is for a computer without the Cloudflare Worker: the Node worker cannot reach the KV config store');
+  configureConfigStore(env, undefined, storage());
+} else chooseHandlers(registerNodeHandlers); // after main.ts chose every handler on import: this one runs only the Node jobs
+log.info('node worker starting', { queues: everyQueue ? 'every queue (WORKER_ALL_QUEUES=1, this computer only)' : 'ai.postprocess, tryon.quality' });
 await runForever({ intervalMs: Number(process.env.WORKER_INTERVAL_MS ?? 1000), sweeps: false });

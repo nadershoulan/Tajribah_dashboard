@@ -218,9 +218,20 @@ export type ConnectionDetail = ConnectionSummary & {
 export type Publication = { productId: string; name: string; nameAr: string | null; state: 'live' | 'not_published' | 'withdrawn'; version: number };
 
 /** The install checker's answer (P1.17); `product` (T37) is null when no product has the page's id. */
+/**
+ * `via` (T95): where the script was found — in the page's own HTML, or in the Google Tag Manager container it
+ * loads (then `productRef` is the page's own, `page:p…`). The three Tag Manager answers: the container has no
+ * tag of ours, an older tag without self-placing, or the address is not a product's page.
+ */
 export type InstallCheck =
-  | { status: 'installed'; productRef: string; url: string; product: Publication | null }
-  | { status: 'missing_script' | 'wrong_store' | 'missing_placeholder' | 'template_not_rendered' | 'unreachable'; detail: string | null; url: string };
+  | { status: 'installed'; productRef: string; url: string; product: Publication | null; via?: 'page' | 'tag_manager' }
+  | { status: 'missing_script' | 'wrong_store' | 'missing_placeholder' | 'template_not_rendered' | 'unreachable' | 'tag_manager_missing' | 'tag_needs_update' | 'not_product_page'; detail: string | null; url: string };
+
+/**
+ * MD-100: the install page — the template's two lines, T95's Tag Manager tag, and how many live products a
+ * page-wide tag finds: of those published, the ones imported from the store, and of those the ones whose page is known.
+ */
+export type EmbedInfo = { storeKey: string; snippet: string; tagSnippet: string; storeHost: string | null; published: number; publishedFromStore: number; publishedWithPage: number };
 
 /** One notification in the bell (P1.23). */
 export type NotificationItem = {

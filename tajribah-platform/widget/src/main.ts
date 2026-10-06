@@ -4,6 +4,9 @@
  *   <script src="https://cdn…/w/v1/widget.js" data-tajribah-store="STORE_KEY" async></script>
  *   <div data-tajribah-product="EXTERNAL_PRODUCT_ID"></div>
  *
+ * T95: or once for every page, through Google Tag Manager, with `data-tajribah-auto="salla"` and no
+ * placeholder: the widget then finds the product and the button's spot itself (`auto.ts`).
+ *
  * It runs inside other people's shops (§4 D3), so every rule here is about not breaking them.
  * (`appendChild`, not `append`: the Workers types redefine `Element.append` for HTMLRewriter.)
  *  - **After the page.** Nothing runs until the page has loaded, then only when idle.
@@ -23,6 +26,7 @@ import { arPath, detectDevice, VIEWER_AR_MODES } from './ar';
 import { LIMITS, type EventType, type TrackInput, type WireEvent } from './events';
 import { createTracker, privacySignal, randomToken, sessionToken, type Consent, type Tracker } from './track';
 import { DEFAULT_TRYON, openTryOn, tryOnBase, tryOnUrl, warmTryOn } from './tryon';
+import { autoPlatformOf, placeOnPage, PLACE_GAP_MS, PLACE_TRIES, type AutoPlatform } from './auto';
 
 export const WIDGET_VERSION = '1.0.0';
 export const CONFIG_TIMEOUT_MS = 3000;
@@ -38,11 +42,13 @@ export const ATTR = {
   events: 'data-tajribah-events', consent: 'data-tajribah-consent',
   /** P5: where the try-on frame lives (the owner's studio, on Tajribah's domain). */
   tryon: 'data-tajribah-tryon',
+  /** T95: installed once for every page (Google Tag Manager): find the product and the button's spot on the page (`auto.ts`). */
+  auto: 'data-tajribah-auto', anchor: 'data-tajribah-anchor',
 } as const;
 /** Where the widget is served, versioned; the snippet and the install checker both use it. */
 export const WIDGET_SRC = 'https://cdn.tajribah.com/w/v1/widget.js';
 
-type Settings = { store: string; configBase: string; viewer: string; events: string; consent: Consent; tryon: string };
+type Settings = { store: string; configBase: string; viewer: string; events: string; consent: Consent; tryon: string; auto?: AutoPlatform | null; anchor?: string | null };
 
 /** Run `fn`; swallow and report anything it throws or rejects with. Never rethrows. */
 export function guard<T>(fn: () => T | Promise<T>): Promise<T | undefined> {
@@ -270,6 +276,8 @@ function settingsOf(doc: Document): Settings | null {
     // A shop that runs a consent banner says so here; until it grants consent, nothing is sent.
     consent: script!.getAttribute(ATTR.consent) === 'required' ? 'required' : 'granted',
     tryon: script!.getAttribute(ATTR.tryon) ?? DEFAULT_TRYON,
+    auto: autoPlatformOf(script!.getAttribute(ATTR.auto)),
+    anchor: script!.getAttribute(ATTR.anchor) || null,
   };
 }
 
@@ -334,9 +342,11 @@ export async function mount(doc: Document, settings: Settings, fetchImpl: typeof
   const hosts = Array.from(doc.querySelectorAll<HTMLElement>(`[${ATTR.product}]`)).filter((el) => !el.hasAttribute(READY));
   await Promise.all(hosts.map((host) => guard(async () => {
     host.setAttribute(READY, 'loading');
-    const product = host.getAttribute(ATTR.product) ?? '';
-    const config = product ? await loadConfig(configUrl(settings.configBase, settings.store, product), fetchImpl) : null;
+    const placed = host.getAttribute(ATTR.product) ?? '';
+    const config = placed ? await loadConfig(configUrl(settings.configBase, settings.store, placed), fetchImpl) : null;
     if (!config) { host.setAttribute(READY, 'none'); return; } // fail closed: nothing drawn
+    // T95: found by its store page (`page:p…`), the product is still named by its own ref everywhere else
+    const product = config.ref ?? placed;
     renderButton(host, config, lang, () => {
       // P5 (T26): a watch — or (P5.2) glasses — with try-on set up opens the owner's studio, in a frame.
       if (config.tryon) {
@@ -393,7 +403,17 @@ export function boot(win: Window & typeof globalThis = window): void {
     if (!found) return;
     const settings = { ...found, consent: initialConsent(found.consent, (win as { tajribahConsent?: unknown }).tajribahConsent) };
     const tracker = startTracking(win, settings);
-    const run = () => guard(() => mount(win.document, settings, fetch, tracker));
+    // T95: installed once for every page, the widget places the product's box itself — and again on a
+    // refresh, after a page that swapped its content
+    const place = () => (settings.auto ? placeOnPage(win.document, win.location.href, ATTR.product, settings.anchor ?? null) : 'already_there');
+    const run = () => guard(() => { place(); return mount(win.document, settings, fetch, tracker); });
+    // a theme that draws its product form late is waited for, a few seconds at most
+    const start = (tries = 0): void => {
+      void guard(() => {
+        if (place() === 'no_spot' && tries < PLACE_TRIES) { setTimeout(() => start(tries + 1), PLACE_GAP_MS); return; }
+        void run();
+      });
+    };
     win.Tajribah = {
       version: WIDGET_VERSION,
       refresh: run,
@@ -402,7 +422,7 @@ export function boot(win: Window & typeof globalThis = window): void {
     };
     // Safari has no requestIdleCallback, whatever the DOM types say: check at run time.
     const idle = (fn: () => void) => (typeof win.requestIdleCallback === 'function' ? win.requestIdleCallback(fn, { timeout: 2000 }) : setTimeout(fn, 1));
-    if (win.document.readyState === 'complete') idle(() => { void run(); });
-    else win.addEventListener('load', () => idle(() => { void run(); }), { once: true });
+    if (win.document.readyState === 'complete') idle(() => start());
+    else win.addEventListener('load', () => idle(() => start()), { once: true });
   });
 }

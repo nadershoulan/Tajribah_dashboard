@@ -16,7 +16,7 @@ import { buildTenantContext } from '@/server/core/tenancy/context';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
 import { RSS, workbook } from '@/server/testing/feed-fixtures';
 import { connectFeed, importProductFile, syncFeedNow } from '@/server/modules/connections/feed';
-import { runSyncStep } from '@/server/modules/sync/engine';
+import { pageUrlOf, runSyncStep } from '@/server/modules/sync/engine';
 import { requestSync } from '@/server/modules/sync/service';
 import { disconnectStore, removeStore } from '@/server/modules/connections/service';
 import { listProductCategories, listProducts, updateProduct } from '@/server/modules/products/service';
@@ -180,6 +180,33 @@ test('T77: the store’s categories come in as this store’s categories; a type
     assert.equal(now('ساعة رجالية').productType, 'watch', 'set back to "other": the store’s category fills it again');
     const stored = await harness.asAdmin(() => harness.db.select().from(categories).where(eq(categories.tenantId, tenantId))) as any[];
     assert.equal(stored.filter((c) => c.name === 'ساعات رجالية').length, 1, 'one row per category, however often it is read');
+  } finally { await harness.close(); resetEnv(); clearConnectors(); }
+});
+
+test('T95: each product keeps its store page from the feed’s link, and the page follows the store', async () => {
+  const harness = await createTestDb();
+  const feed = { body: RSS };
+  try {
+    const { ctx, tenantId } = await setup(harness, feed);
+    const linked = await connectFeed(ctx, { url: LINK }, internet(feed));
+    const pageOf = async (externalId: string) => (await catalogue(harness, tenantId)).find((p) => p.externalId === externalId).pageUrl;
+    assert.equal(await pageOf('W-1'), 'https://shop.example.sa/ar/p101?a=1&b=2', 'the variant group keeps its first row’s link');
+    assert.equal(await pageOf('200'), null, 'no link, no page');
+
+    // the store renames the product: its page's address changes, and nothing else does — the new page is kept
+    feed.body = RSS.replace('https://shop.example.sa/ar/p101?a=1&amp;b=2', 'https://shop.example.sa/ar/%D8%B3%D8%A7%D8%B9%D8%A9/p1412564664');
+    await syncFeedNow(ctx, (await requestSync(ctx, linked.connection.id, { type: 'full' })).id);
+    assert.equal(await pageOf('W-1'), 'https://shop.example.sa/ar/%D8%B3%D8%A7%D8%B9%D8%A9/p1412564664');
+
+    // a link that is not a page address is not kept
+    feed.body = RSS.replace('https://shop.example.sa/ar/p101?a=1&amp;b=2', 'javascript:alert(1)');
+    await syncFeedNow(ctx, (await requestSync(ctx, linked.connection.id, { type: 'full' })).id);
+    assert.equal(await pageOf('W-1'), null);
+    // what any connector's page goes through before it is stored
+    assert.equal(pageUrlOf(' https://shop.example.sa/ar/p1 '), 'https://shop.example.sa/ar/p1');
+    assert.equal(pageUrlOf('https://failet.sa/ar/ساعة فضي/p1412564664?tax_profile=sa'), 'https://failet.sa/ar/%D8%B3%D8%A7%D8%B9%D8%A9%20%D9%81%D8%B6%D9%8A/p1412564664?tax_profile=sa', 'written as a browser writes it');
+    assert.equal(pageUrlOf('https://failet.sa/ar/{Name}/p1561800183\n'), 'https://failet.sa/ar/%7BName%7D/p1561800183');
+    for (const bad of ['javascript:alert(1)', 'ftp://shop.example.sa/p1', 'not a url', `https://shop.example.sa/${'x'.repeat(2050)}`, `https://shop.example.sa/${'ع'.repeat(400)}`, '', null]) assert.equal(pageUrlOf(bad), null, String(bad).slice(0, 40));
   } finally { await harness.close(); resetEnv(); clearConnectors(); }
 });
 

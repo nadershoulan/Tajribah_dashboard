@@ -71,16 +71,36 @@ export const HELP_ARTICLES: HelpArticle[] = [
     ],
   },
   {
-    slug: 'embed-any-store', category: 'connect', updated: '2026-09-18',
+    // T95 — Salla, through the Google Tag Manager app Salla already offers: one tag for every product page.
+    slug: 'salla-google-tag-manager', category: 'connect', updated: '2026-10-07',
+    title: { ar: 'تركيب الزر في سلة عبر Google Tag Manager', en: 'Install the button on Salla through Google Tag Manager' },
+    summary: { ar: 'وسم واحد لكل صفحات منتجاتك، دون تعديل قالب متجرك.', en: 'One tag for every product page, without editing your store’s theme.' },
+    steps: [
+      { ar: 'أنشئ حاوية في tagmanager.google.com باسم نطاق متجرك واختر Web، وانسخ رقمها الذي يبدأ بـ GTM-.', en: 'Create a container at tagmanager.google.com named after your store’s domain, choose Web, and copy its id, which starts with GTM-.' },
+      { ar: 'في لوحة سلة ثبّت تطبيق Google Tags Manager، وافتح «خيارات التطبيق»، والصق الرقم في تبويب «بيانات الربط»، واضغط «حفظ».', en: 'In your Salla dashboard install the Google Tags Manager app, open its app options (خيارات التطبيق), paste the id on the connection tab (بيانات الربط) and press save (حفظ).' },
+      { ar: 'في تجربة افتح «التركيب في متجرك» واختر «سلة: عبر Google Tag Manager»، وانسخ الوسم.', en: 'In Tajribah open “Install in your store”, choose “Salla: through Google Tag Manager”, and copy the tag.' },
+      { ar: 'في Tag Manager: Tags ثم New، ثم Tag Configuration واختر Custom HTML والصق الوسم، ثم Triggering واختر All Pages، واحفظ.', en: 'In Tag Manager: Tags, then New; Tag Configuration, choose Custom HTML and paste the tag; Triggering, choose All Pages; then save.' },
+      { ar: 'اضغط Submit ثم Publish. ما لم تنشر الحاوية لا يصل شيء إلى متجرك.', en: 'Press Submit, then Publish. Until the container is published, nothing reaches your store.' },
+      { ar: 'الصق رابط صفحة منتج في «تحقّق من التركيب»، ونخبرك إن كان الوسم منشورًا وهل زر المنتج ظاهر.', en: 'Paste a product page’s address into “Check the install”, and we tell you whether the tag is published and whether the product’s button is live.' },
+    ],
+    body: [
+      { ar: 'الوسم لا يعمل إلا في صفحات المنتجات: يعرف المنتج من رابط صفحته في سلة (الذي ينتهي بـ ‎/p‎ ورقم المنتج)، ويضع الزر تحت خيارات المنتج فوق زر «أضف للسلة». في أي صفحة أخرى لا يفعل شيئًا.', en: 'The tag only works on product pages: it knows the product from its Salla page address (the one ending in /p and the product’s number), and puts the button under the product’s options, above “Add to cart”. On any other page it does nothing.' },
+      { ar: 'نتعرّف على صفحة كل منتج من رابطه في ملف منتجاتك، فاستورد منتجاتك من رابط ملف المنتجات أولًا. الزر يظهر على المنتجات التي نشرتها فقط، وما تنشره لاحقًا يظهر زره تلقائيًا دون أي تعديل في الوسم.', en: 'We learn each product’s page from its link in your product feed, so import your products from your feed link first. The button shows on products you have published only, and what you publish later gets its button by itself, with no change to the tag.' },
+      { ar: 'تقول سلة في التطبيق نفسه إن صفحة الدفع غير مدعومة عبر Google Tag Manager — وهذا لا يعني الزر، فهو في صفحات المنتجات.', en: 'Salla says in the app itself that the checkout page is not supported through Google Tag Manager — that does not concern the button, which lives on product pages.' },
+      { ar: 'إن أردت الزر في مكان آخر من صفحة المنتج، فاكتب في «متقدّم» محدد CSS للعنصر الذي يأتي الزر بعده، ثم انسخ الوسم من جديد وانشر الحاوية.', en: 'If you want the button somewhere else on the product page, write a CSS selector for the element it should follow under “Advanced”, then copy the tag again and publish the container.' },
+    ],
+  },
+  {
+    slug: 'embed-any-store', category: 'connect', updated: '2026-10-07',
     title: { ar: 'تركيب الزر في أي متجر بسطر تضمين', en: 'Install the button in any store with an embed line' },
     summary: { ar: 'لمتجر مخصص أو منصة غير مدرجة.', en: 'For a custom store or an unlisted platform.' },
     steps: [
-      { ar: 'افتح «التركيب في متجرك» وانسخ السطرين.', en: 'Open “Install in your store” and copy the two lines.' },
-      { ar: 'ألصقهما في قالب صفحة المنتج، وضع رمز المنتج (SKU) مكان المثال.', en: 'Paste them into your product-page template and put the product code (SKU) in place of the example.' },
-      { ar: 'اضغط «تحقق» ليفتح النظام صفحة منتجك ويتأكد أن الزر يعمل.', en: 'Press “Check” and we open your product page to confirm the button works.' },
+      { ar: 'افتح «التركيب في متجرك»، واختر «في قالب صفحة المنتج»، وانسخ السطرين.', en: 'Open “Install in your store”, choose “In the product page template”, and copy the two lines.' },
+      { ar: 'ألصقهما في قالب صفحة المنتج، وضع رقم المنتج كما في ملف منتجاتك (id) مكان {{ product.id }}.', en: 'Paste them into your product-page template and put the product’s id, as your product feed has it, in place of {{ product.id }}.' },
+      { ar: 'اضغط «افحص» ليفتح النظام صفحة منتجك ويتأكد أن الزر يعمل.', en: 'Press “Check” and we open your product page to confirm the button works.' },
     ],
     body: [
-      { ar: 'السكربت يُحمَّل مؤجّلًا (defer) ولا يوقف عرض صفحتك، والاستوديو نفسه لا يُحمَّل إلا عند الضغط على الزر.', en: 'The script loads with defer and never blocks your page; the studio itself loads only when the button is pressed.' },
+      { ar: 'السكربت يُحمَّل بعد صفحتك (async) ولا يوقف عرضها، والاستوديو نفسه لا يُحمَّل إلا عند الضغط على الزر.', en: 'The script loads after your page (async) and never blocks it; the studio itself loads only when the button is pressed.' },
     ],
   },
   {

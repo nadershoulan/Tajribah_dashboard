@@ -108,6 +108,17 @@ const LINES: [RegExp, string | ((m: RegExpMatchArray) => string)][] = [
   [/^this feed connection has no link/, 'لا رابط لهذا الربط — أضف رابط ملف المنتجات من جديد.'],
   [/^a file is read when it is uploaded/, 'الملف يُقرأ عند رفعه — ارفعه مرة أخرى لتحديث المنتجات.'],
 
+  // the install checker's reasons for not reading a page (T95: and its Tag Manager container)
+  [/^we could not look up the address$/, 'تعذّر الوصول إلى عنوان الصفحة — حاول بعد قليل.'],
+  [/^the address does not exist$/, 'عنوان الصفحة غير موجود.'],
+  [/^the address points to a private network/, 'عنوان الصفحة يشير إلى شبكة خاصة، ولا نفتحه.'],
+  [/^the page did not answer$/, 'لم تُجب الصفحة — حاول بعد قليل.'],
+  [/^the page answered (\d+)$/, (m) => `أجابت الصفحة بالرمز ${m[1]} — تأكد أن الرابط صحيح وأن المتجر مفتوح للزوار.`],
+  [/^redirected somewhere we will not follow/, 'الصفحة تحوّل إلى عنوان لا نفتحه.'],
+  [/^too many redirects$/, 'الصفحة تحوّل مرات كثيرة.'],
+  [/^we could not read your Google Tag Manager container$/, 'تعذّرت قراءة حاوية Google Tag Manager — حاول بعد قليل.'],
+  [/^preview — the real app fetches the page and checks it$/, 'هذه معاينة — التطبيق الحقيقي يفتح الصفحة ويفحصها.'],
+
   // linking Salla and Zid directly (version 2, still in the code)
   [/^Salla did not confirm this session/, 'لم تؤكد سلة هذه الجلسة — افتح تجربة من جديد من لوحة سلة.'],
   [/did not come from your Salla dashboard/, 'انتهت صلاحية هذا الرابط أو لم يأتِ من لوحة سلة — افتح تجربة من جديد من سلة.'],

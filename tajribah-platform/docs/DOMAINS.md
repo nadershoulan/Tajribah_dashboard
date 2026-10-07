@@ -22,7 +22,7 @@ for them unless you choose others.
 ### Setting it up (when the domain is bought)
 
 The step-by-step with checks is `docs/GO-LIVE.md`. In short:
-1. Add `tajribah.org` to Cloudflare.
+1. `tajribah.org` is already a Cloudflare zone (bought through Cloudflare's registrar, 2026-10-07): nothing to add.
 2. Point **`tajribah.org`** at the main Worker. Set `APP_URL=https://tajribah.org` and
    `SITE_HOSTS=tajribah.org`.
 3. Give the storage bucket the custom domain **`cdn.tajribah.org`**. Set `CDN_BASE_URL` to it.

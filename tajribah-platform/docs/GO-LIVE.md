@@ -2,9 +2,19 @@
 
 Everything the code already expects once the Cloudflare account and the domains exist, in the
 order it can be done. Each line names where the expectation lives in the code and how to check it
-worked. Nothing here is a new decision: hosts and names are the ones the code uses today (T29:
-the website and the try-on on **tajribah.org**, the dashboard on **app.tajribah.org**, services on
-**tajribah.org**).
+worked. Hosts and names are the ones the code uses (T105): **one domain, tajribah.org** — the website,
+the try-on and the dashboard (`/dashboard`) — with `cdn.`, `cfg.`, `ev.` and `domains.` (docs/DOMAINS.md).
+
+**Where things stand (2026-10-07).** `tajribah.org` was bought **through Cloudflare's registrar**, so it is
+already a zone in the Cloudflare account: no nameservers to change, and its DNS is edited in Cloudflare.
+The **Hetzner server is a later step**. It holds the database and the image/3D worker (docs/HOSTING.md),
+so the parts below that need them wait for it:
+
+| Can be done now (Cloudflare only) | Waits for the Hetzner server |
+|---|---|
+| §1 the R2 buckets, `cdn.tajribah.org`, uploading the shop script and its files | §3 the dashboard Worker (it needs the database), Hyperdrive, the Node worker |
+| §2 the KV namespaces (`CONFIGS`, `RATE_LIMITS`) and the config host on `cfg.tajribah.org` (it answers "none" until products are published) | §4 the website on `tajribah.org` (the same Worker as the dashboard) |
+| email: the mail provider's DNS records on the `tajribah.org` zone | §5 `ev.tajribah.org` (a route to that Worker) |
 
 ## 1. Storage — R2 and the CDN (`cdn.tajribah.org`)
 

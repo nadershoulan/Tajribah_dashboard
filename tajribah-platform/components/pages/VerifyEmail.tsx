@@ -7,7 +7,7 @@ import { MailCheck, MailWarning } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useAuth, type AuthApi } from '@/lib/auth';
 import { useLang } from '@/lib/i18n';
-import { LangToggle } from '@/components/dashboard/chrome';
+import { AuthTop } from './AuthTop';
 import { authErrorMessage } from './auth-errors';
 
 type Outcome = 'checking' | 'verified' | 'refused' | 'preview';
@@ -49,7 +49,7 @@ export default function VerifyEmail() {
     <div className="auth-wrap">
       <main className="auth-main" style={{ gridColumn: '1 / -1' }}>
         <div className="auth-card">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 18 }}><LangToggle /></div>
+          <AuthTop />
 
           {outcome === 'checking' && (
             <>

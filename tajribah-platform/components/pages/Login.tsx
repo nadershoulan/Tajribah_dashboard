@@ -7,7 +7,7 @@ import { Check, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
-import { LangToggle } from '@/components/dashboard/chrome';
+import { AuthTop } from './AuthTop';
 import { useAuth } from '@/lib/auth';
 import { safeNext } from '@/lib/safe-next';
 import { authErrorMessage } from './auth-errors';
@@ -95,7 +95,7 @@ export default function Login() {
 
       <main className="auth-main">
         <div className="auth-card">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 18 }}><LangToggle /></div>
+          <AuthTop />
           {challenge ? (
             <>
               <span className="empty-icon" style={{ margin: '0 0 12px' }}><ShieldCheck size={22} aria-hidden /></span>

@@ -7,7 +7,7 @@ import { Building2 } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useAuth } from '@/lib/auth';
 import { useLang } from '@/lib/i18n';
-import { LangToggle } from '@/components/dashboard/chrome';
+import { AuthTop } from './AuthTop';
 import { authErrorMessage } from './auth-errors';
 
 /**
@@ -56,7 +56,7 @@ export default function LoginSso() {
     <div className="auth-wrap">
       <main className="auth-main" style={{ gridColumn: '1 / -1' }}>
         <div className="auth-card">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 18 }}><LangToggle /></div>
+          <AuthTop />
           <span className="empty-icon" style={{ margin: '0 0 12px' }}><Building2 size={22} aria-hidden /></span>
           <h1>{t('الدخول بحساب شركتك', 'Sign in with your company account')}</h1>
           {returning && busy ? (

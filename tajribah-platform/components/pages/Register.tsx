@@ -7,7 +7,7 @@ import { useState, type FormEvent } from 'react';
 import { Check } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
-import { LangToggle } from '@/components/dashboard/chrome';
+import { AuthTop } from './AuthTop';
 import { useAuth } from '@/lib/auth';
 import { authErrorMessage } from './auth-errors';
 import { safeNext } from '@/lib/safe-next';
@@ -95,7 +95,7 @@ export default function Register() {
 
       <main className="auth-main">
         <div className="auth-card">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 18 }}><LangToggle /></div>
+          <AuthTop />
           <h1>{invitation ? t('أنشئ حسابك للانضمام إلى الفريق', 'Create your account to join the team') : t('أنشئ متجرك على تجربة', 'Create your store on Tajribah')}</h1>
           <p>{invitation
             ? t('استخدم البريد الذي وصلته الدعوة. تنضم إلى الفريق مباشرة، دون متجر خاص بك.', 'Use the email address the invitation was sent to. You join the team straight away, with no store of your own.')

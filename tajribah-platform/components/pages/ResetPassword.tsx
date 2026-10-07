@@ -9,7 +9,7 @@ import { AppLink, useEnv } from '@/lib/app-env';
 import { ApiError } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
 import { useLang } from '@/lib/i18n';
-import { LangToggle } from '@/components/dashboard/chrome';
+import { AuthTop } from './AuthTop';
 import { authErrorMessage } from './auth-errors';
 import { PASSWORDS_DIFFER, passwordsDiffer } from '@/lib/password-confirm';
 
@@ -23,7 +23,7 @@ export default function ResetPassword() {
     <div className="auth-wrap">
       <main className="auth-main" style={{ gridColumn: '1 / -1' }}>
         <div className="auth-card">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 18 }}><LangToggle /></div>
+          <AuthTop />
           {token ? <SetPassword token={token} /> : <RequestLink />}
         </div>
       </main>

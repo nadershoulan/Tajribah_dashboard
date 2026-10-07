@@ -66,7 +66,9 @@ export default function Integrations() {
             <p>{t('لكل منتج تنشره صفحة على تجربة ورمز QR — تشاركهما دون أي تركيب. وإن كان قالب متجرك يقبل كودًا، أضف هذين السطرين إلى قالب صفحة المنتج ليظهر زر «جرّبها» فيها: رمز المنتج مكان {{ product.id }}، ومفتاح متجرك مكان your-store-key.',
               'Each product you publish gets a page on Tajribah and a QR code — share them with nothing to install. And if your store’s theme takes code, add these two lines to your product-page template for a “Try it” button there: the product’s code in place of {{ product.id }}, and your store key in place of your-store-key.')}</p>
             <pre className="code" dir="ltr" tabIndex={0}><code>{snippet}</code></pre>
-            <p className="fine">{t('تجد مفتاح متجرك والسطرين جاهزين في صفحة «التثبيت» في لوحة التحكم.', 'Your store key, and these two lines ready to copy, are on the dashboard’s Install page.')}</p>
+            <p>{t('على سلة لا تحتاج تعديل القالب: وسم واحد في Google Tag Manager، الذي تربطه من تطبيق سلة نفسه، يضع الزر في صفحة كل منتج تنشره — وما تنشره لاحقًا يظهر زره تلقائيًا.',
+              'On Salla you need no theme edit: one tag in Google Tag Manager, which you link from Salla’s own app, puts the button on the page of every product you publish — and what you publish later gets its button by itself.')}</p>
+            <p className="fine">{t('تجد السطرين ووسم Google Tag Manager جاهزين، مع دليل الربط خطوة بخطوة، في «التركيب في متجرك» في لوحة التحكم.', 'The two lines and the Google Tag Manager tag are ready to copy, with a step-by-step guide, on the dashboard’s “Install in your store”.')}</p>
           </div>
         </div>
       </section>

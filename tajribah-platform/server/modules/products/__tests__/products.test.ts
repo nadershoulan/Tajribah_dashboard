@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { eq } from 'drizzle-orm';
 import { auditLogs, dailyProductStats, edgeConfigs, models3d, products, storeConnections, tenantMemberships, tryonConfigs, users } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { riyadhDay } from '@/lib/format';
@@ -282,6 +283,12 @@ test('T79: a product carries every picture its store gives (https only), its des
     await plant(harness, tryonConfigs, { id: uuidv7(), tenantId, productId: p.id, category: 'watch', enabled: true });
     row = await getProduct(ctx, p.id);
     assert.equal(row.tryonEnabled, true, 'the try-on’s own switch, not a column nothing writes');
+    // T96: its page in the store, https only — the preview links to it
+    assert.equal(row.pageUrl, null);
+    await harness.asAdmin(() => harness.db.update(products).set({ pageUrl: 'https://failet.sa/ar/x/p1412564664?tax_profile=sa' } as any).where(eq(products.id, p.id)));
+    assert.equal((await getProduct(ctx, p.id)).pageUrl, 'https://failet.sa/ar/x/p1412564664?tax_profile=sa');
+    await harness.asAdmin(() => harness.db.update(products).set({ pageUrl: 'http://failet.sa/ar/x/p1412564664' } as any).where(eq(products.id, p.id)));
+    assert.equal((await getProduct(ctx, p.id)).pageUrl, null, 'a plain-http page is not offered');
   } finally { await harness.close(); }
 });
 

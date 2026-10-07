@@ -230,5 +230,6 @@ async function toRows(ctx: TenantContext, list: Product[]): Promise<ProductRow[]
     category: p.categoryId && categoryName.has(p.categoryId) ? { id: p.categoryId, name: categoryName.get(p.categoryId)! } : null,
     images: (p.images ?? []).map((i) => i.url).filter((url) => /^https:\/\//.test(url)).slice(0, 10),
     description: plainText(p.descriptionAr ?? p.description),
+    pageUrl: p.pageUrl?.startsWith('https://') ? p.pageUrl : null,
   }));
 }

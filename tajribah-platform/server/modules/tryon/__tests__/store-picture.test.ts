@@ -37,7 +37,7 @@ async function shop(harness: TestDb) {
   const ctx = await buildTenantContext({ actor: { userId: seeded.userId, email: seeded.email, isStaff: false }, tenantId: seeded.tenantId, requestId: 'r' });
   const watch = uuidv7();
   await harness.asAdmin(() => harness.db.insert(products).values({
-    id: watch, tenantId: seeded.tenantId, name: 'ساعة نسائية', productType: 'watch',
+    id: watch, tenantId: seeded.tenantId, name: 'ساعة نسائية', productType: 'watch', pageUrl: 'https://failet.sa/ar/x/p2114755498',
     images: ['worn.png', 'photo.jpg', 'flat.png', 'opaque.png'].map((n) => ({ url: CDN + n })),
   } as any));
   return { ...seeded, ctx, watch };
@@ -51,6 +51,7 @@ test('a cut-out store picture becomes the try-on picture, checked like an upload
     const view = await cutoutFromStorePicture(ctx, watch, { slot: 'worn', url: CDN + 'worn.png' }, cdn.fetchImpl, cdn.resolve);
     assert.deepEqual([!!view.worn, view.missing], [true, ['flat', 'case']]);
     assert.deepEqual(view.storePictures, ['worn.png', 'photo.jpg', 'flat.png', 'opaque.png'].map((n) => CDN + n), 'the screen offers the product’s pictures');
+    assert.equal(view.pageUrl, 'https://failet.sa/ar/x/p2114755498', 'T96: and its page in the store, once published');
     await cutoutFromStorePicture(ctx, watch, { slot: 'flat', url: CDN + 'flat.png' }, cdn.fetchImpl, cdn.resolve);
     const [row] = await harness.asAdmin(() => harness.db.select().from(tryonConfigs).where(eq(tryonConfigs.productId, watch))) as any[];
     assert.match(row.wornKey, new RegExp(`^t/${tenantId}/photo/[0-9a-f-]{36}/worn\.png$`), 'stored as an upload would be');

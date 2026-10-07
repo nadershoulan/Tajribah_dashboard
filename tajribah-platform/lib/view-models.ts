@@ -280,6 +280,8 @@ export type ProductRow = {
   images?: string[];
   /** T79: the store's description, as plain text. */
   description?: string | null;
+  /** T96: the product's page in the store (its feed's link, https only) — where its button shows. */
+  pageUrl?: string | null;
 };
 
 export type ModelRow = {
@@ -480,6 +482,8 @@ export type TryOnWatchView = {
   productId: string;
   /** T80: the product's own store pictures (https), any of which can be its try-on picture instead of an upload. */
   storePictures?: string[];
+  /** T96: the product's page in the store (https), where its button shows once installed. */
+  pageUrl?: string | null;
   /** P5.2 (T68): a watch (two pictures, case width) or glasses (one picture, frame width). */
   kind: 'watch' | 'glasses' | 'ring' | 'necklace' | 'earring' | 'bag'; // all but a watch take one picture
   name: string;

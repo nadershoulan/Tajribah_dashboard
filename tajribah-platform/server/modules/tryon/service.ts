@@ -74,6 +74,7 @@ function view(product: Product, config: Config | null, last30: Last30 = null): T
   return {
     productId: product.id, kind, name: product.name, nameAr: product.nameAr, sku: product.sku,
     storePictures: (product.images ?? []).map((i) => i.url).filter((url) => url.startsWith('https://')).slice(0, 10),
+    pageUrl: product.pageUrl?.startsWith('https://') ? product.pageUrl : null,
     productWidthMm: typeof dims?.widthMm === 'number' ? dims.widthMm : null,
     caseMm,
     worn: config?.wornKey ? { bytes: config.wornBytes ?? 0 } : null,

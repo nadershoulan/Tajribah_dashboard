@@ -29,7 +29,7 @@ export const STEP_COPY: Omit<OnboardingStep, 'done' | 'skipped'>[] = [
     description: { ar: 'اضغط «انشر في المتجر» في إعدادات تجربة المنتج', en: 'Press “Publish to the store” in the product’s try-on settings' },
     href: '/dashboard/tryon', minutes: 1 },
   { key: 'embed', title: { ar: 'تركيب الزر في متجرك', en: 'Install the button in your store' },
-    description: { ar: 'سطران في قالب صفحة المنتج', en: 'Two lines in your product page template' },
+    description: { ar: 'في سلة: وسم واحد في Google Tag Manager — أو سطران في قالب صفحة المنتج', en: 'On Salla: one tag in Google Tag Manager — or two lines in your product page template' },
     href: '/dashboard/embed', minutes: 5 },
 ];
 

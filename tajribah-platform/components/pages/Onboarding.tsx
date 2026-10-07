@@ -257,8 +257,8 @@ function StepPanel({ step, onMoved }: { step: StepState; onMoved: (view: Onboard
       body = (
         <>
           <p>{t(
-            'انسخ سطرين إلى قالب صفحة المنتج في متجرك. تتم الخطوة تلقائيًا عندما يبلّغ الزر عن أول مشاهدة من متجرك.',
-            'Copy two lines into your store’s product page template. The step completes by itself when the button reports its first view from your store.',
+            'في سلة: أضف وسمًا واحدًا في Google Tag Manager (تربطه من تطبيق سلة نفسه)، فيظهر الزر في كل صفحات منتجاتك المنشورة دون تعديل القالب — الخطوات في «التركيب في متجرك». أو انسخ سطرين إلى قالب صفحة المنتج. تتم الخطوة تلقائيًا عندما يبلّغ الزر عن أول مشاهدة من متجرك.',
+            'On Salla: add one tag in Google Tag Manager (linked from Salla’s own app), and the button shows on every published product’s page with no theme edit — the steps are on “Install in your store”. Or copy two lines into your product page template. The step completes by itself when the button reports its first view from your store.',
           )}</p>
           {!step.done && <div className="btn-row">{goTo(t('كود التركيب', 'Install code'))}</div>}
         </>

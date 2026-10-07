@@ -1638,3 +1638,13 @@ database). Changing the config key to the page's number (every installed theme s
 **Rollback path.** Revert the commit; 0044's ROLLBACK drops the two columns. Entries written at page keys stay
 in the config store until the product is published or removed again; the shop's button then finds none and
 draws nothing. Cost: low.
+
+## T96 · 2026-10-07 · The Tag Manager way everywhere an owner reads how to install
+
+**Decision.** After T95 the dashboard's install page led with Google Tag Manager, but the setup guide, the
+website's Salla page and the Integrations page still said the button needs a theme that takes two lines of
+code. They now name the Tag Manager way first (and keep the template way for other stores). Each product's page
+in the store (from its feed, https only) is linked from its preview and, after publishing, from its try-on
+settings, next to «التركيب في متجرك»: publishing ends where the shopper meets the product.
+
+**Rollback path.** Revert the commit. Cost: low.

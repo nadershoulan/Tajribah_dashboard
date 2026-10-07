@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { clearStorePicture } from '@/lib/clear-picture';
 import { useWriteLock } from '@/components/dashboard/write-lock';
-import { ArrowRight, Box, Eraser, ImageOff, Package, Ruler, Sparkles } from 'lucide-react';
+import { ArrowRight, Box, Eraser, ExternalLink, ImageOff, Package, Ruler, Sparkles } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useData, useResource } from '@/lib/data';
 import { formatMoney } from '@/lib/money';
@@ -112,6 +112,8 @@ function Preview({ product, title }: { product: ProductRow; title: string }) {
               : t('المقاس غير مضاف بعد — المتسوّق يرى الصور فقط.', 'No size yet — the shopper sees the pictures only.')}
           </p>
           {product.description && <p className="preview-description" tabIndex={0} role="region" aria-label={t('وصف المنتج', 'The product’s description')}>{product.description}</p>}
+          {/* T96: the real page in the store, where the button shows once it is installed */}
+          {product.pageUrl && <p style={{ margin: '0 0 12px' }}><a href={product.pageUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm"><ExternalLink size={14} aria-hidden />{t('صفحته في متجرك', 'Its page in your store')}</a></p>}
 
           <Panel title={t('ما يفتحه الزر في متجرك', 'What the button opens in your shop')}>
             <ul className="preview-steps">

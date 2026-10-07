@@ -26,3 +26,17 @@ test('the Salla + Google Tag Manager article: in “Connecting your store”, in
   assert.ok(source('Connections.tsx').includes(`t('مزامنة الآن', 'Sync now')`), 'the sync button the install page names');
   assert.ok(embed.includes('«مزامنة الآن»') && !embed.includes('«زامن الآن»'), 'the install page names that button as it is labelled');
 });
+
+test('T96: wherever a Salla owner reads how to install, the Tag Manager way is there, and the install page is named as it is', async () => {
+  const { PLATFORM_PAGES } = await import('@site/content/platforms');
+  const { STEP_COPY: ONBOARDING_STEPS } = await import('@/lib/onboarding-steps');
+  const salla = PLATFORM_PAGES.salla;
+  const saysTags = (s: string) => s.includes('Google Tag Manager');
+  assert.ok(salla.steps.some((s) => saysTags(s.body.ar) && saysTags(s.body.en)), 'the Salla page’s steps');
+  assert.ok(salla.faq.some((f) => f.q.ar === 'هل أحتاج مطوّرًا؟' && saysTags(f.a.ar) && !f.a.ar.includes('قالبًا يقبل')), 'its “do I need a developer?” no longer asks for a theme that takes code');
+  const embedStep = ONBOARDING_STEPS.find((s) => s.key === 'embed')!;
+  assert.ok(saysTags(embedStep.description.ar) && saysTags(embedStep.description.en), 'the setup guide’s install step');
+  assert.ok(saysTags(source('Onboarding.tsx')), 'and its panel');
+  const integrations = readFileSync(join(process.cwd(), 'site', 'components', 'pages', 'Integrations.tsx'), 'utf8');
+  assert.ok(saysTags(integrations) && integrations.includes('«التركيب في متجرك»') && !integrations.includes('«التثبيت»'), 'the integrations page, naming the dashboard page by its title');
+});

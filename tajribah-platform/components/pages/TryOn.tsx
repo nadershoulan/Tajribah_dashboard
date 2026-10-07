@@ -4,7 +4,7 @@
 
 import { useWriteLock } from '@/components/dashboard/write-lock';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { Camera, Lock, Search, Watch } from 'lucide-react';
+import { Camera, ExternalLink, Lock, Search, Watch } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { ApiError, currentStore } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
@@ -160,7 +160,7 @@ function WatchCard({ initial, editable, onUnmarked, number = null }: { initial: 
     } catch (e) { setFailure(e as Error); } finally { setBusy(null); }
   };
   const toggle = (on: boolean) => run('toggle', () => source.updateTryOn(w.productId, { enabled: on }),
-    on ? { ar: 'زر التجربة يظهر في متجرك بعد نشر المنتج من «إعدادات العرض» (انشر في المتجر). إن كان منشورًا فقد حُدّث.', en: 'The try-on button appears in your store once the product is published from AR settings (Publish to the store). If it is already published, it has been updated.' } : { ar: 'أُوقف.', en: 'Switched off.' });
+    on ? { ar: 'زر التجربة يظهر في متجرك بعد «انشر في المتجر» هنا. إن كان منشورًا فقد حُدّث.', en: 'The try-on button appears in your store after “Publish to the store” here. If it is already published, it has been updated.' } : { ar: 'أُوقف.', en: 'Switched off.' });
 
   const status = w.enabled ? <Badge tone="ok" dot>{t('مفعّلة', 'On')}</Badge>
     : w.ready ? <Badge tone="accent">{t('جاهزة للتفعيل', 'Ready to switch on')}</Badge>
@@ -252,6 +252,9 @@ function WatchCard({ initial, editable, onUnmarked, number = null }: { initial: 
               ? t('يفعّل التجربة وينشر المنتج بخطوة واحدة.', 'Switches the try-on on and publishes the product in one step.')
               : t(`أكمل أولًا: ${w.missing.map((m) => (m === 'case' ? pick(WIDTH_LABEL[w.kind]) : pick(slotInfo(w.kind, m).label))).join('، ')}.`, `Finish first: ${w.missing.map((m) => (m === 'case' ? pick(WIDTH_LABEL[w.kind]) : pick(slotInfo(w.kind, m).label))).join(', ')}.`)}</span>
           {published && <AppLink href={`/dashboard/products/${encodeURIComponent(w.productId)}/preview`} className="btn btn-ghost btn-sm">{t('معاينة المنتج', 'Preview the product')}</AppLink>}
+          {/* T96: where the shopper meets it, and how the button gets there */}
+          {published && w.pageUrl && <a href={w.pageUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm"><ExternalLink size={14} aria-hidden />{t('صفحته في متجرك', 'Its page in your store')}</a>}
+          {published && <AppLink href="/dashboard/embed" className="btn btn-ghost btn-sm">{t('التركيب في متجرك', 'Install in your store')}</AppLink>}
         </div>
       )}
         {!w.ready && <span className="hint" style={{ margin: 0 }}>{t(`ينقصها: ${missingText}.`, `Still needed: ${missingText}.`)}</span>}

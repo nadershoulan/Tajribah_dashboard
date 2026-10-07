@@ -6,6 +6,7 @@ import { langFromCookie } from '@site/lib/lang';
 import { COMPANY } from '@site/lib/site';
 import { AnalyticsProvider } from '@site/lib/analytics-context';
 import { siteGaId } from '@site/lib/site-settings';
+import { structuredData } from '@site/lib/seo';
 
 export const metadata: Metadata = {
   metadataBase: new URL(COMPANY.siteUrl),
@@ -13,6 +14,8 @@ export const metadata: Metadata = {
   description:
     'تجربة افتراضية ومقارنة بالحجم الحقيقي لمتاجر الساعات والمجوهرات والإكسسوارات في السعودية. عربية أولًا، ومن دون تطبيق.',
   applicationName: 'Tajribah',
+  manifest: '/manifest.webmanifest',
+  formatDetection: { telephone: false, email: false, address: false },
   icons: {
     icon: [
       { url: '/brand/favicon.ico', sizes: 'any' },
@@ -23,24 +26,13 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: 'website',
+    url: '/',
     siteName: 'تجربة Tajribah',
     locale: 'ar_SA',
     alternateLocale: ['en_US'],
     images: [{ url: '/brand/og-image.png', width: 1200, height: 630, alt: 'تجربة Tajribah' }],
   },
   twitter: { card: 'summary_large_image', images: ['/brand/og-image.png'] },
-};
-
-/** M12 — who runs the site, for search engines (the same facts as the footer). */
-const ORGANIZATION = {
-  '@context': 'https://schema.org',
-  '@type': 'Organization',
-  name: 'Tajribah',
-  alternateName: 'تجربة',
-  url: COMPANY.siteUrl,
-  logo: `${COMPANY.siteUrl}/brand/tajribah-logo.png`,
-  // Nader, 2026-10-08: the brand only, as in the footer; no legal name, VAT number or street address here.
-  address: { '@type': 'PostalAddress', addressCountry: 'SA' },
 };
 
 export const viewport: Viewport = { themeColor: '#0A2237', width: 'device-width', initialScale: 1 };
@@ -59,7 +51,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@400;500;600;700&display=swap"
         />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData(COMPANY.siteUrl)) }} />
       </head>
       <body className="antialiased">
         <LangProvider initial={lang}><AnalyticsProvider id={gaId}>{children}</AnalyticsProvider></LangProvider>

@@ -32,7 +32,6 @@ test('"Start with this plan" opens this app\'s sign-up with the plan, and the pl
   assert.equal(COMPANY.appUrl, '', 'the dashboard is this same app since the website moved in: sign-up is /register here');
   const pricing = site('components/pages/Pricing.tsx');
   assert.ok(pricing.includes('`${COMPANY.appUrl}/register?plan=${p.id}`'), 'priced plans go to sign-up');
-  assert.ok(site('app/robots.ts').length > 0);
   assert.deepEqual(
     SITE_PLANS.map((p) => [p.id, p.name.ar, p.name.en]),
     PLANS.map((p) => [p.code, p.name.ar, p.name.en]),

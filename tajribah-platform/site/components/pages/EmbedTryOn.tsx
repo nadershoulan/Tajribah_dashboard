@@ -35,6 +35,7 @@ import { brandFrom, CLOSE_MESSAGE, SHOWN_MESSAGE, PREVIEW_CONFIG, PREVIEW_HEIGHT
 import { servesHere } from '@site/lib/store-host';
 import { StoreMark } from '@site/components/site/store-mark';
 import Studio from '@site/components/studio/Studio';
+import { COMPANY } from '@site/lib/site';
 
 /** `store` and `product` from the address (a query in the app, after the hash in the preview). */
 function params(): URLSearchParams {
@@ -124,7 +125,12 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
   return (
     <div className={'embed-root' + (previewing ? ' is-preview' : '') + (inPopup ? ' is-popup' : '')}>
       {!previewing && <div className="embed-bar">
-        <span className="embed-brand">{brand ? <StoreMark brand={brand} /> : t('تجربة', 'Tajribah')}</span>
+        {/* T101: a small mark that opens Tajribah's website, in a new tab — a store under white-label shows its own name instead */}
+        {brand ? <span className="embed-brand"><StoreMark brand={brand} /></span> : (
+          <a className="embed-brand embed-watermark" href={`${COMPANY.siteUrl}/?utm_source=tryon&utm_medium=watermark`} target="_blank" rel="noopener" aria-label={t('تجربة — يفتح موقع تجربة في نافذة جديدة', 'Tajribah — opens Tajribah’s website in a new tab')}>
+            <span className="embed-watermark-by">{t('بدعم من', 'Powered by')}</span>{t('تجربة', 'Tajribah')}
+          </a>
+        )}
         <SiteLink href="/try-on-privacy" target="_blank" rel="noopener" className="embed-privacy">
           <ShieldCheck size={15} aria-hidden />{t('تُعالج صورك على جهازك', 'Your photos are processed on your device')}
         </SiteLink>

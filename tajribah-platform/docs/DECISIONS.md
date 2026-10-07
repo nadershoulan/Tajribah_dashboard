@@ -1697,3 +1697,15 @@ product page.
 Salla's own check). Measuring nothing by deleting script tags one by one (an allow-list cannot miss a new tracker).
 
 **Rollback path.** Revert the commit; an installed tag then places the button under the options again. Cost: low.
+
+## T101 · 2026-10-07 · The popup fits its window; a small mark opens Tajribah's website
+
+**Decision.** The popup scrolled: the studio's stage keeps its picture's shape (1200 × 630) at the window's width,
+and with the tabs, the view choice and the sliders it was 1035 px in a 740 px window. In the popup view only, the
+page is now one column the window's height: everything but the stage keeps its size and the stage takes what is
+left, never taller than its picture — the studio's model view fills by cover, so a taller stage on a phone would crop
+the hand. The studio's own code is not changed (styles scoped to `.embed-root.is-popup`). A small «بدعم من تجربة»
+opens Tajribah's website in a new tab, as tangiblee's "Powered by" does in Nader's example; under white-label (the
+store's own name in the bar) there is none, as on the product page.
+
+**Rollback path.** Revert the commit. Cost: low.

@@ -770,6 +770,10 @@ html[lang="en"] .legal-body p { line-height: 1.75; }
 .embed-root { min-height: 100vh; background: var(--bg, #fff); padding: 0 12px 16px; }
 .embed-bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; padding: 10px 4px; background: inherit; }
 .embed-brand { font-weight: 700; font-size: 15px; }
+/* T101: small, quiet, and a link to Tajribah's website */
+.embed-watermark { display: inline-flex; flex-direction: column; line-height: 1.1; font-size: 13px; color: #4f606c; text-decoration: none; }
+.embed-watermark:hover, .embed-watermark:focus-visible { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.embed-watermark-by { font-weight: 500; font-size: 10px; }
 .embed-privacy { display: inline-flex; align-items: center; gap: 6px; min-width: 0; margin-inline: 12px; font-size: 13px; line-height: 1.35; color: inherit; opacity: .78; text-decoration: underline; text-underline-offset: 3px; }
 .embed-privacy svg { flex: none; }
 .embed-close { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 999px; border: 1px solid rgba(0, 0, 0, .12); background: #fff; cursor: pointer; }
@@ -824,6 +828,19 @@ html:has(.embed-root.is-preview), html:has(.embed-root.is-preview) body { backgr
 .embed-root.is-preview .studio-layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
 .embed-root.is-preview .product-panel { display: none; }
 /* T100: in the shop's popup the shopper is on the product page already — the studio alone, under the bar */
-.embed-root.is-popup { min-height: 0; }
 .embed-root.is-popup .studio-layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
 .embed-root.is-popup .product-panel { display: none; }
+/* T100: the popup fits its window, no scrolling — the bar, the tabs and the controls keep their size, the stage
+   takes what is left (never taller than the picture itself, so a phone's narrow window crops nothing). The line
+   under the studio repeats the bar's ("processed on your device"): not repeated here. */
+.embed-root.is-popup { height: 100vh; height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 0 8px 8px; box-sizing: border-box; }
+.embed-root.is-popup .embed-bar { flex: none; padding: 6px 4px; }
+.embed-root.is-popup .studio-root, .embed-root.is-popup .studio-layout { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; align-items: stretch; min-width: 0; }
+.embed-root.is-popup .studio-panel { flex: 0 1 auto; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+.embed-root.is-popup .studio-topbar { flex: none; min-height: 0; padding: 6px 12px; flex-wrap: wrap; row-gap: 6px; } /* a narrow phone: the icons go under the tabs, never off the edge */
+.embed-root.is-popup .stage { flex: 1 1 auto; min-height: 140px; aspect-ratio: auto; max-height: calc((100vw - 18px) * 630 / 1200); }
+.embed-root.is-popup .studio-bottom { flex: none; padding: 10px 14px 12px; }
+.embed-root.is-popup .adjustments { margin-top: 10px; padding-top: 10px; gap: 10px 24px; }
+.embed-root.is-popup .studio-footer { display: none; }
+/* the "on me" empty state (no photo yet) is a card, not a picture: the stage's height limit does not apply */
+.embed-root.is-popup .stage:has(.personal-empty) { max-height: none; }

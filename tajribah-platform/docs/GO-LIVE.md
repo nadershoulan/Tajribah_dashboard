@@ -23,6 +23,29 @@ so the parts below that need them wait for it:
 - KV **`tajribah-rate-limits`** `64ef69a8da974ada85bfed2f4a46bb8a` → `RATE_LIMITS`.
 - R2 API token **`tajribah-files-uploads`** (Object Read & Write, `tajribah-files` only, account token): its four values (`R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) are in **`.env.production.local`** in this folder — ignored by git, never committed; they go into the Worker's secrets on deploy day.
 
+## Who does what next (2026-10-07)
+
+**Left for you** — each needs your account, your money or your decision:
+
+| # | What | Why it waits on you | Unblocks |
+|---|---|---|---|
+| 1 | Run `npx wrangler login` in this folder and press **Allow** (one click) | it signs this computer in to your Cloudflare account; I don't sign in for you | deploying the config host now, the dashboard Worker later |
+| 2 | Buy the **Hetzner server** (CX22-class, docs/HOSTING.md) | a paid account | §3 dashboard, §4 website, §5 `ev.`, Hyperdrive, the image/3D worker |
+| 3 | Pick a **mail provider** (e.g. Resend) and add its DNS records on `tajribah.org` | a new account | sign-in codes and invoices from `no-reply@tajribah.org` |
+| 4 | Decide the **short domain for QR codes** (or keep `tajribah.org/p/…`) | your choice; printed codes can't change later | `HOSTED_PAGE_BASE`, §4 |
+| 5 | Add the tag in Failet's **Google Tag Manager** (GTM-K4ZVD3HX, steps on «التركيب في متجرك») and press Publish | your Salla/Google account | the button on failet.sa — after the cdn answers (below) |
+| later | GA4 id · Google sign-in client · Moyasar · ZATCA Fatoora · Unifonic · a 3D-generation provider | accounts and contracts | website analytics, Google sign-in, billing, invoices, SMS, models from photos |
+| v2 | Salla, Zid, Shopify partner accounts | version 2 | store linking |
+
+**What I can do without you:**
+
+| What | Needs |
+|---|---|
+| Upload `w/v1/widget.js` and the two `vendor/` files to `tajribah-files` and check `cdn.tajribah.org/w/v1/widget.js` answers 200 | nothing — the storage key in `.env.production.local` is enough |
+| Deploy the config host Worker on `cfg.tajribah.org` (`wrangler.config-host.jsonc`) and check it answers 404 for an unknown product | step 1 above |
+| Prepare the dashboard Worker's deploy: the secrets list, the Hyperdrive and route settings, a deploy script — ready to run the day the server exists | nothing |
+| Keep building every package that needs no account | nothing |
+
 ## 1. Storage — R2 and the CDN (`cdn.tajribah.org`)
 
 - [ ] Create the R2 bucket; bind it to the dashboard Worker as **`BUCKET`**

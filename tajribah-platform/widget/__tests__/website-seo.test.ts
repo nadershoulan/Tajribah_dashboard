@@ -42,3 +42,12 @@ test('the home page carries og:url, and /favicon.ico exists at the root', () => 
   assert.match(readFileSync(sitePath('app/layout.tsx'), 'utf8'), /url: '\/',/);
   assert.ok(existsSync(sitePath('public/favicon.ico')));
 });
+
+test('the header offers sign-up beside the demo, on desktop and in the phone menu, as a plain link to /register', () => {
+  const chrome = readFileSync(sitePath('components/site/chrome.tsx'), 'utf8');
+  const head = chrome.slice(chrome.indexOf('<header'), chrome.indexOf('</header>'));
+  const count = (needle: string) => head.split(needle).length - 1;
+  assert.equal(count("{t('إنشاء حساب', 'Sign up')}"), 2, 'desktop and phone menu');
+  assert.equal(count('/register`} className="btn btn-ghost'), 2, 'both go to /register, outlined beside the solid demo button');
+  assert.ok(head.indexOf("'إنشاء حساب'") < head.indexOf("'جرّب العرض'"), 'beside the demo, before it');
+});

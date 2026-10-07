@@ -48,6 +48,8 @@ export function Header({ current }: { current?: string }) {
           <button className="lang-btn" onClick={toggle} lang={lang === 'ar' ? 'en' : 'ar'}>
             <Globe size={16} aria-hidden />{t('English', 'العربية')}
           </button>
+          {/* Nader, 2026-10-08: sign-up in the header too, beside the demo. */}
+          <SiteLink href={`${COMPANY.appUrl}/register`} className="btn btn-ghost btn-sm head-cta">{t('إنشاء حساب', 'Sign up')}</SiteLink>
           <SiteLink href="/demo" className="btn btn-primary btn-sm head-cta">{t('جرّب العرض', 'Try the demo')}</SiteLink>
           <button className="menu-btn" aria-expanded={open} aria-controls="mobile-nav" aria-label={t('القائمة', 'Menu')} onClick={() => setOpen(!open)}>
             {open ? <X size={20} /> : <Menu size={20} />}
@@ -59,6 +61,7 @@ export function Header({ current }: { current?: string }) {
           {NAV.map((n) => (
             <SiteLink key={n.href} href={n.href} onClick={() => setOpen(false)} aria-current={current === n.href ? 'page' : undefined}>{pick(n.label, lang)}</SiteLink>
           ))}
+          <SiteLink href={`${COMPANY.appUrl}/register`} className="btn btn-ghost" onClick={() => setOpen(false)}>{t('إنشاء حساب', 'Sign up')}</SiteLink>
           <SiteLink href="/demo" className="btn btn-primary" onClick={() => setOpen(false)}>{t('جرّب العرض التجريبي', 'Try the live demo')}</SiteLink>
         </div>
       </div>

@@ -26,7 +26,7 @@ import { arPath, detectDevice, VIEWER_AR_MODES } from './ar';
 import { LIMITS, type EventType, type TrackInput, type WireEvent } from './events';
 import { createTracker, privacySignal, randomToken, sessionToken, type Consent, type Tracker } from './track';
 import { DEFAULT_TRYON, openTryOn, tryOnBase, tryOnUrl, warmTryOn } from './tryon';
-import { autoPlatformOf, placeOnPage, PLACE_GAP_MS, PLACE_TRIES, type AutoPlatform } from './auto';
+import { autoPlatformOf, placeOnPage, PLACE_GAP_MS, PLACE_TRIES, spotOf, type AutoPlatform, type ButtonSpot } from './auto';
 
 export const WIDGET_VERSION = '1.0.0';
 export const CONFIG_TIMEOUT_MS = 3000;
@@ -44,11 +44,13 @@ export const ATTR = {
   tryon: 'data-tajribah-tryon',
   /** T95: installed once for every page (Google Tag Manager): find the product and the button's spot on the page (`auto.ts`). */
   auto: 'data-tajribah-auto', anchor: 'data-tajribah-anchor',
+  /** T100: under the product's picture (default) or under its options. */
+  spot: 'data-tajribah-spot',
 } as const;
 /** Where the widget is served, versioned; the snippet and the install checker both use it. */
 export const WIDGET_SRC = 'https://cdn.tajribah.com/w/v1/widget.js';
 
-type Settings = { store: string; configBase: string; viewer: string; events: string; consent: Consent; tryon: string; auto?: AutoPlatform | null; anchor?: string | null };
+type Settings = { store: string; configBase: string; viewer: string; events: string; consent: Consent; tryon: string; auto?: AutoPlatform | null; anchor?: string | null; spot?: ButtonSpot };
 
 /** Run `fn`; swallow and report anything it throws or rejects with. Never rethrows. */
 export function guard<T>(fn: () => T | Promise<T>): Promise<T | undefined> {
@@ -100,9 +102,6 @@ svg{width:18px;height:18px;flex:none}
 .note{margin:0;padding:64px 24px;font:500 16px/1.6 system-ui,sans-serif;color:#222;text-align:center}
 .close{position:absolute;top:10px;inset-inline-end:10px;z-index:1;background:#fff;color:#111;border-radius:999px;padding:6px 12px;min-height:0;font-size:14px}
 model-viewer{width:100%;height:100%}
-.tryon{position:fixed;inset:0;z-index:2147483647;background:#fff}
-.tryon iframe{border:0;width:100%;height:100%;display:block}
-.tryon-close{position:absolute;bottom:14px;inset-inline-start:14px;background:#111;color:#fff;border-radius:999px;padding:8px 14px;min-height:0;font-size:14px}
 `;
 const ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg>';
 
@@ -278,6 +277,7 @@ function settingsOf(doc: Document): Settings | null {
     tryon: script!.getAttribute(ATTR.tryon) ?? DEFAULT_TRYON,
     auto: autoPlatformOf(script!.getAttribute(ATTR.auto)),
     anchor: script!.getAttribute(ATTR.anchor) || null,
+    spot: spotOf(script!.getAttribute(ATTR.spot)),
   };
 }
 
@@ -405,7 +405,7 @@ export function boot(win: Window & typeof globalThis = window): void {
     const tracker = startTracking(win, settings);
     // T95: installed once for every page, the widget places the product's box itself — and again on a
     // refresh, after a page that swapped its content
-    const place = () => (settings.auto ? placeOnPage(win.document, win.location.href, ATTR.product, settings.anchor ?? null) : 'already_there');
+    const place = () => (settings.auto ? placeOnPage(win.document, win.location.href, ATTR.product, settings.anchor ?? null, settings.spot) : 'already_there');
     const run = () => guard(() => { place(); return mount(win.document, settings, fetch, tracker); });
     // a theme that draws its product form late is waited for, a few seconds at most
     const start = (tries = 0): void => {

@@ -823,3 +823,7 @@ html:has(.embed-root.is-preview), html:has(.embed-root.is-preview) body { backgr
 .embed-root.is-preview { min-height: 0; background: transparent; padding: 0; }
 .embed-root.is-preview .studio-layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
 .embed-root.is-preview .product-panel { display: none; }
+/* T100: in the shop's popup the shopper is on the product page already — the studio alone, under the bar */
+.embed-root.is-popup { min-height: 0; }
+.embed-root.is-popup .studio-layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+.embed-root.is-popup .product-panel { display: none; }

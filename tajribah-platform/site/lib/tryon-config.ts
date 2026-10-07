@@ -15,6 +15,8 @@ import { MODELS, type TryOnProduct } from './demo-product';
 export const CONFIG_BASE = 'https://cfg.tajribah.com/v1';
 /** What the frame tells the page it sits on. The widget listens only to our origin. */
 export const CLOSE_MESSAGE = 'tajribah:tryon:close';
+/** T100: the frame's page is up, with its own close button — the shop's popup then hides its backup one. */
+export const SHOWN_MESSAGE = 'tajribah:tryon:shown';
 /**
  * T85 — the dashboard's preview: the frame says it is ready, and the dashboard (the same address — both
  * sides check) answers with the product's settings, which it read with the merchant's sign-in.

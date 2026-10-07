@@ -26,12 +26,12 @@
  * can show nothing but what it could already put on its own page. No close button: the dashboard is
  * the page around it.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { ShieldCheck, X } from 'lucide-react';
 import { useLang } from '@site/lib/i18n';
 import { SiteEnvContext, SiteLink, useSiteEnv } from '@site/lib/site-env';
 import type { TryOnProduct } from '@site/lib/demo-product';
-import { brandFrom, CLOSE_MESSAGE, PREVIEW_CONFIG, PREVIEW_HEIGHT, PREVIEW_READY, configBase, configUrl, embedTitle, isLocalHost, tryOnProductFrom, validRefs, type StoreBrand } from '@site/lib/tryon-config';
+import { brandFrom, CLOSE_MESSAGE, SHOWN_MESSAGE, PREVIEW_CONFIG, PREVIEW_HEIGHT, PREVIEW_READY, configBase, configUrl, embedTitle, isLocalHost, tryOnProductFrom, validRefs, type StoreBrand } from '@site/lib/tryon-config';
 import { servesHere } from '@site/lib/store-host';
 import { StoreMark } from '@site/components/site/store-mark';
 import Studio from '@site/components/studio/Studio';
@@ -47,6 +47,9 @@ const onThisMachine = () => typeof location !== 'undefined' && isLocalHost(locat
 export type EmbedState = { kind: 'loading' } | { kind: 'ready'; product: TryOnProduct; brand?: StoreBrand | null } | { kind: 'unavailable' };
 
 /** `storeHost`: the store's own address this page is on (P1.19) — then only that store's watches are shown. */
+/** The address does not change while the frame is open: nothing to subscribe to. */
+const noSubscription = () => () => {};
+
 export default function EmbedTryOn({ initial, storeHost = null }: { initial?: EmbedState; storeHost?: string | null } = {}) {
   const { t, lang, setLang } = useLang();
   const env = useSiteEnv();
@@ -59,6 +62,9 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
   }, [lang, setLang]);
 
   const [previewing, setPreviewing] = useState(false); // once the dashboard has answered: the server drew the page without it
+  // T100: opened as a popup over the shop's product page (`view=popup`): the shopper is on the product already, so
+  // only the studio shows. Read from the address after hydration (the server never sees it: no mismatch).
+  const inPopup = useSyncExternalStore(noSubscription, () => params().get('view') === 'popup', () => false);
 
   useEffect(() => {
     if (!params().get('preview') || window.parent === window) return;
@@ -112,9 +118,11 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
   }), [env]);
 
   const close = () => window.parent?.postMessage({ type: CLOSE_MESSAGE }, '*');
+  // T100: in a shop's popup, the bar (with its close button) is up: the popup hides its own backup close
+  useEffect(() => { if (inPopup && window.parent !== window) window.parent.postMessage({ type: SHOWN_MESSAGE }, '*'); }, [inPopup]);
 
   return (
-    <div className={'embed-root' + (previewing ? ' is-preview' : '')}>
+    <div className={'embed-root' + (previewing ? ' is-preview' : '') + (inPopup ? ' is-popup' : '')}>
       {!previewing && <div className="embed-bar">
         <span className="embed-brand">{brand ? <StoreMark brand={brand} /> : t('تجربة', 'Tajribah')}</span>
         <SiteLink href="/try-on-privacy" target="_blank" rel="noopener" className="embed-privacy">

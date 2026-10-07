@@ -76,3 +76,72 @@ test('P1.15: a watch with try-on but no 3D model still gets its button; without 
   assert.equal(parseConfig({ ...noModel, placement: 'floor' }), null, 'only the wrist opens the try-on');
   assert.equal(parseConfig({ ...noModel, model: undefined }), null, 'the model is null or a model, never missing');
 });
+
+/** Just enough of an element for `openTryOn` (no DOM library in these tests). */
+class El {
+  className = ''; textContent = ''; type = ''; src = ''; title = ''; allow = ''; referrerPolicy = '';
+  attrs = new Map<string, string>();
+  children: El[] = [];
+  parent: El | null = null;
+  shadow: El | null = null;
+  activeElement: El | null = null;
+  contentWindow = {};
+  style: Record<string, string> = {};
+  private listeners = new Map<string, ((e: unknown) => void)[]>();
+  constructor(readonly tag: string) {}
+  setAttribute(name: string, value: string) { this.attrs.set(name, value); }
+  attachShadow() { this.shadow = new El('#shadow'); return this.shadow; }
+  appendChild(child: El) { child.parent = this; this.children.push(child); return child; }
+  remove() { if (this.parent) this.parent.children = this.parent.children.filter((c) => c !== this); this.parent = null; }
+  addEventListener(type: string, fn: (e: unknown) => void) { this.listeners.set(type, [...(this.listeners.get(type) ?? []), fn]); }
+  fire(type: string, event: unknown) { for (const fn of this.listeners.get(type) ?? []) fn(event); }
+  focus() { /* focus moves */ }
+}
+
+test('T100: the try-on opens in a window over the product page, in a layer of its own — a tap outside closes it', async () => {
+  const g = globalThis as Record<string, unknown>;
+  const saved = { document: g.document, window: g.window };
+  const body = new El('body');
+  body.style.overflow = 'auto';
+  g.document = { createElement: (tag: string) => new El(tag), body, activeElement: null, addEventListener() {}, removeEventListener() {} };
+  let onMessage: ((e: unknown) => void) | null = null;
+  g.window = { addEventListener: (type: string, fn: (e: unknown) => void) => { if (type === 'message') onMessage = fn; }, removeEventListener() {} };
+  try {
+    const { openTryOn, POPUP_STYLE, SHOWN_MESSAGE } = await import('../src/tryon');
+    const buttonRoot = new El('#shadow');
+    openTryOn(buttonRoot as never, 'https://tajribah.com/embed/try-on?store=failet&product=244167095&lang=ar', 'ar', 'ساعة رجالية');
+    assert.equal(buttonRoot.children.length, 0, 'not under the button: a store’s sticky column or header could draw over it there');
+    const layer = body.children[0]!;
+    assert.ok(layer.attrs.has('data-tajribah-popup') && layer.shadow, 'its own layer at the end of the page, isolated');
+    const [style, overlay] = layer.shadow!.children as [El, El];
+    assert.equal(style.textContent, POPUP_STYLE);
+    assert.match(POPUP_STYLE, /\.tryon-sheet\{[^}]*width:min\(940px,100%\);height:min\(740px,100%\)/, 'a window, not the whole screen');
+    assert.deepEqual([overlay.className, overlay.attrs.get('role'), overlay.attrs.get('aria-modal')], ['tryon', 'dialog', 'true']);
+    const sheet = overlay.children[0]!;
+    assert.equal(sheet.className, 'tryon-sheet');
+    assert.deepEqual(sheet.children.map((c) => [c.tag, c.className]), [['iframe', ''], ['button', 'tryon-close']], 'the studio and our close button, in the window');
+    assert.equal(sheet.children[0]!.src, 'https://tajribah.com/embed/try-on?store=failet&product=244167095&lang=ar&view=popup', 'the studio’s popup view: the shopper is on the product page already');
+    assert.equal(body.style.overflow, 'hidden', 'the page behind does not scroll');
+    const [frame, close] = sheet.children as [El, El];
+    onMessage!({ origin: 'https://evil.example', source: frame.contentWindow, data: { type: SHOWN_MESSAGE } });
+    onMessage!({ origin: 'https://tajribah.com', source: {}, data: { type: SHOWN_MESSAGE } });
+    assert.notEqual(close.style.display, 'none', 'only our frame can say its page is up');
+    onMessage!({ origin: 'https://tajribah.com', source: frame.contentWindow, data: { type: SHOWN_MESSAGE } });
+    assert.equal(close.style.display, 'none', 'the studio’s own close is up: our backup close steps aside');
+    overlay.fire('click', { target: sheet });
+    assert.equal(body.children.length, 1, 'a tap inside the window keeps it open');
+    overlay.fire('click', { target: overlay });
+    assert.equal(body.children.length, 0, 'a tap outside closes it, layer and all');
+    assert.equal(body.style.overflow, 'auto', 'and the page scrolls again');
+  } finally {
+    g.document = saved.document;
+    g.window = saved.window;
+  }
+});
+
+test('T100: the website’s and the widget’s frame messages are the same words', async () => {
+  const site = await import('@site/lib/tryon-config');
+  const widget = await import('../src/tryon');
+  assert.equal(site.CLOSE_MESSAGE, widget.CLOSE_MESSAGE);
+  assert.equal(site.SHOWN_MESSAGE, widget.SHOWN_MESSAGE);
+});

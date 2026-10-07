@@ -1677,3 +1677,23 @@ automatic, and it never overwrites a link they set or switches a page back on. U
 request; more through one store-wide refresh, so the request stays short.
 
 **Rollback path.** Revert the commit; links already saved stay (the owner can clear each on AR settings). Cost: low.
+
+## T100 · 2026-10-07 · The button under the picture, the try-on as a popup, a test shop that looks like the store
+
+**Decision.** Nader wants the button under the product's picture and the try-on in a small window on the same
+product page.
+- **Under the picture by default**, centred, after Salla's gallery (`salla-slider#details-slider-<n>`, every
+  Twilight theme); the owner can choose under the options instead (`data-tajribah-spot="options"`, a choice on
+  the install page). Each choice falls back to the other, then to the add-to-cart button.
+- **A popup, not a full screen**: a window over the dimmed page, closed by a tap outside, Escape or the studio's ×.
+  It lives in a layer of its own at the end of the page, not under the button: Failet's gallery column is sticky,
+  so a popup inside it was drawn under the store's header, description and cart bar. The frame opens a popup view
+  of the studio (no product panel — the shopper is on the product page), which says when it is up so the popup's
+  backup close steps aside.
+- **The test shop runs the store's own scripts** so it looks like the store, and blocks everything that counts a
+  visit (a Content-Security-Policy allowing Salla's file hosts, its storefront API reads and the payment boxes only).
+
+**Rejected.** Faking the store's address to get Salla's «منتجات مشابهة» on the test page (that would get around
+Salla's own check). Measuring nothing by deleting script tags one by one (an allow-list cannot miss a new tracker).
+
+**Rollback path.** Revert the commit; an installed tag then places the button under the options again. Cost: low.

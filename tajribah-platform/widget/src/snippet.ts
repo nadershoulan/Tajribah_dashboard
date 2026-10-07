@@ -7,6 +7,7 @@
  * Salla and Zid is confirmed with the partner apps (P1.4 🔒).
  */
 import { ATTR, WIDGET_SRC } from './main';
+import type { ButtonSpot } from './auto';
 
 export const PRODUCT_PLACEHOLDER = '{{ product.id }}';
 
@@ -19,13 +20,15 @@ export const PRODUCT_PLACEHOLDER = '{{ product.id }}';
  * alone, told to find the product and the button's spot on each page (`auto.ts`). It does nothing on a
  * page that is not a product's, and draws nothing for a product that is not published.
  */
-export function tagManagerSnippet(storeKey: string, options: { consent?: boolean; anchor?: string } = {}): string {
+export function tagManagerSnippet(storeKey: string, options: { consent?: boolean; anchor?: string; spot?: ButtonSpot } = {}): string {
   const safe = storeKey.replace(/[^a-z0-9-]/gi, '');
   const consent = options.consent ? ` ${ATTR.consent}="required"` : '';
   // the owner's own spot (a CSS selector): quotes and angle brackets would end the attribute, so they go
   const spot = options.anchor?.replace(/["<>&]/g, '').trim().slice(0, 200);
   const anchor = spot ? ` ${ATTR.anchor}="${spot}"` : '';
-  return `<script src="${WIDGET_SRC}" ${ATTR.store}="${safe}" ${ATTR.auto}="salla"${anchor}${consent} async></script>`;
+  // T100: under the picture is the default, so only the other choice is written
+  const place = options.spot === 'options' ? ` ${ATTR.spot}="options"` : '';
+  return `<script src="${WIDGET_SRC}" ${ATTR.store}="${safe}" ${ATTR.auto}="salla"${place}${anchor}${consent} async></script>`;
 }
 
 export function embedSnippet(storeKey: string, productRef = PRODUCT_PLACEHOLDER, options: { consent?: boolean } = {}): string {

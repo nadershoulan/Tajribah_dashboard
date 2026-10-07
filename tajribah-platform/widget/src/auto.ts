@@ -10,8 +10,10 @@
  *    `server/modules/edge/build.ts`), so the number finds its config. Any other page (the home page, a
  *    category, the cart) has no number: nothing is placed and nothing is fetched.
  *  - **Where.** The owner's own spot when they name one (`data-tajribah-anchor`, a CSS selector: the
- *    button goes right after it), else right after Salla's product-form hook (under the options, above
- *    the add-to-cart bar), else just before the add-to-cart button. No spot: nothing is placed.
+ *    button goes right after it). Else (T100) under the product's picture — Salla's gallery
+ *    (`salla-slider#details-slider-<number>`), centred — or, with `data-tajribah-spot="options"`, right after
+ *    Salla's product-form hook (under the options, above the add-to-cart bar); either falls back to the
+ *    other, then to just before the add-to-cart button. No spot: nothing is placed.
  *
  * What is placed is an empty box; the button is drawn in it only when the product is published, so a
  * product that is not changes nothing on the page.
@@ -39,15 +41,24 @@ export function pageRefOf(url: string): string | null {
 
 type Where = 'afterend' | 'beforebegin';
 
-/** Where the button goes on a Salla product page, in order of preference. Every Salla theme renders these. */
-export const SALLA_SPOTS: readonly { selector: string; where: Where }[] = [
-  { selector: 'salla-hook[name="product:single.form.end"]', where: 'afterend' },
-  { selector: 'salla-add-product-button', where: 'beforebegin' },
-];
+/** T100: the two places an owner chooses between — under the product's picture (the default), or under its options. */
+export type ButtonSpot = 'image' | 'options';
+export const spotOf = (value: string | null | undefined): ButtonSpot => (value === 'options' ? 'options' : 'image');
+
+type Place = { selector: string; where: Where; centred?: boolean };
+const GALLERY: Place = { selector: 'salla-slider[id^="details-slider-"]', where: 'afterend', centred: true };
+const OPTIONS: Place = { selector: 'salla-hook[name="product:single.form.end"]', where: 'afterend' };
+const CART: Place = { selector: 'salla-add-product-button', where: 'beforebegin' };
+
+/** Where the button goes on a Salla product page, in order of preference, for each choice. Every Salla theme renders these. */
+export const SALLA_SPOTS: Readonly<Record<ButtonSpot, readonly Place[]>> = {
+  image: [GALLERY, OPTIONS, CART],
+  options: [OPTIONS, GALLERY, CART],
+};
 
 /** Just enough of a document (a test passes a fake). */
 type Spot = { insertAdjacentElement(where: Where, element: never): unknown };
-type Box = { setAttribute(name: string, value: string): void; style: { margin: string } };
+type Box = { setAttribute(name: string, value: string): void; style: { margin: string; display: string; justifyContent: string } };
 export type PageDocument = {
   querySelector(selector: string): unknown;
   createElement(tag: 'div'): Box;
@@ -59,18 +70,19 @@ export type Placed = 'placed' | 'not_a_product_page' | 'already_there' | 'no_spo
  * Put the empty box for this page's product in its spot. `productAttr` is the attribute the widget
  * mounts (`ATTR.product`). Never throws: a selector the owner mistyped counts as no spot of theirs.
  */
-export function placeOnPage(doc: PageDocument, pageUrl: string, productAttr: string, anchor: string | null): Placed {
+export function placeOnPage(doc: PageDocument, pageUrl: string, productAttr: string, anchor: string | null, choice: ButtonSpot = 'image'): Placed {
   if (doc.querySelector(`[${productAttr}]`)) return 'already_there'; // the theme's own placeholder, or one placed before
   const ref = pageRefOf(pageUrl);
   if (!ref) return 'not_a_product_page';
-  const spots: { selector: string; where: Where }[] = anchor ? [{ selector: anchor, where: 'afterend' }, ...SALLA_SPOTS] : [...SALLA_SPOTS];
-  for (const { selector, where } of spots) {
+  const spots: Place[] = anchor ? [{ selector: anchor, where: 'afterend' }, ...SALLA_SPOTS[choice]] : [...SALLA_SPOTS[choice]];
+  for (const { selector, where, centred } of spots) {
     let spot: Spot | null = null;
     try { spot = doc.querySelector(selector) as Spot | null; } catch { /* not a valid selector */ }
     if (!spot) continue;
     const box = doc.createElement('div');
     box.setAttribute(productAttr, ref);
     box.style.margin = '12px 0';
+    if (centred) { box.style.display = 'flex'; box.style.justifyContent = 'center'; } // under a picture: in its middle
     spot.insertAdjacentElement(where, box as never);
     return 'placed';
   }

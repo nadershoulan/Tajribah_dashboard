@@ -127,8 +127,13 @@ node scripts/dev/test-shop.mjs --store <your store key> --from https://<your sto
 
 **Open a product page:** `http://127.0.0.1:8812/ar/x/p<the product's number on Salla>`. The number is the end of
 the product's address on your store — `…/p1713032054` → `http://127.0.0.1:8812/ar/x/p1713032054` (the words
-before it do not matter). A published product shows «جرّبها…» under its options, above «أضف للسلة»; tapping it
-opens the try-on. A product that is not published shows nothing, and so does the home page — as on the real store.
+before it do not matter). The page is your store's own: its header, gallery, instalment boxes, add-to-cart bar and
+related products, from the store's own scripts. A published product shows «جرّبها…» centred under its picture;
+tapping it opens the try-on in a window over the same page (tap outside it, or its ×, to close). A product that is
+not published shows nothing, and so does the home page — as on the real store.
+
+- `--spot options` puts the button under the product's options, above «أضف للسلة», instead (the tag's other choice).
+- `--still` serves the page without any of the store's scripts, if something on it misbehaves here.
 
 **Stop it** with Ctrl+C in its window (or close the window).
 
@@ -142,8 +147,13 @@ opens the try-on. A product that is not published shows nothing, and so does the
 | `Build the widget first` | Run `node widget/build.mjs` once, then start the test shop again. |
 | `… did not answer` | Your store's page could not be read: check the address after `--from` (https, no path), and your internet. |
 
-Only for this computer: the store's own scripts are left out of the copy (so its menus and cart do not work
-there), and the button's settings come from your local dashboard. On the real store, nothing here is used: the
+**Nothing is counted from here.** The page carries a Content-Security-Policy: the store's scripts may load only
+from Salla's file hosts (and the instalment and Apple Pay boxes Salla shows), and may call only Salla's storefront
+API (reads: the product, offers, comments, ratings). Your Tag Manager, Google Analytics, Salla's own visit counting,
+pixels, heatmaps and Cloudflare's beacon are blocked before they start. Two things cannot show here: Salla answers
+its «منتجات مشابهة» recommendations only to your store's own address, and Apple Pay needs https.
+
+Only for this computer: the button's settings come from your local dashboard. On the real store, nothing here is used: the
 tag in your Tag Manager container loads Tajribah's widget from `cdn.tajribah.com` once it is live (GO-LIVE §1).
 
 ## The checks

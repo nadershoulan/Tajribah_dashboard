@@ -14,6 +14,7 @@ import type { Bi } from '@/lib/lang';
 import type { EmbedInfo, InstallCheck } from '@/lib/view-models';
 import { CONSENT_LINE } from '@/widget/src/main';
 import { embedSnippet, tagManagerSnippet } from '@/widget/src/snippet';
+import type { ButtonSpot } from '@/widget/src/auto';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
 
@@ -82,8 +83,10 @@ export default function Embed() {
   // T48: a shop that asks shoppers for consent gets the gated code and its banner's one line.
   const [asksConsent, setAsksConsent] = useState(false);
   const [anchor, setAnchor] = useState('');
+  // T100: under the product's picture (the default) or under its options
+  const [spot, setSpot] = useState<ButtonSpot>('image');
   const code = !data ? '' : method === 'tags'
-    ? tagManagerSnippet(data.storeKey, { consent: asksConsent, anchor })
+    ? tagManagerSnippet(data.storeKey, { consent: asksConsent, anchor, spot })
     : (asksConsent ? embedSnippet(data.storeKey, undefined, { consent: true }) : data.snippet);
   const [url, setUrl] = useState('');
   const [checking, setChecking] = useState(false);
@@ -174,10 +177,17 @@ export default function Embed() {
               </>
             )}
             {method === 'tags' ? (
-              <p className="hint">{t(
-                'يعمل في صفحات المنتجات فقط: يعرف المنتج من رابط صفحته في سلة (الذي ينتهي بـ ‎/p‎ ورقم المنتج)، ويضع الزر تحت خيارات المنتج فوق زر «أضف للسلة».',
-                'It works on product pages only: it knows the product from its Salla page address (the one ending in /p and the product’s number), and puts the button under the product’s options, above “Add to cart”.',
-              )}</p>
+              <>
+                <fieldset className="field" style={{ border: 0, padding: 0, margin: '12px 0 0' }}>
+                  <legend style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>{t('مكان الزر في صفحة المنتج', 'Where the button goes on the product page')}</legend>
+                  <label className="toggle"><input type="radio" name="tag-spot" checked={spot === 'image'} onChange={() => setSpot('image')} /><span>{t('تحت صورة المنتج، في وسطها', 'Under the product’s picture, centred')}</span></label>
+                  <label className="toggle"><input type="radio" name="tag-spot" checked={spot === 'options'} onChange={() => setSpot('options')} /><span>{t('تحت خيارات المنتج، فوق «أضف للسلة»', 'Under the product’s options, above “Add to cart”')}</span></label>
+                </fieldset>
+                <p className="hint">{t(
+                  'يعمل في صفحات المنتجات فقط: يعرف المنتج من رابط صفحته في سلة (الذي ينتهي بـ ‎/p‎ ورقم المنتج). تفتح التجربة في نافذة فوق صفحة المنتج نفسها. إن غيّرت المكان فانسخ الوسم من جديد.',
+                  'It works on product pages only: it knows the product from its Salla page address (the one ending in /p and the product’s number). The try-on opens in a window over the product page itself. If you change the spot, copy the tag again.',
+                )}</p>
+              </>
             ) : (
               <p className="hint">{t(
                 'ضع مكان {{ product.id }} رقم المنتج المعروض كما في متجرك — وهو «id» في ملف المنتجات. إن كان قالبك يعرف رقم المنتج المعروض، فاكتب متغيّره هنا ليعمل السطر نفسه في كل صفحات المنتجات.',

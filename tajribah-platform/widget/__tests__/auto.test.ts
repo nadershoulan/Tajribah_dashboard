@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { autoPlatformOf, pageRefOf, placeOnPage, SALLA_SPOTS, type PageDocument } from '../src/auto';
+import { autoPlatformOf, pageRefOf, placeOnPage, SALLA_SPOTS, spotOf, type PageDocument } from '../src/auto';
 import { parseConfig } from '../src/config';
 import { ATTR, WIDGET_SRC } from '../src/main';
 import { tagManagerSnippet } from '../src/snippet';
@@ -29,54 +29,75 @@ test('a Salla product page is named by its number, in any language; every other 
 
 /** A page as the placer sees it: elements by selector, each recording what was put beside it. */
 function page(present: string[], options: { placeholder?: boolean; throwsOn?: string } = {}) {
-  const inserted: { at: string; where: string; attrs: Record<string, string>; margin: string }[] = [];
+  type Recorded = { at: string; where: string; attrs: Record<string, string>; margin: string; centred: boolean };
+  const inserted: Recorded[] = [];
   const doc: PageDocument = {
     querySelector(selector: string) {
       if (selector === options.throwsOn) throw new SyntaxError('not a valid selector');
       if (selector === `[${ATTR.product}]`) return options.placeholder || inserted.length ? {} : null;
       if (!present.includes(selector)) return null;
-      return { insertAdjacentElement: (where: string, box: { attrs: Record<string, string>; style: { margin: string } }) => { inserted.push({ at: selector, where, attrs: box.attrs, margin: box.style.margin }); } };
+      return { insertAdjacentElement: (where: string, box: { attrs: Record<string, string>; style: { margin: string; display: string; justifyContent: string } }) => {
+        inserted.push({ at: selector, where, attrs: box.attrs, margin: box.style.margin, centred: box.style.display === 'flex' && box.style.justifyContent === 'center' });
+      } };
     },
     createElement: () => {
       const attrs: Record<string, string> = {};
-      return { attrs, style: { margin: '' }, setAttribute: (name: string, value: string) => { attrs[name] = value; } };
+      return { attrs, style: { margin: '', display: '', justifyContent: '' }, setAttribute: (name: string, value: string) => { attrs[name] = value; } };
     },
   };
   return { doc, inserted };
 }
 
-test('the box goes after Salla’s product-form hook, else before the add-to-cart button, else nowhere', () => {
-  const [hook, cart] = SALLA_SPOTS.map((s) => s.selector);
-  const full = page([hook!, cart!]);
+const GALLERY = 'salla-slider[id^="details-slider-"]';
+const HOOK = 'salla-hook[name="product:single.form.end"]';
+const CART = 'salla-add-product-button';
+
+test('T100: by default the box goes under the product’s picture, centred; else under the options, else before add-to-cart, else nowhere', () => {
+  assert.deepEqual(SALLA_SPOTS.image.map((s) => s.selector), [GALLERY, HOOK, CART]);
+  const full = page([GALLERY, HOOK, CART]);
   assert.equal(placeOnPage(full.doc, SILVER_WATCH, ATTR.product, null), 'placed');
-  assert.deepEqual(full.inserted, [{ at: hook, where: 'afterend', attrs: { [ATTR.product]: 'page:p1412564664' }, margin: '12px 0' }]);
+  assert.deepEqual(full.inserted, [{ at: GALLERY, where: 'afterend', attrs: { [ATTR.product]: 'page:p1412564664' }, margin: '12px 0', centred: true }]);
   assert.equal(placeOnPage(full.doc, SILVER_WATCH, ATTR.product, null), 'already_there', 'placed once: a second run (a refresh) adds nothing');
   assert.equal(full.inserted.length, 1);
 
-  const noHook = page([cart!]);
-  assert.equal(placeOnPage(noHook.doc, BLACK_WATCH, ATTR.product, null), 'placed');
-  assert.deepEqual([noHook.inserted[0]!.at, noHook.inserted[0]!.where, noHook.inserted[0]!.attrs[ATTR.product]], [cart, 'beforebegin', 'page:p2114755498']);
+  const noGallery = page([HOOK, CART]);
+  assert.equal(placeOnPage(noGallery.doc, BLACK_WATCH, ATTR.product, null), 'placed');
+  assert.deepEqual([noGallery.inserted[0]!.at, noGallery.inserted[0]!.centred], [HOOK, false], 'a theme without the gallery: under the options, not centred');
+
+  const cartOnly = page([CART]);
+  assert.equal(placeOnPage(cartOnly.doc, BLACK_WATCH, ATTR.product, null), 'placed');
+  assert.deepEqual([cartOnly.inserted[0]!.at, cartOnly.inserted[0]!.where, cartOnly.inserted[0]!.attrs[ATTR.product]], [CART, 'beforebegin', 'page:p2114755498']);
 
   const bare = page([]);
   assert.equal(placeOnPage(bare.doc, BLACK_WATCH, ATTR.product, null), 'no_spot');
   assert.equal(bare.inserted.length, 0);
 });
 
+test('T100: the owner may choose under the options instead — the picture is then the fallback', () => {
+  assert.equal(spotOf('options'), 'options');
+  for (const other of [null, undefined, '', 'image', 'gallery', 'OPTIONS']) assert.equal(spotOf(other), 'image', String(other));
+  const full = page([GALLERY, HOOK, CART]);
+  assert.equal(placeOnPage(full.doc, SILVER_WATCH, ATTR.product, null, 'options'), 'placed');
+  assert.deepEqual([full.inserted[0]!.at, full.inserted[0]!.centred], [HOOK, false]);
+  const noHook = page([GALLERY, CART]);
+  placeOnPage(noHook.doc, SILVER_WATCH, ATTR.product, null, 'options');
+  assert.equal(noHook.inserted[0]!.at, GALLERY);
+});
+
 test('the owner’s own spot comes first; a mistyped one falls back to Salla’s; other pages and themed pages are left alone', () => {
-  const [hook] = SALLA_SPOTS.map((s) => s.selector);
-  const own = page(['.product-price', hook!]);
+  const own = page(['.product-price', GALLERY]);
   assert.equal(placeOnPage(own.doc, BRACELET, ATTR.product, '.product-price'), 'placed');
-  assert.deepEqual([own.inserted[0]!.at, own.inserted[0]!.where], ['.product-price', 'afterend']);
+  assert.deepEqual([own.inserted[0]!.at, own.inserted[0]!.where, own.inserted[0]!.centred], ['.product-price', 'afterend', false]);
 
-  const typo = page([hook!], { throwsOn: '.price[' });
+  const typo = page([GALLERY], { throwsOn: '.price[' });
   assert.equal(placeOnPage(typo.doc, BRACELET, ATTR.product, '.price['), 'placed', 'never throws on the owner’s selector');
-  assert.equal(typo.inserted[0]!.at, hook);
+  assert.equal(typo.inserted[0]!.at, GALLERY);
 
-  const home = page([hook!]);
+  const home = page([GALLERY, HOOK]);
   assert.equal(placeOnPage(home.doc, 'https://failet.sa/ar', ATTR.product, null), 'not_a_product_page');
   assert.equal(home.inserted.length, 0, 'nothing on a page that is not a product’s');
 
-  const themed = page([hook!], { placeholder: true });
+  const themed = page([GALLERY], { placeholder: true });
   assert.equal(placeOnPage(themed.doc, BRACELET, ATTR.product, null), 'already_there', 'a theme that has its own placeholder keeps it');
   assert.equal(themed.inserted.length, 0);
 });
@@ -91,6 +112,9 @@ test('the Tag Manager tag: our script, this store, self-placing — the owner’
   assert.ok(!spot.includes('"><script>alert'), spot);
   assert.ok(spot.includes(`${ATTR.anchor}=".pricescriptalert(1)/script"`), spot);
   assert.ok(!tagManagerSnippet('failet', { anchor: '   ' }).includes(ATTR.anchor), 'an empty spot is left out');
+  // T100: under the picture is the default, so only the other choice is written
+  assert.ok(!tagManagerSnippet('failet', { spot: 'image' }).includes(ATTR.spot));
+  assert.ok(tagManagerSnippet('failet', { spot: 'options' }).includes(`${ATTR.spot}="options"`));
 });
 
 /** Just enough of an element for `renderButton` and `mount` (no DOM library in these tests). */

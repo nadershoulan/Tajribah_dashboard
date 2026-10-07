@@ -69,8 +69,6 @@ export function Header({ current }: { current?: string }) {
 export function Footer() {
   const { lang, t } = useLang();
   const year = 2026;
-  const legal = pick(COMPANY.legalName, lang);
-  const address = pick(COMPANY.address, lang);
   return (
     <footer className="site-foot">
       <div className="wrap foot-grid">
@@ -89,10 +87,8 @@ export function Footer() {
         ))}
       </div>
       <div className="wrap foot-base">
-        <span>© {year} {legal || t('تجربة', 'Tajribah')}. {t('جميع الحقوق محفوظة.', 'All rights reserved.')}</span>
-        {COMPANY.crNumber && <span>{t('السجل التجاري', 'CR')} <bdi>{COMPANY.crNumber}</bdi></span>}
-        {COMPANY.vatNumber && <span>{t('الرقم الضريبي', 'VAT')} <bdi>{COMPANY.vatNumber}</bdi></span>}
-        {address && <span>{address}</span>}
+        {/* Nader, 2026-10-08: the brand only; the company's legal details stay on invoices and the legal pages. */}
+        <span>© {year} {t('تجربة', 'Tajribah')}</span>
         <ConsentLink />
       </div>
     </footer>

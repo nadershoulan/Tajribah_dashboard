@@ -37,7 +37,7 @@ test('the HTML inspector names what is wrong', () => {
   assert.deepEqual(inspectHtml(script('other-store') + div('1'), 'failet'), { status: 'wrong_store', detail: 'other-store' });
   assert.equal(inspectHtml(script('failet'), 'failet').status, 'missing_placeholder');
   assert.equal(inspectHtml(script('failet') + div(''), 'failet').status, 'template_not_rendered');
-  assert.equal(inspectHtml(`<script src="https://cdn.tajribah.com/w/v2/widget.js" ${ATTR.store}='failet'></script>` + div('9'), 'failet').status, 'installed', 'a later widget version counts too');
+  assert.equal(inspectHtml(`<script src="https://cdn.tajribah.org/w/v2/widget.js" ${ATTR.store}='failet'></script>` + div('9'), 'failet').status, 'installed', 'a later widget version counts too');
 });
 
 test('the URL guard: https, public domains only, and the store\'s own once connected', () => {

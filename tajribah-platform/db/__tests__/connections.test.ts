@@ -78,7 +78,7 @@ test('boot: the database from the environment or Hyperdrive; production refuses 
   assert.equal(isDbRegistered(), true, 'Hyperdrive bindings');
 
   const PRODUCTION = { ...BASE, NODE_ENV: 'production', APP_URL: 'https://app.tajribah.sa', SMS_PROVIDER: 'unifonic', UNIFONIC_APP_SID: 'x', UNIFONIC_SENDER_ID: 'Tajribah',
-    STORAGE_PROVIDER: 'r2', CDN_BASE_URL: 'https://cdn.tajribah.com', CONFIG_STORE: 'kv', RATE_LIMITER: 'kv', JOBS_MODE: 'cf-queue' };
+    STORAGE_PROVIDER: 'r2', CDN_BASE_URL: 'https://cdn.tajribah.org', CONFIG_STORE: 'kv', RATE_LIMITER: 'kv', JOBS_MODE: 'cf-queue' };
   const BINDINGS = { BUCKET: {}, CONFIGS: {}, RATE_LIMITS: {}, JOBS: { send: async () => {} } };
   resetEnv(); clearDb();
   assert.throws(() => bootstrap({ ...PRODUCTION, ...BINDINGS }), /no database/);

@@ -59,7 +59,7 @@ function Site() {
     <div className="ops">
       {notice && <p role="status" className="plan-notice">{notice}</p>}
       <Panel title={t('Google Analytics للموقع', 'Website Google Analytics')}
-        sub={t('موقع تجربة (tajribah.sa) — ليس صفحات المتاجر. شريط موافقة بالعربية أولًا، والإعلانات مرفوضة دائمًا.', 'The Tajribah website (tajribah.sa) — not stores’ pages. An Arabic-first consent banner; advertising always denied.')}>
+        sub={t('موقع تجربة (tajribah.org) — ليس صفحات المتاجر. شريط موافقة بالعربية أولًا، والإعلانات مرفوضة دائمًا.', 'The Tajribah website (tajribah.sa) — not stores’ pages. An Arabic-first consent banner; advertising always denied.')}>
         <form onSubmit={save} noValidate>
           <Ga4Field id="site-ga4" value={id} onChange={(v) => { setId(v); setNotice(null); }} error={fieldError} picker={auth.admin.ga4Picker} />
           <p className="hint" style={{ marginTop: 0 }}>

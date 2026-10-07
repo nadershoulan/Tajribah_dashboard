@@ -21,8 +21,8 @@ test('the page’s batch is one the collector accepts: the product, the page, ho
   assert.ok(parsed.ok, parsed.ok ? '' : parsed.reason);
   assert.deepEqual(parsed.ok && parsed.batch.events[0], { type: 'product_view', t: 0, productId: 'sa-123', properties: { surface: 'page', via: 'qr' } });
   assert.ok(parseBatch(pageBatch('oud', 'sa-123', 'ar_open', 'link', 'AbCdEfGhIjKlMnOpQrSt', 1)).ok);
-  assert.equal(EVENTS_ENDPOINT, 'https://ev.tajribah.com/v1/e', 'the widget’s collector');
-  assert.match(site('../tajribah-platform/widget/src/main.ts'), /DEFAULT_EVENTS = 'https:\/\/ev\.tajribah\.com\/v1\/e'/, 'the same address as the widget');
+  assert.equal(EVENTS_ENDPOINT, 'https://ev.tajribah.org/v1/e', 'the widget’s collector');
+  assert.match(site('../tajribah-platform/widget/src/main.ts'), /DEFAULT_EVENTS = 'https:\/\/ev\.tajribah.org\/v1\/e'/, 'the same address as the widget');
 });
 
 test('how it was reached, and no tracking when the browser says so', () => {
@@ -40,5 +40,5 @@ test('the page counts a visit once, and an AR placement; the policy lets it reac
   assert.match(page, /if \(state\.kind !== 'ready' \|\| counted\.current\) return;/, 'once, and only for a product that is there');
   assert.match(page, /trackPage\(store, product, 'product_view'/);
   assert.match(page, /trackPage\(store, product, 'ar_open'/);
-  assert.ok(pageCsp('x').includes('https://ev.tajribah.com'));
+  assert.ok(pageCsp('x').includes('https://ev.tajribah.org'));
 });

@@ -1,6 +1,6 @@
 # One domain and its subdomains — and testing the QR on your Wi-Fi
 
-Tajribah runs on **one domain, `tajribah.com`**, with a few subdomains for the parts that must live
+Tajribah runs on **one domain, `tajribah.org`**, with a few subdomains for the parts that must live
 apart. This page says what each address serves, how to set them up, and how to test everything —
 including scanning QR codes with your phone — on your own computer first.
 
@@ -8,27 +8,27 @@ including scanning QR codes with your phone — on your own computer first.
 
 | Address | What it serves | Why it is separate |
 |---|---|---|
-| **`tajribah.com`** | Everything a person opens: the website (`/`), sign-in (`/login`), the dashboard (`/dashboard`), the staff console (`/admin`), products' own pages (`/p/{store}/{product}`), the try-on that opens over a shop (`/embed/try-on`), the phone page for "try it on me" (`/capture/…`), and the API (`/api/…`) | — one Worker, one deploy |
-| **`cdn.tajribah.com`** | Files: 3D models, try-on pictures, the shop script (`/w/v1/widget.js`) | Cached for a long time, close to shoppers; no cookies |
-| **`cfg.tajribah.com`** | Each published product's settings (`/v1/{store}/{product}.json`), read by shops millions of times | Must never wait on the database; a tiny Worker reading KV |
-| **`ev.tajribah.com`** | Shop visits and clicks (`/v1/e`) | Shops send to it from every page; kept off the main domain |
-| **`domains.tajribah.com`** | Nothing to open — the name an Enterprise store points its own domain at (CNAME) | The target for stores' own addresses (T62) |
+| **`tajribah.org`** | Everything a person opens: the website (`/`), sign-in (`/login`), the dashboard (`/dashboard`), the staff console (`/admin`), products' own pages (`/p/{store}/{product}`), the try-on that opens over a shop (`/embed/try-on`), the phone page for "try it on me" (`/capture/…`), and the API (`/api/…`) | — one Worker, one deploy |
+| **`cdn.tajribah.org`** | Files: 3D models, try-on pictures, the shop script (`/w/v1/widget.js`) | Cached for a long time, close to shoppers; no cookies |
+| **`cfg.tajribah.org`** | Each published product's settings (`/v1/{store}/{product}.json`), read by shops millions of times | Must never wait on the database; a tiny Worker reading KV |
+| **`ev.tajribah.org`** | Shop visits and clicks (`/v1/e`) | Shops send to it from every page; kept off the main domain |
+| **`domains.tajribah.org`** | Nothing to open — the name an Enterprise store points its own domain at (CNAME) | The target for stores' own addresses (T62) |
 | a store's own domain (Enterprise) | That store's try-on and products' pages only, e.g. `ar.oud.sa/p/…` | Its own name on its own pages |
 
-One Worker serves `tajribah.com`. `cfg.` is its own small Worker, `cdn.` is the storage bucket, and `ev.`
+One Worker serves `tajribah.org`. `cfg.` is its own small Worker, `cdn.` is the storage bucket, and `ev.`
 is a route to the main Worker. The code's defaults already use these names, so nothing needs setting
 for them unless you choose others.
 
 ### Setting it up (when the domain is bought)
 
 The step-by-step with checks is `docs/GO-LIVE.md`. In short:
-1. Add `tajribah.com` to Cloudflare.
-2. Point **`tajribah.com`** at the main Worker. Set `APP_URL=https://tajribah.com` and
-   `SITE_HOSTS=tajribah.com`.
-3. Give the storage bucket the custom domain **`cdn.tajribah.com`**. Set `CDN_BASE_URL` to it.
-4. Deploy the config Worker on **`cfg.tajribah.com`**, bound to the same KV namespace (`CONFIGS`).
-5. Route **`ev.tajribah.com/v1/e`** to the main Worker.
-6. Products' own pages: `HOSTED_PAGE_BASE=https://tajribah.com/p` (the default). If you later buy a
+1. Add `tajribah.org` to Cloudflare.
+2. Point **`tajribah.org`** at the main Worker. Set `APP_URL=https://tajribah.org` and
+   `SITE_HOSTS=tajribah.org`.
+3. Give the storage bucket the custom domain **`cdn.tajribah.org`**. Set `CDN_BASE_URL` to it.
+4. Deploy the config Worker on **`cfg.tajribah.org`**, bound to the same KV namespace (`CONFIGS`).
+5. Route **`ev.tajribah.org/v1/e`** to the main Worker.
+6. Products' own pages: `HOSTED_PAGE_BASE=https://tajribah.org/p` (the default). If you later buy a
    short domain for QR codes, point it at the main Worker and set `HOSTED_PAGE_BASE` to it **before**
    any code is printed. A printed code never changes, which is why the dashboard only offers codes to
    print once the address is final.
@@ -48,14 +48,14 @@ everything works with no Cloudflare account:
 
 | Live | On your computer |
 |---|---|
-| `tajribah.com` | `http://127.0.0.1:8799` (the same Worker, built the same way) |
-| `cdn.tajribah.com` | `http://127.0.0.1:8333/tajribah-local` (SeaweedFS, an S3 server) |
-| `cfg.tajribah.com` | `http://127.0.0.1:8799/v1/…`: the main Worker answers it, **on a local address only** |
-| `ev.tajribah.com` | `http://127.0.0.1:8799/v1/e` (the same route) |
+| `tajribah.org` | `http://127.0.0.1:8799` (the same Worker, built the same way) |
+| `cdn.tajribah.org` | `http://127.0.0.1:8333/tajribah-local` (SeaweedFS, an S3 server) |
+| `cfg.tajribah.org` | `http://127.0.0.1:8799/v1/…`: the main Worker answers it, **on a local address only** |
+| `ev.tajribah.org` | `http://127.0.0.1:8799/v1/e` (the same route) |
 
 These local stand-ins switch on only for addresses that can't be a public site: `localhost`,
 `127.0.0.1`, and private Wi-Fi addresses (`192.168.x.x`, `10.x.x.x`, `172.16–31.x.x`). On
-`tajribah.com` none of them exist.
+`tajribah.org` none of them exist.
 
 ## 3. Testing the QR with your phone
 

@@ -36,7 +36,7 @@ test('the website reads the id staff set from the config host — once a minute,
   const fetchImpl = (async (url: string) => { asked.push(url); return answer(); }) as unknown as typeof fetch;
   const t0 = Date.UTC(2026, 9, 4);
 
-  assert.equal(SITE_SETTINGS_URL, 'https://cfg.tajribah.com/v1/_site/settings.json');
+  assert.equal(SITE_SETTINGS_URL, 'https://cfg.tajribah.org/v1/_site/settings.json');
   assert.equal(await siteGaId(fetchImpl, t0), 'G-TAJ1234567');
   assert.equal(await siteGaId(fetchImpl, t0 + 30_000), 'G-TAJ1234567');
   assert.equal(asked.length, 1, 'within a minute, not asked again');
@@ -108,7 +108,7 @@ test('Google’s script is fetched only after the visitor accepts — the websit
 
 test('a store’s GA4 id reaches its product page only as a real measurement id', () => {
   const config = (ga4: unknown) => ({
-    v: 1, product: { name: 'Oud lamp' }, placement: 'floor', model: { glb: 'https://cdn.tajribah.com/m.glb' },
+    v: 1, product: { name: 'Oud lamp' }, placement: 'floor', model: { glb: 'https://cdn.tajribah.org/m.glb' },
     page: { store: { name: 'Oud', nameAr: 'عود' }, shopUrl: null, poweredBy: true, host: null, ga4 },
   });
   assert.equal(hostedProductFrom(config('G-OUD7654321'))?.ga4, 'G-OUD7654321');
@@ -132,7 +132,7 @@ test('the widget hands its moments to the GA4 a shop already runs — gtag, else
   const gtagCalls: unknown[][] = [];
   const withGtag = { gtag: (...a: unknown[]) => { gtagCalls.push(a); } };
   const tracker = (consent: 'granted' | 'required', doNotTrack = false, win: object = withGtag) => createTracker({
-    endpoint: 'https://ev.tajribah.com/v1/e', store: 'oud', sdk: 't', now: () => 1000, session: 's'.repeat(22),
+    endpoint: 'https://ev.tajribah.org/v1/e', store: 'oud', sdk: 't', now: () => 1000, session: 's'.repeat(22),
     consent, doNotTrack, forward: shopAnalytics(win as never),
   });
 

@@ -2,7 +2,7 @@
 
 **No Docker is needed** for any of it. Everything below has been run on this Windows machine.
 
-Everything is one app, `tajribah-platform`: the website (tajribah.com) and the try-on studio shoppers
+Everything is one app, `tajribah-platform`: the website (tajribah.org) and the try-on studio shoppers
 open (`site/`, pages at `/`), the merchant dashboard (`/dashboard`), the staff console (`/admin`), the
 API and the shop widget. (`tajribah-try-on` is the website's old copy, kept only until it is deleted.)
 
@@ -155,7 +155,7 @@ pixels, heatmaps and Cloudflare's beacon are blocked before they start. «منت
 Apple Pay cannot show here (it needs https).
 
 Only for this computer: the button's settings come from your local dashboard. On the real store, nothing here is used: the
-tag in your Tag Manager container loads Tajribah's widget from `cdn.tajribah.com` once it is live (GO-LIVE §1).
+tag in your Tag Manager container loads Tajribah's widget from `cdn.tajribah.org` once it is live (GO-LIVE §1).
 
 ## The checks
 

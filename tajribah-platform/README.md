@@ -45,4 +45,4 @@ GitHub runs the same on every push.
 Failet as an illustrative Saudi watch store — an example, not a customer. Nothing in the product ships
 with invented numbers: a figure without data shows `—`.
 
-Addresses: one domain, `tajribah.com`, with `cdn.`, `cfg.` and `ev.` subdomains — `docs/DOMAINS.md` (also how to test the QR with a phone on your Wi-Fi).
+Addresses: one domain, `tajribah.org`, with `cdn.`, `cfg.` and `ev.` subdomains — `docs/DOMAINS.md` (also how to test the QR with a phone on your Wi-Fi).

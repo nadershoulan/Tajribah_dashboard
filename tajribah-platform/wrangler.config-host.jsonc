@@ -1,8 +1,8 @@
-// P1.15 — the config host Worker (cfg.tajribah.com): server/core/edge/config-worker.ts over the
+// P1.15 — the config host Worker (cfg.tajribah.org): server/core/edge/config-worker.ts over the
 // CONFIGS KV namespace the dashboard publishes into. Deployed on its own, so the shopper's path
 // never shares a Worker, or a failure, with the dashboard.
 // Before the first deploy (Cloudflare account): create the namespace, put its id below (the same
-// one bound as CONFIGS to the dashboard Worker), and route cfg.tajribah.com/v1/* to this Worker.
+// one bound as CONFIGS to the dashboard Worker), and route cfg.tajribah.org/v1/* to this Worker.
 {
   "name": "tajribah-config-host",
   "main": "server/core/edge/config-worker.ts",

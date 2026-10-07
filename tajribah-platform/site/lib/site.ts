@@ -29,7 +29,7 @@ export const COMPANY = {
    * confirmed yet: set NEXT_PUBLIC_SITE_URL at deploy; the default is a guess until then.
    */
   // `typeof` guard: the static preview's browser bundle has no `process`.
-  siteUrl: ((typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SITE_URL) || 'https://tajribah.com').replace(/\/$/, ''),
+  siteUrl: ((typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SITE_URL) || 'https://tajribah.org').replace(/\/$/, ''),
   /**
    * The merchant dashboard — sign-up and sign-in. The same app since the website moved into the
    * platform, so links are on this site ('' → `/register`); NEXT_PUBLIC_APP_URL still overrides it
@@ -38,9 +38,9 @@ export const COMPANY = {
   appUrl: ((typeof process !== 'undefined' && process.env.NEXT_PUBLIC_APP_URL) || '').replace(/\/$/, ''),
   /**
    * The storefront script, exactly as the dashboard's install page gives it (`widget/src/main.ts`
-   * WIDGET_SRC in tajribah-platform — its test checks this line). Services stay on tajribah.com (T29).
+   * WIDGET_SRC in tajribah-platform — its test checks this line). Services stay on tajribah.org (T29).
    */
-  widgetSrc: 'https://cdn.tajribah.com/w/v1/widget.js',
+  widgetSrc: 'https://cdn.tajribah.org/w/v1/widget.js',
   legalUpdated: { ar: '3 أكتوبر 2026', en: '3 October 2026' } as Bi,
 };
 

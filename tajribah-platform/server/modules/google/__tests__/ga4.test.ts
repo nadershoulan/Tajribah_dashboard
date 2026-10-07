@@ -179,7 +179,7 @@ test('staff set the website’s GA4 id: it reaches the config store the website 
 
     const saved = await updateSiteSettings(staff, { ga4MeasurementId: ' g-taj1234567 ', reason: 'the website property is ready' });
     assert.equal(saved.ga4MeasurementId, 'G-TAJ1234567', 'as Google writes it');
-    const served = await serveConfig(new Request(`https://cfg.tajribah.com/v1/${SITE_SETTINGS_KEY}`), configs);
+    const served = await serveConfig(new Request(`https://cfg.tajribah.org/v1/${SITE_SETTINGS_KEY}`), configs);
     assert.equal(served.status, 200, 'the config host answers the website');
     assert.deepEqual(await served.json(), { v: 1, ga4: 'G-TAJ1234567' });
 

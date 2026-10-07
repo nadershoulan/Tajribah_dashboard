@@ -25,7 +25,7 @@ import { DEFAULT_TRYON, tryOnBase, tryOnUrl } from '@/widget/src/tryon';
 
 setLogLevel('error');
 resetEnv();
-loadEnv({ APP_URL: 'https://app.tajribah.com', AUTH_SECRET: 's'.repeat(40), ENCRYPTION_KEY: 'e'.repeat(40) });
+loadEnv({ APP_URL: 'https://app.tajribah.org', AUTH_SECRET: 's'.repeat(40), ENCRYPTION_KEY: 'e'.repeat(40) });
 
 class CdnStorage extends MemoryStorage {
   publicUrl(k: string) { return `https://cdn.example.test/${k}`; }
@@ -39,7 +39,7 @@ function dns(hostname: string, token: string | null) {
     const type = url.searchParams.get('type')!;
     if (!token) return Response.json({ Status: 3 });
     if (type === 'TXT' && name === `_tajribah-verify.${hostname}`) return Response.json({ Status: 0, Answer: [{ name, type: 16, data: `"${token}"` }] });
-    if (type === 'CNAME' && name === hostname) return Response.json({ Status: 0, Answer: [{ name, type: 5, data: 'domains.tajribah.com.' }] });
+    if (type === 'CNAME' && name === hostname) return Response.json({ Status: 0, Answer: [{ name, type: 5, data: 'domains.tajribah.org.' }] });
     return Response.json({ Status: 0 });
   }) as typeof fetch;
 }

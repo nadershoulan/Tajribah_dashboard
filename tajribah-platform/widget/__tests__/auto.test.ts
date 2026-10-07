@@ -150,7 +150,7 @@ test('found by its page, the product is reported under its own ref — the one t
   (globalThis as { document?: unknown }).document = { createElement: (tag: string) => new FakeElement(tag) };
   try {
     const { mount } = await import('../src/main');
-    const drawn = await mount(doc as never, { store: 'failet', configBase: 'https://cfg.example.test/v1', viewer: '', events: '', consent: 'granted', tryon: 'https://tajribah.com/embed/try-on' },
+    const drawn = await mount(doc as never, { store: 'failet', configBase: 'https://cfg.example.test/v1', viewer: '', events: '', consent: 'granted', tryon: 'https://tajribah.org/embed/try-on' },
       (async (url: string) => { asked.push(String(url)); return Response.json({ ...GOOD, ref: '244167095' }); }) as typeof fetch,
       { track: (e: { type: string; productId?: string }) => { events.push(e); } } as never);
     assert.equal(drawn, 1);

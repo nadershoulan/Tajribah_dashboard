@@ -30,8 +30,8 @@ import { errors, isUniqueViolation } from '@/server/core/errors/problem';
 import type { TenantContext } from '@/server/core/tenancy/context';
 
 export const VERIFY_LABEL = '_tajribah-verify';
-export const DEFAULT_TARGET = 'domains.tajribah.com';
-const OURS = ['tajribah.sa', 'tajribah.com'];
+export const DEFAULT_TARGET = 'domains.tajribah.org';
+const OURS = ['tajribah.org', 'tajribah.com', 'tajribah.sa']; // ours, and the names used before tajribah.org
 const LABEL = /^(?!-)[a-z0-9-]{1,63}(?<!-)$/;
 
 /** Where a store's CNAME must point: Tajribah's address for custom domains. */

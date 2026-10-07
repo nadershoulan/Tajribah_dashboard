@@ -1,5 +1,5 @@
 /**
- * P4.2 — the event collector: `POST /api/analytics/collect` (served at `ev.tajribah.com/v1/e`).
+ * P4.2 — the event collector: `POST /api/analytics/collect` (served at `ev.tajribah.org/v1/e`).
  *
  * A public endpoint by nature: the batch comes from a browser in someone else's shop, with a
  * store key anyone can read in the page. Nothing here authenticates — it is defended instead,

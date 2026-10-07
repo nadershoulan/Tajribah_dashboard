@@ -91,7 +91,7 @@ test('as vinext serves them: first matching rule wins per header, and the home p
   // one segment or more — so `/` needs its own rule (found on the try-on site's build, P5.12).
   const served = (path: string) => {
     const out = new Map<string, string>();
-    for (const h of matchHeaders(path, rules as never, { headers: new Headers(), cookies: {}, query: new URLSearchParams(), host: 'app.tajribah.com' } as never)) if (!out.has(h.key.toLowerCase())) out.set(h.key.toLowerCase(), h.value);
+    for (const h of matchHeaders(path, rules as never, { headers: new Headers(), cookies: {}, query: new URLSearchParams(), host: 'app.tajribah.org' } as never)) if (!out.has(h.key.toLowerCase())) out.set(h.key.toLowerCase(), h.value);
     return out;
   };
   for (const path of ['/', '/dashboard', '/dashboard/tryon', '/admin', '/brand/logo.png', '/api/tryon', '/demo', '/embed/try-on', '/p/oud/sa-77']) {
@@ -110,8 +110,8 @@ test('as vinext serves them: first matching rule wins per header, and the home p
 test('the website’s pages keep the website’s policy; the dashboard’s keep the dashboard’s (the website moved in)', async () => {
   const policy = async (path: string) => (await proxy(new NextRequest(`https://tajribah.sa${path}`))).headers.get('content-security-policy') ?? '';
   // The website's: the config host for the try-on, and /embed framed by any https shop.
-  for (const path of ['/', '/pricing', '/demo', '/p/oud/sa-77']) assert.match(directive(await policy(path), 'connect-src'), /cfg\.tajribah\.com/, path);
+  for (const path of ['/', '/pricing', '/demo', '/p/oud/sa-77']) assert.match(directive(await policy(path), 'connect-src'), /cfg\.tajribah.org/, path);
   assert.equal(directive(await policy('/embed/try-on'), 'frame-ancestors'), "frame-ancestors 'self' https:", 'any https shop, and (T85) the dashboard on this same address');
   // The dashboard's: none of the website's hosts.
-  for (const path of ['/dashboard', '/login', '/admin']) assert.doesNotMatch(directive(await policy(path), 'connect-src'), /cfg\.tajribah\.com/, path);
+  for (const path of ['/dashboard', '/login', '/admin']) assert.doesNotMatch(directive(await policy(path), 'connect-src'), /cfg\.tajribah.org/, path);
 });

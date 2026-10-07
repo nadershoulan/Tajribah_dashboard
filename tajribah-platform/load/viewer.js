@@ -1,7 +1,7 @@
 // P7 load test 1 of 5 — the viewer path (plan §8): 5,000 requests a second against the edge
 // config and the CDN, for 10 minutes. What a shop's product page costs us, at launch-day scale.
 //
-//   k6 run load/viewer.js -e CFG_BASE=https://cfg.tajribah.com -e TARGETS=store/ref,store/ref2
+//   k6 run load/viewer.js -e CFG_BASE=https://cfg.tajribah.org -e TARGETS=store/ref,store/ref2
 //
 // Each iteration is one shopper opening a product page: the widget reads the product's config
 // (`/v1/{store}/{ref}.json`); if it names a model, the viewer starts downloading it. The
@@ -10,7 +10,7 @@
 import http from 'k6/http';
 import { check } from 'k6';
 
-const CFG_BASE = __ENV.CFG_BASE || 'https://cfg.tajribah.com';
+const CFG_BASE = __ENV.CFG_BASE || 'https://cfg.tajribah.org';
 const TARGETS = (__ENV.TARGETS || '').split(',').map((s) => s.trim()).filter(Boolean);
 const RATE = Number(__ENV.RATE || 5000);
 const DURATION = __ENV.DURATION || '10m';

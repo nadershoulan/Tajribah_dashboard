@@ -18,10 +18,10 @@ k6 is a single binary (`k6 run …`); nothing here is installed by `pnpm install
 
 ```sh
 # 1 — viewer path (TARGETS: store/product-ref pairs with a published config)
-k6 run load/viewer.js -e CFG_BASE=https://cfg.tajribah.com -e TARGETS=failet/820241410,failet/820241411
+k6 run load/viewer.js -e CFG_BASE=https://cfg.tajribah.org -e TARGETS=failet/820241410,failet/820241411
 
 # 2 — event ingest (STORES: test store keys; see the note in the script about the per-store limit)
-k6 run load/ingest.js -e EV_BASE=https://ev.tajribah.com -e STORES=load-01,load-02,…
+k6 run load/ingest.js -e EV_BASE=https://ev.tajribah.org -e STORES=load-01,load-02,…
 
 # 3 — dashboard (ACCOUNTS: a JSON file of staging test merchants, one per virtual user)
 k6 run load/dashboard.js -e APP_BASE=https://staging.app.tajribah.sa -e ACCOUNTS=./accounts.json

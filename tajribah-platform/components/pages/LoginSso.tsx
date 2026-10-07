@@ -68,7 +68,7 @@ export default function LoginSso() {
                 <div className="field">
                   <label htmlFor="store">{t('عنوان متجرك', 'Your store’s address')}</label>
                   <div dir="ltr" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span className="hint" style={{ margin: 0 }}>app.tajribah.sa/</span>
+                    <span className="hint" style={{ margin: 0 }}>tajribah.org/dashboard/</span>
                     <input id="store" name="store" dir="ltr" value={store} onChange={(e) => setStore(e.target.value)} placeholder="your-store" autoComplete="organization" maxLength={120} style={{ flex: 1, minWidth: 0 }} />
                   </div>
                 </div>

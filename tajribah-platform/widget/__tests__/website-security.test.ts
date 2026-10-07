@@ -21,7 +21,7 @@ test('scripts run only by the page’s nonce; WebAssembly compiles, JavaScript e
   assert.deepEqual(d['object-src'], ["'none'"]);
   assert.deepEqual(d['base-uri'], ["'self'"]);
   assert.deepEqual(d['form-action'], ["'self'"]);
-  assert.deepEqual(d['connect-src'], ["'self'", 'blob:', 'data:', 'https://cfg.tajribah.com', 'https://cdn.tajribah.com', 'https://ev.tajribah.com'], 'the config host, the file host and the collector, nothing else');
+  assert.deepEqual(d['connect-src'], ["'self'", 'blob:', 'data:', 'https://cfg.tajribah.org', 'https://cdn.tajribah.org', 'https://ev.tajribah.org'], 'the config host, the file host and the collector, nothing else');
   assert.notEqual(newNonce(), newNonce());
   assert.equal(atob(newNonce()).length, 16, '128 bits');
 });
@@ -55,7 +55,7 @@ test('T68 analytics: Google may be reached only when a GA4 id is set, and never 
 test('T82: a phone on the same Wi-Fi counts as this computer — a private address only, never a public one', async () => {
   const { isLocalHost, isPrivateLanAddress } = await import('@site/lib/tryon-config');
   for (const host of ['localhost', '127.0.0.1', '192.168.1.20', '10.0.0.5', '172.16.0.9', '172.31.255.1']) assert.equal(isLocalHost(host), true, host);
-  for (const host of ['8.8.8.8', '172.32.0.1', '172.15.0.1', '192.169.1.1', '11.0.0.1', '192.168.1.300', 'tajribah.com', '192.168.1.20.evil.com', '10.0.0.5.nip.io']) assert.equal(isLocalHost(host), false, host);
+  for (const host of ['8.8.8.8', '172.32.0.1', '172.15.0.1', '192.169.1.1', '11.0.0.1', '192.168.1.300', 'tajribah.org', '192.168.1.20.evil.com', '10.0.0.5.nip.io']) assert.equal(isLocalHost(host), false, host);
   assert.equal(isPrivateLanAddress('localhost'), false, 'a name is not a Wi-Fi address');
   const lan = directives(pageCsp('x', { local: true, lanHost: '192.168.1.20' }));
   assert.ok(lan['connect-src']!.includes('http://192.168.1.20:*') && lan['img-src']!.includes('http://192.168.1.20:*'), 'its own servers at that address');

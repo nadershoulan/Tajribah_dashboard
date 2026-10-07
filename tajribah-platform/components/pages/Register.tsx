@@ -120,7 +120,7 @@ export default function Register() {
               <input id="storeName" value={storeName} onChange={(e) => setStoreName(e.target.value)} required />
               {slug && (
                 <span className="field-hint" dir="ltr">
-                  tajribah.sa/{slug}
+                  tajribah.org/{slug}
                 </span>
               )}
               {needsConfirmation && (

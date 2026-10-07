@@ -9,7 +9,7 @@ import { parseConfig } from '../src/config';
 import { CLOSE_MESSAGE, DEFAULT_TRYON, isCloseFrom, tryOnUrl, warmTryOn } from '../src/tryon';
 import { GOOD } from './fixtures';
 
-const TRYON = { worn: 'https://cdn.tajribah.com/t/store/w/worn.png', flat: 'https://cdn.tajribah.com/t/store/w/flat.png', caseMm: 38, sku: 'SFW-38' };
+const TRYON = { worn: 'https://cdn.tajribah.org/t/store/w/worn.png', flat: 'https://cdn.tajribah.org/t/store/w/flat.png', caseMm: 38, sku: 'SFW-38' };
 const withTryOn = (tryon: unknown) => ({ ...GOOD, placement: 'wrist', tryon });
 
 test('the try-on block: kept when right; anything off turns try-on off and leaves the AR button', () => {
@@ -41,12 +41,12 @@ test('the frame’s address: store and product as keys, the page language, the s
 
 test('only our frame closes it', () => {
   const frame = {};
-  const ok = { origin: 'https://tajribah.com', source: frame, data: { type: CLOSE_MESSAGE } };
-  assert.equal(isCloseFrom(ok, 'https://tajribah.com', frame), true);
-  assert.equal(isCloseFrom({ ...ok, origin: 'https://evil.example' }, 'https://tajribah.com', frame), false, 'another origin');
-  assert.equal(isCloseFrom({ ...ok, source: {} }, 'https://tajribah.com', frame), false, 'another window, even on our origin');
-  assert.equal(isCloseFrom({ ...ok, data: { type: 'other' } }, 'https://tajribah.com', frame), false);
-  assert.equal(isCloseFrom({ ...ok, data: CLOSE_MESSAGE }, 'https://tajribah.com', frame), false);
+  const ok = { origin: 'https://tajribah.org', source: frame, data: { type: CLOSE_MESSAGE } };
+  assert.equal(isCloseFrom(ok, 'https://tajribah.org', frame), true);
+  assert.equal(isCloseFrom({ ...ok, origin: 'https://evil.example' }, 'https://tajribah.org', frame), false, 'another origin');
+  assert.equal(isCloseFrom({ ...ok, source: {} }, 'https://tajribah.org', frame), false, 'another window, even on our origin');
+  assert.equal(isCloseFrom({ ...ok, data: { type: 'other' } }, 'https://tajribah.org', frame), false);
+  assert.equal(isCloseFrom({ ...ok, data: CLOSE_MESSAGE }, 'https://tajribah.org', frame), false);
 });
 
 test('P5.12: a try-on button warms the studio host once — its origin only, nothing about the product', () => {
@@ -60,7 +60,7 @@ test('P5.12: a try-on button warms the studio host once — its origin only, not
   };
   assert.equal(warmTryOn(doc, DEFAULT_TRYON), true);
   assert.equal(warmTryOn(doc, `${DEFAULT_TRYON}?store=s&product=p`), false, 'once per page');
-  assert.deepEqual(links, [{ rel: 'preconnect', href: 'https://tajribah.com' }], 'the website, where the try-on lives (T29)');
+  assert.deepEqual(links, [{ rel: 'preconnect', href: 'https://tajribah.org' }], 'the website, where the try-on lives (T29)');
   assert.equal(warmTryOn(doc, 'not a url'), false);
   assert.equal(warmTryOn({ ...doc, head: null }, DEFAULT_TRYON), false, 'no head, no harm');
   assert.equal(links.length, 1);
@@ -109,7 +109,7 @@ test('T100: the try-on opens in a window over the product page, in a layer of it
   try {
     const { openTryOn, POPUP_STYLE, SHOWN_MESSAGE } = await import('../src/tryon');
     const buttonRoot = new El('#shadow');
-    openTryOn(buttonRoot as never, 'https://tajribah.com/embed/try-on?store=failet&product=244167095&lang=ar', 'ar', 'ساعة رجالية');
+    openTryOn(buttonRoot as never, 'https://tajribah.org/embed/try-on?store=failet&product=244167095&lang=ar', 'ar', 'ساعة رجالية');
     assert.equal(buttonRoot.children.length, 0, 'not under the button: a store’s sticky column or header could draw over it there');
     const layer = body.children[0]!;
     assert.ok(layer.attrs.has('data-tajribah-popup') && layer.shadow, 'its own layer at the end of the page, isolated');
@@ -120,13 +120,13 @@ test('T100: the try-on opens in a window over the product page, in a layer of it
     const sheet = overlay.children[0]!;
     assert.equal(sheet.className, 'tryon-sheet');
     assert.deepEqual(sheet.children.map((c) => [c.tag, c.className]), [['iframe', ''], ['button', 'tryon-close']], 'the studio and our close button, in the window');
-    assert.equal(sheet.children[0]!.src, 'https://tajribah.com/embed/try-on?store=failet&product=244167095&lang=ar&view=popup', 'the studio’s popup view: the shopper is on the product page already');
+    assert.equal(sheet.children[0]!.src, 'https://tajribah.org/embed/try-on?store=failet&product=244167095&lang=ar&view=popup', 'the studio’s popup view: the shopper is on the product page already');
     assert.equal(body.style.overflow, 'hidden', 'the page behind does not scroll');
     const [frame, close] = sheet.children as [El, El];
     onMessage!({ origin: 'https://evil.example', source: frame.contentWindow, data: { type: SHOWN_MESSAGE } });
-    onMessage!({ origin: 'https://tajribah.com', source: {}, data: { type: SHOWN_MESSAGE } });
+    onMessage!({ origin: 'https://tajribah.org', source: {}, data: { type: SHOWN_MESSAGE } });
     assert.notEqual(close.style.display, 'none', 'only our frame can say its page is up');
-    onMessage!({ origin: 'https://tajribah.com', source: frame.contentWindow, data: { type: SHOWN_MESSAGE } });
+    onMessage!({ origin: 'https://tajribah.org', source: frame.contentWindow, data: { type: SHOWN_MESSAGE } });
     assert.equal(close.style.display, 'none', 'the studio’s own close is up: our backup close steps aside');
     overlay.fire('click', { target: sheet });
     assert.equal(body.children.length, 1, 'a tap inside the window keeps it open');
@@ -155,7 +155,7 @@ test('T103: with the store’s cart, the window’s foot offers the product and 
   try {
     const { openTryOn } = await import('../src/tryon');
     const events: string[] = [];
-    openTryOn(new El('#shadow') as never, 'https://tajribah.com/embed/try-on?store=failet&product=235186172&lang=ar', 'ar', 'ساعة رجالية', {
+    openTryOn(new El('#shadow') as never, 'https://tajribah.org/embed/try-on?store=failet&product=235186172&lang=ar', 'ar', 'ساعة رجالية', {
       name: 'ساعة رجالية فضي', price: '96 ر.س', add: () => { events.push(`added, popup open: ${body.children.length === 1}`); },
     });
     const sheet = body.children[0]!.shadow!.children[1]!.children[0]!;
@@ -168,13 +168,13 @@ test('T103: with the store’s cart, the window’s foot offers the product and 
     add.fire('click', {});
     assert.deepEqual(events, ['added, popup open: false'], 'the window is gone before the store’s own button is pressed: its cart and messages are seen');
 
-    openTryOn(new El('#shadow') as never, 'https://tajribah.com/embed/try-on?store=failet&product=1&lang=en', 'en', 'Watch', { name: 'Watch', price: null, add() {} });
+    openTryOn(new El('#shadow') as never, 'https://tajribah.org/embed/try-on?store=failet&product=1&lang=en', 'en', 'Watch', { name: 'Watch', price: null, add() {} });
     const plain = body.children[0]!.shadow!.children[1]!.children[0]!;
     assert.deepEqual(plain.children[2]!.children[0]!.children.map((c) => c.className), ['tryon-cart-name'], 'no price read: the name alone');
     assert.equal(plain.children[2]!.children[1]!.textContent, 'Add to cart');
     body.children[0]!.remove();
 
-    openTryOn(new El('#shadow') as never, 'https://tajribah.com/embed/try-on?store=failet&product=1&lang=ar', 'ar', 'Watch');
+    openTryOn(new El('#shadow') as never, 'https://tajribah.org/embed/try-on?store=failet&product=1&lang=ar', 'ar', 'Watch');
     const none = body.children[0]!.shadow!.children[1]!.children[0]!;
     assert.deepEqual([none.className, none.children.length], ['tryon-sheet', 2], 'no store cart (not a Salla page): no foot');
   } finally {

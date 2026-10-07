@@ -1,6 +1,6 @@
 # تجربة Tajribah — website and try-on studio
 
-The Arabic-first website that sells Tajribah (tajribah.sa), and the try-on studio that shoppers open
+The Arabic-first website that sells Tajribah (tajribah.org), and the try-on studio that shoppers open
 from a store's product page. Arabic is the default language; English is remembered in the
 `tajribah-lang` cookie. Failet appears only as a labelled, illustrative example store.
 

@@ -177,7 +177,7 @@ test('the whole path: the SDK’s batches → the collector → the queued job �
       const tracker = createTracker({ endpoint: 'x', store: 'oud-shop', sdk: '1.0.0', session, now: () => 1_790_000_000_000, beacon: () => true, onSend: (batch) => { wire = JSON.stringify(batch); } });
       for (const input of inputs) tracker.track(input);
       tracker.flush();
-      const request = new Request('https://ev.tajribah.com/v1/e', { method: 'POST', body: wire, headers: { 'user-agent': ua, 'cf-connecting-ip': '203.0.113.7' } });
+      const request = new Request('https://ev.tajribah.org/v1/e', { method: 'POST', body: wire, headers: { 'user-agent': ua, 'cf-connecting-ip': '203.0.113.7' } });
       assert.equal(await collect(request, { secret: 's'.repeat(40), now: NOW }), 'accepted');
     };
     const phone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 Version/18.5 Mobile/15E148 Safari/604.1';

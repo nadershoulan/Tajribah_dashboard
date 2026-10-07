@@ -20,10 +20,10 @@
  */
 import { GA_CONNECT } from './analytics';
 
-export const CONFIG_HOST = 'https://cfg.tajribah.com';
-export const FILE_HOST = 'https://cdn.tajribah.com';
+export const CONFIG_HOST = 'https://cfg.tajribah.org';
+export const FILE_HOST = 'https://cdn.tajribah.org';
 /** The collector: a product page's visits go to the merchant's Analytics, as the shop widget's do. */
-export const EVENTS_HOST = 'https://ev.tajribah.com';
+export const EVENTS_HOST = 'https://ev.tajribah.org';
 
 export function pageCsp(nonce: string, { dev = false, local = false, framed = false, analytics = false, lanHost }: { dev?: boolean; local?: boolean; framed?: boolean; analytics?: boolean; lanHost?: string } = {}): string {
   // T82: opened at this computer's Wi-Fi address (a phone testing the QR), its own servers there too.

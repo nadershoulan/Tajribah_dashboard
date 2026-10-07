@@ -30,10 +30,10 @@ import { autoPlatformOf, placeOnPage, PLACE_GAP_MS, PLACE_TRIES, priceText, sall
 
 export const WIDGET_VERSION = '1.0.0';
 export const CONFIG_TIMEOUT_MS = 3000;
-const DEFAULT_CONFIG_BASE = 'https://cfg.tajribah.com/v1';
-const DEFAULT_VIEWER = 'https://cdn.tajribah.com/vendor/model-viewer-4.0.0.min.js';
+const DEFAULT_CONFIG_BASE = 'https://cfg.tajribah.org/v1';
+const DEFAULT_VIEWER = 'https://cdn.tajribah.org/vendor/model-viewer-4.0.0.min.js';
 /** P4.1 — the collector (P4.2). Same versioning as the config host. */
-const DEFAULT_EVENTS = 'https://ev.tajribah.com/v1/e';
+const DEFAULT_EVENTS = 'https://ev.tajribah.org/v1/e';
 const READY = 'data-tajribah-ready';
 /** The attributes merchants paste (P1.17's snippet is built from these, and tested against them). */
 export const ATTR = {
@@ -48,7 +48,7 @@ export const ATTR = {
   spot: 'data-tajribah-spot',
 } as const;
 /** Where the widget is served, versioned; the snippet and the install checker both use it. */
-export const WIDGET_SRC = 'https://cdn.tajribah.com/w/v1/widget.js';
+export const WIDGET_SRC = 'https://cdn.tajribah.org/w/v1/widget.js';
 
 type Settings = { store: string; configBase: string; viewer: string; events: string; consent: Consent; tryon: string; auto?: AutoPlatform | null; anchor?: string | null; spot?: ButtonSpot };
 

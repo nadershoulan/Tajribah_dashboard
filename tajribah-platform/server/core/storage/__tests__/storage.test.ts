@@ -182,7 +182,7 @@ test('the S3 adapter: signed path-style requests, a missing object is none, a li
     }
     return new Response(init?.method === 'HEAD' ? null : 'body', { headers: { 'content-length': '4', 'content-type': 'model/gltf-binary', etag: '"e1"', 'last-modified': 'Wed, 30 Sep 2026 09:00:00 GMT' } });
   }) as typeof fetch;
-  const store = new S3Storage({ endpoint: 'https://acc.r2.cloudflarestorage.com', region: 'auto', bucket: 'tajribah', accessKeyId: 'k', secretAccessKey: 's', cdnBaseUrl: 'https://cdn.tajribah.com/' }, fake);
+  const store = new S3Storage({ endpoint: 'https://acc.r2.cloudflarestorage.com', region: 'auto', bucket: 'tajribah', accessKeyId: 'k', secretAccessKey: 's', cdnBaseUrl: 'https://cdn.tajribah.org/' }, fake);
 
   await store.put('t/a/model/m/v1/watch 1.glb', new Uint8Array([1, 2, 3]).buffer as ArrayBuffer, { contentType: 'model/gltf-binary', immutable: true });
   assert.equal(seen[0]!.url, 'https://acc.r2.cloudflarestorage.com/tajribah/t/a/model/m/v1/watch%201.glb', 'path-style, each segment encoded');
@@ -195,7 +195,7 @@ test('the S3 adapter: signed path-style requests, a missing object is none, a li
   assert.deepEqual(listed.map((o) => [o.key, o.size, o.checksum]), [['t/a/x&y.glb', 12, 'abc'], ['t/a/z.glb', 3, 'd']]);
   assert.match(seen.at(-1)!.url, /\/tajribah\?list-type=2&prefix=t%2Fa%2F&max-keys=50$/);
   await assert.rejects(() => store.get('t/a/forbidden.glb'), /403 AccessDenied/);
-  assert.equal(store.publicUrl('t/a/z.glb'), 'https://cdn.tajribah.com/t/a/z.glb');
+  assert.equal(store.publicUrl('t/a/z.glb'), 'https://cdn.tajribah.org/t/a/z.glb');
   const { url } = await store.presignUpload('t/a/p.jpg', { contentType: 'image/jpeg', sizeBytes: 4 });
   assert.match(url, /^https:\/\/acc\.r2\.cloudflarestorage\.com\/tajribah\/t\/a\/p\.jpg\?X-Amz-Algorithm=AWS4-HMAC-SHA256/);
   // Pre-launch review: the size is signed too, so storage refuses an upload of any other size.

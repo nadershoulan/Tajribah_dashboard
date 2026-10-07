@@ -96,7 +96,7 @@ test('a published product has a page: its block in the config, its address on th
     assert.deepEqual(config.page, { store: { name: 'Oud House', nameAr: 'بيت العود' }, shopUrl: null, poweredBy: true, host: null, ga4: null }, 'Starter has the page; "Made with Tajribah" shown');
     assert.ok(parseConfig(config), 'the shop’s widget still reads the config');
     const view = (await listArConfigs(ctx)).find((c) => c.productId === row.id)!;
-    assert.equal(view.page?.url, 'https://tajribah.com/p/oud/sa-77', 'the address: the config’s own store key and product reference');
+    assert.equal(view.page?.url, 'https://tajribah.org/p/oud/sa-77', 'the address: the config’s own store key and product reference');
     assert.equal(view.unpublishedChanges, false, 'the page block is part of what is live, not a pending change');
 
     const page = hostedProductFrom(config)!;
@@ -124,7 +124,7 @@ test('switching the page off and setting the buy link reach the live config at o
     await publishProduct(ctx, row.id);
 
     const saved = await saveHostedPage(ctx, row.id, { active: true, shopUrl: 'https://oud.example.sa/p/oyster-38' });
-    assert.deepEqual(saved, { url: 'https://tajribah.com/p/oud2/sa-1001', active: true, shopUrl: 'https://oud.example.sa/p/oyster-38', storePage: null });
+    assert.deepEqual(saved, { url: 'https://tajribah.org/p/oud2/sa-1001', active: true, shopUrl: 'https://oud.example.sa/p/oyster-38', storePage: null });
     const config = stored(kv, 'oud2/sa-1001.json');
     assert.equal(config.page.shopUrl, 'https://oud.example.sa/p/oyster-38', 'rewritten at once');
     const page = hostedProductFrom(config)!;
@@ -227,7 +227,7 @@ test('the website’s reader refuses what it must not show', () => {
     assert.equal(shopLink(v) !== null, isShopUrl(v), `the platform and the website agree on "${v}"`);
   }
   assert.equal(HostedPageInput.safeParse({ active: true, shopUrl: 'https://oud.example.sa/x' }).success, true);
-  assert.equal(hostedPageUrl('https://tajribah.com/p/', 'a b', 'x/y'), 'https://tajribah.com/p/a%20b/x%2Fy', 'encoded as the config key is');
+  assert.equal(hostedPageUrl('https://tajribah.org/p/', 'a b', 'x/y'), 'https://tajribah.org/p/a%20b/x%2Fy', 'encoded as the config key is');
 });
 
 test('the website’s copy of the AR path is the widget’s', () => {
@@ -248,8 +248,8 @@ test('the website’s copy of the AR path is the widget’s', () => {
       for (const placement of ['floor', 'wall', 'table', 'face', 'wrist'] as const) {
         const config: any = { v: 1, product: { name: 'Arc lamp', nameAr: 'مصباح القوس', widthMm: null, heightMm: null }, model, placement };
         assert.deepEqual(
-          arPath(detectDevice(ua, touch, ar), { model, placement, name: 'مصباح القوس' }, 'https://tajribah.com/p/oud/sa-77'),
-          widgetArPath(widgetDetect(ua, touch, ar), config, 'https://tajribah.com/p/oud/sa-77'),
+          arPath(detectDevice(ua, touch, ar), { model, placement, name: 'مصباح القوس' }, 'https://tajribah.org/p/oud/sa-77'),
+          widgetArPath(widgetDetect(ua, touch, ar), config, 'https://tajribah.org/p/oud/sa-77'),
           `${ua} · ${placement} · ${model.usdz ? 'all files' : 'web only'}`,
         );
       }
@@ -282,7 +282,7 @@ test('T62: on the store’s own address — the config names it, the link uses i
     await harness.asAdmin(() => harness.db.insert(customDomains).values({ id: uuidv7(), tenantId: pro.tenantId, hostname: 'ar.oud.sa', token: 'u'.repeat(32), status: 'active' } as any));
     await publishProduct(pro.ctx, other.id);
     assert.equal(stored(pro.kv, 'oud4/sa-1001.json').page.host, null, 'a plan without custom domains: no address of its own');
-    assert.equal((await getHostedPage(pro.ctx, other.id)).url, 'https://tajribah.com/p/oud4/sa-1001');
+    assert.equal((await getHostedPage(pro.ctx, other.id)).url, 'https://tajribah.org/p/oud4/sa-1001');
     assert.equal(servesHere('ar.ward.sa', hostedProductFrom(stored(pro.kv, 'oud4/sa-1001.json'))!.host), false, 'and never under Ward’s address');
   } finally { await harness.close(); resetEnv(); }
 });

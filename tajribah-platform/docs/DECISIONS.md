@@ -1736,3 +1736,9 @@ platforms get no foot until there is a known button to press.
 **Decision.** The shop button wore the store's brand colour, filled, by default. Nader wants it simple and elegant with no colour of its own: the default is now a transparent pill in the page's own text colour with a hairline border, so it sits quietly in any theme. Filled and outline remain choices; a style already saved is kept.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T105 · 2026-10-07 · tajribah.org
+
+**Decision.** Nader bought **tajribah.org**; it replaces tajribah.com (never bought) everywhere the code and the current docs name an address: one domain with the subdomains cdn., cfg., ev. and domains. (docs/DOMAINS.md). Earlier history entries keep the names they were written with. The old names stay refused as a store's own domain, so no store can ever claim them.
+
+**Rollback path.** Revert the commit. Cost: low (nothing is deployed yet).

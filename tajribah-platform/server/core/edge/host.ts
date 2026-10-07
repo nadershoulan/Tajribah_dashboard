@@ -1,5 +1,5 @@
 /**
- * P1.15 — the config host (`cfg.tajribah.com`): answers the widget's and the try-on page's
+ * P1.15 — the config host (`cfg.tajribah.org`): answers the widget's and the try-on page's
  * `GET /v1/{store key}/{product ref}.json` from the config store, never from Postgres.
  *
  *  - Public and read-only: any shop page may read (CORS `*`, no credentials); nothing else is served.

@@ -40,7 +40,7 @@ async function run(kind: 'cron' | 'queue', pass: () => Promise<unknown>): Promis
 
 const worker = {
   fetch(request: Request, env: unknown, ctx: Ctx) {
-    // T75: on this computer there is no config host (`cfg.tajribah.com`, its own Worker), so this one
+    // T75: on this computer there is no config host (`cfg.tajribah.org`, its own Worker), so this one
     // answers its `/v1/{store}/{product}.json` from the configs it published — only when opened at
     // localhost or 127.0.0.1, so that a product can be published and tried here. Elsewhere: unchanged.
     const url = new URL(request.url);

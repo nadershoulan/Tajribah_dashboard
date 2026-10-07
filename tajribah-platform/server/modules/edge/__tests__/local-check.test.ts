@@ -29,6 +29,6 @@ test('anything else is checked as it is — another http host stays refused', ()
   assert.equal(checkable(remote, 'http://cdn.example.com/t/a/worn.png'), remote, 'not this computer');
   const sneaky = config('http://127.0.0.1.evil.com');
   assert.equal(checkable(sneaky, 'http://127.0.0.1.evil.com/x.png'), sneaky, 'a host that only starts like a local one');
-  const https = config('https://cdn.tajribah.com');
-  assert.equal(checkable(https, 'https://cdn.tajribah.com/t/a/worn.png'), https, 'real storage: nothing changes');
+  const https = config('https://cdn.tajribah.org');
+  assert.equal(checkable(https, 'https://cdn.tajribah.org/t/a/worn.png'), https, 'real storage: nothing changes');
 });

@@ -1,7 +1,7 @@
 // P7 load test 2 of 5 — event ingest (plan §8): 3,000 events a second, zero loss, the rollup
 // behind by less than 30 seconds.
 //
-//   k6 run load/ingest.js -e EV_BASE=https://ev.tajribah.com -e STORES=store1,store2,...
+//   k6 run load/ingest.js -e EV_BASE=https://ev.tajribah.org -e STORES=store1,store2,...
 //
 // Batches are what the widget sends (`widget/src/events.ts`: `text/plain` JSON, up to 20 events,
 // a 16–64 character session token). The collector limits each store (per daily-salted address) to
@@ -14,7 +14,7 @@ import http from 'k6/http';
 import { check } from 'k6';
 import { Counter } from 'k6/metrics';
 
-const EV_BASE = __ENV.EV_BASE || 'https://ev.tajribah.com';
+const EV_BASE = __ENV.EV_BASE || 'https://ev.tajribah.org';
 const PATH = __ENV.EV_PATH || '/v1/e';
 const STORES = (__ENV.STORES || '').split(',').map((s) => s.trim()).filter(Boolean);
 const PRODUCTS = (__ENV.PRODUCTS || 'load-1,load-2,load-3').split(',');

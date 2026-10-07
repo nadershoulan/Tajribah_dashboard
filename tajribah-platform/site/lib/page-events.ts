@@ -12,7 +12,7 @@
  * or Global Privacy Control. `text/plain` and `sendBeacon` keep it a simple request (no preflight).
  * Never throws into the page.
  */
-export const EVENTS_ENDPOINT = 'https://ev.tajribah.com/v1/e';
+export const EVENTS_ENDPOINT = 'https://ev.tajribah.org/v1/e';
 export const PAGE_SDK = 'page-1';
 const SCHEMA = 1;
 const SESSION_KEY = 'tj_s';

@@ -1,7 +1,7 @@
 # Vendored viewer files
 
 Served from `/vendor/` here (the staff model review, P3.6) and, once the CDN exists, from
-`https://cdn.tajribah.com/vendor/` for the storefront widget (`widget/src/main.ts`).
+`https://cdn.tajribah.org/vendor/` for the storefront widget (`widget/src/main.ts`).
 
 | File | Source | Licence |
 |---|---|---|

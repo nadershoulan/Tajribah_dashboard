@@ -59,8 +59,8 @@ test('a product with its store page: published at its page too, the same config,
     await publishProduct(ctx, silver.id);
     assert.ok(body(kv, 'shop/244167095.json'), 'its own address, as before');
     assert.equal(body(kv, PAGE_KEY), body(kv, 'shop/244167095.json'), 'and its page’s, with the same config');
-    assert.equal(keyOf(new URL(configUrl('https://cfg.tajribah.com/v1', 'shop', pageRefOf(SILVER)!)).pathname), PAGE_KEY, 'the address the widget asks for on that page');
-    const served = await serveConfig(new Request(configUrl('https://cfg.tajribah.com/v1', 'shop', 'page:p1412564664')), kv);
+    assert.equal(keyOf(new URL(configUrl('https://cfg.tajribah.org/v1', 'shop', pageRefOf(SILVER)!)).pathname), PAGE_KEY, 'the address the widget asks for on that page');
+    const served = await serveConfig(new Request(configUrl('https://cfg.tajribah.org/v1', 'shop', 'page:p1412564664')), kv);
     assert.equal(served.status, 200);
     assert.equal(parseConfig(await served.json())?.ref, '244167095', 'the widget reports and opens the try-on under the product’s own ref');
     assert.equal((await rowOf(harness, silver.id)).pageKey, PAGE_KEY);

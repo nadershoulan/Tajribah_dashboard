@@ -12,7 +12,7 @@ import type { Bi } from './lang';
 import { MODELS, type TryOnProduct } from './demo-product';
 
 /** Where published configs live (the same host the storefront widget reads). */
-export const CONFIG_BASE = 'https://cfg.tajribah.com/v1';
+export const CONFIG_BASE = 'https://cfg.tajribah.org/v1';
 /** What the frame tells the page it sits on. The widget listens only to our origin. */
 export const CLOSE_MESSAGE = 'tajribah:tryon:close';
 /** T100: the frame's page is up, with its own close button — the shop's popup then hides its backup one. */

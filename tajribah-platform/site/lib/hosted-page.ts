@@ -15,7 +15,7 @@ import { brandFrom, isLocalHost, tryOnProductFrom, type StoreBrand } from './try
 import { measurementId } from './analytics';
 
 /** The 3D viewer the shop's widget loads, from Tajribah's file host. */
-export const VIEWER_SRC = 'https://cdn.tajribah.com/vendor/model-viewer-4.0.0.min.js';
+export const VIEWER_SRC = 'https://cdn.tajribah.org/vendor/model-viewer-4.0.0.min.js';
 /** meshoptimizer's decoder, next to the viewer: every web GLB is meshopt-compressed (P3.5). */
 export const MESHOPT_DECODER_FILE = 'meshopt_decoder-1.2.0.js';
 /** The in-page viewer's AR modes. No `scene-viewer`: it would be handed the compressed web file. */

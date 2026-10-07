@@ -9,8 +9,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MESHOPT_DECODER_FILE, configureMeshopt } from '../src/main';
 
-const VIEWER = 'https://cdn.tajribah.com/vendor/model-viewer-4.0.0.min.js';
-const DECODER = `https://cdn.tajribah.com/vendor/${MESHOPT_DECODER_FILE}`;
+const VIEWER = 'https://cdn.tajribah.org/vendor/model-viewer-4.0.0.min.js';
+const DECODER = `https://cdn.tajribah.org/vendor/${MESHOPT_DECODER_FILE}`;
 
 test('before the viewer loads: the decoder next to the viewer, set where the viewer reads it once', () => {
   const scope: { ModelViewerElement?: { meshoptDecoderLocation?: string } } = {};

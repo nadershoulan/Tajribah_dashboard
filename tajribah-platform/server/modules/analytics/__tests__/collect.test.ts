@@ -27,7 +27,7 @@ function sdkBatch(store: string, inputs: TrackInput[], session = TOKEN): string 
   const sent: string[] = [];
   let clock = 1_790_000_000_000;
   const tracker = createTracker({
-    endpoint: 'https://ev.tajribah.com/v1/e', store, sdk: '1.0.0', session, now: () => (clock += 250),
+    endpoint: 'https://ev.tajribah.org/v1/e', store, sdk: '1.0.0', session, now: () => (clock += 250),
     beacon: (_url, body) => { sent.push(typeof body === 'string' ? body : '(blob)'); return true; },
     onSend: (batch) => { sent[sent.length - 1] = JSON.stringify(batch); },
   });
@@ -38,7 +38,7 @@ function sdkBatch(store: string, inputs: TrackInput[], session = TOKEN): string 
 }
 
 function post(body: string | ReadableStream<Uint8Array>, headers: Record<string, string> = {}): Request {
-  return new Request('https://ev.tajribah.com/v1/e', {
+  return new Request('https://ev.tajribah.org/v1/e', {
     method: 'POST', body, duplex: 'half',
     headers: { 'content-type': 'text/plain;charset=UTF-8', 'user-agent': IPHONE, 'cf-connecting-ip': '203.0.113.7', 'cf-ipcountry': 'SA', origin: 'https://shop.example.sa', ...headers },
   } as RequestInit);

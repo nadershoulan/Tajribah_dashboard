@@ -19,7 +19,7 @@ export const SLO = {
 
 /**
  * The paths that are not dashboard API calls, with their own objective. The event collector is
- * served at `ev.tajribah.com/v1/e` (GO-LIVE §5, the widget's `DEFAULT_EVENTS`); in this app it is
+ * served at `ev.tajribah.org/v1/e` (GO-LIVE §5, the widget's `DEFAULT_EVENTS`); in this app it is
  * `/api/analytics/collect` — both carry the ingest budget, whichever serves it.
  */
 const PATH_BUDGETS: Record<string, number> = {

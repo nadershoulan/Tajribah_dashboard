@@ -95,7 +95,7 @@ test('a watch with a live model and try-on: one config both readers accept, at t
     const status = await publishProduct(ctx, watch.id);
     assert.equal(status.version, 1);
     const key = 'alpha/sa-1001.json';
-    assert.equal(configUrl('https://cfg.tajribah.com/v1', 'alpha', 'sa-1001'), `https://cfg.tajribah.com/v1/${key}`, 'the key is the widget’s own path');
+    assert.equal(configUrl('https://cfg.tajribah.org/v1', 'alpha', 'sa-1001'), `https://cfg.tajribah.org/v1/${key}`, 'the key is the widget’s own path');
     const config = stored(kv, key);
     assert.deepEqual(config.model, { glb: `https://cdn.example.test/${at('optimized.glb')}`, glbNative: `https://cdn.example.test/${at('native.glb')}`, usdz: `https://cdn.example.test/${at('model.usdz')}` });
     assert.deepEqual(config.product, { name: 'Oyster 38', nameAr: 'أويستر 38', widthMm: 38, heightMm: 45 });
@@ -393,17 +393,17 @@ test('T54: the merchant hears when the system takes a button off — one notice 
 test('the config host: the published body, public and briefly cached; nothing else', async () => {
   const kv = new MemoryConfigStore();
   await kv.put(configKey('alpha', 'gid://shopify/Product/7'), '{"v":1}', 1);
-  const res = await serveConfig(new Request(`https://cfg.tajribah.com/v1/alpha/${encodeURIComponent('gid://shopify/Product/7')}.json`), kv);
+  const res = await serveConfig(new Request(`https://cfg.tajribah.org/v1/alpha/${encodeURIComponent('gid://shopify/Product/7')}.json`), kv);
   assert.equal(res.status, 200);
   assert.equal(await res.text(), '{"v":1}');
   assert.equal(res.headers.get('access-control-allow-origin'), '*');
   assert.equal(res.headers.get('content-type'), 'application/json; charset=utf-8');
   assert.match(res.headers.get('cache-control')!, /public, max-age=60/);
-  const missing = await serveConfig(new Request('https://cfg.tajribah.com/v1/alpha/none.json'), kv);
+  const missing = await serveConfig(new Request('https://cfg.tajribah.org/v1/alpha/none.json'), kv);
   assert.equal(missing.status, 404);
   assert.match(missing.headers.get('cache-control')!, /max-age=60/, '"none" is cached briefly too');
-  assert.equal((await serveConfig(new Request('https://cfg.tajribah.com/v1/alpha/x.json', { method: 'POST' }), kv)).status, 405);
-  assert.equal((await serveConfig(new Request('https://cfg.tajribah.com/v1/alpha/x.json', { method: 'OPTIONS' }), kv)).status, 204);
+  assert.equal((await serveConfig(new Request('https://cfg.tajribah.org/v1/alpha/x.json', { method: 'POST' }), kv)).status, 405);
+  assert.equal((await serveConfig(new Request('https://cfg.tajribah.org/v1/alpha/x.json', { method: 'OPTIONS' }), kv)).status, 204);
   for (const path of ['/v1/alpha.json', '/v2/alpha/x.json', '/v1/alpha/x.txt', '/v1/a/b/c.json', '/v1/alpha/%E0%A4%A.json', '/v1//x.json']) {
     assert.equal(keyOf(path), null, path);
   }

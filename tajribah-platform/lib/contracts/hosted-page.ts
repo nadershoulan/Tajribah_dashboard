@@ -10,7 +10,7 @@
 import { z } from 'zod';
 
 /** The page's address before the short domain (T29: the try-on's site). One setting changes it. */
-export const DEFAULT_HOSTED_PAGE_BASE = 'https://tajribah.com/p'; // T82: one domain, tajribah.com
+export const DEFAULT_HOSTED_PAGE_BASE = 'https://tajribah.org/p'; // T82: one domain, tajribah.org
 
 /** `{base}/{store key}/{product ref}` — the two segments encoded exactly as the config's key is. */
 export function hostedPageUrl(base: string, store: string, productRef: string): string {

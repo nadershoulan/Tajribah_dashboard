@@ -21,7 +21,7 @@ so the parts below that need them wait for it:
 - R2 bucket **`tajribah-pair`** — private (public access disabled, no domain); the Worker's `PAIR_BUCKET` (`vite.config.ts`).
 - KV **`tajribah-configs`** `3f494fe78a65471fb90aa426c068cbbf` → `CONFIGS` (already in `wrangler.config-host.jsonc`).
 - KV **`tajribah-rate-limits`** `64ef69a8da974ada85bfed2f4a46bb8a` → `RATE_LIMITS`.
-- Still to do by Nader: the R2 API token for `tajribah-files` (Object Read & Write) — its secret goes into the Worker's secrets on deploy day.
+- R2 API token **`tajribah-files-uploads`** (Object Read & Write, `tajribah-files` only, account token): its four values (`R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) are in **`.env.production.local`** in this folder — ignored by git, never committed; they go into the Worker's secrets on deploy day.
 
 ## 1. Storage — R2 and the CDN (`cdn.tajribah.org`)
 

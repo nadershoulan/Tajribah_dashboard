@@ -1709,3 +1709,13 @@ opens Tajribah's website in a new tab, as tangiblee's "Powered by" does in Nader
 store's own name in the bar) there is none, as on the product page.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T102 · 2026-10-07 · «منتجات مشابهة» on the test shop, without pretending to be the store
+
+**Decision.** Salla fills «منتجات مشابهة» from its recommendations API, which identifies the store by the request's
+origin and so answers only the store's own address. The test shop does not send the store's origin (that would get
+around Salla's check); it puts Salla's own product slider in that section's place, listing the product's own
+category from Salla's public product list, which answers any origin. It is labelled as on the store but is the
+category, not Salla's recommendations — said so in docs/RUNNING-LOCALLY.md.
+
+**Rollback path.** Revert the commit. Cost: none (a local test tool).

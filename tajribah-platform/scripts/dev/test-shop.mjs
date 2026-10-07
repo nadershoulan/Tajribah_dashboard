@@ -69,6 +69,22 @@ const csp = [
   `frame-src ${PAYMENTS} ${LOCAL}`,
 ].join('; ');
 
+/**
+ * «منتجات مشابهة»: on the store, Salla's recommendations fill it — but they answer only a request that comes from
+ * the store's own address, which this computer is not (and will not pretend to be). Salla's own product slider,
+ * which reads the store's public product list (allowed from here, as «قد يعجبك أيضًا» shows), is put where Salla
+ * puts that section, listing the product's own category. Not Salla's recommendations: the closest honest stand-in.
+ */
+function withSimilar(html) {
+  // the product's own category line (Salla's product template: «تصنيف المنتج: <a href="…/c1628344248">»)
+  const line = html.search(/تصنيف المنتج|product categor/i);
+  const category = line >= 0 ? /\/c(\d+)"/.exec(html.slice(line, line + 3000))?.[1] : undefined;
+  if (!category) return html;
+  const title = /<html[^>]*\blang="en/i.test(html) ? 'Similar products' : 'منتجات مشابهة';
+  return html.replace(/<salla-products-slider\b[^>]*\bsource="related"/i, (related) =>
+    `<salla-products-slider source="categories" source-value="${category}" block-title="${title}" autoplay display-all-url></salla-products-slider>\n${related}`);
+}
+
 /** A product page of the store, served from here: its own look, the tag added, nothing measured. */
 function served(html) {
   const head = `<base href="${from}/"><meta http-equiv="Content-Security-Policy" content="${csp}">`
@@ -78,7 +94,7 @@ function served(html) {
       .replace(/<head([^>]*)>/i, `<head$1><base href="${from}/">`)
       .replace(/<\/body>/i, `${tag}</body>`);
   }
-  return html
+  return withSimilar(html)
     // Cloudflare's Rocket Loader holds the scripts back (type "<id>-text/javascript") and runs them itself: undone
     .replace(/<script\b[^>]*rocket-loader[^>]*><\/script>/gi, '')
     .replace(/type="[0-9a-f]{16,}-text\/javascript"/gi, 'type="text/javascript"')

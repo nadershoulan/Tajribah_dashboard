@@ -150,8 +150,9 @@ not published shows nothing, and so does the home page — as on the real store.
 **Nothing is counted from here.** The page carries a Content-Security-Policy: the store's scripts may load only
 from Salla's file hosts (and the instalment and Apple Pay boxes Salla shows), and may call only Salla's storefront
 API (reads: the product, offers, comments, ratings). Your Tag Manager, Google Analytics, Salla's own visit counting,
-pixels, heatmaps and Cloudflare's beacon are blocked before they start. Two things cannot show here: Salla answers
-its «منتجات مشابهة» recommendations only to your store's own address, and Apple Pay needs https.
+pixels, heatmaps and Cloudflare's beacon are blocked before they start. «منتجات مشابهة» is filled with the product's own category
+(Salla's recommendations answer only your store's own address, which this computer does not pretend to be), and
+Apple Pay cannot show here (it needs https).
 
 Only for this computer: the button's settings come from your local dashboard. On the real store, nothing here is used: the
 tag in your Tag Manager container loads Tajribah's widget from `cdn.tajribah.com` once it is live (GO-LIVE §1).

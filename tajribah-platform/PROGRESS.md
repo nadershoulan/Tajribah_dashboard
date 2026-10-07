@@ -4,9 +4,9 @@ _Last updated: 2026-10-07 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: one on analytics (now end to end), store connections, enterprise features and security; the other on the website and the shop-facing pages.
 > **Just finished (2026-10-08):** **Email goes through your Zoho Mail**, from `no-reply@tajribah.org`. The domain is verified in Zoho, and the anti-spam records (SPF, DKIM, DMARC) are live. The address is a free alias of info@baqah.org. **One command uploads code to the server** (`push-server.sh` over `ssh tajribah`). Before that: the private database tunnel; SMS moved to version 2.
-> **Next:** launch the dashboard the moment the Zoho app password exists (`node scripts/deploy/deploy-dashboard.mjs`); meanwhile, keep building what needs no account.
+> **Next:** launch the dashboard on tajribah.org on your yes (`node scripts/deploy/deploy-dashboard.mjs`); meanwhile, keep building what needs no account.
 > **For the day the accounts exist:** `docs/GO-LIVE.md` → "Who does what next": what is left for you, then the server-day steps in order.
-> **Waiting on you, in order:** (1) **the Zoho app password**: Zoho → Security → App Passwords → generate `tajribah-dashboard`; it is the only thing the launch still needs; (2) **put the private files in your password manager** (`~/.tajribah/backup-private.pem` first); (3) **the tag in Failet's Tag Manager** (GTM-K4ZVD3HX), once the dashboard is live. Later: GA4, Google sign-in, Moyasar, ZATCA, a 3D-generation provider. Version 2: Unifonic, Salla, Zid and Shopify.
+> **Waiting on you, in order:** (1) **your yes to launch**: everything is ready (email checked in your inbox; the launch check and a full dry run pass); (2) **put the private files in your password manager** (`~/.tajribah/backup-private.pem` first); (3) **the tag in Failet's Tag Manager** (GTM-K4ZVD3HX), once the dashboard is live. Later: GA4, Google sign-in, Moyasar, ZATCA, a 3D-generation provider. Version 2: Unifonic, Salla, Zid and Shopify.
 
 ```
 P0 Foundation     ██████████████████████████████░░  21 / 22   (1 blocked: staging server)

@@ -1730,3 +1730,9 @@ the store's currency (Salla's settings); when either cannot be read, the name st
 platforms get no foot until there is a known button to press.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T104 · 2026-10-07 · A minimal default button
+
+**Decision.** The shop button wore the store's brand colour, filled, by default. Nader wants it simple and elegant with no colour of its own: the default is now a transparent pill in the page's own text colour with a hairline border, so it sits quietly in any theme. Filled and outline remain choices; a style already saved is kept.
+
+**Rollback path.** Revert the commit. Cost: low.

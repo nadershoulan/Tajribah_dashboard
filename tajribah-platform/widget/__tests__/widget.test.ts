@@ -60,3 +60,9 @@ test('the built widget is one self-contained file under 60 KB gzipped', () => {
   const code = readFileSync('widget/dist/widget.js', 'utf8');
   assert.ok(!/\bimport\s*\(|\brequire\(/.test(code.replace(/type="module"|\.type="module"/g, '')), 'no runtime imports: the viewer loads by script tag, on tap');
 });
+
+test('T104: the minimal button is a style the config may carry — and anything else is still refused', () => {
+  const at = (variant: unknown) => parseConfig({ ...GOOD, button: { ...GOOD.button, variant } })?.button.variant ?? null;
+  assert.deepEqual(['minimal', 'solid', 'outline'].map(at), ['minimal', 'solid', 'outline']);
+  for (const bad of ['ghost', '', null, 'Minimal']) assert.equal(at(bad), null, String(bad));
+});

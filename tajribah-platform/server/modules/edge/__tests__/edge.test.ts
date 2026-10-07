@@ -99,7 +99,7 @@ test('a watch with a live model and try-on: one config both readers accept, at t
     const config = stored(kv, key);
     assert.deepEqual(config.model, { glb: `https://cdn.example.test/${at('optimized.glb')}`, glbNative: `https://cdn.example.test/${at('native.glb')}`, usdz: `https://cdn.example.test/${at('model.usdz')}` });
     assert.deepEqual(config.product, { name: 'Oyster 38', nameAr: 'أويستر 38', widthMm: 38, heightMm: 45 });
-    assert.deepEqual(config.button, { labelAr: 'جرّبها على معصمك', labelEn: 'Try it on your wrist', color: '#00A7BC', radius: 12, variant: 'solid', icon: true }, 'defaults until saved — a watch’s own words');
+    assert.deepEqual(config.button, { labelAr: 'جرّبها على معصمك', labelEn: 'Try it on your wrist', color: '#00A7BC', radius: 12, variant: 'minimal', icon: true }, 'defaults until saved — a watch’s own words; T104: the minimal button, no colour of its own');
     assert.equal(config.placement, 'wrist');
     assert.deepEqual(config.tryon, {
       worn: `https://cdn.example.test/t/${tenantId}/photo/${watch.id}/worn.webp`, flat: `https://cdn.example.test/t/${tenantId}/photo/${watch.id}/flat.webp`,

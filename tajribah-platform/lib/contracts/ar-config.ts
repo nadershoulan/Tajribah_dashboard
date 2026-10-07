@@ -25,7 +25,8 @@ export function placementsFor(type: ProductRow['productType']): Placement[] {
 export const DEFAULT_AR_CONFIG = {
   buttonLabelAr: 'شاهدها في مكانك',
   buttonLabelEn: 'View in your space',
-  variant: 'solid' as 'solid' | 'outline',
+  // T104: minimal by default — no colour of its own; filled and outline wear the store's colour
+  variant: 'minimal' as 'minimal' | 'solid' | 'outline',
   showIcon: true,
   scale: 1,
   autoRotate: true,
@@ -45,7 +46,7 @@ export function defaultLabelsFor(type: ProductRow['productType']): { buttonLabel
 export const ArConfigInput = z.object({
   buttonLabelAr: z.string().trim().min(1, 'the button needs a label').max(40, 'at most 40 characters'),
   buttonLabelEn: z.string().trim().min(1, 'the button needs a label').max(40, 'at most 40 characters'),
-  variant: z.enum(['solid', 'outline']),
+  variant: z.enum(['minimal', 'solid', 'outline']),
   showIcon: z.boolean(),
   placement: z.enum(PLACEMENTS),
   scale: z.number().min(0.5, 'between 0.5× and 2×').max(2, 'between 0.5× and 2×'),

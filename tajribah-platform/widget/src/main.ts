@@ -102,8 +102,20 @@ svg{width:18px;height:18px;flex:none}
 .note{margin:0;padding:64px 24px;font:500 16px/1.6 system-ui,sans-serif;color:#222;text-align:center}
 .close{position:absolute;top:10px;inset-inline-end:10px;z-index:1;background:#fff;color:#111;border-radius:999px;padding:6px 12px;min-height:0;font-size:14px}
 model-viewer{width:100%;height:100%}
+.minimal{background:transparent;border:1px solid color-mix(in srgb,currentColor 30%,transparent);border-radius:999px;padding:10px 22px;font-weight:500;letter-spacing:.01em;transition:background-color .2s,border-color .2s}
+.minimal:hover{background:color-mix(in srgb,currentColor 6%,transparent);border-color:currentColor}
+.minimal svg{width:16px;height:16px;stroke-width:1.5}
 `;
 const ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg>';
+
+/** The text colour around the button on the store's page (the host itself is reset by `:host{all:initial}`). */
+function pageTextColor(host: HTMLElement): string {
+  try {
+    const parent = host.parentElement;
+    const color = parent ? getComputedStyle(parent).color : '';
+    return color && color !== 'rgba(0, 0, 0, 0)' ? color : '#111';
+  } catch { return '#111'; }
+}
 
 /** Draw the button for `config` into `host` (a shadow root). Returns the button. */
 export function renderButton(host: HTMLElement, config: ViewerConfig, lang: 'ar' | 'en', onOpen: () => void): HTMLButtonElement {
@@ -115,9 +127,15 @@ export function renderButton(host: HTMLElement, config: ViewerConfig, lang: 'ar'
   button.type = 'button';
   button.dir = lang === 'ar' ? 'rtl' : 'ltr';
   const { color, radius, variant, icon } = config.button;
-  button.style.borderRadius = `${radius}px`;
-  if (variant === 'solid') { button.style.background = color; button.style.color = '#fff'; }
-  else { button.style.border = `2px solid ${color}`; button.style.color = color; }
+  if (variant === 'minimal') {
+    // T104: no colour of its own — the store's own text colour, so it belongs to any theme
+    button.className = 'minimal';
+    button.style.color = pageTextColor(host);
+  } else {
+    button.style.borderRadius = `${radius}px`;
+    if (variant === 'solid') { button.style.background = color; button.style.color = '#fff'; }
+    else { button.style.border = `2px solid ${color}`; button.style.color = color; }
+  }
   if (icon) button.insertAdjacentHTML('beforeend', ICON);
   const label = document.createElement('span');
   label.textContent = lang === 'ar' ? config.button.labelAr : config.button.labelEn; // text, never HTML

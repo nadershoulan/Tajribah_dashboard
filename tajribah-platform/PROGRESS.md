@@ -562,3 +562,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-10-07 | The try-on popup fits its window with nothing to scroll (every tab, desktop to small phone); a small «بدعم من تجربة» opens Tajribah's website | 1 new test file, 5 breakages caught; measured at four sizes, axe clean |
 | 2026-10-07 | The test shop shows «منتجات مشابهة» (the product's category, through Salla's own slider — Salla's recommendations answer only the store's own address) | seen on Failet's watch page: 15 watches |
 | 2026-10-07 | The product, its price and «أضف للسلة» at the foot of the try-on window — the store's own add-to-cart button (Salla) | 2 new tests, 6 breakages caught; full gate 994 pass + 3 skipped / 0 fail; walked with the store's button stubbed |
+| 2026-10-07 | A minimal default try-on button: the store page's own text colour, a hairline border, a pill (filled and outline stay as choices) | 2 tests, the default pinned; seen on Failet's page |

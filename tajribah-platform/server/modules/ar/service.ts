@@ -122,7 +122,8 @@ export function arViewOf(p: Product, c: Config | null): ArConfigView {
     productId: p.id, productName: p.name, productNameAr: p.nameAr, productType: p.productType, arEnabled: p.arEnabled,
     buttonLabelAr: c?.buttonLabelAr ?? defaultLabelsFor(p.productType).buttonLabelAr,
     buttonLabelEn: c?.buttonLabelEn ?? defaultLabelsFor(p.productType).buttonLabelEn,
-    variant: c?.buttonStyle?.variant === 'outline' ? 'outline' : 'solid',
+    // T104: a style never chosen is minimal; one chosen before stays as chosen
+    variant: c?.buttonStyle?.variant === 'outline' ? 'outline' : c?.buttonStyle?.variant === 'solid' ? 'solid' : 'minimal',
     showIcon: c?.buttonStyle?.icon ?? DEFAULT_AR_CONFIG.showIcon,
     placement: c?.placement ?? placementsFor(p.productType)[0],
     scale: (c?.scaleFactorBp ?? 10_000) / 10_000,

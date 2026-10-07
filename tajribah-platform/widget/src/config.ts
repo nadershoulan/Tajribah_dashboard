@@ -27,7 +27,7 @@ export type ViewerConfig = {
    * always opens something.
    */
   model: { glb: string; glbNative: string | null; usdz: string | null } | null;
-  button: { labelAr: string; labelEn: string; color: string; radius: number; variant: 'solid' | 'outline'; icon: boolean };
+  button: { labelAr: string; labelEn: string; color: string; radius: number; variant: 'minimal' | 'solid' | 'outline'; icon: boolean };
   placement: Placement;
   scale: number;
   autoRotate: boolean;
@@ -111,7 +111,7 @@ export function parseConfig(input: unknown): ViewerConfig | null {
     if (model !== null && (!httpsUrl(model.glb) || !optionalUrl(model.usdz) || !optionalUrl(model.glbNative))) return null;
     if (!str(button.labelAr, 40) || !str(button.labelEn, 40)) return null;
     if (typeof button.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(button.color)) return null;
-    if (!num(button.radius, 0, 24) || (button.variant !== 'solid' && button.variant !== 'outline') || typeof button.icon !== 'boolean') return null;
+    if (!num(button.radius, 0, 24) || (button.variant !== 'minimal' && button.variant !== 'solid' && button.variant !== 'outline') || typeof button.icon !== 'boolean') return null;
     if (typeof input.placement !== 'string' || !PLACEMENTS.includes(input.placement)) return null;
     if (!num(input.scale, 0.5, 2) || !num(input.shadow, 0, 2) || typeof input.autoRotate !== 'boolean') return null;
     const tryon = tryOnOf(input.tryon, input.placement);

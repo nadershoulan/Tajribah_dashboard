@@ -206,9 +206,11 @@ function Editor({ config, name, brandColor, radius, onSaved }: {
         {config.unpublishedChanges && (config.saved || config.publishedVersion > 0) ? <Badge tone="warn">{t('تغييرات غير منشورة', 'Unpublished changes')}</Badge> : null}
       </>}>
       <div className="button-preview" aria-hidden style={{ marginBottom: 16 }}>
-        <span style={form.variant === 'solid'
-          ? { background: color, borderRadius: radius }
-          : { background: 'transparent', color, border: `2px solid ${color}`, borderRadius: radius }}>
+        <span style={form.variant === 'minimal'
+          ? { background: 'transparent', color: 'var(--text)', border: '1px solid color-mix(in srgb, currentColor 30%, transparent)', borderRadius: 999, fontWeight: 500 }
+          : form.variant === 'solid'
+            ? { background: color, borderRadius: radius }
+            : { background: 'transparent', color, border: `2px solid ${color}`, borderRadius: radius }}>
           {form.showIcon && <Sparkles size={15} />}{label || '…'}
         </span>
       </div>
@@ -227,7 +229,8 @@ function Editor({ config, name, brandColor, radius, onSaved }: {
       <div className="brand-row">
         <div className="field">
           <label htmlFor="ar-variant">{t('شكل الزر', 'Button style')}</label>
-          <select id="ar-variant" value={form.variant} onChange={(e) => set('variant')(e.target.value as 'solid' | 'outline')}>
+          <select id="ar-variant" value={form.variant} onChange={(e) => set('variant')(e.target.value as 'minimal' | 'solid' | 'outline')}>
+            <option value="minimal">{t('بسيط — بلون نص متجرك (افتراضي)', 'Minimal — your store’s text colour (default)')}</option>
             <option value="solid">{t('ممتلئ', 'Filled')}</option>
             <option value="outline">{t('إطار فقط', 'Outline')}</option>
           </select>

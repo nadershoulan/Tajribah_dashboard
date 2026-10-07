@@ -51,7 +51,9 @@ test('defaults are shown, not stored; saving stores exactly what was set, audite
     assert.equal((await admin(harness, () => harness.db.select().from(arConfigs))).length, 1, 'one row per product');
     const trail = await admin(harness, () => harness.db.select().from(auditLogs).where(eq(auditLogs.resourceType, 'ar_config'))) as any[];
     assert.deepEqual(trail.map((r) => r.action), ['create', 'update']);
-    void sofa;
+    // T104: the default style is minimal; a style chosen is kept as chosen, minimal included
+    assert.equal(before.find((c) => c.productName === 'Sofa')!.variant, 'minimal', 'never chosen: minimal, no colour of its own');
+    for (const variant of ['solid', 'minimal'] as const) assert.equal((await saveArConfig(ctx, sofa.id, { ...INPUT, placement: 'floor', variant })).variant, variant);
   } finally { await harness.close(); }
 });
 

@@ -60,6 +60,16 @@ never report a browser sign-in as working. Without Node 22, what works:
 Every check must be able to fail. When you add one, break the thing it checks and confirm
 it goes red (§13.3). A green check nobody has seen fail is decoration.
 
+## The server (tajribah-1) — Nader's rule, 2026-10-08
+
+**Always reach it with `ssh tajribah`** (the `~/.ssh/config` shortcut: root@db.tajribah.org, key
+`~/.ssh/tajribah_hetzner`). Never a raw IP, never a password, never another key.
+
+**"Upload to the server" always means `bash scripts/deploy/push-server.sh`** (add `--migrate` to apply pending
+migrations). It uploads only committed code, so commit first, and it keeps the previous version for rollback.
+Never copy files over by hand with scp; a fix made only on the server is lost on the next upload. Details:
+`deploy/server/README.md`.
+
 ## Conventions
 
 - Screen ID at the top of every page file: `// MD-010 — Products table view`. That is how

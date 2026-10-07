@@ -61,6 +61,8 @@ backup timer enabled (next run 03:15 Riyadh) and run twice, once with the restor
 Cloudflare Tunnel for Hyperdrive (below), and the Node worker's service (it starts only once Unifonic is set,
 since production refuses console SMS).
 
+**Uploading code to the server** is always `bash scripts/deploy/push-server.sh` over `ssh tajribah` (deploy/server/README.md).
+
 **Server day, in order** (steps 1 and 5 are done):
 1. On the server: Postgres 16, the database and its two logins, `node scripts/db/migrate.mjs --db …` (docs/DATABASE.md).
 2. **Done 2026-10-08 (T110): Hyperdrive through a Cloudflare Tunnel.** Zero Trust Free switched on. Tunnel

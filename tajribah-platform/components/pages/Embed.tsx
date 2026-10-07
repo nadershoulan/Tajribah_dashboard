@@ -67,7 +67,11 @@ const URL_AR: [RegExp, string][] = [
 ];
 
 /** A name as Google Tag Manager or Salla shows it — kept in its own direction inside an Arabic sentence. */
-const Ui = ({ children }: { children: ReactNode }) => <bdi className="ui-name">{children}</bdi>;
+const Ui = ({ children }: { children: ReactNode }) => (
+  // a Latin name (Custom HTML, tajribah_.*) runs left to right whatever its punctuation; Salla's Arabic names keep theirs
+  <bdi className="ui-name" dir={typeof children === 'string' && !ARABIC_LETTER.test(children) ? 'ltr' : undefined}>{children}</bdi>
+);
+const ARABIC_LETTER = /[\u0600-\u06FF]/;
 
 export default function Embed() {
   const { t, pick, lang } = useLang();
@@ -330,7 +334,8 @@ function TagManagerGuide({ storeHost }: { storeHost: string | null }) {
     },
   ];
   return (
-    <Panel flush title={t('دليل الربط خطوة بخطوة', 'Step-by-step linking guide')}>
+    <Panel flush title={t('دليل الربط خطوة بخطوة', 'Step-by-step linking guide')}
+      foot={<MeasureInAnalytics />}>
       <ol className="steps" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
         {steps.map((step, index) => (
           <li className="step" key={step.title}>
@@ -345,6 +350,37 @@ function TagManagerGuide({ storeHost }: { storeHost: string | null }) {
     </Panel>
   );
 }
+
+/**
+ * T98 — optional: the button already tells the page's Tag Manager each time a shopper opens the try-on
+ * (`tajribah_tryon_start` on the `dataLayer`, with the product's id — widget/src/main.ts `shopAnalytics`).
+ * Two more things in the same container send it to the owner's own Google Analytics.
+ */
+function MeasureInAnalytics() {
+  const { lang, t } = useLang();
+  const ar = lang === 'ar';
+  return (
+    <details>
+      <summary style={{ cursor: 'pointer', fontWeight: 600 }}>{t('اختياري: قِس التجارب في Google Analytics', 'Optional: count try-ons in Google Analytics')}</summary>
+      <p className="hint" style={{ margin: '8px 0' }}>{ar
+        ? <>كلما فتح متسوّق التجربة يرسل الزر إلى Tag Manager حدثًا اسمه <Ui>{TRYON_EVENT}</Ui> ومعه <Ui>item_id</Ui> — رقم المنتج كما في ملف منتجاتك. ليصل إلى Google Analytics:</>
+        : <>Each time a shopper opens the try-on, the button sends Tag Manager an event called <Ui>{TRYON_EVENT}</Ui> with <Ui>item_id</Ui> — the product’s id as your feed has it. To get it into Google Analytics:</>}</p>
+      <ol style={{ margin: 0, paddingInlineStart: 20, fontSize: 13, color: 'var(--text-2)', display: 'grid', gap: 6 }}>
+        <li>{ar
+          ? <>في Tag Manager افتح <Ui>Triggers</Ui> ثم <Ui>New</Ui>، واختر <Ui>Custom Event</Ui>، واكتب في <Ui>Event name</Ui>: <Ui>tajribah_.*</Ui> وفعّل <Ui>Use regex matching</Ui>. احفظ.</>
+          : <>In Tag Manager open <Ui>Triggers</Ui>, then <Ui>New</Ui>, choose <Ui>Custom Event</Ui>, write <Ui>tajribah_.*</Ui> as the <Ui>Event name</Ui> and tick <Ui>Use regex matching</Ui>. Save.</>}</li>
+        <li>{ar
+          ? <>افتح <Ui>Tags</Ui> ثم <Ui>New</Ui>، واختر <Ui>Google Analytics: GA4 Event</Ui>، وضع معرّف القياس (<bdi>G-…</bdi>)، وفي <Ui>Event Name</Ui> اكتب <Ui>{'{{Event}}'}</Ui>. واختر المشغّل الذي أنشأته، ثم احفظ.</>
+          : <>Open <Ui>Tags</Ui>, then <Ui>New</Ui>, choose <Ui>Google Analytics: GA4 Event</Ui>, enter your measurement id (<bdi>G-…</bdi>), and write <Ui>{'{{Event}}'}</Ui> as the <Ui>Event Name</Ui>. Choose the trigger you made, then save.</>}</li>
+        <li>{ar ? <>اضغط <Ui>Submit</Ui> ثم <Ui>Publish</Ui>.</> : <>Press <Ui>Submit</Ui>, then <Ui>Publish</Ui>.</>}</li>
+      </ol>
+      <p className="hint" style={{ margin: '8px 0 0' }}>{t('لا يُرسل شيء إن رفض الزائر القياس (Do Not Track)، أو قبل موافقته إن كان متجرك يطلبها.', 'Nothing is sent when the shopper refuses measuring (Do Not Track), or before their consent if your store asks for it.')}</p>
+    </details>
+  );
+}
+
+/** The event the shop's Tag Manager receives when the try-on opens — the widget's own name for it. */
+const TRYON_EVENT = 'tajribah_tryon_start';
 
 function TemplateSteps() {
   const { t } = useLang();

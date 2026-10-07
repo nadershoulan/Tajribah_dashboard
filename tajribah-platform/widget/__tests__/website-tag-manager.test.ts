@@ -40,3 +40,16 @@ test('T96: wherever a Salla owner reads how to install, the Tag Manager way is t
   const integrations = readFileSync(join(process.cwd(), 'site', 'components', 'pages', 'Integrations.tsx'), 'utf8');
   assert.ok(saysTags(integrations) && integrations.includes('«التركيب في متجرك»') && !integrations.includes('«التثبيت»'), 'the integrations page, naming the dashboard page by its title');
 });
+
+test('T98: the guide’s Google Analytics event is the one the button pushes to the page’s Tag Manager', async () => {
+  const { FORWARDED, shopAnalytics } = await import('../src/main');
+  const dataLayer: Record<string, unknown>[] = [];
+  shopAnalytics({ dataLayer })({ type: 'tryon_start', productId: '244167095' } as never);
+  assert.ok(FORWARDED.includes('tryon_start'));
+  assert.deepEqual(dataLayer, [{ event: 'tajribah_tryon_start', item_id: '244167095' }], 'its name, and the product’s id as item_id');
+  const embed = source('Embed.tsx');
+  assert.ok(embed.includes(`const TRYON_EVENT = '${dataLayer[0]!.event}'`), 'the install page names that event');
+  assert.ok(/tajribah_\.\*/.test(embed) && 'tajribah_tryon_start'.match(/^tajribah_.*$/), 'and its trigger pattern catches it');
+  const article = HELP_ARTICLES.find((a) => a.slug === 'salla-google-tag-manager')!;
+  assert.ok(article.body.some((b) => b.ar.includes(String(dataLayer[0]!.event)) && b.ar.includes('item_id')), 'so does the help article');
+});

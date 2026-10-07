@@ -1657,3 +1657,13 @@ It is offered, not applied: no row used to mean no buy link, and an owner may wa
 reaches shoppers until they save.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T98 · 2026-10-07 · Try-ons in the owner's own Google Analytics, through the same Tag Manager
+
+**Decision.** Since T69 the button pushes its moments onto the page's Tag Manager `dataLayer` (no id needed,
+nothing loaded, consent and Do Not Track respected). A store that installs through Tag Manager is two steps away
+from seeing try-ons in its own Google Analytics, so the guide shows them as an optional foot: a Custom Event
+trigger for `tajribah_.*` and a GA4 Event tag named `{{Event}}`. Only `tajribah_tryon_start` fires today (the
+others are 3D's, version 2), which the regex covers as they come.
+
+**Rollback path.** Revert the commit. Cost: low.

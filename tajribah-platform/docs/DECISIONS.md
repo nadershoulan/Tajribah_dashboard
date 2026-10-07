@@ -1819,3 +1819,25 @@ the commit. Cost: low.
   are kept only there, in root-only files.
 
 **Rollback path.** The server can be rebuilt with `deploy/server/setup.sh` and a restore. Cost: low.
+
+## T110 · 2026-10-08 · SMS moved to version 2; the database reached through a tunnel
+
+**Decision.**
+- **Unifonic moves to version 2 (Nader's choice, after asking what SMS is for).** No feature sends an SMS. The SMS
+  sender, the Arabic length check and a "phone code" token type exist, but nothing calls them. Two-step sign-in
+  uses an authenticator app (TOTP). The production rule against the console sender guarded a feature that was never
+  built. Production now runs with `SMS_PROVIDER=none`. That is honest about sending nothing: a send fails loudly, so
+  no future feature can believe a code went out. The console stand-in is still refused in production. Tests:
+  env 1, notify 1; 5 breakages caught.
+- **Hyperdrive reaches Postgres through a Cloudflare Tunnel** (Zero Trust Free, which Nader approved). The tunnel is
+  `cloudflared` on the server, and its route is `pg.tajribah.org` → `localhost:5432`. An Access application with a
+  Service Auth policy admits only the non-expiring service token `hyperdrive-tajribah`. Port 5432 stays closed in the
+  firewall. A token that expired would cut the dashboard off without warning, so it does not expire; it can be
+  rotated from Zero Trust at any time.
+- **`scripts/deploy/deploy-dashboard.mjs --create-hyperdrive`** passes the tunnel host and token (`hyperdriveArgs`).
+  The token never becomes a Worker secret. Tested: 1 test, 4 breakages caught. Both configurations were created, and
+  wrangler checked the connection through the tunnel.
+- **What the launch still needs:** only `RESEND_API_KEY` (`--check`).
+
+**Rollback path.** Set `SMS_PROVIDER=unifonic` with its two settings once a feature sends SMS. The tunnel can be
+removed from Zero Trust. Cost: low.

@@ -33,8 +33,8 @@
     "consumers": [{ "queue": "tajribah-jobs", "max_batch_size": 100, "max_batch_timeout": 1, "max_concurrency": 10, "max_retries": 0 }]
   },
   "hyperdrive": [
-    { "binding": "HYPERDRIVE_APP", "id": "SET_ON_SERVER_DAY" },
-    { "binding": "HYPERDRIVE_ADMIN", "id": "SET_ON_SERVER_DAY" }
+    { "binding": "HYPERDRIVE_APP", "id": "6b6c410945334df78ec87cf9c643099a" },
+    { "binding": "HYPERDRIVE_ADMIN", "id": "f1cdba7cc4674dc89225fc9ea996534f" }
   ],
   "observability": { "enabled": true },
   // Plain settings (server/core/config/env.ts). The R2 account and bucket ids are not secret; the key is.
@@ -55,7 +55,8 @@
     "CUSTOM_DOMAIN_TARGET": "domains.tajribah.org",
     "EMAIL_PROVIDER": "resend",
     "EMAIL_FROM": "Tajribah <no-reply@tajribah.org>",
-    "SMS_PROVIDER": "unifonic",
+    // T110: no feature sends SMS in this version; Unifonic moves to version 2.
+    "SMS_PROVIDER": "none",
     "LOG_LEVEL": "info"
   }
 }

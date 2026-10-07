@@ -58,3 +58,12 @@ test('production refuses every development stand-in', () => {
   });
   resetEnv();
 });
+
+test('T110: production accepts SMS switched off (none) — never the console stand-in', () => {
+  resetEnv();
+  const ready = { ...VALID, NODE_ENV: 'production', JOBS_MODE: 'cf-queue', STORAGE_PROVIDER: 'r2', CDN_BASE_URL: 'https://cdn.example', CONFIG_STORE: 'kv', RATE_LIMITER: 'kv' };
+  assert.doesNotThrow(() => loadEnv({ ...ready, SMS_PROVIDER: 'none' }));
+  resetEnv();
+  assert.throws(() => loadEnv({ ...ready, SMS_PROVIDER: 'console' }), /SMS_PROVIDER: console SMS is not allowed in production/);
+  resetEnv();
+});

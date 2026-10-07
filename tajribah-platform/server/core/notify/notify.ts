@@ -123,6 +123,16 @@ export class ConsoleSmsSender implements SmsSender {
   }
 }
 
+/**
+ * T110 — SMS switched off (`SMS_PROVIDER=none`): no feature in this version sends one (two-step sign-in uses an
+ * authenticator app). A send fails loudly, so a feature added later cannot believe a code went out.
+ */
+export class NoSmsSender implements SmsSender {
+  async send(): Promise<void> {
+    throw new Error('SMS is off in this version (SMS_PROVIDER=none): set up Unifonic before a feature sends one');
+  }
+}
+
 // -------------------------------------------------------------------- real adapters
 
 /** Resend. Added when the account exists (§12.10); the interface does not change. */
@@ -187,7 +197,7 @@ export function configureNotify(config: NotifyConfig): void {
     : new ConsoleEmailSender();
   sms = config.SMS_PROVIDER === 'unifonic'
     ? new UnifonicSmsSender(config.UNIFONIC_APP_SID!, config.UNIFONIC_SENDER_ID!)
-    : new ConsoleSmsSender();
+    : config.SMS_PROVIDER === 'none' ? new NoSmsSender() : new ConsoleSmsSender();
 }
 
 export function setEmailSender(sender: EmailSender): void { email = sender; }

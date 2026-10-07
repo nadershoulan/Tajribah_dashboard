@@ -33,8 +33,6 @@ export const NEEDED = {
   R2_ACCESS_KEY_ID: 'direct uploads to tajribah-files (already there)',
   R2_SECRET_ACCESS_KEY: 'direct uploads to tajribah-files (already there)',
   RESEND_API_KEY: 'sign-in and invoice emails (the mail provider)',
-  UNIFONIC_APP_SID: 'phone codes — production refuses console SMS (env.ts)',
-  UNIFONIC_SENDER_ID: 'the approved sender name, up to 11 letters',
   DATABASE_APP_URL: 'the tajribah_app login on the server (for --create-hyperdrive and the Node worker)',
   DATABASE_ADMIN_URL: 'the tajribah_admin login on the server (likewise)',
 };
@@ -64,6 +62,21 @@ export const placeholdersIn = (production) => (production.hyperdrive ?? []).filt
 
 /** The secrets to send: what the env file holds that is not a plain var (wrangler refuses a name in both). */
 export function secretsOf(fileEnv, vars) {
-  const NOT_FOR_WORKER = new Set(['DATABASE_APP_URL', 'DATABASE_ADMIN_URL']); // Hyperdrive replaces them on the Worker
+  // Hyperdrive replaces the database logins on the Worker, and holds the tunnel's Access token itself (T110).
+  const NOT_FOR_WORKER = new Set(['DATABASE_APP_URL', 'DATABASE_ADMIN_URL', 'HYPERDRIVE_ACCESS_CLIENT_ID', 'HYPERDRIVE_ACCESS_CLIENT_SECRET']);
   return Object.fromEntries(Object.entries(fileEnv).filter(([k, v]) => v && !(k in vars) && !NOT_FOR_WORKER.has(k)));
+}
+
+/**
+ * T110 — the arguments for `wrangler hyperdrive create`. With the tunnel's Access token the database is reached
+ * by its tunnel hostname (pg.tajribah.org): no port, the token in place of an open 5432. Without one, a plain
+ * connection string. The login comes from the URL either way.
+ */
+export function hyperdriveArgs(name, url, access = {}) {
+  const u = new URL(url);
+  const login = [`--database=${decodeURIComponent(u.pathname.slice(1))}`, `--user=${decodeURIComponent(u.username)}`, `--password=${decodeURIComponent(u.password)}`];
+  if (access.id && access.secret) {
+    return ['hyperdrive', 'create', name, `--host=${u.hostname}`, ...login, `--access-client-id=${access.id}`, `--access-client-secret=${access.secret}`];
+  }
+  return ['hyperdrive', 'create', name, `--connection-string=${url}`];
 }

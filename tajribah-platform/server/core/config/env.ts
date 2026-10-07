@@ -74,8 +74,8 @@ export const REGISTRY = {
     example: 'Tajribah <no-reply@example.com>',
   }),
   SMS_PROVIDER: entry({
-    schema: z.enum(['console', 'unifonic']).default('console'),
-    scope: 'runtime', doc: 'Phone OTP transport. Production must not be console.',
+    schema: z.enum(['console', 'unifonic', 'none']).default('console'),
+    scope: 'runtime', doc: 'Phone OTP transport. Production must not be console. none: this version sends no SMS (T110, Unifonic moved to version 2); any attempt fails loudly.',
   }),
   UNIFONIC_APP_SID: entry({
     schema: z.string().optional(),
@@ -217,7 +217,8 @@ const envSchema = z.object(shape).superRefine((value, ctx) => {
   need(!!v.CLOUDFLARE_SAAS_ZONE_ID, 'CLOUDFLARE_SAAS_API_TOKEN', 'required when CLOUDFLARE_SAAS_ZONE_ID is set');
   need(!!v.DATABASE_APP_URL, 'DATABASE_ADMIN_URL', 'required when DATABASE_APP_URL is set — one login per role');
   need(!!v.DATABASE_ADMIN_URL, 'DATABASE_APP_URL', 'required when DATABASE_ADMIN_URL is set — one login per role');
-  // §12.6: the API must not boot in production pretending it can send an OTP.
+  // §12.6: the API must not boot in production pretending it can send an OTP. `none` (T110) is honest: it
+  // says no SMS is sent, and a send fails loudly; `console` would pretend.
   if (v.NODE_ENV === 'production' && v.SMS_PROVIDER === 'console') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['SMS_PROVIDER'],
       message: 'console SMS is not allowed in production — phone verification would silently no-op' });

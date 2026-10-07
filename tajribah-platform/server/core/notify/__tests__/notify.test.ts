@@ -143,3 +143,12 @@ test('Resend gets a text body and the configured sender', async () => {
   assert.equal(body.text, 'body');
   assert.equal((calls[0].init.headers as Record<string, string>).authorization, 'Bearer re_test');
 });
+
+test('T110: with SMS switched off, a send fails loudly — nothing pretends a code went out', async () => {
+  configureNotify({ EMAIL_PROVIDER: 'console', SMS_PROVIDER: 'none' });
+  const printed = await captured(async () => {
+    await assert.rejects(() => sendSms('+966501234567', SMS.otp, { code: '482913', minutes: 10 }, 'ar'), /SMS is off in this version/);
+  });
+  assert.doesNotMatch(printed, /482913/, 'the code is not printed either');
+  configureNotify({ EMAIL_PROVIDER: 'console', SMS_PROVIDER: 'console' });
+});

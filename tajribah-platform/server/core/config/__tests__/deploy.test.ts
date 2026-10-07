@@ -8,19 +8,19 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadEnv, resetEnv, REGISTRY } from '../env';
-import { NEEDED, PLACEHOLDER, UPLOADS, assemble, parseJsonc, placeholdersIn, readEnvFile, secretsOf } from '../../../../scripts/deploy/config.mjs';
+import { NEEDED, PLACEHOLDER, UPLOADS, assemble, hyperdriveArgs, parseJsonc, placeholdersIn, readEnvFile, secretsOf } from '../../../../scripts/deploy/config.mjs';
 
 const ROOT = process.cwd();
 const production = parseJsonc(readFileSync(join(ROOT, 'deploy/production.jsonc'), 'utf8'));
 /** Stand-ins for every value NEEDED names: what `.env.production.local` will hold on launch day. */
-const filled = Object.fromEntries(Object.keys(NEEDED).map((k) => [k, k.startsWith('DATABASE') ? 'postgres://u:p@db.example:5432/tajribah' : k === 'UNIFONIC_SENDER_ID' ? 'Tajribah' : 'x'.repeat(48)]));
+const filled = Object.fromEntries(Object.keys(NEEDED).map((k) => [k, k.startsWith('DATABASE') ? 'postgres://u:p@db.example:5432/tajribah' : 'x'.repeat(48)]));
 
 test('the production settings pass the boot check once the needed secrets exist — and not without them', () => {
   resetEnv();
   const env = loadEnv({ ...production.vars, ...secretsOf(filled, production.vars) });
   assert.equal(env.NODE_ENV, 'production');
   resetEnv();
-  for (const name of ['AUTH_SECRET', 'ENCRYPTION_KEY', 'UNIFONIC_APP_SID', 'RESEND_API_KEY']) {
+  for (const name of ['AUTH_SECRET', 'ENCRYPTION_KEY', 'RESEND_API_KEY']) {
     const { [name]: _gone, ...rest } = filled;
     void _gone;
     assert.throws(() => loadEnv({ ...production.vars, ...secretsOf(rest, production.vars) }), new RegExp(name), `${name} is needed`);
@@ -72,4 +72,14 @@ test('the CDN files: the paths the widget asks for; versioned names cached for g
     assert.ok(main.includes(u.key.replace(/^w\/v1\//, 'w/v1/')) || main.includes(u.key.split('/').pop()!), `${u.key} is what the widget loads`);
     assert.match(u.cache, /\/w\/|widget/.test(u.key) ? /max-age=300$/ : /immutable/);
   }
+});
+
+test('T110: Hyperdrive reaches the database through the tunnel — host and Access token, never a port; the token is not a Worker secret', () => {
+  const url = 'postgresql://tajribah_app_login:p%40ss@pg.tajribah.org:5432/tajribah';
+  assert.deepEqual(hyperdriveArgs('tajribah-app', url, { id: 'abc.access', secret: 'cfast_x' }), [
+    'hyperdrive', 'create', 'tajribah-app', '--host=pg.tajribah.org', '--database=tajribah', '--user=tajribah_app_login', '--password=p@ss',
+    '--access-client-id=abc.access', '--access-client-secret=cfast_x',
+  ]);
+  assert.deepEqual(hyperdriveArgs('x', url), ['hyperdrive', 'create', 'x', '--connection-string=' + url], 'without a token: the plain string');
+  assert.deepEqual(secretsOf({ AUTH_SECRET: 'a', HYPERDRIVE_ACCESS_CLIENT_ID: 'i', HYPERDRIVE_ACCESS_CLIENT_SECRET: 's' }, {}), { AUTH_SECRET: 'a' });
 });

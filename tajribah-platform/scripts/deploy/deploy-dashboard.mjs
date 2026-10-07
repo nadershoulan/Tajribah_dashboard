@@ -16,7 +16,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { NEEDED, PLACEHOLDER, assemble, parseJsonc, placeholdersIn, readEnvFile, secretsOf } from './config.mjs';
+import { NEEDED, PLACEHOLDER, assemble, hyperdriveArgs, parseJsonc, placeholdersIn, readEnvFile, secretsOf } from './config.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -35,9 +35,10 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     for (const [binding, name, url] of [['HYPERDRIVE_APP', 'tajribah-app', fileEnv.DATABASE_APP_URL], ['HYPERDRIVE_ADMIN', 'tajribah-admin', fileEnv.DATABASE_ADMIN_URL]]) {
       if (!placeholdersIn(production).includes(binding)) { console.log(`${binding}: already set`); continue; }
       if (!url) { console.error(`${binding}: add ${binding === 'HYPERDRIVE_APP' ? 'DATABASE_APP_URL' : 'DATABASE_ADMIN_URL'} to .env.production.local first`); process.exit(1); }
-      const r = wrangler(['hyperdrive', 'create', name, `--connection-string=${url}`]);
+      const r = wrangler(hyperdriveArgs(name, url, { id: fileEnv.HYPERDRIVE_ACCESS_CLIENT_ID, secret: fileEnv.HYPERDRIVE_ACCESS_CLIENT_SECRET }));
       const id = /"id":\s*"([0-9a-f]{32})"|\bid[:=]\s*"?([0-9a-f]{32})/.exec(r.stdout ?? '');
-      if (r.status !== 0 || !id) { console.error(`${binding}: wrangler could not create it (exit ${r.status}) — ${(r.stderr || '').split('\n').find((l) => /error/i.test(l)) ?? 'see the dashboard'}`); process.exit(1); }
+      const why = `${r.stderr ?? ''}\n${r.stdout ?? ''}`.split('\n').find((l) => /error|fail/i.test(l))?.replace(/(password|secret)=\S+/gi, '$1=…');
+      if (r.status !== 0 || !id) { console.error(`${binding}: wrangler could not create it (exit ${r.status}) — ${why ?? 'see the dashboard'}`); process.exit(1); }
       next = next.replace(new RegExp(`("binding": "${binding}", "id": ")${PLACEHOLDER}(")`), `$1${id[1] ?? id[2]}$2`);
       console.log(`✓ ${binding} → Hyperdrive ${name}`);
     }

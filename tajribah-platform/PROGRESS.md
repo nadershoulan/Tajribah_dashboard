@@ -3,10 +3,10 @@
 _Last updated: 2026-10-07 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: one on analytics (now end to end), store connections, enterprise features and security; the other on the website and the shop-facing pages.
-> **Just finished (2026-10-07):** **The server is set up and backing itself up.** `tajribah-1` (`db.tajribah.org`) runs Postgres 18 with the whole database structure (45 migrations), is closed to the internet except SSH by key, and takes an encrypted backup every night to Cloudflare. A real backup was restored on the server and opened on your computer. Before that: the server bought, Workers Paid on, the cache fixed, the shop script and settings server live.
-> **Next:** connect Cloudflare to the database through a private tunnel (needs Cloudflare Zero Trust switched on, free; your OK), then the dashboard can launch once Resend and Unifonic exist.
+> **Just finished (2026-10-08):** **Cloudflare now reaches the database through a private tunnel**: the database port is never open, and only Cloudflare's own key gets in. **SMS (Unifonic) moved to version 2**, since no feature sends one. **The dashboard's launch now waits only for the email key (Resend).** Before that: the server set up, with nightly backups.
+> **Next:** launch the dashboard the moment the Resend key exists (`node scripts/deploy/deploy-dashboard.mjs`); meanwhile, keep building what needs no account.
 > **For the day the accounts exist:** `docs/GO-LIVE.md` → "Who does what next": what is left for you, then the server-day steps in order.
-> **Waiting on you, in order:** (1) **put `~/.tajribah/backup-private.pem` in your password manager** (with `.env.production.local`, `~/.tajribah/backup.env` and `~/.ssh/tajribah_hetzner`); (2) **the tag in Failet's Tag Manager** (GTM-K4ZVD3HX); (3) **Resend** for email; (4) **Unifonic**, needed for launch. Done today: the cache setting, Workers Paid, the job queue, the server (`db.tajribah.org`). Later: GA4, Google sign-in, Moyasar, ZATCA, a 3D-generation provider. Salla, Zid and Shopify wait for version 2.
+> **Waiting on you, in order:** (1) **put the four private files in your password manager** (`~/.tajribah/backup-private.pem` first); (2) **Resend**: the only thing the launch still needs (an account, verify tajribah.org there, then its API key); (3) **the tag in Failet's Tag Manager** (GTM-K4ZVD3HX), once the dashboard is live. Later: GA4, Google sign-in, Moyasar, ZATCA, a 3D-generation provider. Version 2: Unifonic, Salla, Zid and Shopify.
 
 ```
 P0 Foundation     ██████████████████████████████░░  21 / 22   (1 blocked: staging server)
@@ -304,7 +304,7 @@ The public site that sells Tajribah, Arabic first.
 | ✅ | Domain: **tajribah.org** (bought 2026-10-07 through Cloudflare) — everything on it, with `cdn.`, `cfg.` and `ev.` subdomains (T82, `docs/DOMAINS.md`); a short domain later for printed QR codes if you want one | AR pages, QR codes, email links |
 | ⬜ | Moyasar merchant account | Billing (P2) |
 | ⬜ | ZATCA Fatoora onboarding | E-invoicing (P2) |
-| ⬜ | Unifonic (SMS / WhatsApp) | Real phone OTP — **needed for launch**: production refuses to start without it (T107) |
+| ⏭ v2 | Unifonic (SMS / WhatsApp) | Moved to version 2 (T110): no feature sends an SMS. Production runs with SMS switched off, and any send fails loudly |
 | ⏭ v2 | Shopify Partner account | Version 2 (T81) — not needed now. Connecting Shopify shops (P6) — the connection itself is built |
 | ⬜ | 3D generation API (Meshy / Tripo3D / CSM) | Generating models from photos (P3.4 onwards) |
 | ⬜ | **Hetzner server** (for Postgres) | Staging and going live — the platform itself now runs on PostgreSQL (tried here, `docs/DATABASE.md`) |
@@ -568,3 +568,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-10-07 | The server chosen (Hetzner CAX21, Germany, SSH key), waiting for your payment. The database's own nightly backups: encrypted, off the server, pruned, restored every Sunday; tried end to end | 5 new tests, 11 breakages caught; a real backup uploaded, downloaded, opened and restored (75 tables, 27,003 rows) |
 | 2026-10-07 | Cloudflare: Browser Cache TTL respects our headers (the widget 5 minutes), Workers Paid on, queue `tajribah-jobs`. The server bought (`tajribah-1`, 2.31.18.118) and named `db.tajribah.org` (DNS only); SSH checked | the headers and the DNS checked from outside; SSH into the server |
 | 2026-10-07 | The server set up: Postgres 18 (45 migrations), SSH key only, firewall, the code and its packages, four database logins, nightly backups running (restored on the server, opened on your computer) | 1 new test, 4 breakages caught; full gate 1008 pass, 3 skipped, 0 fail |
+| 2026-10-08 | The database reached through a private Cloudflare tunnel (no open port; only Cloudflare's key gets in); SMS moved to version 2; the launch now waits only for the email key | 3 new tests, 9 breakages caught; full gate 1011 pass, 3 skipped, 0 fail; 403 without the key, checked |

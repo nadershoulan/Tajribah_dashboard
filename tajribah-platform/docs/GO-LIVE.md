@@ -45,7 +45,7 @@ Worker (§4), never at the server, and Cloudflare's proxy carries only web traff
 | 2 | Add the tag in Failet's **Google Tag Manager** (GTM-K4ZVD3HX, steps on «التركيب في متجرك») and press Publish — the script it loads is live now | the button on failet.sa (it shows once a product is published from a live dashboard) |
 | 3 | Buy the **Hetzner server**: ready to buy in the Hetzner tab (CAX21, Falkenstein, Ubuntu 26.04, the `tajribah-server` SSH key, no host backups, $13.09 a month). Press "Create & Buy now" after adding payment | the dashboard, the website, `ev.`, the image/3D worker |
 | 4 | **Resend** (or another mail provider): verify `tajribah.org` there (it gives DNS records to add in Cloudflare) and paste its key as `RESEND_API_KEY` | sign-in and invoice emails |
-| 5 | **Unifonic**: an account, an approved sender name (`UNIFONIC_SENDER_ID`, up to 11 letters) and the app SID — **production refuses to start without it** (`env.ts`: no pretend phone codes) | launch itself |
+| v2 | **Unifonic**, moved to version 2 (T110): no feature sends an SMS. Two-step sign-in uses an authenticator app. Production runs with `SMS_PROVIDER=none`, and any attempt to send fails loudly | phone codes, when a feature needs them |
 | 6 | **Workers Paid** plan on Cloudflare ($5 a month) — the job queue needs it; then `npx wrangler queues create tajribah-jobs` (or tell me and I run it) | launch itself |
 | later | GA4 id · Google sign-in client · Moyasar · ZATCA Fatoora · a 3D-generation provider · Better Stack uptime | analytics, billing, invoices, models from photos |
 | v2 | Salla, Zid, Shopify partner accounts | store linking |
@@ -63,7 +63,12 @@ since production refuses console SMS).
 
 **Server day, in order** (steps 1 and 5 are done):
 1. On the server: Postgres 16, the database and its two logins, `node scripts/db/migrate.mjs --db …` (docs/DATABASE.md).
-2. **Hyperdrive through a Cloudflare Tunnel** (T109): Postgres stays on localhost and port 5432 stays closed. `cloudflared`
+2. **Done 2026-10-08 (T110): Hyperdrive through a Cloudflare Tunnel.** Zero Trust Free switched on. Tunnel
+   `tajribah-1` runs as the `cloudflared` service on the server (4 connections) and routes `pg.tajribah.org` to
+   `tcp://localhost:5432`. The Access application `pg` admits only the service token `hyperdrive-tajribah`
+   (non-expiring); without it the answer is 403, checked. Hyperdrive `tajribah-app` and `tajribah-admin` were created
+   through it, and their ids are in `deploy/production.jsonc`. The token is in `.env.production.local` and is never a
+   Worker secret. As first planned: Postgres stays on localhost and port 5432 stays closed. `cloudflared`
    on the server publishes it to Cloudflare only, and an Access service token lets Hyperdrive in. This needs Cloudflare
    Zero Trust switched on for the account (free plan). Then the two Hyperdrive configs are created against the tunnel's
    host, and their ids are written into `deploy/production.jsonc`.

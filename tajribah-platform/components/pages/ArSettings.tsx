@@ -389,6 +389,12 @@ function ProductPage({ productId, page, onSaved }: { productId: string; page: Ho
         <input id={`page-shop-${productId}`} dir="ltr" type="url" inputMode="url" placeholder="https://" value={shopUrl}
           onChange={(e) => setShopUrl(e.target.value)} maxLength={2048} aria-invalid={!!problem} />
         <span className="field-hint">{t('يظهر في الصفحة زرًا يأخذ المتسوّق إلى المنتج في متجرك.', 'Shown on the page as a button that takes the shopper to the product in your shop.')}</span>
+        {/* T97: the feed already knows the product's page — one click fills it in; saving stays the owner's */}
+        {!shopUrl.trim() && page.storePage && (
+          <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start', marginTop: 6 }} onClick={() => setShopUrl(page.storePage!)}>
+            <Link2 size={14} aria-hidden />{t('استخدم صفحته في متجرك', 'Use its page in your store')}
+          </button>
+        )}
       </div>
       {problem && <p className="field-error" role="alert">{problem}</p>}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>

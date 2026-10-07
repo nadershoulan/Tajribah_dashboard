@@ -89,7 +89,7 @@ test('a published product has a page: its block in the config, its address on th
     const { ctx, tenantId, kv } = await store(harness, 'oud', 'starter');
     const row = await lamp(harness, tenantId);
     const before = (await listArConfigs(ctx)).find((c) => c.productId === row.id)!;
-    assert.deepEqual(before.page, { url: null, active: true, shopUrl: null }, 'not published: no address yet, on by default');
+    assert.deepEqual(before.page, { url: null, active: true, shopUrl: null, storePage: null }, 'not published: no address yet, on by default');
 
     await publishProduct(ctx, row.id);
     const config = stored(kv, 'oud/sa-77.json');
@@ -124,7 +124,7 @@ test('switching the page off and setting the buy link reach the live config at o
     await publishProduct(ctx, row.id);
 
     const saved = await saveHostedPage(ctx, row.id, { active: true, shopUrl: 'https://oud.example.sa/p/oyster-38' });
-    assert.deepEqual(saved, { url: 'https://tajribah.com/p/oud2/sa-1001', active: true, shopUrl: 'https://oud.example.sa/p/oyster-38' });
+    assert.deepEqual(saved, { url: 'https://tajribah.com/p/oud2/sa-1001', active: true, shopUrl: 'https://oud.example.sa/p/oyster-38', storePage: null });
     const config = stored(kv, 'oud2/sa-1001.json');
     assert.equal(config.page.shopUrl, 'https://oud.example.sa/p/oyster-38', 'rewritten at once');
     const page = hostedProductFrom(config)!;
@@ -148,6 +148,23 @@ test('switching the page off and setting the buy link reach the live config at o
     await harness.asAdmin(() => harness.db.update(hostedPages).set({ isActive: true, shopUrl: 'javascript:alert(1)' } as any).where(eq(hostedPages.productId, row.id)));
     await publishProduct(ctx, row.id);
     assert.equal(stored(kv, 'oud2/sa-1001.json').page.shopUrl, null);
+  } finally { await harness.close(); resetEnv(); }
+});
+
+test('T97: the product’s store page (from its feed) is offered as the buy link — never saved by itself', async () => {
+  const harness = await createTestDb();
+  try {
+    const { ctx, tenantId, kv } = await store(harness, 'oud5', 'pro');
+    const row = await watch(harness, tenantId);
+    await harness.asAdmin(() => harness.db.update(products).set({ pageUrl: 'https://oud.example.sa/ar/oyster/p1412564664?tax_profile=sa' } as any).where(eq(products.id, row.id)));
+    await publishProduct(ctx, row.id);
+    const view = await getHostedPage(ctx, row.id);
+    assert.deepEqual([view.shopUrl, view.storePage], [null, 'https://oud.example.sa/ar/oyster/p1412564664?tax_profile=sa'], 'offered, not set');
+    assert.equal(stored(kv, 'oud5/sa-1001.json').page.shopUrl, null, 'shoppers see no buy link until the owner saves one');
+    await saveHostedPage(ctx, row.id, { active: true, shopUrl: view.storePage });
+    assert.equal(stored(kv, 'oud5/sa-1001.json').page.shopUrl, 'https://oud.example.sa/ar/oyster/p1412564664?tax_profile=sa', 'saved: it is the buy link');
+    await harness.asAdmin(() => harness.db.update(products).set({ pageUrl: 'http://oud.example.sa/ar/oyster/p1412564664' } as any).where(eq(products.id, row.id)));
+    assert.equal((await getHostedPage(ctx, row.id)).storePage, null, 'a page the buy link would refuse is not offered');
   } finally { await harness.close(); resetEnv(); }
 });
 

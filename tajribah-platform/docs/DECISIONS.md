@@ -1648,3 +1648,12 @@ in the store (from its feed, https only) is linked from its preview and, after p
 settings, next to «التركيب في متجرك»: publishing ends where the shopper meets the product.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T97 · 2026-10-07 · The product page's buy link from the feed, in one click
+
+**Decision.** A product's own page (what its QR code opens) shows a buy link only when the owner typed one. The
+feed now gives every product's page in the store, so the panel offers it in one click («استخدم صفحته في متجرك»).
+It is offered, not applied: no row used to mean no buy link, and an owner may want none or another — so nothing
+reaches shoppers until they save.
+
+**Rollback path.** Revert the commit. Cost: low.

@@ -42,6 +42,8 @@ export type HostedPageView = {
   url: string | null;
   active: boolean;
   shopUrl: string | null;
+  /** T97: the product's page in the store, from its feed — offered (never saved by itself) as the buy link. */
+  storePage?: string | null;
 };
 
 /**

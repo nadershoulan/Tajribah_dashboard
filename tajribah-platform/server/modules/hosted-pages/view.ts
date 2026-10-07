@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { customDomains, type edgeConfigs, type hostedPages, type products } from '@/db/schema';
 import { entitlementsOf } from '@/server/core/billing/entitlements';
 import type { TenantContext } from '@/server/core/tenancy/context';
-import { DEFAULT_HOSTED_PAGE_BASE, hostedPageUrl, type HostedPageView } from '@/lib/contracts/hosted-page';
+import { DEFAULT_HOSTED_PAGE_BASE, hostedPageUrl, isShopUrl, type HostedPageView } from '@/lib/contracts/hosted-page';
 import { loadEnv } from '@/server/core/config/env';
 
 type Product = typeof products.$inferSelect;
@@ -39,5 +39,6 @@ export function hostedPageViewOf(store: string, product: Product, page: Page | n
     url: live ? hostedPageUrl(base, store, product.externalId ?? product.id) : null,
     active: page?.isActive ?? true,
     shopUrl: page?.shopUrl ?? null,
+    storePage: product.pageUrl && isShopUrl(product.pageUrl) ? product.pageUrl : null,
   };
 }

@@ -14,7 +14,8 @@ test('every auth screen carries the row with the way home', () => {
     assert.match(readFileSync(join(PAGES, name), 'utf8'), /<AuthTop \/>/, `${name} has the way home`);
   }
   const top = readFileSync(join(PAGES, 'AuthTop.tsx'), 'utf8');
-  assert.match(top, /<Link href="\/"/, 'a link to the website root');
+  assert.match(top, /<a href="\/"/, 'a plain link: a client-side <Link> across root layouts did nothing (found live)');
+  assert.doesNotMatch(top, /next\/link/);
   assert.match(top, /العودة إلى الرئيسية/);
   assert.match(top, /<LangToggle \/>/, 'the language switch stays');
 });

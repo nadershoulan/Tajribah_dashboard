@@ -55,3 +55,11 @@ test('P1.19: a store’s address serves its products’ own pages, and every pag
   assert.equal(servesHere('ar.bigco.sa', null), false, 'nor a store’s page with no address of its own');
   assert.equal(servesHere('ar.bigco.sa', undefined), false);
 });
+
+test('T113: the visit collector is served on ev.tajribah.org — never redirected, which would turn the POST into a GET and lose the event', () => {
+  const hosts = siteHosts('tajribah.org,www.tajribah.org,app.tajribah.org');
+  assert.equal(storeHostRedirect(new URL('https://ev.tajribah.org/v1/e'), hosts), null);
+  assert.equal(storeHostRedirect(new URL('https://ar.oud.sa/v1/e'), hosts), null, 'a store’s own address may carry it too');
+  assert.equal(storeHostRedirect(new URL('https://ev.tajribah.org/pricing'), hosts), 'https://tajribah.org/pricing', 'the rest of ev. still goes home');
+  assert.equal(isStorePath('/v1/e/extra'), false);
+});

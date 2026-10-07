@@ -17,6 +17,9 @@ const STORE_PATHS = [
   /^\/api\/pair(?:\/[a-f0-9]{32})?\/?$/,
   /^\/(?:_next|assets|brand|wasm)\//,
   /^\/favicon\.ico$/,
+  // T113: the visit collector. The widget posts to ev.tajribah.org/v1/e, a host that is not one of the site's
+  // own; redirected, a POST becomes a GET and every event is lost (found at launch, 2026-10-08).
+  /^\/v1\/e\/?$/,
 ];
 
 export function siteHosts(value: string | undefined | null): string[] {

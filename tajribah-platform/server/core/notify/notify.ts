@@ -12,6 +12,7 @@
 import type { Lang } from '@/lib/lang';
 import { log } from '../observability/log';
 import type { Env } from '../config/env';
+import { SmtpEmailSender, type SmtpConnector } from './smtp';
 
 export const SMS_PART_GSM = 160;
 export const SMS_PART_UCS2 = 70;
@@ -184,7 +185,19 @@ let sms: SmsSender = new ConsoleSmsSender();
 
 /** What `configureNotify` reads — a slice of the env registry, so tests need not build a whole Env. */
 export type NotifyConfig = Pick<Env,
-  'EMAIL_PROVIDER' | 'RESEND_API_KEY' | 'EMAIL_FROM' | 'SMS_PROVIDER' | 'UNIFONIC_APP_SID' | 'UNIFONIC_SENDER_ID'>;
+  'EMAIL_PROVIDER' | 'RESEND_API_KEY' | 'EMAIL_FROM' | 'SMS_PROVIDER' | 'UNIFONIC_APP_SID' | 'UNIFONIC_SENDER_ID'>
+  & Partial<Pick<Env, 'SMTP_HOST' | 'SMTP_PORT' | 'SMTP_USER' | 'SMTP_PASSWORD'>>;
+
+/**
+ * T112: the runtime's way to open an SMTP connection — `cloudflare:sockets` on the Worker (`server/boot.ts`),
+ * `node:tls` in Node (`smtp-node.ts`). Asked for at send time, so the order of boot does not matter.
+ */
+let smtpConnector: SmtpConnector | null = null;
+export function setSmtpConnector(connector: SmtpConnector): void { smtpConnector = connector; }
+const currentSmtpConnector = (): SmtpConnector => {
+  if (!smtpConnector) throw new Error('SMTP: this runtime installed no socket (setSmtpConnector)');
+  return smtpConnector;
+};
 
 /**
  * Install the senders the environment asks for. Called once at boot, after `loadEnv()` —
@@ -194,7 +207,9 @@ export type NotifyConfig = Pick<Env,
 export function configureNotify(config: NotifyConfig): void {
   email = config.EMAIL_PROVIDER === 'resend'
     ? new ResendEmailSender(config.RESEND_API_KEY!, config.EMAIL_FROM!)
-    : new ConsoleEmailSender();
+    : config.EMAIL_PROVIDER === 'smtp'
+      ? new SmtpEmailSender({ host: config.SMTP_HOST ?? 'smtppro.zoho.com', port: config.SMTP_PORT ?? 465, user: config.SMTP_USER!, password: config.SMTP_PASSWORD!, from: config.EMAIL_FROM! }, currentSmtpConnector)
+      : new ConsoleEmailSender();
   sms = config.SMS_PROVIDER === 'unifonic'
     ? new UnifonicSmsSender(config.UNIFONIC_APP_SID!, config.UNIFONIC_SENDER_ID!)
     : config.SMS_PROVIDER === 'none' ? new NoSmsSender() : new ConsoleSmsSender();

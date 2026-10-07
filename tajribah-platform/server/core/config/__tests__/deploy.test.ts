@@ -20,7 +20,7 @@ test('the production settings pass the boot check once the needed secrets exist 
   const env = loadEnv({ ...production.vars, ...secretsOf(filled, production.vars) });
   assert.equal(env.NODE_ENV, 'production');
   resetEnv();
-  for (const name of ['AUTH_SECRET', 'ENCRYPTION_KEY', 'RESEND_API_KEY']) {
+  for (const name of ['AUTH_SECRET', 'ENCRYPTION_KEY', 'SMTP_PASSWORD']) {
     const { [name]: _gone, ...rest } = filled;
     void _gone;
     assert.throws(() => loadEnv({ ...production.vars, ...secretsOf(rest, production.vars) }), new RegExp(name), `${name} is needed`);

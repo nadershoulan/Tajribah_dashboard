@@ -32,7 +32,7 @@ export const NEEDED = {
   ENCRYPTION_KEY: 'store connection tokens at rest — `openssl rand -base64 48`, a different one',
   R2_ACCESS_KEY_ID: 'direct uploads to tajribah-files (already there)',
   R2_SECRET_ACCESS_KEY: 'direct uploads to tajribah-files (already there)',
-  RESEND_API_KEY: 'sign-in and invoice emails (the mail provider)',
+  SMTP_PASSWORD: 'the Zoho app password for info@baqah.org (Security → App Passwords) — sign-in and invoice emails',
   DATABASE_APP_URL: 'the tajribah_app login on the server (for --create-hyperdrive and the Node worker)',
   DATABASE_ADMIN_URL: 'the tajribah_admin login on the server (likewise)',
 };

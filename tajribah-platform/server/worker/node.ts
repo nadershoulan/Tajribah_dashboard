@@ -16,7 +16,8 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from '@/db/schema';
 import { registerDb, type Db } from '@/db/client';
 import { loadEnv } from '@/server/core/config/env';
-import { configureNotify } from '@/server/core/notify/notify';
+import { configureNotify, setSmtpConnector } from '@/server/core/notify/notify';
+import { nodeSmtpConnector } from '@/server/core/notify/smtp-node';
 import { configureStorage, storage } from '@/server/core/storage/storage';
 import { configureConfigStore } from '@/server/core/edge/configs';
 import { log, setLogLevel } from '@/server/core/observability/log';
@@ -28,6 +29,7 @@ const env = loadEnv(process.env);
 setLogLevel(env.LOG_LEVEL);
 if (env.STORAGE_PROVIDER !== 's3') throw new Error('the Node worker reaches the bucket through the S3 API: set STORAGE_PROVIDER=s3 and the R2_* credentials');
 if (!env.DATABASE_APP_URL || !env.DATABASE_ADMIN_URL) throw new Error('the Node worker needs DATABASE_APP_URL and DATABASE_ADMIN_URL');
+setSmtpConnector(nodeSmtpConnector); // T112
 configureNotify(env);
 configureStorage(env);
 const pool = (url: string) => new Pool({ connectionString: url, max: 4 });

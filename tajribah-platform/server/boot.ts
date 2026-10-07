@@ -7,9 +7,15 @@
  * half-start.
  */
 import { env } from 'cloudflare:workers';
+import { connect } from 'cloudflare:sockets';
 import { bootstrap } from '@/server/core/http/bootstrap';
 import { problemResponse } from '@/server/core/errors/problem';
 import { log } from '@/server/core/observability/log';
+import { setSmtpConnector } from '@/server/core/notify/notify';
+import { cloudflareConnector } from '@/server/core/notify/smtp';
+
+// T112: email through Zoho goes over a TLS socket the Workers runtime opens.
+setSmtpConnector(cloudflareConnector(connect));
 
 let booted = false;
 

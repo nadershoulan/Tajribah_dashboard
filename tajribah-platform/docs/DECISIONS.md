@@ -1841,3 +1841,27 @@ the commit. Cost: low.
 
 **Rollback path.** Set `SMS_PROVIDER=unifonic` with its two settings once a feature sends SMS. The tunnel can be
 removed from Zero Trust. Cost: low.
+
+## T112 · 2026-10-08 · Email through Zoho Mail, from no-reply@tajribah.org
+
+**Decision.** Nader already pays for Zoho Workplace Standard (organisation "baqah", one user, info@baqah.org), so the
+platform sends through it rather than through Resend or a mail server of our own. Hetzner blocks ports 25 and 465
+on new accounts (checked from tajribah-1), and a new server's address lands in spam.
+- **Zoho:** `tajribah.org` added to the same organisation and verified (TXT). MX (mx/mx2/mx3.zoho.com), SPF
+  (`include:zohomail.com`), DKIM (`zmail._domainkey`) and DMARC (`p=none`) are in Cloudflare through its zone import,
+  and Zoho shows the domain "Completed". `no-reply@tajribah.org` ("Tajribah") is a free **alias** of info@baqah.org, not
+  a second licence.
+- **Code:** `EMAIL_PROVIDER=smtp` (`server/core/notify/smtp.ts`, about 150 lines, no new package): implicit TLS to
+  `smtppro.zoho.com:465`, AUTH PLAIN with an **app password** (never the account password), sending from the alias.
+  Arabic subjects are UTF-8 encoded words and bodies are base64 UTF-8; text, with HTML when given. The dot rule is
+  applied, and a refusal names its step and the server's code, never the password. The socket comes from the
+  runtime: `cloudflare:sockets` on the Worker (`server/boot.ts`), `node:tls` in Node (`smtp-node.ts`).
+- **Tests:** a scripted server: the conversation order, the sign-in, refusals per step, Arabic round trip, the dot
+  rule, and the wiring. 5 tests, 7 breakages caught.
+- **Launch:** `deploy/production.jsonc` sets `EMAIL_PROVIDER=smtp`, `SMTP_USER=info@baqah.org` and
+  `EMAIL_FROM=Tajribah <no-reply@tajribah.org>`. `--check` now needs only `SMTP_PASSWORD`.
+- **Limits:** Zoho Mail caps outgoing mail per user per day (hundreds on Workplace Standard), which is plenty for
+  sign-in and invoice emails at launch. If the volume ever outgrows it, move to Zoho's own transactional service
+  (ZeptoMail, already in the admin console's menu) or back to Resend; the sender is one setting.
+
+**Rollback path.** `EMAIL_PROVIDER=resend` with `RESEND_API_KEY`. Cost: low.

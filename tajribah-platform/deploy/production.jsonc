@@ -53,7 +53,11 @@
     // T106: products' own pages and QR codes stay on tajribah.org/p — no separate short domain.
     "HOSTED_PAGE_BASE": "https://tajribah.org/p",
     "CUSTOM_DOMAIN_TARGET": "domains.tajribah.org",
-    "EMAIL_PROVIDER": "resend",
+    // T112: email through Zoho Mail (the Workplace plan already paid), from the alias no-reply@tajribah.org.
+    "EMAIL_PROVIDER": "smtp",
+    "SMTP_HOST": "smtppro.zoho.com",
+    "SMTP_PORT": "465",
+    "SMTP_USER": "info@baqah.org",
     "EMAIL_FROM": "Tajribah <no-reply@tajribah.org>",
     // T110: no feature sends SMS in this version; Unifonic moves to version 2.
     "SMS_PROVIDER": "none",

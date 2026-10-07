@@ -61,8 +61,24 @@ export const REGISTRY = {
     scope: 'runtime', doc: 'Refresh token lifetime.',
   }),
   EMAIL_PROVIDER: entry({
-    schema: z.enum(['console', 'resend']).default('console'),
-    scope: 'runtime', doc: 'console prints to the log in development; resend needs RESEND_API_KEY.',
+    schema: z.enum(['console', 'resend', 'smtp']).default('console'),
+    scope: 'runtime', doc: 'console prints to the log in development; resend needs RESEND_API_KEY; smtp (T112) sends through a mailbox (Zoho Mail) and needs SMTP_USER and SMTP_PASSWORD.',
+  }),
+  SMTP_HOST: entry({
+    schema: z.string().default('smtppro.zoho.com'),
+    scope: 'runtime', doc: 'T112: the SMTP server (implicit TLS). Zoho Mail organisation accounts: smtppro.zoho.com.',
+  }),
+  SMTP_PORT: entry({
+    schema: z.coerce.number().int().positive().default(465),
+    scope: 'runtime', doc: 'T112: implicit TLS only (465); the connection is encrypted before anything is said.',
+  }),
+  SMTP_USER: entry({
+    schema: z.string().optional(),
+    scope: 'runtime', doc: 'T112: the mailbox that signs in (its alias is EMAIL_FROM). Required when EMAIL_PROVIDER=smtp.',
+  }),
+  SMTP_PASSWORD: entry({
+    schema: z.string().optional(),
+    scope: 'runtime', secret: true, doc: 'T112: an app password for SMTP_USER (Zoho: Security → App Passwords), never the account password.',
   }),
   RESEND_API_KEY: entry({
     schema: z.string().optional(),
@@ -70,7 +86,7 @@ export const REGISTRY = {
   }),
   EMAIL_FROM: entry({
     schema: z.string().optional(),
-    scope: 'runtime', doc: 'Sender address, on a domain verified in Resend. Required when EMAIL_PROVIDER=resend.',
+    scope: 'runtime', doc: 'Sender address, on a domain verified with the provider (with smtp: an alias of SMTP_USER). Required when EMAIL_PROVIDER is resend or smtp.',
     example: 'Tajribah <no-reply@example.com>',
   }),
   SMS_PROVIDER: entry({
@@ -208,6 +224,7 @@ const envSchema = z.object(shape).superRefine((value, ctx) => {
   };
   need(v.EMAIL_PROVIDER === 'resend', 'RESEND_API_KEY', 'required when EMAIL_PROVIDER=resend');
   need(v.EMAIL_PROVIDER === 'resend', 'EMAIL_FROM', 'required when EMAIL_PROVIDER=resend');
+  for (const name of ['SMTP_USER', 'SMTP_PASSWORD', 'EMAIL_FROM'] as const) need(v.EMAIL_PROVIDER === 'smtp', name, 'required when EMAIL_PROVIDER=smtp');
   need(v.SMS_PROVIDER === 'unifonic', 'UNIFONIC_APP_SID', 'required when SMS_PROVIDER=unifonic');
   need(v.SMS_PROVIDER === 'unifonic', 'UNIFONIC_SENDER_ID', 'required when SMS_PROVIDER=unifonic');
   need(!!v.SALLA_CLIENT_ID, 'SALLA_CLIENT_SECRET', 'required when SALLA_CLIENT_ID is set');

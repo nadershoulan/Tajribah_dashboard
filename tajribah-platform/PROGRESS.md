@@ -3,10 +3,10 @@
 _Last updated: 2026-10-07 · updated after every package_
 
 > **Now:** building every piece that needs no account, phase by phase. Two sessions work in parallel: one on analytics (now end to end), store connections, enterprise features and security; the other on the website and the shop-facing pages.
-> **Just finished (2026-10-08):** **Cloudflare now reaches the database through a private tunnel**: the database port is never open, and only Cloudflare's own key gets in. **SMS (Unifonic) moved to version 2**, since no feature sends one. **The dashboard's launch now waits only for the email key (Resend).** Before that: the server set up, with nightly backups.
-> **Next:** launch the dashboard the moment the Resend key exists (`node scripts/deploy/deploy-dashboard.mjs`); meanwhile, keep building what needs no account.
+> **Just finished (2026-10-08):** **Email goes through your Zoho Mail**, from `no-reply@tajribah.org`. The domain is verified in Zoho, and the anti-spam records (SPF, DKIM, DMARC) are live. The address is a free alias of info@baqah.org. **One command uploads code to the server** (`push-server.sh` over `ssh tajribah`). Before that: the private database tunnel; SMS moved to version 2.
+> **Next:** launch the dashboard the moment the Zoho app password exists (`node scripts/deploy/deploy-dashboard.mjs`); meanwhile, keep building what needs no account.
 > **For the day the accounts exist:** `docs/GO-LIVE.md` → "Who does what next": what is left for you, then the server-day steps in order.
-> **Waiting on you, in order:** (1) **put the four private files in your password manager** (`~/.tajribah/backup-private.pem` first); (2) **Resend**: the only thing the launch still needs (an account, verify tajribah.org there, then its API key); (3) **the tag in Failet's Tag Manager** (GTM-K4ZVD3HX), once the dashboard is live. Later: GA4, Google sign-in, Moyasar, ZATCA, a 3D-generation provider. Version 2: Unifonic, Salla, Zid and Shopify.
+> **Waiting on you, in order:** (1) **the Zoho app password**: Zoho → Security → App Passwords → generate `tajribah-dashboard`; it is the only thing the launch still needs; (2) **put the private files in your password manager** (`~/.tajribah/backup-private.pem` first); (3) **the tag in Failet's Tag Manager** (GTM-K4ZVD3HX), once the dashboard is live. Later: GA4, Google sign-in, Moyasar, ZATCA, a 3D-generation provider. Version 2: Unifonic, Salla, Zid and Shopify.
 
 ```
 P0 Foundation     ██████████████████████████████░░  21 / 22   (1 blocked: staging server)
@@ -569,3 +569,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-10-07 | Cloudflare: Browser Cache TTL respects our headers (the widget 5 minutes), Workers Paid on, queue `tajribah-jobs`. The server bought (`tajribah-1`, 2.31.18.118) and named `db.tajribah.org` (DNS only); SSH checked | the headers and the DNS checked from outside; SSH into the server |
 | 2026-10-07 | The server set up: Postgres 18 (45 migrations), SSH key only, firewall, the code and its packages, four database logins, nightly backups running (restored on the server, opened on your computer) | 1 new test, 4 breakages caught; full gate 1008 pass, 3 skipped, 0 fail |
 | 2026-10-08 | The database reached through a private Cloudflare tunnel (no open port; only Cloudflare's key gets in); SMS moved to version 2; the launch now waits only for the email key | 3 new tests, 9 breakages caught; full gate 1011 pass, 3 skipped, 0 fail; 403 without the key, checked |
+| 2026-10-08 | One command uploads to the server (`ssh tajribah`); email through your Zoho Mail from no-reply@tajribah.org (domain verified, SPF/DKIM/DMARC live) | 5 new tests, 7 breakages caught; full gate 1016 pass, 3 skipped, 0 fail |

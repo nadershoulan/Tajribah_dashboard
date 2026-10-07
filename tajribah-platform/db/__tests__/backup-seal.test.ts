@@ -7,7 +7,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { backupKeyPair, open, seal, toPrune } from '../../scripts/dr/seal.mjs';
+import { PROBE_HAS_NOTHING, backupKeyPair, judgeRestore, open, seal, toPrune } from '../../scripts/dr/seal.mjs';
+import { compareRestore } from '../../scripts/dr/compare.mjs';
 
 test('sealed with the public key, opened only with its private key', () => {
   const { publicPem, privatePem } = backupKeyPair();
@@ -68,4 +69,21 @@ test('pruning: two backups on one day — the week keeps the later, the night wi
   const early = '2026-11-29T00-15-07-123Z', late = '2026-11-29T13-00-00-000Z'; // a Sunday, 32 days back
   const pruned = toPrune([key(early), key(late), 'db/README.txt', key(night('2026-12-30'))], now);
   assert.deepEqual(pruned, [key(early)]);
+});
+
+test('Sunday’s check: a whole restore with nothing to probe passes only while there are no products — anything else fails', () => {
+  const empty = { tables: { products: { rows: 0 } } };
+  const stocked = { tables: { products: { rows: 12 } } };
+  const nothingToProbe = { ok: false, problems: [PROBE_HAS_NOTHING], restoreSeconds: 0.8 };
+  assert.deepEqual(judgeRestore({ ok: true, problems: [], restoreSeconds: 1.2 }, stocked), { ok: true, note: 'restored and checked in 1.2 s' });
+  const early = judgeRestore(nothingToProbe, empty);
+  assert.equal(early.ok, true);
+  assert.ok(early.note.includes('not testable yet (no products)'), 'and the log says so');
+  assert.equal(judgeRestore(nothingToProbe, stocked).ok, false, 'once products exist the probe must read them');
+  assert.equal(judgeRestore(nothingToProbe, {}).ok, false, 'a manifest without the count is not "empty"');
+  assert.equal(judgeRestore({ ok: false, problems: [PROBE_HAS_NOTHING, 'a row missing'], restoreSeconds: 1 }, empty).ok, false, 'a second problem always fails');
+  assert.equal(judgeRestore({ ok: false, problems: ['RLS off on products'], restoreSeconds: 1 }, empty).ok, false);
+  // the exact words the probe writes, so a rewording there cannot quietly turn the exception off — or widen it
+  const facts = { schema: 's', policies: 1, tables: { products: { rows: 0, rls: true, forced: true } } };
+  assert.ok(compareRestore(facts, { ...facts, crossTenantRows: 0, ownRows: 0 }).problems.includes(PROBE_HAS_NOTHING));
 });

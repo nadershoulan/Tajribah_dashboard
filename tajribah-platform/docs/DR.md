@@ -38,6 +38,13 @@ lacks them (roles live in the cluster, not in a dump), so a brand-new server can
 - **Kept** every night for 14 days, then the newest of each week for 8 weeks; older copies are deleted by the job.
 - **Logged in as `tajribah_backup`**, a read-only login (`pg_read_all_data`, `BYPASSRLS`). The admin login
   cannot dump the monthly partitions.
+- **On tajribah-1** since 2026-10-07: settings in `/etc/tajribah/backup.env` (root only). Sunday's restore check logs in
+  as `tajribah_verify`, a superuser that reaches only localhost, because the restore recreates owners and switches roles.
+  While the database has **no products**, the store-isolation probe has nothing to compare. The check then passes as
+  "restored whole; store isolation not testable yet" and says so in the log. Any other problem fails, and so does this
+  one once products exist (`judgeRestore`, tested).
+- **Version:** the server runs Postgres 18. Its dumps restore only with Postgres 18 tools, so restore on the server or
+  on another machine with Postgres 18; Postgres 16 on Nader's computer can fetch and open a backup, but not restore it.
 - **Restoring:** `node scripts/dr/nightly.mjs list`, then `fetch --key <key> --out <dir>`, then
   `drill.mjs verify` (to check it) or `pg_restore` (to use it).
 

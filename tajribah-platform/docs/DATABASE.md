@@ -6,6 +6,9 @@ depends on which.
 
 ## Once, on the database server
 
+**Production (2026-10-07, T109):** Postgres **18.6** from Ubuntu 26.04 on tajribah-1. All 45 migrations applied cleanly on
+it, and the restore check passed. Local development stays on 16; the SQL is the same.
+
 Run as the database's owner (the login that will own the tables):
 
 ```sql

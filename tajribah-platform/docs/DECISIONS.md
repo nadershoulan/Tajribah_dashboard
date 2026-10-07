@@ -1800,3 +1800,22 @@ the commit. Cost: low.
   unreadable fails the build.
 
 **Rollback path.** Turn on Hetzner backups in the server's settings at any time (+20%). Cost: low.
+
+## T109 · 2026-10-07 · The server set up: Postgres 18, closed to the internet, backups running
+
+**Decision.**
+- **Postgres 18 from Ubuntu**, not 16 from the Postgres project's repository. 26.04 ships only 18. Ubuntu's package
+  gets security updates with the system (unattended-upgrades) and is supported until 2030. All 45 migrations
+  applied on it, and a restore check passed. Local development stays on 16.
+- **The database port is never opened.** The firewall allows SSH only, and Postgres listens on localhost.
+  Hyperdrive will reach it through a Cloudflare Tunnel with an Access service token, rather than through a public
+  5432 guarded only by a password.
+- **Node 22 from Ubuntu.** That build cannot load TypeScript files itself (the nodejs.org build can), so the
+  backup script compiles `sigv4.ts` with esbuild instead of importing it.
+- **The backup public key is committed.** `*.pem` was ignored, so it had been missing from every checkout except
+  this computer; `.gitignore` now has one exception, for it alone.
+- **Sunday's check on an empty database** passes only while there are no products, and the log says so (see docs/DR.md).
+- **Logins:** app, admin, backup (read-only) and verify (local superuser). The passwords were made on the server and
+  are kept only there, in root-only files.
+
+**Rollback path.** The server can be rebuilt with `deploy/server/setup.sh` and a restore. Cost: low.

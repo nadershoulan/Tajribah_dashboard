@@ -26,17 +26,28 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { backupKeyPair, open, seal, toPrune } from './seal.mjs';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import { backupKeyPair, judgeRestore, open, seal, toPrune } from './seal.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const env = process.env;
 const arg = (name) => { const i = process.argv.indexOf(name); return i > -1 ? process.argv[i + 1] : undefined; };
 const PREFIX = 'db/';
 
+/**
+ * The platform's own SigV4 (`sigv4.ts`, no imports), compiled with esbuild: Ubuntu's Node build cannot load
+ * TypeScript itself, unlike the one from nodejs.org (found on tajribah-1, 2026-10-07).
+ */
+async function signer() {
+  const esbuild = createRequire(path.join(ROOT, 'node_modules', '_.js'))('esbuild');
+  const { code } = await esbuild.transform(fs.readFileSync(path.join(ROOT, 'server/core/storage/sigv4.ts'), 'utf8'), { loader: 'ts', format: 'esm' });
+  return import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+}
+
 async function bucket() {
   for (const k of ['BACKUP_R2_ACCOUNT_ID', 'BACKUP_R2_ACCESS_KEY_ID', 'BACKUP_R2_SECRET_ACCESS_KEY']) if (!env[k]) throw new Error(`settings: ${k} is not set`);
-  const { signRequest } = await import(pathToFileURL(path.join(ROOT, 'server/core/storage/sigv4.ts')).href);
+  const { signRequest } = await signer();
   const base = `https://${env.BACKUP_R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${env.BACKUP_R2_BUCKET ?? 'tajribah-backups'}`;
   const send = async (method, key = '', { body, query = {} } = {}) => {
     const url = new URL(`${base}${key ? `/${key.split('/').map(encodeURIComponent).join('/')}` : ''}`);
@@ -64,10 +75,10 @@ async function bucket() {
   };
 }
 
+/** drill.mjs's JSON report — also when it exits 1 with a failed check, so the problems can be judged. */
 function drill(args) {
   const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts/dr/drill.mjs'), ...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  if (r.status !== 0) throw new Error((r.stderr || r.stdout).trim().split('\n').slice(-3).join(' '));
-  return JSON.parse(r.stdout);
+  try { return JSON.parse(r.stdout); } catch { throw new Error((r.stderr || r.stdout).trim().split('\n').slice(-3).join(' ')); }
 }
 
 async function run() {
@@ -86,8 +97,9 @@ async function run() {
         step = 'restore check';
         if (!env.BACKUP_VERIFY_SERVER) throw new Error('settings: BACKUP_VERIFY_SERVER is not set');
         const report = drill(['verify', '--dump', file, '--server', env.BACKUP_VERIFY_SERVER]);
-        if (!report.ok) throw new Error(report.problems.join('; '));
-        verified = `restored and checked in ${report.restoreSeconds ?? report.seconds ?? '?'} s`;
+        const judged = judgeRestore(report, JSON.parse(fs.readFileSync(manifest, 'utf8')));
+        if (!judged.ok) throw new Error(judged.note);
+        verified = judged.note;
       }
       step = 'seal and upload';
       const bytes = fs.statSync(file).size;

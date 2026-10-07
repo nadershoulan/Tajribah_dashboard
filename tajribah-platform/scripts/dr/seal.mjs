@@ -70,3 +70,21 @@ export function toPrune(keys, now = new Date(), { days = 14, weeks = 8 } = {}) {
   const kept = (id) => ageDays(id) < days || (ageDays(id) < weeks * 7 && newestPerWeek.get(weekOf(id)) === id);
   return dated.filter((k) => !kept(k.id)).map((k) => k.key);
 }
+
+/** The isolation probe's own words when it found no rows to compare (scripts/dr/drill.mjs). */
+export const PROBE_HAS_NOTHING = 'isolation: the probe read none of its own store’s rows, so it proves nothing';
+
+/**
+ * Sunday's restore check, judged. A restore that is whole but whose isolation probe had nothing to read
+ * passes only while the backup holds no products at all (a new server before its first store); the log
+ * says so. Any other problem, or the same one once products exist, fails.
+ */
+export function judgeRestore(report, manifest) {
+  const problems = report.problems ?? [];
+  if (report.ok && problems.length === 0) return { ok: true, note: `restored and checked in ${report.restoreSeconds} s` };
+  const products = manifest?.tables?.products?.rows;
+  if (problems.length === 1 && problems[0] === PROBE_HAS_NOTHING && products === 0) {
+    return { ok: true, note: `restored whole in ${report.restoreSeconds} s; store isolation not testable yet (no products)` };
+  }
+  return { ok: false, note: problems.join('; ') || 'the restore check failed' };
+}

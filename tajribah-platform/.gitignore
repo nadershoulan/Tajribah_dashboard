@@ -21,6 +21,8 @@
 # misc
 .DS_Store
 *.pem
+# T108: the backup PUBLIC key is meant to be committed (it can only encrypt); every other .pem stays ignored
+!deploy/server/backup-public.pem
 
 # debug
 npm-debug.log*

@@ -52,9 +52,21 @@ Worker (§4), never at the server, and Cloudflare's proxy carries only web traff
 
 Keep these in your password manager; each is the only copy: `.env.production.local`, `~/.tajribah/backup-private.pem` (**without it no backup can be opened**), `~/.tajribah/backup.env` and `~/.ssh/tajribah_hetzner` (the server's SSH key).
 
-**Server day, in order** (I can run all of it once 3–6 are done):
+**The server, set up 2026-10-07 (T109):** `deploy/server/setup.sh` (updates, SSH by key only, firewall with SSH only,
+Postgres 18 on localhost, Node 22, swap, the `tajribah` user); the code at `/opt/tajribah/app` with its packages
+(sharp loads on Arm); database `tajribah` with all 45 migrations applied; logins `tajribah_app_login`,
+`tajribah_admin_login`, `tajribah_backup` (read-only) and `tajribah_verify` (local superuser for Sunday's
+check), with passwords only in `/etc/tajribah/db.env` and `/etc/tajribah/backup.env` (root only); the nightly
+backup timer enabled (next run 03:15 Riyadh) and run twice, once with the restore check. **Left on the server:** the
+Cloudflare Tunnel for Hyperdrive (below), and the Node worker's service (it starts only once Unifonic is set,
+since production refuses console SMS).
+
+**Server day, in order** (steps 1 and 5 are done):
 1. On the server: Postgres 16, the database and its two logins, `node scripts/db/migrate.mjs --db …` (docs/DATABASE.md).
-2. `node scripts/deploy/deploy-dashboard.mjs --create-hyperdrive` — the two Hyperdrive configs, ids written into `deploy/production.jsonc`.
+2. **Hyperdrive through a Cloudflare Tunnel** (T109): Postgres stays on localhost and port 5432 stays closed. `cloudflared`
+   on the server publishes it to Cloudflare only, and an Access service token lets Hyperdrive in. This needs Cloudflare
+   Zero Trust switched on for the account (free plan). Then the two Hyperdrive configs are created against the tunnel's
+   host, and their ids are written into `deploy/production.jsonc`.
 3. `node scripts/deploy/deploy-dashboard.mjs --check`, then `--dry-run`, then without a flag: build, secrets, deploy to `tajribah.org`, `www.`, `app.` and `ev.`.
 4. The Node worker on the server (§3), then the checks in §3–§5.
 5. **Backups (T108, docs/DR.md):** create the `tajribah_backup` login, put `deploy/server/backup.env.example` filled in

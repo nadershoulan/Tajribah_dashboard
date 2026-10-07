@@ -11,7 +11,7 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 User=tajribah
-WorkingDirectory=/opt/tajribah
+WorkingDirectory=/opt/tajribah/app
 EnvironmentFile=/etc/tajribah/backup.env
 ExecStart=/usr/bin/node scripts/dr/nightly.mjs run
 Nice=10

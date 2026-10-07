@@ -1719,3 +1719,14 @@ category from Salla's public product list, which answers any origin. It is label
 category, not Salla's recommendations — said so in docs/RUNNING-LOCALLY.md.
 
 **Rollback path.** Revert the commit. Cost: none (a local test tool).
+
+## T103 · 2026-10-07 · «أضف للسلة» in the try-on window, through the store's own button
+
+**Decision.** A shopper who likes how the watch looks should buy from the window, as in Nader's example (product, price,
+"Add to Cart" under the try-on). The widget never touches a store's cart itself: on a Salla page found by its number,
+the window's foot presses the store's own add-to-cart for that product (the main button, not a product card's), after
+closing — so Salla's options picker, cart and messages behave as on the page. The price is the button's own amount in
+the store's currency (Salla's settings); when either cannot be read, the name stands alone. Template installs and other
+platforms get no foot until there is a known button to press.
+
+**Rollback path.** Revert the commit. Cost: low.

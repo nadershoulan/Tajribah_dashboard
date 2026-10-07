@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { autoPlatformOf, pageRefOf, placeOnPage, SALLA_SPOTS, spotOf, type PageDocument } from '../src/auto';
+import { autoPlatformOf, pageRefOf, placeOnPage, priceText, sallaCartOf, SALLA_SPOTS, spotOf, type PageDocument } from '../src/auto';
 import { parseConfig } from '../src/config';
 import { ATTR, WIDGET_SRC } from '../src/main';
 import { tagManagerSnippet } from '../src/snippet';
@@ -165,4 +165,34 @@ test('a config may name the product’s own ref (found by its page); anything bu
   assert.equal(parseConfig(GOOD)?.ref, null);
   assert.equal(parseConfig({ ...GOOD, ref: '244167095' })?.ref, '244167095');
   for (const junk of [7, '', 'x'.repeat(201), { id: 1 }, null]) assert.equal(parseConfig({ ...GOOD, ref: junk })?.ref, null, JSON.stringify(junk));
+});
+
+test('T103: the store’s own add-to-cart for the page’s product — the main button, its price and the store’s currency', () => {
+  const clicks: string[] = [];
+  const button = (id: string, inCard: boolean, amount: string | null) => ({
+    closest: (selector: string) => (inCard && /product-card/.test(selector) ? {} : null),
+    getAttribute: (name: string) => (name === 'amount' ? amount : name === 'product-id' ? id : null),
+    querySelector: (selector: string) => (selector === 'button' ? { click: () => { clicks.push(`inner ${id}`); } } : null),
+    click: () => { clicks.push(`host ${id}`); },
+  });
+  const doc = (buttons: ReturnType<typeof button>[]) => ({
+    querySelectorAll: (selector: string) => buttons.filter((b) => selector === `salla-add-product-button[product-id="${b.getAttribute('product-id')}"]`),
+  });
+  const salla = { salla: { config: { get: (key: string) => (key === 'user.currency_code' ? 'SAR' : null) } } };
+
+  const page = doc([button('1713032054', true, null), button('1713032054', false, '96'), button('2132822355', true, null)]);
+  const cart = sallaCartOf(page, 'page:p1713032054', salla)!;
+  assert.deepEqual([cart.price, cart.currency], [96, 'SAR'], 'the product’s own button — not the same product’s card further down');
+  cart.add();
+  assert.deepEqual(clicks, ['inner 1713032054'], 'the store’s own button is pressed: its options, cart and messages are Salla’s');
+
+  assert.equal(sallaCartOf(doc([button('1713032054', true, null)]), 'page:p1713032054', salla), null, 'only in a product card: not this page’s button');
+  assert.equal(sallaCartOf(page, '244167095', salla), null, 'a product not found by its page');
+  assert.deepEqual([sallaCartOf(page, 'page:p1713032054', {})!.currency, sallaCartOf(doc([button('9', false, 'abc')]), 'page:p9', salla)!.price], [null, null], 'no currency, or no readable price: none shown');
+  assert.equal(sallaCartOf(page, 'page:p1713032054', { salla: { config: { get: () => { throw new Error('x'); } } } })!.currency, null, 'never throws');
+
+  assert.match(priceText(96, 'SAR', 'ar'), /96/);
+  assert.match(priceText(196.01, 'SAR', 'ar'), /196\.01\sر\.س/, 'Western digits in Arabic, as the dashboard writes them');
+  assert.ok(!/[٠-٩]/.test(priceText(196.01, 'SAR', 'ar')));
+  assert.match(priceText(96, 'SAR', 'en'), /^SAR\s96$/);
 });

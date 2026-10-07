@@ -145,3 +145,40 @@ test('T100: the website’s and the widget’s frame messages are the same words
   assert.equal(site.CLOSE_MESSAGE, widget.CLOSE_MESSAGE);
   assert.equal(site.SHOWN_MESSAGE, widget.SHOWN_MESSAGE);
 });
+
+test('T103: with the store’s cart, the window’s foot offers the product and «أضف للسلة» — the window closes, then the store’s own button', async () => {
+  const g = globalThis as Record<string, unknown>;
+  const saved = { document: g.document, window: g.window };
+  const body = new El('body');
+  g.document = { createElement: (tag: string) => new El(tag), body, activeElement: null, addEventListener() {}, removeEventListener() {} };
+  g.window = { addEventListener() {}, removeEventListener() {} };
+  try {
+    const { openTryOn } = await import('../src/tryon');
+    const events: string[] = [];
+    openTryOn(new El('#shadow') as never, 'https://tajribah.com/embed/try-on?store=failet&product=235186172&lang=ar', 'ar', 'ساعة رجالية', {
+      name: 'ساعة رجالية فضي', price: '96 ر.س', add: () => { events.push(`added, popup open: ${body.children.length === 1}`); },
+    });
+    const sheet = body.children[0]!.shadow!.children[1]!.children[0]!;
+    assert.equal(sheet.className, 'tryon-sheet with-cart');
+    const foot = sheet.children[2]!;
+    assert.equal(foot.className, 'tryon-cart');
+    const [what, add] = foot.children as [El, El];
+    assert.deepEqual(what.children.map((c) => [c.className, c.textContent]), [['tryon-cart-name', 'ساعة رجالية فضي'], ['tryon-cart-price', '96 ر.س']]);
+    assert.equal(add.textContent, 'أضف للسلة');
+    add.fire('click', {});
+    assert.deepEqual(events, ['added, popup open: false'], 'the window is gone before the store’s own button is pressed: its cart and messages are seen');
+
+    openTryOn(new El('#shadow') as never, 'https://tajribah.com/embed/try-on?store=failet&product=1&lang=en', 'en', 'Watch', { name: 'Watch', price: null, add() {} });
+    const plain = body.children[0]!.shadow!.children[1]!.children[0]!;
+    assert.deepEqual(plain.children[2]!.children[0]!.children.map((c) => c.className), ['tryon-cart-name'], 'no price read: the name alone');
+    assert.equal(plain.children[2]!.children[1]!.textContent, 'Add to cart');
+    body.children[0]!.remove();
+
+    openTryOn(new El('#shadow') as never, 'https://tajribah.com/embed/try-on?store=failet&product=1&lang=ar', 'ar', 'Watch');
+    const none = body.children[0]!.shadow!.children[1]!.children[0]!;
+    assert.deepEqual([none.className, none.children.length], ['tryon-sheet', 2], 'no store cart (not a Salla page): no foot');
+  } finally {
+    g.document = saved.document;
+    g.window = saved.window;
+  }
+});

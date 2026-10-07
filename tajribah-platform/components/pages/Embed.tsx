@@ -184,8 +184,8 @@ export default function Embed() {
                   <label className="toggle"><input type="radio" name="tag-spot" checked={spot === 'options'} onChange={() => setSpot('options')} /><span>{t('تحت خيارات المنتج، فوق «أضف للسلة»', 'Under the product’s options, above “Add to cart”')}</span></label>
                 </fieldset>
                 <p className="hint">{t(
-                  'يعمل في صفحات المنتجات فقط: يعرف المنتج من رابط صفحته في سلة (الذي ينتهي بـ ‎/p‎ ورقم المنتج). تفتح التجربة في نافذة فوق صفحة المنتج نفسها. إن غيّرت المكان فانسخ الوسم من جديد.',
-                  'It works on product pages only: it knows the product from its Salla page address (the one ending in /p and the product’s number). The try-on opens in a window over the product page itself. If you change the spot, copy the tag again.',
+                  'يعمل في صفحات المنتجات فقط: يعرف المنتج من رابط صفحته في سلة (الذي ينتهي بـ ‎/p‎ ورقم المنتج). تفتح التجربة في نافذة فوق صفحة المنتج نفسها، في أسفلها اسم المنتج وسعره وزر «أضف للسلة» من متجرك. إن غيّرت المكان فانسخ الوسم من جديد.',
+                  'It works on product pages only: it knows the product from its Salla page address (the one ending in /p and the product’s number). The try-on opens in a window over the product page itself, with the product’s name, price and your store’s own “Add to cart” at its foot. If you change the spot, copy the tag again.',
                 )}</p>
               </>
             ) : (

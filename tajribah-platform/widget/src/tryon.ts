@@ -71,6 +71,15 @@ export const POPUP_STYLE = `
 .tryon{position:fixed;inset:0;z-index:2147483647;background:rgba(15,18,22,.6);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
 .tryon-sheet{position:relative;width:min(940px,100%);height:min(740px,100%);background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.35)}
 .tryon iframe{border:0;width:100%;height:100%;display:block}
+.tryon-sheet.with-cart{display:flex;flex-direction:column;height:min(812px,100%)}
+.tryon-sheet.with-cart iframe{flex:1 1 auto;min-height:0;height:auto}
+.tryon-cart{flex:none;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 16px;border-top:1px solid #e5e9ec;background:#fff;font:500 14px/1.35 system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;color:#14212b}
+.tryon-cart-what{display:flex;flex-direction:column;min-width:0}
+.tryon-cart-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tryon-cart-price{font-weight:700;font-size:15px}
+.tryon-cart-add{all:unset;box-sizing:border-box;cursor:pointer;flex:none;background:#14212b;color:#fff;border-radius:10px;padding:11px 20px;font:700 15px/1.2 system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif}
+.tryon-cart-add:focus-visible{outline:2px solid #14212b;outline-offset:3px}
+.tryon-sheet.with-cart .tryon-close{bottom:78px}
 .tryon-close{all:unset;box-sizing:border-box;cursor:pointer;position:absolute;bottom:14px;inset-inline-start:14px;background:#111;color:#fff;border-radius:999px;padding:8px 14px;font:600 14px/1.2 system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif}
 .tryon-close:focus-visible{outline:2px solid #fff;outline-offset:2px}
 @media (max-width:600px){.tryon{padding:10px}.tryon-sheet{border-radius:14px}}
@@ -86,7 +95,10 @@ export const popupUrl = (src: string): string => { const url = new URL(src); url
  * tap outside the window, our close button or the frame's own close message remove it and give the page its
  * scroll back. `root` is the button's shadow root: focus goes back to its button.
  */
-export function openTryOn(root: ShadowRoot, src: string, lang: 'ar' | 'en', label: string): () => void {
+/** T103: what the window's foot offers — the product, its price, and the store's own add-to-cart. */
+export type TryOnCart = { name: string; price: string | null; add: () => void };
+
+export function openTryOn(root: ShadowRoot, src: string, lang: 'ar' | 'en', label: string, cart: TryOnCart | null = null): () => void {
   // T53: closing gives focus back to the button that opened it — a keyboard or screen-reader user
   // keeps their place on the page instead of starting again from the top.
   const opener = (root.activeElement ?? document.activeElement) as HTMLElement | null;
@@ -114,6 +126,9 @@ export function openTryOn(root: ShadowRoot, src: string, lang: 'ar' | 'en', labe
   close.textContent = lang === 'ar' ? 'إغلاق' : 'Close';
   sheet.appendChild(frame);
   sheet.appendChild(close);
+  // T103: like a store's own try-on window — the product and «أضف للسلة» at its foot, the store's own button behind it
+  const foot = cart ? cartFoot(cart, lang, () => { done(); cart.add(); }) : null;
+  if (foot) { sheet.className = 'tryon-sheet with-cart'; sheet.appendChild(foot); }
   overlay.appendChild(sheet);
 
   const body = document.body;
@@ -141,4 +156,30 @@ export function openTryOn(root: ShadowRoot, src: string, lang: 'ar' | 'en', labe
   body.appendChild(layer);
   close.focus();
   return done;
+}
+
+/** The window's foot: the product's name and price, and «أضف للسلة» (text only, never HTML). */
+function cartFoot(cart: TryOnCart, lang: 'ar' | 'en', onAdd: () => void): HTMLElement {
+  const foot = document.createElement('div');
+  foot.className = 'tryon-cart';
+  const what = document.createElement('div');
+  what.className = 'tryon-cart-what';
+  const name = document.createElement('span');
+  name.className = 'tryon-cart-name';
+  name.textContent = cart.name;
+  what.appendChild(name);
+  if (cart.price) {
+    const price = document.createElement('span');
+    price.className = 'tryon-cart-price';
+    price.textContent = cart.price;
+    what.appendChild(price);
+  }
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'tryon-cart-add';
+  add.textContent = lang === 'ar' ? 'أضف للسلة' : 'Add to cart';
+  add.addEventListener('click', onAdd);
+  foot.appendChild(what);
+  foot.appendChild(add);
+  return foot;
 }

@@ -26,7 +26,7 @@ import { arPath, detectDevice, VIEWER_AR_MODES } from './ar';
 import { LIMITS, type EventType, type TrackInput, type WireEvent } from './events';
 import { createTracker, privacySignal, randomToken, sessionToken, type Consent, type Tracker } from './track';
 import { DEFAULT_TRYON, openTryOn, tryOnBase, tryOnUrl, warmTryOn } from './tryon';
-import { autoPlatformOf, placeOnPage, PLACE_GAP_MS, PLACE_TRIES, spotOf, type AutoPlatform, type ButtonSpot } from './auto';
+import { autoPlatformOf, placeOnPage, PLACE_GAP_MS, PLACE_TRIES, priceText, sallaCartOf, spotOf, type AutoPlatform, type ButtonSpot } from './auto';
 
 export const WIDGET_VERSION = '1.0.0';
 export const CONFIG_TIMEOUT_MS = 3000;
@@ -351,7 +351,11 @@ export async function mount(doc: Document, settings: Settings, fetchImpl: typeof
       // P5 (T26): a watch — or (P5.2) glasses — with try-on set up opens the owner's studio, in a frame.
       if (config.tryon) {
         tracker?.track({ type: 'tryon_start', productId: product });
-        openTryOn(host.shadowRoot!, tryOnUrl(tryOnBase(settings.tryon, config.host), settings.store, product, lang), lang, lang === 'ar' ? config.product.nameAr ?? config.product.name : config.product.name);
+        const label = lang === 'ar' ? config.product.nameAr ?? config.product.name : config.product.name;
+        // T103: on a Salla page found by its number, the window offers the store's own add-to-cart
+        const store = settings.auto === 'salla' ? sallaCartOf(doc as never, placed) : null;
+        const cart = store ? { name: label, price: store.price && store.currency ? priceText(store.price, store.currency, lang) : null, add: store.add } : null;
+        openTryOn(host.shadowRoot!, tryOnUrl(tryOnBase(settings.tryon, config.host), settings.store, product, lang), lang, label, cart);
         return;
       }
       if (!hasModel(config)) return; // unreachable: a config without a model is a try-on (parseConfig)

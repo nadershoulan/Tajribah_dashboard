@@ -92,3 +92,36 @@ export function placeOnPage(doc: PageDocument, pageUrl: string, productAttr: str
 /** How long a theme that draws its product form late is waited for: tries × the gap between them. */
 export const PLACE_TRIES = 20;
 export const PLACE_GAP_MS = 500;
+
+/**
+ * T103 — the store's own add-to-cart for the page's product (Salla), so the try-on window can offer it: the main
+ * `salla-add-product-button` whose `product-id` is the page's number (never one in a product card further down),
+ * its price (`amount`) and the store's currency (`salla.config`). Adding clicks the store's own button, so Salla's
+ * options, cart and messages work as they always do. Null on any other page, or a product with no such button.
+ */
+export type StoreCart = { price: number | null; currency: string | null; add: () => void };
+type CartButton = { closest(selector: string): unknown; getAttribute(name: string): string | null; querySelector(selector: string): { click(): void } | null; click(): void };
+export type CartDocument = { querySelectorAll(selector: string): ArrayLike<CartButton> };
+type SallaScope = { salla?: { config?: { get?(key: string): unknown } } };
+
+export function sallaCartOf(doc: CartDocument, pageRef: string, scope: SallaScope = globalThis as unknown as SallaScope): StoreCart | null {
+  const number = /^page:p(\d+)$/.exec(pageRef)?.[1];
+  if (!number) return null;
+  const button = Array.from(doc.querySelectorAll(`salla-add-product-button[product-id="${number}"]`)).find((b) => !b.closest('custom-salla-product-card, salla-product-card'));
+  if (!button) return null;
+  const amount = Number(button.getAttribute('amount'));
+  let currency: unknown = null;
+  try { currency = scope.salla?.config?.get?.('user.currency_code'); } catch { /* the store's settings unreadable: no price shown */ }
+  return {
+    price: Number.isFinite(amount) && amount > 0 ? amount : null,
+    currency: typeof currency === 'string' && /^[A-Z]{3}$/.test(currency) ? currency : null,
+    add: () => { (button.querySelector('button') ?? button).click(); },
+  };
+}
+
+/** The price as the shopper reads it, in the page's language, with Western digits (as the dashboard writes them). */
+export function priceText(price: number, currency: string, lang: 'ar' | 'en'): string {
+  try {
+    return new Intl.NumberFormat(lang === 'ar' ? 'ar-SA-u-nu-latn' : 'en', { style: 'currency', currency, maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(price);
+  } catch { return `${price} ${currency}`; }
+}

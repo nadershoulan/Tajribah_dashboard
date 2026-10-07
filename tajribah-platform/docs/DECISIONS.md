@@ -1865,3 +1865,21 @@ on new accounts (checked from tajribah-1), and a new server's address lands in s
   (ZeptoMail, already in the admin console's menu) or back to Resend; the sender is one setting.
 
 **Rollback path.** `EMAIL_PROVIDER=resend` with `RESEND_API_KEY`. Cost: low.
+
+## T114 · 2026-10-08 · After launch: a brand-only footer, a way home from sign-in, SEO
+
+**Decision.**
+- **Footer and search data show the brand only (Nader's call).** The footer reads "© 2026 تجربة". The company's
+  legal name, CR, VAT number and address are gone from the footer and from the Organization structured data. They
+  stay where the operator must be named: invoices and the legal pages (terms, privacy).
+- **Every sign-in screen has «العودة إلى الرئيسية»** (`components/pages/AuthTop.tsx`, next/link to "/"), beside
+  the language switch. That covers login, register, reset, verify email, invitation and SSO.
+- **SEO:** `/robots.txt` is served by an explicit route. The metadata-file form (`robots.ts`) lost to the
+  dashboard's catch-all on the live site and answered with an HTML page. It disallows the API, the capture page,
+  the try-on frame and the dashboard, and names the sitemap. Also added: a web manifest (Arabic, RTL, brand
+  colours), `/favicon.ico` at the root, `og:url` on the home page, and WebSite structured data ("تجربة") beside the
+  brand-only Organization. Already present and kept: per-page titles, canonical links, Open Graph and Twitter cards
+  with a 1200×630 image, a 57-URL sitemap, and noindex on the dashboard and auth pages. Both languages share one URL
+  (a cookie), so no hreflang.
+
+**Rollback path.** Revert the commits. Cost: low.

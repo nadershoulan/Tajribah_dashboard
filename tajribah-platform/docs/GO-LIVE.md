@@ -24,7 +24,7 @@ so the parts below that need them wait for it:
 - **Live since 2026-10-07:** the shop script and its two files on the bucket — `https://cdn.tajribah.org/w/v1/widget.js`, `vendor/model-viewer-4.0.0.min.js`, `vendor/meshopt_decoder-1.2.0.js` (`node scripts/deploy/upload-cdn.mjs`, which reads each back from the cdn); and the **config host Worker `tajribah-config-host` on `cfg.tajribah.org`** (custom domain) — an unknown product answers 404 with `access-control-allow-origin: *` and `cache-control: public, max-age=60`; a config written to `CONFIGS` answered 200 through it (a test key, deleted after).
 - R2 API token **`tajribah-files-uploads`** (Object Read & Write, `tajribah-files` only, account token): its four values (`R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) are in **`.env.production.local`** in this folder — ignored by git, never committed; they go into the Worker's secrets on deploy day.
 
-> **LIVE since 2026-10-08** (T113): `node scripts/deploy/deploy-dashboard.mjs` deploys the dashboard and website; the checks in §3–§5 passed from outside.
+> **LIVE since 2026-10-08** (T113): `node scripts/deploy/deploy-dashboard.mjs` deploys the dashboard and website; the checks in §3–§5 passed from outside. Before each deploy, stop the local dashboard (it locks `dist/`). Search engines: robots.txt, sitemap, manifest and structured data are live (T114); Google Search Console verification is waiting on its file name or TXT code.
 
 ## Who does what next (updated 2026-10-07)
 

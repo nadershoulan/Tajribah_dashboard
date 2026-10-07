@@ -1667,3 +1667,13 @@ trigger for `tajribah_.*` and a GA4 Event tag named `{{Event}}`. Only `tajribah_
 others are 3D's, version 2), which the regex covers as they come.
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T99 · 2026-10-07 · Every product page's buy link from the feed, in one click
+
+**Decision.** T97 offers a product's store page as its buy link one product at a time; a store with hundreds of
+published products needs it at once. The QR codes screen (where those pages are handed out) counts the pages
+without a buy link whose store page is known, and one click links them. It is the owner's explicit act, never
+automatic, and it never overwrites a link they set or switches a page back on. Up to 25 pages go live in the
+request; more through one store-wide refresh, so the request stays short.
+
+**Rollback path.** Revert the commit; links already saved stay (the owner can clear each on AR settings). Cost: low.

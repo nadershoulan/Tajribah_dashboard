@@ -47,12 +47,14 @@ export async function qrCodesFor(ctx: TenantContext): Promise<QrScreen> {
   const edgeOf = new Map(live.map((e) => [e.productId, e]));
   const pageOf = new Map(pages.map((p) => [p.productId, p]));
   const out: QrScreen['products'] = [];
+  let withoutBuyLink = 0;
   for (const product of rows) {
     const view = hostedPageViewOf(ctx.tenant.slug, product, pageOf.get(product.id) ?? null, edgeOf.get(product.id), customHost);
     // A page switched off has no code: the code would open "not available".
     if (!view.url || !view.active) continue;
     out.push({ id: product.id, name: product.name, nameAr: product.nameAr ?? null, url: qrUrl(view.url) });
+    if (!view.shopUrl && view.storePage) withoutBuyLink += 1;
   }
   out.sort((a, b) => a.name.localeCompare(b.name));
-  return { included: true, printable, testOnly: !printable && onThisComputer(), base, products: out };
+  return { included: true, printable, testOnly: !printable && onThisComputer(), base, products: out, withoutBuyLink };
 }

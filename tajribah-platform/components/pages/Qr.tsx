@@ -3,6 +3,9 @@
 // MD-110 — QR codes (P1.20)
 
 import { useEffect, useState } from 'react';
+import { Link2 } from 'lucide-react';
+import { useData } from '@/lib/data';
+import { inArabic } from '@/lib/problem-text';
 import QRCode from 'qrcode';
 import { Download, QrCode } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
@@ -20,7 +23,8 @@ import { Empty, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboa
  */
 export default function Qr() {
   const { t } = useLang();
-  const { data, loading, error } = useResource((source) => source.qrCodes());
+  const [version, setVersion] = useState(0); // T99: read again after linking the pages
+  const { data, loading, error } = useResource((source) => source.qrCodes(), [version]);
   return (
     <Shell tenant={null} crumbs={[{ label: t('الرئيسية', 'Home'), href: '/dashboard' }, { label: t('رموز QR', 'QR codes') }]}>
       <PageHead
@@ -29,6 +33,7 @@ export default function Qr() {
       />
       {loading && !data && <Panel><Loading rows={3} /></Panel>}
       {error && <ErrorNote error={error} />}
+      {data && !!data.withoutBuyLink && <StorePages count={data.withoutBuyLink} onDone={() => setVersion((v) => v + 1)} />}
       {data && <Codes screen={data} />}
     </Shell>
   );
@@ -116,5 +121,40 @@ function Code({ product, printable, scannable }: { product: QrScreen['products']
         </div>
       )}
     </li>
+  );
+}
+
+/**
+ * T99 — the pages these codes open can take the shopper to the product in the store. The feed already knows
+ * each product's page there: one click links every page that has no buy link yet (one the owner set stays).
+ */
+function StorePages({ count, onDone }: { count: number; onDone: () => void }) {
+  const { t, lang } = useLang();
+  const source = useData();
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const apply = async () => {
+    setBusy(true); setProblem(null);
+    try { await source.applyStorePages(); onDone(); }
+    catch (e) { const m = (e as Error).message; setProblem(lang === 'ar' ? inArabic(m) : m); }
+    finally { setBusy(false); }
+  };
+  return (
+    <Panel title={t('رابط الشراء في صفحات المنتجات', 'The buy link on product pages')} actions={<Link2 size={20} aria-hidden style={{ color: 'var(--text-3)' }} />}>
+      <p style={{ marginTop: 0 }}>{count === 1 ? t(
+        'صفحة واحدة تفتحها هذه الرموز بلا رابط شراء. نعرف صفحتها في متجرك من ملف منتجاتك: اربطها، فيجد المتسوّق زر «اشترها» يأخذه إلى المنتج في متجرك.',
+        'One page these codes open has no buy link. We know its page in your store from your product feed: link it, and shoppers get a “Buy it” button that takes them to the product in your store.',
+      ) : t(
+        `${count} من الصفحات التي تفتحها هذه الرموز بلا رابط شراء. نعرف صفحة كل منها في متجرك من ملف منتجاتك: اربطها، فيجد المتسوّق زر «اشترها» يأخذه إلى المنتج في متجرك.`,
+        `${count} of the pages these codes open have no buy link. We know each one's page in your store from your product feed: link them, and shoppers get a “Buy it” button that takes them to the product in your store.`,
+      )}</p>
+      <div className="btn-row" style={{ alignItems: 'center' }}>
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void apply()}>
+          {busy ? t('جارٍ الربط…', 'Linking…') : t('اربطها بصفحاتها في متجرك', 'Link them to their pages in your store')}
+        </button>
+        <span className="hint" style={{ margin: 0 }}>{t('الروابط التي وضعتها بنفسك تبقى كما هي.', 'Links you set yourself stay as they are.')}</span>
+      </div>
+      {problem && <p className="field-error" role="alert">{problem}</p>}
+    </Panel>
   );
 }

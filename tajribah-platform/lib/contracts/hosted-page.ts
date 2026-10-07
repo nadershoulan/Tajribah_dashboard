@@ -62,6 +62,8 @@ export type QrScreen = {
   /** Where the codes point: the store's own address, the short domain, or Tajribah's default. */
   base: string;
   products: { id: string; name: string; nameAr: string | null; url: string }[];
+  /** T99: of those, the pages with no buy link whose product's store page is known (its feed) — one click links them all. */
+  withoutBuyLink?: number;
 };
 
 /** A product page's address as a QR code carries it: tagged, so the visit counts as "from a QR code". */

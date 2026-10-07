@@ -557,3 +557,4 @@ is untouched). Installing Node 22 properly would make that permanent — optiona
 | 2026-10-07 | The Tag Manager way in the setup guide and on the website's Salla and Integrations pages; each product's store page a click from its preview and try-on settings | 1 new test, 6 breakages caught; seen in Chrome |
 | 2026-10-07 | A product page's buy link from its feed in one click (offered, saved by the owner) | 1 new test, 2 breakages caught; seen in Chrome on Failet's watch |
 | 2026-10-07 | Optional: count try-ons in the owner's own Google Analytics through the same Tag Manager (guide and help article) | 1 new test, 3 breakages caught; axe clean, phone width |
+| 2026-10-07 | Every product page's buy link from the feed in one click, on the QR codes screen (the owner's links kept) | 2 new tests, 6 breakages caught; seen in Chrome on Failet's ring |

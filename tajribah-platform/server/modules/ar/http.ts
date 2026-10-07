@@ -8,7 +8,7 @@ import { errors } from '@/server/core/errors/problem';
 import { listArConfigPage, saveArConfig } from './service';
 import { isPageSize } from '@/lib/pagination';
 import { publishProduct, unpublishProduct } from '@/server/modules/edge/publish';
-import { saveHostedPage } from '@/server/modules/hosted-pages/service';
+import { applyStorePages, saveHostedPage } from '@/server/modules/hosted-pages/service';
 import { qrCodesFor } from '@/server/modules/hosted-pages/qr';
 
 /** API-100 — GET /api/ar-configs */
@@ -71,4 +71,12 @@ export const saveHostedPageHandler = route(async (request) => {
 export const qrCodesHandler = route(async (request) => {
   const ctx = await tenantContextFor(request);
   return json(await qrCodesFor(ctx));
+});
+
+/** API-193 — POST /api/qr/store-pages (T99): published pages without a buy link get their product's store page. */
+export const applyStorePagesHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const ctx = await tenantContextFor(request, config);
+  return json(await applyStorePages(ctx));
 });

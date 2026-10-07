@@ -197,6 +197,8 @@ export interface DataSource {
   saveHostedPage(productId: string, input: HostedPageInput): Promise<HostedPageView>;
   /** P1.20: a QR code per product with a live page, and whether its address may be printed yet. */
   qrCodes(): Promise<QrScreen>;
+  /** T99: published pages without a buy link get their product's store page. */
+  applyStorePages(): Promise<{ updated: number }>;
   updateSettings(patch: Record<string, unknown>): Promise<StoreSettings>;
   /** T69: signing in with Google to pick the store's GA4 measurement id. */
   ga4Picker: Ga4Picker;
@@ -451,6 +453,7 @@ export function apiSource(client: ApiClient): DataSource {
       return client.call<PublishResult>(`/api/ar-configs/${encodeURIComponent(productId)}/publish`, { method: 'POST' });
     },
     async qrCodes() { return client.call<QrScreen>('/api/qr'); },
+    async applyStorePages() { return client.call<{ updated: number }>('/api/qr/store-pages', { method: 'POST' }); },
     async saveHostedPage(productId, input) {
       return client.call<HostedPageView>(`/api/ar-configs/${encodeURIComponent(productId)}/page`, { method: 'PUT', body: input });
     },
@@ -1111,8 +1114,9 @@ export const demoSource: DataSource = {
       const page = withDemoPage(demoArConfigs.get(p.id) ?? demoArDefault(p)).page;
       return page?.url && page.active ? [{ id: p.id, name: p.name, nameAr: p.nameAr ?? null, url: qrUrl(page.url) }] : [];
     });
-    return { included: true, printable: false, base: DEFAULT_HOSTED_PAGE_BASE, products };
+    return { included: true, printable: false, base: DEFAULT_HOSTED_PAGE_BASE, products, withoutBuyLink: 0 };
   },
+  async applyStorePages() { return { updated: 0 }; }, // the preview's products come from no feed
   async saveHostedPage(productId, input) {
     const product = DEMO_PRODUCTS.find((p) => p.id === productId);
     if (!product) throw new ApiError(404, 'not_found', 'product not found');

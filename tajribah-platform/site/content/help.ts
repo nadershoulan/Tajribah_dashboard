@@ -173,12 +173,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
     ],
   },
   {
-    // T34 — P1.20 waits on the short domain: a printed code must never stop working.
-    slug: 'qr-codes', category: 'button', updated: '2026-10-01',
+    // T34 — a printed code must never stop working; T106: it carries tajribah.org/p, printable once the platform is live.
+    slug: 'qr-codes', category: 'button', updated: '2026-10-07',
     title: { ar: 'رموز QR للمنتجات (قريبًا)', en: 'QR codes for products (coming soon)' },
-    summary: { ar: 'للواجهات والكتالوجات المطبوعة — تصل مع عنوان تجربة القصير.', en: 'For shop windows and printed catalogues — arriving with Tajribah’s short address.' },
+    summary: { ar: 'للواجهات والكتالوجات المطبوعة — تصل مع إطلاق تجربة، على عنوانها الدائم.', en: 'For shop windows and printed catalogues — arriving at launch, on Tajribah’s permanent address.' },
     body: [
-      { ar: 'الرمز المطبوع يبقى على البطاقة أو الكتالوج سنوات، فيجب أن يحمل عنوانًا لن يتغيّر أبدًا. لذلك تصل رموز QR مع عنوان تجربة القصير النهائي، لا قبله.', en: 'A printed code stays on a card or catalogue for years, so it must carry an address that never changes. That is why QR codes arrive with Tajribah’s final short address, not before.' },
+      { ar: 'الرمز المطبوع يبقى على البطاقة أو الكتالوج سنوات، فيجب أن يحمل عنوانًا لن يتغيّر أبدًا. لذلك تحمل رموز QR عنوان تجربة الدائم tajribah.org، وتصبح جاهزة للطباعة مع الإطلاق، لا قبله.', en: 'A printed code stays on a card or catalogue for years, so it must carry an address that never changes. That is why QR codes carry Tajribah’s permanent address, tajribah.org, and become printable at launch, not before.' },
       { ar: 'حتى ذلك الحين، شارك رابط صفحة المنتج نفسها — من «إعدادات العرض» ← «صفحة المنتج».', en: 'Until then, share the product’s own page link — from “AR settings” → “Product page”.' },
     ],
   },

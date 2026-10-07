@@ -1,0 +1,61 @@
+// GO-LIVE §3–§5 — the dashboard + website Worker on tajribah.org, everything about it that is not a
+// secret. `scripts/deploy/deploy-dashboard.mjs` lays this over the build's own `dist/server/wrangler.json`
+// (which names local-only bindings) and deploys. Secrets never go here: they are read from the
+// git-ignored `.env.production.local` and sent with `wrangler secret bulk`.
+//
+// Ids that exist only once the Hetzner server does say "SET_ON_SERVER_DAY"; the deploy script refuses
+// to run while one is left (`--create-hyperdrive` fills the two Hyperdrive ids itself).
+{
+  "name": "tajribah",
+  "workers_dev": false,
+  // tajribah.org: the website (/), the dashboard (/dashboard), the try-on (/embed/try-on), products' own
+  // pages (/p). app. stays for old links; ev. is the visit collector (§5). Cloudflare makes each
+  // custom domain's DNS record and certificate itself.
+  "routes": [
+    { "pattern": "tajribah.org", "custom_domain": true },
+    { "pattern": "www.tajribah.org", "custom_domain": true },
+    { "pattern": "app.tajribah.org", "custom_domain": true },
+    { "pattern": "ev.tajribah.org", "custom_domain": true }
+  ],
+  // The build's local D1 placeholder is not used by the platform (Postgres is).
+  "d1_databases": [],
+  "r2_buckets": [
+    { "binding": "BUCKET", "bucket_name": "tajribah-files" },
+    { "binding": "PAIR_BUCKET", "bucket_name": "tajribah-pair" }
+  ],
+  "kv_namespaces": [
+    { "binding": "CONFIGS", "id": "3f494fe78a65471fb90aa426c068cbbf" },
+    { "binding": "RATE_LIMITS", "id": "64ef69a8da974ada85bfed2f4a46bb8a" }
+  ],
+  // `npx wrangler queues create tajribah-jobs` once (Queues need the Workers Paid plan).
+  "queues": {
+    "producers": [{ "binding": "JOBS", "queue": "tajribah-jobs" }],
+    "consumers": [{ "queue": "tajribah-jobs", "max_batch_size": 100, "max_batch_timeout": 1, "max_concurrency": 10, "max_retries": 0 }]
+  },
+  "hyperdrive": [
+    { "binding": "HYPERDRIVE_APP", "id": "SET_ON_SERVER_DAY" },
+    { "binding": "HYPERDRIVE_ADMIN", "id": "SET_ON_SERVER_DAY" }
+  ],
+  "observability": { "enabled": true },
+  // Plain settings (server/core/config/env.ts). The R2 account and bucket ids are not secret; the key is.
+  "vars": {
+    "NODE_ENV": "production",
+    "APP_URL": "https://tajribah.org",
+    "NEXT_PUBLIC_SITE_URL": "https://tajribah.org",
+    "SITE_HOSTS": "tajribah.org,www.tajribah.org,app.tajribah.org",
+    "CDN_BASE_URL": "https://cdn.tajribah.org",
+    "STORAGE_PROVIDER": "r2",
+    "R2_ACCOUNT_ID": "bd0491e496ffa057396c434b050520a1",
+    "R2_BUCKET_NAME": "tajribah-files",
+    "CONFIG_STORE": "kv",
+    "RATE_LIMITER": "kv",
+    "JOBS_MODE": "cf-queue",
+    // T106: products' own pages and QR codes stay on tajribah.org/p — no separate short domain.
+    "HOSTED_PAGE_BASE": "https://tajribah.org/p",
+    "CUSTOM_DOMAIN_TARGET": "domains.tajribah.org",
+    "EMAIL_PROVIDER": "resend",
+    "EMAIL_FROM": "Tajribah <no-reply@tajribah.org>",
+    "SMS_PROVIDER": "unifonic",
+    "LOG_LEVEL": "info"
+  }
+}

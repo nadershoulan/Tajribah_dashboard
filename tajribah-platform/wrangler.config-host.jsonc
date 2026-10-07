@@ -1,12 +1,16 @@
 // P1.15 — the config host Worker (cfg.tajribah.org): server/core/edge/config-worker.ts over the
 // CONFIGS KV namespace the dashboard publishes into. Deployed on its own, so the shopper's path
 // never shares a Worker, or a failure, with the dashboard.
-// Before the first deploy (Cloudflare account): create the namespace, put its id below (the same
-// one bound as CONFIGS to the dashboard Worker), and route cfg.tajribah.org/v1/* to this Worker.
+// Deployed 2026-10-07: `npx wrangler deploy --config wrangler.config-host.jsonc` — the custom domain
+// below makes Cloudflare create cfg.tajribah.org's DNS record and certificate itself.
 {
   "name": "tajribah-config-host",
   "main": "server/core/edge/config-worker.ts",
   "compatibility_date": "2025-09-01",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "cfg.tajribah.org", "custom_domain": true }
+  ],
   "kv_namespaces": [
     { "binding": "CONFIGS", "id": "3f494fe78a65471fb90aa426c068cbbf" }
   ]

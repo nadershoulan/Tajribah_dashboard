@@ -73,7 +73,7 @@ test('a code per live product page, tagged as from a QR code; a page switched of
     ], 'the page’s own address, the product reference encoded as the page reads it');
     assert.equal(screen.products[0]!.nameAr, 'Arc lamp (ع)');
     assert.equal(viaOf(new URL(screen.products[0]!.url).search), 'qr', 'the website counts the visit as from a code');
-    assert.equal(screen.printable, false, 'Tajribah’s default address is not final: previews only');
+    assert.equal(screen.printable, false, 'no address set (a local run): previews only');
 
     await saveHostedPage(ctx, bowl.id, { active: false, shopUrl: null });
     await unpublishProduct(ctx, arc.id);
@@ -81,7 +81,7 @@ test('a code per live product page, tagged as from a QR code; a page switched of
   } finally { await harness.close(); }
 });
 
-test('printable only on a final address: the short domain once set, or the store’s own address — never the default or a local one', async () => {
+test('printable only on a final address: one set for real (T106: tajribah.org/p itself), or the store’s own address — never unset or local', async () => {
   const harness = await createTestDb();
   try {
     {
@@ -103,7 +103,7 @@ test('printable only on a final address: the short domain once set, or the store
     }
     {
       const { ctx } = await store(harness, 'same', 'starter', { HOSTED_PAGE_BASE: 'https://tajribah.org/p' });
-      assert.equal((await qrCodesFor(ctx)).printable, false, 'the default, written out, is still the default');
+      assert.equal((await qrCodesFor(ctx)).printable, true, 'T106: production sets tajribah.org/p — the decided address is final');
       assert.equal((await qrCodesFor(ctx)).testOnly, false, 'the default is not this computer');
     }
     {

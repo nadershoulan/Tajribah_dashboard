@@ -1742,3 +1742,42 @@ platforms get no foot until there is a known button to press.
 **Decision.** Nader bought **tajribah.org**; it replaces tajribah.com (never bought) everywhere the code and the current docs name an address: one domain with the subdomains cdn., cfg., ev. and domains. (docs/DOMAINS.md). Earlier history entries keep the names they were written with. The old names stay refused as a store's own domain, so no store can ever claim them.
 
 **Rollback path.** Revert the commit. Cost: low (nothing is deployed yet).
+
+## T106 · 2026-10-07 · QR codes stay on tajribah.org — no short domain
+
+**Decision.** Nader asked me to decide from the usual practice. Products' own pages and their QR codes stay at
+`https://tajribah.org/p/{store}/{product}` (`HOSTED_PAGE_BASE`), with no separate short domain. Why:
+- **Length buys almost nothing.** A sub-domain (`p.tajribah.org/`) is exactly as long as `tajribah.org/p/`. A
+  separate short domain saves about 6 characters, which is at most one QR size step, and the error correction makes
+  that invisible on any label of 2 cm or more. The store and product refs are most of the length either way.
+- **Trust.** Phones show the domain before opening a scanned code. Saudi and international warnings against QR fraud
+  tell shoppers to check it. Our own known name passes that check; an unknown short name looks like a link shortener.
+  GS1 Digital Link, the standard for codes on products, puts them on the brand's own domain.
+- **Permanence.** A printed code must work for years. tajribah.org is already owned and renewed with the main
+  site; a second domain is a second renewal that, if missed, breaks every printed code. A `.sa` name also needs a
+  Saudi commercial registration.
+
+`deploy/production.jsonc` sets `https://tajribah.org/p` explicitly. The QR screen now treats any https address
+set explicitly as final, this one included, so codes become printable once the platform is live. Unset (a local run)
+or a local address still gives previews only (`qr.ts`, two breakages caught). The help article says the same.
+
+**Rollback path.** Point a short domain at the Worker and set `HOSTED_PAGE_BASE`, but only before any code is
+printed. Cost: low now; high after printing.
+
+## T107 · 2026-10-07 · The launch kit, and what went live on Cloudflare
+
+**Decision.**
+- **The shop script is on `cdn.tajribah.org`.** `scripts/deploy/upload-cdn.mjs` signs with the platform's
+  own SigV4 and reads each file back. The widget is cached for 5 minutes (its address is reused); the versioned
+  vendor files are cached for good.
+- **The config host is live** on `cfg.tajribah.org`, using a custom domain in `wrangler.config-host.jsonc`.
+- **The dashboard deploy is prepared.** `deploy/production.jsonc` holds every setting that is not secret and is
+  laid over the build's own `wrangler.json`, dropping its unused D1 placeholder. Secrets are read from the
+  git-ignored `.env.production.local` and sent through stdin. Before anything is sent, the merged settings must pass
+  `env.ts`'s boot check. `AUTH_SECRET` and `ENCRYPTION_KEY` were generated into that file; they are random, so
+  there was nothing to ask.
+- **Found while preparing:** production refuses console SMS, so **Unifonic is needed for launch**, not later.
+  The job queue needs Workers Paid. Cloudflare's zone currently overrides cache headers to 4 hours.
+
+**Rollback path.** `npx wrangler delete --config wrangler.config-host.jsonc`, delete the bucket objects, revert
+the commit. Cost: low.

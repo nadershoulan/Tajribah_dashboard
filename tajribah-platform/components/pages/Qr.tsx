@@ -18,7 +18,7 @@ import { Empty, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboa
 /**
  * A code per product with a live page of its own, opening that page (`?s=qr`, so Analytics shows the
  * visit came from a code). A printed code is permanent: until its address is final — the store's own
- * address, or Tajribah's short domain once it is set — each code is a marked preview that cannot be
+ * address, or the page address production sets (T106: tajribah.org/p) — each code is a marked preview that cannot be
  * scanned or downloaded, and the screen says why (DECISIONS P1.20).
  */
 export default function Qr() {
@@ -57,8 +57,8 @@ function Codes({ screen }: { screen: QrScreen }) {
       {!screen.printable && !screen.testOnly && (
         <Panel title={t('معاينة — لا تطبعها بعد', 'Preview — do not print yet')} actions={<QrCode size={20} aria-hidden style={{ color: 'var(--text-3)' }} />}>
           <p style={{ marginTop: 0 }}>{t(
-            'الرمز المطبوع يبقى كما هو لسنوات، لذلك يجب أن يحمل عنوان تجربة القصير النهائي. هذا العنوان لم يُعتمد بعد، فالرموز هنا معاينة لا تُمسح ولا تُنزَّل. حين يُعتمد، تصبح جاهزة للطباعة هنا دون أي خطوة منك.',
-            'A printed code stays as it is for years, so it must carry Tajribah’s final short address. That address is not set yet, so the codes here are previews that cannot be scanned or downloaded. Once it is set they become printable here, with nothing for you to do.',
+            'الرمز المطبوع يبقى كما هو لسنوات، لذلك يجب أن يحمل عنوان تجربة النهائي. هذا العنوان لم يُعتمد بعد، فالرموز هنا معاينة لا تُمسح ولا تُنزَّل. حين يُعتمد، تصبح جاهزة للطباعة هنا دون أي خطوة منك.',
+            'A printed code stays as it is for years, so it must carry Tajribah’s final address. That address is not set yet, so the codes here are previews that cannot be scanned or downloaded. Once it is set they become printable here, with nothing for you to do.',
           )}</p>
           <p className="hint" style={{ marginBottom: 0 }}>{t('إلى ذلك الحين شارك رابط صفحة المنتج من إعدادات العرض.', 'Until then, share the product page’s link from AR settings.')}</p>
         </Panel>

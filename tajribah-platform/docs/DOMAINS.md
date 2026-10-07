@@ -28,10 +28,8 @@ The step-by-step with checks is `docs/GO-LIVE.md`. In short:
 3. Give the storage bucket the custom domain **`cdn.tajribah.org`**. Set `CDN_BASE_URL` to it.
 4. Deploy the config Worker on **`cfg.tajribah.org`**, bound to the same KV namespace (`CONFIGS`).
 5. Route **`ev.tajribah.org/v1/e`** to the main Worker.
-6. Products' own pages: `HOSTED_PAGE_BASE=https://tajribah.org/p` (the default). If you later buy a
-   short domain for QR codes, point it at the main Worker and set `HOSTED_PAGE_BASE` to it **before**
-   any code is printed. A printed code never changes, which is why the dashboard only offers codes to
-   print once the address is final.
+6. Products' own pages and QR codes: `HOSTED_PAGE_BASE=https://tajribah.org/p` — **decided 2026-10-07 (T106): no
+   separate short domain**; a code reads `https://tajribah.org/p/{store}/{product}?s=qr`.
 
 ## 2. Everything on your own computer
 

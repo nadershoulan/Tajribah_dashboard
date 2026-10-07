@@ -21,43 +21,50 @@ so the parts below that need them wait for it:
 - R2 bucket **`tajribah-pair`** — private (public access disabled, no domain); the Worker's `PAIR_BUCKET` (`vite.config.ts`).
 - KV **`tajribah-configs`** `3f494fe78a65471fb90aa426c068cbbf` → `CONFIGS` (already in `wrangler.config-host.jsonc`).
 - KV **`tajribah-rate-limits`** `64ef69a8da974ada85bfed2f4a46bb8a` → `RATE_LIMITS`.
+- **Live since 2026-10-07:** the shop script and its two files on the bucket — `https://cdn.tajribah.org/w/v1/widget.js`, `vendor/model-viewer-4.0.0.min.js`, `vendor/meshopt_decoder-1.2.0.js` (`node scripts/deploy/upload-cdn.mjs`, which reads each back from the cdn); and the **config host Worker `tajribah-config-host` on `cfg.tajribah.org`** (custom domain) — an unknown product answers 404 with `access-control-allow-origin: *` and `cache-control: public, max-age=60`; a config written to `CONFIGS` answered 200 through it (a test key, deleted after).
 - R2 API token **`tajribah-files-uploads`** (Object Read & Write, `tajribah-files` only, account token): its four values (`R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) are in **`.env.production.local`** in this folder — ignored by git, never committed; they go into the Worker's secrets on deploy day.
 
-## Who does what next (2026-10-07)
+## Who does what next (updated 2026-10-07)
 
-**Left for you** — each needs your account, your money or your decision:
+**Done:** the domain; both buckets and `cdn.tajribah.org` with the shop script on it; both KV stores; the
+storage key; `wrangler login`; the config host on `cfg.tajribah.org`; the short-domain decision (T106: QR
+codes stay on `tajribah.org/p/…`); the launch kit (below, §3) with `AUTH_SECRET` and `ENCRYPTION_KEY`
+already generated into `.env.production.local`.
 
-| # | What | Why it waits on you | Unblocks |
-|---|---|---|---|
-| 1 | Run `npx wrangler login` in this folder and press **Allow** (one click) | it signs this computer in to your Cloudflare account; I don't sign in for you | deploying the config host now, the dashboard Worker later |
-| 2 | Buy the **Hetzner server** (CX22-class, docs/HOSTING.md) | a paid account | §3 dashboard, §4 website, §5 `ev.`, Hyperdrive, the image/3D worker |
-| 3 | Pick a **mail provider** (e.g. Resend) and add its DNS records on `tajribah.org` | a new account | sign-in codes and invoices from `no-reply@tajribah.org` |
-| 4 | Decide the **short domain for QR codes** (or keep `tajribah.org/p/…`) | your choice; printed codes can't change later | `HOSTED_PAGE_BASE`, §4 |
-| 5 | Add the tag in Failet's **Google Tag Manager** (GTM-K4ZVD3HX, steps on «التركيب في متجرك») and press Publish | your Salla/Google account | the button on failet.sa — after the cdn answers (below) |
-| later | GA4 id · Google sign-in client · Moyasar · ZATCA Fatoora · Unifonic · a 3D-generation provider | accounts and contracts | website analytics, Google sign-in, billing, invoices, SMS, models from photos |
-| v2 | Salla, Zid, Shopify partner accounts | version 2 | store linking |
+**Left for you**, in order — `node scripts/deploy/deploy-dashboard.mjs --check` lists whatever is still missing:
 
-**What I can do without you:**
+| # | What | Unblocks |
+|---|---|---|
+| 1 | **Cloudflare → tajribah.org → Caching → Configuration → Browser Cache TTL → "Respect Existing Headers"** (30 seconds). Today Cloudflare stamps 4 hours on every file, so a new shop script would reach shoppers up to 4 hours late; the script asks for 5 minutes | quick widget updates |
+| 2 | Add the tag in Failet's **Google Tag Manager** (GTM-K4ZVD3HX, steps on «التركيب في متجرك») and press Publish — the script it loads is live now | the button on failet.sa (it shows once a product is published from a live dashboard) |
+| 3 | Buy the **Hetzner server** (CX22-class, docs/HOSTING.md), then put the two database logins in `.env.production.local` | the dashboard, the website, `ev.`, the image/3D worker |
+| 4 | **Resend** (or another mail provider): verify `tajribah.org` there (it gives DNS records to add in Cloudflare) and paste its key as `RESEND_API_KEY` | sign-in and invoice emails |
+| 5 | **Unifonic**: an account, an approved sender name (`UNIFONIC_SENDER_ID`, up to 11 letters) and the app SID — **production refuses to start without it** (`env.ts`: no pretend phone codes) | launch itself |
+| 6 | **Workers Paid** plan on Cloudflare ($5 a month) — the job queue needs it; then `npx wrangler queues create tajribah-jobs` (or tell me and I run it) | launch itself |
+| later | GA4 id · Google sign-in client · Moyasar · ZATCA Fatoora · a 3D-generation provider · Better Stack uptime | analytics, billing, invoices, models from photos |
+| v2 | Salla, Zid, Shopify partner accounts | store linking |
 
-| What | Needs |
-|---|---|
-| Upload `w/v1/widget.js` and the two `vendor/` files to `tajribah-files` and check `cdn.tajribah.org/w/v1/widget.js` answers 200 | nothing — the storage key in `.env.production.local` is enough |
-| Deploy the config host Worker on `cfg.tajribah.org` (`wrangler.config-host.jsonc`) and check it answers 404 for an unknown product | step 1 above |
-| Prepare the dashboard Worker's deploy: the secrets list, the Hyperdrive and route settings, a deploy script — ready to run the day the server exists | nothing |
-| Keep building every package that needs no account | nothing |
+Keep a copy of `.env.production.local` in your password manager: it is the only copy of those keys.
+
+**Server day, in order** (I can run all of it once 3–6 are done):
+1. On the server: Postgres 16, the database and its two logins, `node scripts/db/migrate.mjs --db …` (docs/DATABASE.md).
+2. `node scripts/deploy/deploy-dashboard.mjs --create-hyperdrive` — the two Hyperdrive configs, ids written into `deploy/production.jsonc`.
+3. `node scripts/deploy/deploy-dashboard.mjs --check`, then `--dry-run`, then without a flag: build, secrets, deploy to `tajribah.org`, `www.`, `app.` and `ev.`.
+4. The Node worker on the server (§3), then the checks in §3–§5.
 
 ## 1. Storage — R2 and the CDN (`cdn.tajribah.org`)
 
-- [ ] Create the R2 bucket; bind it to the dashboard Worker as **`BUCKET`**
+- [x] Create the R2 bucket; bind it to the dashboard Worker as **`BUCKET`**
       (`server/core/http/bootstrap.ts`, `cloudflare-env.d.ts`).
-- [ ] Serve it publicly at **`cdn.tajribah.org`**; set **`CDN_BASE_URL=https://cdn.tajribah.org`** and
+- [x] Serve it publicly at **`cdn.tajribah.org`**; set **`CDN_BASE_URL=https://cdn.tajribah.org`** and
       **`STORAGE_PROVIDER=r2`** (`server/core/config/env.ts` refuses memory storage in production).
-- [ ] R2 S3 API token (Object Read & Write, this bucket only) → **`R2_ACCOUNT_ID`**, **`R2_BUCKET_NAME`**,
+- [x] R2 S3 API token (Object Read & Write, this bucket only) → **`R2_ACCOUNT_ID`**, **`R2_BUCKET_NAME`**,
       **`R2_ACCESS_KEY_ID`**, **`R2_SECRET_ACCESS_KEY`** — without them the browser cannot upload
       straight to storage (presigned PUT, `server/core/storage/sigv4.ts`).
-- [ ] Bucket CORS: allow `PUT` with `content-type` from `https://tajribah.org` — the dashboard's
+- [x] Bucket CORS: allow `PUT` with `content-type` from `https://tajribah.org` — the dashboard's
       model and cut-out uploads are browser PUTs to presigned URLs on another origin.
-- [ ] Upload the storefront files (paths are what the widget asks for, `widget/src/main.ts`):
+- [x] Upload the storefront files — `node scripts/deploy/upload-cdn.mjs` (builds, uploads, reads each back; again after
+      every widget change). Paths are what the widget asks for, `widget/src/main.ts`:
   - `w/v1/widget.js` ← `node widget/build.mjs` → `widget/dist/widget.js`
   - `vendor/model-viewer-4.0.0.min.js` and `vendor/meshopt_decoder-1.2.0.js` ← `public/vendor/`
     (sources and licences in `public/vendor/README.md`; the build refuses a decoder version mismatch).
@@ -69,16 +76,27 @@ so the parts below that need them wait for it:
 
 ## 2. Viewer configs — KV and the config host (`cfg.tajribah.org`, P1.15)
 
-- [ ] Create one KV namespace. Bind it as **`CONFIGS`** to the dashboard Worker, and put its id in
+- [x] Create one KV namespace. Bind it as **`CONFIGS`** to the dashboard Worker, and put its id in
       `wrangler.config-host.jsonc` (the placeholder `REPLACE_WITH_THE_CONFIGS_NAMESPACE_ID`).
 - [ ] Set **`CONFIG_STORE=kv`** on the dashboard (memory is refused in production).
-- [ ] Deploy the config host: `wrangler deploy --config wrangler.config-host.jsonc`; route
-      **`cfg.tajribah.org/v1/*`** to it.
+- [x] Deploy the config host: `npx wrangler deploy --config wrangler.config-host.jsonc` — the custom
+      domain **`cfg.tajribah.org`** is in that file, so Cloudflare makes its DNS record and certificate (done 2026-10-07).
 - **Check:** publish a product in AR settings → `https://cfg.tajribah.org/v1/{store}/{product}.json`
   answers 200 with `access-control-allow-origin: *` and `cache-control: public, max-age=60`; an
   unknown product answers 404. (Seen in workerd over a local KV on 2026-09-29 — STATE.)
 
 ## 3. The dashboard (`tajribah.org/dashboard`)
+
+**The launch kit (2026-10-07).** Everything below that is a setting is already written down:
+- `deploy/production.jsonc` — the Worker's name, its four custom domains (`tajribah.org`, `www.`, `app.`, `ev.`),
+  every binding (`BUCKET`, `PAIR_BUCKET`, `CONFIGS`, `RATE_LIMITS`, `JOBS`, `HYPERDRIVE_APP`, `HYPERDRIVE_ADMIN`),
+  the queue consumer's limits and every plain variable. Nothing secret (a test refuses one).
+- `.env.production.local` (git-ignored) — the secrets: the R2 key, `AUTH_SECRET`, `ENCRYPTION_KEY` (both generated),
+  and empty slots for `RESEND_API_KEY`, `UNIFONIC_APP_SID`, `UNIFONIC_SENDER_ID`, `DATABASE_APP_URL`, `DATABASE_ADMIN_URL`.
+- `scripts/deploy/deploy-dashboard.mjs` — `--check` runs the Worker's own boot check over the two together and lists
+  everything missing; `--create-hyperdrive` makes the two Hyperdrive configs from the database logins; `--dry-run`
+  builds and lets wrangler validate; no flag builds, sends the secrets (`wrangler secret bulk`, through stdin) and deploys.
+  Validated with wrangler on 2026-10-07: every binding accepted, 1.05 MB gzipped.
 
 - [ ] Deploy the dashboard Worker; point **`tajribah.org`** at it (§4); set **`APP_URL=https://tajribah.org`**.
 - [ ] Every variable in **`.env.example`** (generated from `server/core/config/env.ts`; boot lists every
@@ -186,9 +204,8 @@ The website moved into the platform (`site/`, `app/(site)`); there is no second 
       (`widget/src/tryon.ts` `DEFAULT_TRYON`), which reads configs from `cfg.tajribah.org`.
 - [ ] **Products' own pages (P1.19)** are this Worker's `/p/{store}/{product}`, reading the same
       configs. The dashboard shows each published product's link from **`HOSTED_PAGE_BASE`**
-      (default `https://tajribah.org/p`). Decide the short domain *before* merchants start sharing
-      links: point it at this Worker with a rule that maps `/{store}/{product}` to `/p/{store}/{product}`
-      (or serve `/p` there), then set `HOSTED_PAGE_BASE` to it — a shared link should never change.
+      (`https://tajribah.org/p`, set in `deploy/production.jsonc`). **Decided (T106): no separate short domain** —
+      printed codes stay on tajribah.org, so a shared link never changes.
       An Enterprise store's own address serves its pages without this (its link is `https://{its address}/p/…`).
 - **Check:** a published watch's button on a shop page opens the studio with that watch; a QR photo
   left unclaimed is gone a minute after its 30 minutes (the sweep logs only failures). A published

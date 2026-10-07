@@ -3,7 +3,8 @@
  * `?s=qr` (the website counts the visit as "from a QR code", `tajribah-try-on/lib/page-events.ts`).
  *
  * A printed code cannot be changed, so it is offered for printing only when the address is final —
- * the store's own address (Enterprise, T62) or the short domain once `HOSTED_PAGE_BASE` names it.
+ * the store's own address (Enterprise, T62), or the address production sets in `HOSTED_PAGE_BASE` (T106:
+ * `https://tajribah.org/p`, in `deploy/production.jsonc`). Unset — a local run — is never final.
  * Before that the screen shows each code as a preview, marked, with no download (DECISIONS P1.20).
  * The codes are drawn in the browser from these addresses; nothing is stored.
  */
@@ -16,11 +17,11 @@ import type { TenantContext } from '@/server/core/tenancy/context';
 import { customHostOf, hostedPageViewOf } from './view';
 import { isLocalHost } from '@site/lib/tryon-config';
 
-/** The short domain, when it has been set for real — not the default, and never a local test address. */
+/** The page address once it is set for real: an https base set explicitly (T106: tajribah.org/p itself), never unset or local. */
 function finalBase(): string | null {
   let base: string | undefined;
   try { base = loadEnv().HOSTED_PAGE_BASE; } catch { base = undefined; }
-  return base && base !== DEFAULT_HOSTED_PAGE_BASE && base.startsWith('https://') ? base : null;
+  return base && base.startsWith('https://') ? base : null;
 }
 
 /** T82: the page base is this computer (http on localhost or its Wi-Fi address): codes to test with, not to print. */

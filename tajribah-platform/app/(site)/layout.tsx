@@ -37,11 +37,10 @@ const ORGANIZATION = {
   '@type': 'Organization',
   name: 'Tajribah',
   alternateName: 'تجربة',
-  legalName: COMPANY.legalName.en,
   url: COMPANY.siteUrl,
   logo: `${COMPANY.siteUrl}/brand/tajribah-logo.png`,
-  taxID: COMPANY.vatNumber || undefined,
-  address: { '@type': 'PostalAddress', addressLocality: 'Riyadh', postalCode: '13524', addressCountry: 'SA' },
+  // Nader, 2026-10-08: the brand only, as in the footer; no legal name, VAT number or street address here.
+  address: { '@type': 'PostalAddress', addressCountry: 'SA' },
 };
 
 export const viewport: Viewport = { themeColor: '#0A2237', width: 'device-width', initialScale: 1 };

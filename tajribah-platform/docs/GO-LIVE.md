@@ -31,6 +31,12 @@ storage key; `wrangler login`; the config host on `cfg.tajribah.org`; the short-
 codes stay on `tajribah.org/p/…`); the launch kit (below, §3) with `AUTH_SECRET` and `ENCRYPTION_KEY`
 already generated into `.env.production.local`.
 
+**Done later on 2026-10-07:** Browser Cache TTL set to "Respect Existing Headers" (checked: the widget now
+answers `max-age=300`, the vendor files `immutable`); **Workers Paid** active ($5/month); queue **`tajribah-jobs`**
+created; the **server is bought**: `tajribah-1`, 2.31.18.118, reachable with `ssh -i ~/.ssh/tajribah_hetzner root@db.tajribah.org`;
+DNS **`db.tajribah.org` → 2.31.18.118, DNS only**. The server gets its own name: `tajribah.org` itself points at the
+Worker (§4), never at the server, and Cloudflare's proxy carries only web traffic, not Postgres.
+
 **Left for you**, in order — `node scripts/deploy/deploy-dashboard.mjs --check` lists whatever is still missing:
 
 | # | What | Unblocks |

@@ -28,6 +28,8 @@ The step-by-step with checks is `docs/GO-LIVE.md`. In short:
 3. Give the storage bucket the custom domain **`cdn.tajribah.org`**. Set `CDN_BASE_URL` to it.
 4. Deploy the config Worker on **`cfg.tajribah.org`**, bound to the same KV namespace (`CONFIGS`).
 5. Route **`ev.tajribah.org/v1/e`** to the main Worker.
+5b. **`db.tajribah.org` → the Hetzner server (2.31.18.118), DNS only** (added 2026-10-07): Hyperdrive and SSH reach the
+   server by this name; never proxied, since it carries Postgres, not web traffic.
 6. Products' own pages and QR codes: `HOSTED_PAGE_BASE=https://tajribah.org/p` — **decided 2026-10-07 (T106): no
    separate short domain**; a code reads `https://tajribah.org/p/{store}/{product}?s=qr`.
 

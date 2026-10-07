@@ -52,7 +52,7 @@ async function page(pathname) {
   return pages.get(pathname);
 }
 
-http.createServer(async (req, res) => {
+const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', here);
   try {
     if (url.pathname === '/w/widget.js') { res.writeHead(200, { 'content-type': 'text/javascript' }); res.end(fs.readFileSync(widget)); return; }
@@ -68,4 +68,12 @@ http.createServer(async (req, res) => {
   } catch (error) {
     res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' }); res.end(String(error));
   }
-}).listen(port, '127.0.0.1', () => console.log(`test shop: ${here}/<a product page's path on ${from}> — with the tag for "${store}"`));
+});
+// one test shop at a time per port: say so plainly instead of a stack trace
+server.on('error', (error) => {
+  if (error.code !== 'EADDRINUSE') throw error;
+  console.error(`Port ${port} is already in use — a test shop is probably running already: open ${here}/ar/x/p<product number>.`);
+  console.error(`To run another one alongside it, add --port ${port + 1}.`);
+  process.exit(1);
+});
+server.listen(port, '127.0.0.1', () => console.log(`test shop: ${here}/<a product page's path on ${from}> — with the tag for "${store}"`));

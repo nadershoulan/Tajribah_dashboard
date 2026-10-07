@@ -8,6 +8,6 @@
   "main": "server/core/edge/config-worker.ts",
   "compatibility_date": "2025-09-01",
   "kv_namespaces": [
-    { "binding": "CONFIGS", "id": "REPLACE_WITH_THE_CONFIGS_NAMESPACE_ID" }
+    { "binding": "CONFIGS", "id": "3f494fe78a65471fb90aa426c068cbbf" }
   ]
 }

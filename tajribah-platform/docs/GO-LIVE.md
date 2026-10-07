@@ -16,6 +16,13 @@ so the parts below that need them wait for it:
 | §2 the KV namespaces (`CONFIGS`, `RATE_LIMITS`) and the config host on `cfg.tajribah.org` (it answers "none" until products are published) | §4 the website on `tajribah.org` (the same Worker as the dashboard) |
 | email: the mail provider's DNS records on the `tajribah.org` zone | §5 `ev.tajribah.org` (a route to that Worker) |
 
+**Created in Cloudflare (2026-10-07, account `bd0491e496ffa057396c434b050520a1`):**
+- R2 bucket **`tajribah-files`** (public through **`cdn.tajribah.org`**, Active) with its CORS policy: `PUT` + `content-type` from `https://tajribah.org`; `GET`/`HEAD` from any origin.
+- R2 bucket **`tajribah-pair`** — private (public access disabled, no domain); the Worker's `PAIR_BUCKET` (`vite.config.ts`).
+- KV **`tajribah-configs`** `3f494fe78a65471fb90aa426c068cbbf` → `CONFIGS` (already in `wrangler.config-host.jsonc`).
+- KV **`tajribah-rate-limits`** `64ef69a8da974ada85bfed2f4a46bb8a` → `RATE_LIMITS`.
+- Still to do by Nader: the R2 API token for `tajribah-files` (Object Read & Write) — its secret goes into the Worker's secrets on deploy day.
+
 ## 1. Storage — R2 and the CDN (`cdn.tajribah.org`)
 
 - [ ] Create the R2 bucket; bind it to the dashboard Worker as **`BUCKET`**

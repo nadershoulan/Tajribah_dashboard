@@ -30,7 +30,7 @@ const localBindingConfig = {
   r2_buckets: [
     ...(r2 ? [{ binding: r2, bucket_name: "site-creator-r2" }] : []),
     // The website's QR photo transfer: its own private bucket, never the merchants' public one.
-    { binding: "PAIR_BUCKET", bucket_name: "tajribah-pairing" },
+    { binding: "PAIR_BUCKET", bucket_name: "tajribah-pair" },
   ],
 };
 

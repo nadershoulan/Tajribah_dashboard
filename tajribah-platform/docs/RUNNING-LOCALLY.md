@@ -90,21 +90,61 @@ storage on the real host — locally, publishing works for this computer only (T
 page at `http://127.0.0.1:8799/p/…` shows it. Published settings are kept in the local storage, so they
 survive a restart.
 
-**Trying the Google Tag Manager install on your store's real pages (T95):** with the dashboard (and storage and the
-worker) running, and at least one product published,
-
-```sh
-node widget/build.mjs
-node scripts/dev/test-shop.mjs --store <your store key> --from https://failet.sa
-```
-
-then open `http://127.0.0.1:8812/ar/x/p<the product's number on Salla>`. The page is your store's own, read
-live, with the tag added the way Tag Manager adds it: the button appears under the product's options, and
-opens the try-on. The store key is the one in the tag on «التركيب في متجرك». Your products must have their
-store pages first: «مزامنة الآن» on Store connections reads them from the feed.
-
 **Testing the QR with your phone, and the one-domain layout:** `docs/DOMAINS.md` (start both
 scripts with `lan`; the phone opens the computer's Wi-Fi address on the same network).
+
+## D. The button on your store's real pages (Salla, Google Tag Manager)
+
+On a real store the button arrives through one tag in Google Tag Manager (the dashboard's «التركيب في متجرك»).
+Before touching Tag Manager, you can see exactly what shoppers will see on this computer: a small **test shop**
+serves your store's real product pages, read live from its public address, with the tag added the way Tag
+Manager adds it. Nothing is changed on your store.
+
+**Before you start** — with section C running:
+
+1. Storage, the dashboard and the worker are running, each in its own window (`~/tajribah-local`):
+   `bash start-storage.sh`, `bash start-dashboard.sh`, `bash start-worker.sh`.
+2. Your products came from your feed, and know their pages: on **Store connections** press «مزامنة الآن» once.
+   (Each product's page in Salla comes from its `link` in the feed; the worker then refreshes what is published.)
+3. At least one product is published: its try-on settings → «انشر في المتجر».
+4. The widget is built (again after pulling new code):
+
+   ```sh
+   cd tajribah-platform
+   node widget/build.mjs
+   ```
+
+**Start the test shop** in a fourth window, from `tajribah-platform`, and leave it open while you test:
+
+```sh
+node scripts/dev/test-shop.mjs --store <your store key> --from https://<your store's address>
+```
+
+- **Your store key** is in the tag on «التركيب في متجرك» (`data-tajribah-store="…"`). For the store on this
+  computer it is `store-ymc7f8`, so for Failet:
+  `node scripts/dev/test-shop.mjs --store store-ymc7f8 --from https://failet.sa`
+- It prints `test shop: http://127.0.0.1:8812/…` when it is ready.
+
+**Open a product page:** `http://127.0.0.1:8812/ar/x/p<the product's number on Salla>`. The number is the end of
+the product's address on your store — `…/p1713032054` → `http://127.0.0.1:8812/ar/x/p1713032054` (the words
+before it do not matter). A published product shows «جرّبها…» under its options, above «أضف للسلة»; tapping it
+opens the try-on. A product that is not published shows nothing, and so does the home page — as on the real store.
+
+**Stop it** with Ctrl+C in its window (or close the window).
+
+**If something is off:**
+
+| What you see | Why, and what to do |
+|---|---|
+| `Port 8812 is already in use` | A test shop is already running (another window, or one started earlier). Use that one, stop it first, or add `--port 8813` and open `http://127.0.0.1:8813/…`. |
+| The address does not open at all | The test shop is not running: start it (above) and keep its window open. |
+| The page opens, but no button | The product is not published; or its page is not known yet («مزامنة الآن», then wait for the worker); or the dashboard is not running at `http://127.0.0.1:8799`. |
+| `Build the widget first` | Run `node widget/build.mjs` once, then start the test shop again. |
+| `… did not answer` | Your store's page could not be read: check the address after `--from` (https, no path), and your internet. |
+
+Only for this computer: the store's own scripts are left out of the copy (so its menus and cart do not work
+there), and the button's settings come from your local dashboard. On the real store, nothing here is used: the
+tag in your Tag Manager container loads Tajribah's widget from `cdn.tajribah.com` once it is live (GO-LIVE §1).
 
 ## The checks
 

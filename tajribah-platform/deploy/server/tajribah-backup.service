@@ -1,0 +1,18 @@
+# T108 — the nightly database backup (scripts/dr/nightly.mjs): dump, Sunday restore check, sealed, sent to
+# R2 tajribah-backups, pruned. Install: copy both files to /etc/systemd/system/, then
+#   systemctl daemon-reload && systemctl enable --now tajribah-backup.timer
+# Settings (secrets, root-only): /etc/tajribah/backup.env — see the header of scripts/dr/nightly.mjs.
+# Run now: systemctl start tajribah-backup · last result: systemctl status tajribah-backup / journalctl -u tajribah-backup
+[Unit]
+Description=Tajribah nightly database backup
+After=postgresql.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=tajribah
+WorkingDirectory=/opt/tajribah
+EnvironmentFile=/etc/tajribah/backup.env
+ExecStart=/usr/bin/node scripts/dr/nightly.mjs run
+Nice=10
+IOSchedulingClass=idle

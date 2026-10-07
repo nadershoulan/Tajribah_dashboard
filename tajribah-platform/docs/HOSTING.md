@@ -12,7 +12,7 @@
 | Image and 3D work (`scripts/worker-node.mjs`) | **The same Hetzner server** | It needs a program (sharp) that cannot run on Cloudflare |
 
 So you need **a Cloudflare account** (free to start; the paid Workers plan is about $5 a month) and
-**one small Hetzner Cloud server** (a CX22-class machine, around €4–6 a month, is enough to start).
+**one small Hetzner Cloud server** (a CAX21 (chosen 2026-10-07: 4 Arm cores, 8 GB, 80 GB, Falkenstein; T108) machine, around €4–6 a month, is enough to start).
 
 ## Will Hetzner shared hosting (Webhosting) with SSH work?
 

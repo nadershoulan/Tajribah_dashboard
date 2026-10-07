@@ -37,20 +37,24 @@ already generated into `.env.production.local`.
 |---|---|---|
 | 1 | **Cloudflare → tajribah.org → Caching → Configuration → Browser Cache TTL → "Respect Existing Headers"** (30 seconds). Today Cloudflare stamps 4 hours on every file, so a new shop script would reach shoppers up to 4 hours late; the script asks for 5 minutes | quick widget updates |
 | 2 | Add the tag in Failet's **Google Tag Manager** (GTM-K4ZVD3HX, steps on «التركيب في متجرك») and press Publish — the script it loads is live now | the button on failet.sa (it shows once a product is published from a live dashboard) |
-| 3 | Buy the **Hetzner server** (CX22-class, docs/HOSTING.md), then put the two database logins in `.env.production.local` | the dashboard, the website, `ev.`, the image/3D worker |
+| 3 | Buy the **Hetzner server**: ready to buy in the Hetzner tab (CAX21, Falkenstein, Ubuntu 26.04, the `tajribah-server` SSH key, no host backups, $13.09 a month). Press "Create & Buy now" after adding payment | the dashboard, the website, `ev.`, the image/3D worker |
 | 4 | **Resend** (or another mail provider): verify `tajribah.org` there (it gives DNS records to add in Cloudflare) and paste its key as `RESEND_API_KEY` | sign-in and invoice emails |
 | 5 | **Unifonic**: an account, an approved sender name (`UNIFONIC_SENDER_ID`, up to 11 letters) and the app SID — **production refuses to start without it** (`env.ts`: no pretend phone codes) | launch itself |
 | 6 | **Workers Paid** plan on Cloudflare ($5 a month) — the job queue needs it; then `npx wrangler queues create tajribah-jobs` (or tell me and I run it) | launch itself |
 | later | GA4 id · Google sign-in client · Moyasar · ZATCA Fatoora · a 3D-generation provider · Better Stack uptime | analytics, billing, invoices, models from photos |
 | v2 | Salla, Zid, Shopify partner accounts | store linking |
 
-Keep a copy of `.env.production.local` in your password manager: it is the only copy of those keys.
+Keep these in your password manager; each is the only copy: `.env.production.local`, `~/.tajribah/backup-private.pem` (**without it no backup can be opened**), `~/.tajribah/backup.env` and `~/.ssh/tajribah_hetzner` (the server's SSH key).
 
 **Server day, in order** (I can run all of it once 3–6 are done):
 1. On the server: Postgres 16, the database and its two logins, `node scripts/db/migrate.mjs --db …` (docs/DATABASE.md).
 2. `node scripts/deploy/deploy-dashboard.mjs --create-hyperdrive` — the two Hyperdrive configs, ids written into `deploy/production.jsonc`.
 3. `node scripts/deploy/deploy-dashboard.mjs --check`, then `--dry-run`, then without a flag: build, secrets, deploy to `tajribah.org`, `www.`, `app.` and `ev.`.
 4. The Node worker on the server (§3), then the checks in §3–§5.
+5. **Backups (T108, docs/DR.md):** create the `tajribah_backup` login, put `deploy/server/backup.env.example` filled in
+   at `/etc/tajribah/backup.env` (R2 values from `~/.tajribah/backup.env`), install the two
+   `deploy/server/tajribah-backup.*` units, `systemctl enable --now tajribah-backup.timer`, then run it once:
+   `systemctl start tajribah-backup` and check `journalctl -u tajribah-backup` says `backup ok`.
 
 ## 1. Storage — R2 and the CDN (`cdn.tajribah.org`)
 

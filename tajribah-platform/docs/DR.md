@@ -25,8 +25,25 @@ lacks them (roles live in the cluster, not in a dump), so a brand-new server can
    pointed at it.
 4. Keep the report with the date. At a gate, the drill is run again, not remembered.
 
-How often backups are taken, how long they are kept, and where they are stored (off the database
-host, and encrypted) are decided with the database host — nothing here chooses them.
+**Decided 2026-10-07 (T108)** — the database's own backups, in place of Hetzner's disk snapshots:
+- **Every night at 03:15 Riyadh time** (`deploy/server/tajribah-backup.timer`), `scripts/dr/nightly.mjs run`
+  takes a checked dump (`backup`). **Every Sunday** it also restores the dump into a scratch database and
+  checks it (`verify`).
+- **Encrypted on the server to a public key** (`scripts/dr/seal.mjs`: X25519 + AES-256-GCM, Node's own crypto).
+  The server holds only `deploy/server/backup-public.pem`, so it can encrypt but never read an old backup.
+  The private key is `~/.tajribah/backup-private.pem` on Nader's computer and **must also be in his
+  password manager**; without it no backup can be opened.
+- **Stored off the server**, in the private R2 bucket **`tajribah-backups`**, through a token that reaches only
+  that bucket (`tajribah-backups-writer`).
+- **Kept** every night for 14 days, then the newest of each week for 8 weeks; older copies are deleted by the job.
+- **Logged in as `tajribah_backup`**, a read-only login (`pg_read_all_data`, `BYPASSRLS`). The admin login
+  cannot dump the monthly partitions.
+- **Restoring:** `node scripts/dr/nightly.mjs list`, then `fetch --key <key> --out <dir>`, then
+  `drill.mjs verify` (to check it) or `pg_restore` (to use it).
+
+First run (2026-10-07, against the local database): a 2.9 MB dump, restored and checked in 1.8 s, sealed and
+uploaded, 19 s in all. Then downloaded, opened with the private key and restored again: `ok`, 75 tables,
+27,003 rows, 1.7 s. That test copy was then deleted from the bucket.
 
 ## Last run (2026-09-29, local)
 

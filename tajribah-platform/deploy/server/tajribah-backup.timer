@@ -1,0 +1,12 @@
+# T108 — 03:15 Riyadh time (00:15 UTC), the quietest hour for Saudi shops. Persistent: a night missed
+# while the server was off runs at the next start.
+[Unit]
+Description=Tajribah nightly database backup
+
+[Timer]
+OnCalendar=*-*-* 00:15:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

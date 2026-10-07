@@ -1781,3 +1781,22 @@ printed. Cost: low now; high after printing.
 
 **Rollback path.** `npx wrangler delete --config wrangler.config-host.jsonc`, delete the bucket objects, revert
 the commit. Cost: low.
+
+## T108 · 2026-10-07 · The server, and the database's own backups
+
+**Decision.**
+- **The server:** Hetzner **CAX21** (4 Arm cores, 8 GB RAM, 80 GB disk) in **Falkenstein**, on **Ubuntu 26.04**,
+  $13.09 a month. The x86 "cost-optimized" types are sold out in Germany. Of the two that were offered, Helsinki
+  is further from Saudi Arabia and the "regular" CPX22 costs nearly twice as much for half the memory.
+  Postgres, Node and `sharp` all ship for Arm. Plain Ubuntu rather than a Hetzner "app": we install only
+  Postgres and Node, and each step can be checked. SSH key only, no root password by email.
+- **No host backups (Nader's choice); our own instead** (docs/DR.md). Every night: a checked dump, restored and
+  checked on Sundays, sealed to a public key (the server can never read an old backup), and kept in the private
+  R2 bucket `tajribah-backups` for 14 nights plus 8 weekly copies. The dump is logged in as a read-only role,
+  because the admin login cannot dump the partitions; this showed up on the first run.
+- **What host backups would add:** a whole-disk copy, which would restore the server's own setup in minutes rather
+  than the hour a rebuild from the docs takes. The data itself is what matters, and it is covered, off the server.
+  A fixed sample sealed by this version is in the tests, so a later change that would leave stored backups
+  unreadable fails the build.
+
+**Rollback path.** Turn on Hetzner backups in the server's settings at any time (+20%). Cost: low.

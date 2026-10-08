@@ -23,7 +23,7 @@ export function useAuthTurnstile(action: 'login' | 'register') {
   const [resetKey, setResetKey] = useState(0);
   const reset = useCallback(() => setResetKey((k) => k + 1), []);
   const widget = siteKey
-    ? <div className="field" style={{ display: 'flex', justifyContent: 'center' }}><Turnstile siteKey={siteKey} lang={lang} action={action} onToken={setToken} resetKey={resetKey} /></div>
+    ? <div className="field" style={{ textAlign: 'center' }}><Turnstile siteKey={siteKey} lang={lang} action={action} onToken={setToken} resetKey={resetKey} /></div>
     : null;
   /** Ready to send: no check on this page, or the check gave its token. */
   const ready = !siteKey || !!token;

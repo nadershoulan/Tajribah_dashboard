@@ -40,8 +40,11 @@ export function Turnstile({ siteKey, lang, onToken, resetKey }: { siteKey: strin
     let gone = false;
     loadTurnstile().then((api) => {
       if (gone || !box.current) return;
+      // The normal widget is a fixed 300px; on the smallest phones the form has less, and it pushed the page
+      // sideways — there Turnstile's compact size (150px) fits.
+      const size = box.current.clientWidth < 300 ? 'compact' : 'normal';
       widget.current = api.render(box.current, {
-        sitekey: siteKey, action: 'contact', language: lang, theme: 'auto',
+        sitekey: siteKey, action: 'contact', language: lang, theme: 'auto', size,
         callback: (token: string) => tokenFn.current(token),
         'expired-callback': () => tokenFn.current(null),
         'error-callback': () => tokenFn.current(null),
@@ -53,5 +56,5 @@ export function Turnstile({ siteKey, lang, onToken, resetKey }: { siteKey: strin
   // After a send, a fresh check for the next message (a token is good once).
   useEffect(() => { if (resetKey && widget.current) { window.turnstile?.reset(widget.current); tokenFn.current(null); } }, [resetKey]);
 
-  return <div ref={box} className="turnstile-box" style={{ minHeight: 65 }} />;
+  return <div ref={box} className="turnstile-box" style={{ minHeight: 65, maxWidth: '100%', overflow: 'hidden' }} />;
 }

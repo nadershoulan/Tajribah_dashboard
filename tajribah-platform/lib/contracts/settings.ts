@@ -70,7 +70,7 @@ export type Ga4Stream = { measurementId: string; stream: string; property: strin
 export type Ga4Picker = {
   available(): Promise<boolean>;
   /** Google's consent screen; the browser goes there and comes back with `#ga4=…` or `#ga4_error=…`. */
-  start(): Promise<string>;
+  start(opts?: { create?: boolean }): Promise<string>;
   streams(ticket: string): Promise<Ga4Stream[]>;
 };
 

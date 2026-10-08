@@ -313,3 +313,17 @@ test('T121: the creation path refuses what it should — no return address, an u
   google.down = true;
   assert.equal(why(await completeProvisioning(sealed, CREATE_APP, { transport: google.transport() })), 'create');
 });
+
+test('T121: "create a new one" makes a new account even when the person already has GA4 web streams', async () => {
+  const google = new EmptyGoogle();
+  google.accounts = [{ account: 'accounts/2', displayName: 'Oud store', propertySummaries: [{ property: 'properties/21', displayName: 'oud.sa' }] }];
+  google.streams = { 'properties/21': [{ type: 'WEB_DATA_STREAM', displayName: 'Shop', webStreamData: { measurementId: 'G-OUD7654321', defaultUri: 'https://oud.sa' } }] };
+  google.grantedScope = GA4_EDIT_SCOPE;
+  const started = await startGoogle(CREATE_APP, STORE, Date.now(), { account: NEW, create: true });
+  assert.equal(new URL(started.authorizeUrl).searchParams.get('scope'), GA4_EDIT_SCOPE, 'asked for at once: the person chose to create');
+  const result = await callbackResult(new URLSearchParams({ code: google.approve(), state: stateOf(started.authorizeUrl) }), started.nonce, CREATE_APP, { transport: google.transport() });
+  assert.equal(result.location, `${GA_TERMS}ticket-1`, 'to Google’s terms for the new account — not the list of the old ones');
+  google.accept('ticket-1');
+  const done = await completeProvisioning(result.pending!, CREATE_APP, { transport: google.transport() });
+  assert.deepEqual((await openTicket(CREATE_APP, fragment(done.location).get('ga4')!, STORE)).map((s) => s.measurementId), ['G-NEW1234567'], 'only the new one, filled in');
+});

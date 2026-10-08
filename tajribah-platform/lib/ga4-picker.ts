@@ -8,7 +8,7 @@ import type { Ga4Picker, Ga4Stream } from './contracts/settings';
 export function ga4PickerFor(client: ApiClient, kind: 'site' | 'store'): Ga4Picker {
   return {
     available: async () => (await client.call<{ available: boolean }>('/api/google/ga4')).available,
-    start: async () => (await client.call<{ authorizeUrl: string }>('/api/google/ga4/start', { body: { for: kind } })).authorizeUrl,
+    start: async (opts) => (await client.call<{ authorizeUrl: string }>('/api/google/ga4/start', { body: { for: kind, ...(opts?.create ? { create: true } : {}) } })).authorizeUrl,
     streams: async (ticket) => (await client.call<{ streams: Ga4Stream[] }>('/api/google/ga4/streams', { body: { for: kind, ticket } })).streams,
   };
 }

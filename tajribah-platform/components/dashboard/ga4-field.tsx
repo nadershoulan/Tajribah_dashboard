@@ -9,7 +9,7 @@
  * Picking a stream only fills the field — the screen's own save keeps it.
  */
 import { useEffect, useState } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Plus } from 'lucide-react';
 import type { Ga4Picker, Ga4Stream } from '@/lib/contracts/settings';
 import { sayProblem } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
@@ -65,9 +65,10 @@ export function Ga4Field({ id, value, onChange, error, picker, hint, disabled }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [picker, arrival]);
 
-  const signIn = async () => {
+  // T121: `create` — a new Google Analytics account (and its web stream) even when the person has some.
+  const signIn = async (create = false) => {
     setBusy(true); setProblem(null);
-    try { window.location.assign(await picker.start()); } catch (e) { setProblem(sayProblem(e, lang)); setBusy(false); }
+    try { window.location.assign(await picker.start({ create })); } catch (e) { setProblem(sayProblem(e, lang)); setBusy(false); }
   };
 
   return (
@@ -81,9 +82,14 @@ export function Ga4Field({ id, value, onChange, error, picker, hint, disabled }:
 
       {available && (
         <div style={{ marginTop: 10 }}>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={signIn} disabled={busy || disabled}>
-            <ExternalLink size={14} aria-hidden />{busy ? t('جارٍ الفتح…', 'Opening…') : t('املأه بتسجيل الدخول بـ Google', 'Fill it by signing in with Google')}
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => void signIn()} disabled={busy || disabled}>
+              <ExternalLink size={14} aria-hidden />{busy ? t('جارٍ الفتح…', 'Opening…') : t('املأه بتسجيل الدخول بـ Google', 'Fill it by signing in with Google')}
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => void signIn(true)} disabled={busy || disabled}>
+              <Plus size={14} aria-hidden />{t('أنشئ حسابًا جديدًا في Google Analytics', 'Create a new Google Analytics account')}
+            </button>
+          </div>
           <p className="hint" style={{ margin: '6px 0 0' }}>{t('نعرض مصادر بياناتك في Google Analytics لتختار منها. ليس لديك حساب؟ ننشئه لك بعد موافقتك على شروط Google، ونملأ المعرّف تلقائيًا. لا نحتفظ بأي شيء من حسابك.', 'We list your Google Analytics data streams for you to pick from. No account yet? We create one once you accept Google’s terms, and fill in the id for you. We keep nothing from your account.')}</p>
         </div>
       )}

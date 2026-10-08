@@ -34,6 +34,8 @@ const cookieValue = (request: Request, name: string) =>
   (request.headers.get('cookie') ?? '').split(';').map((c) => c.trim()).find((c) => c.startsWith(`${name}=`))?.slice(name.length + 1) || null;
 
 const FOR = z.object({ for: z.enum(['site', 'store']) });
+/** T121: `create` — a new GA4 account even when the person has some (the screen's "create a new one"). */
+const START = FOR.extend({ create: z.boolean().optional() });
 
 /** The caller, as the purpose they may start or open: staff for the website, a settings editor for their store. */
 async function purposeOf(request: Request, config: ApiConfig, kind: 'site' | 'store'): Promise<Ga4Purpose & { account: NewAccount }> {
@@ -68,11 +70,11 @@ export const googleAvailableHandler = route(async (request) => {
 export const startGoogleHandler = route(async (request) => {
   const config = apiConfig();
   assertSameOrigin(request, config);
-  const { for: kind } = await readJson(request, FOR);
+  const { for: kind, create } = await readJson(request, START);
   const { account, ...purpose } = await purposeOf(request, config, kind);
   const app = googleApp(config);
   if (!app) throw googleNotYet();
-  const { authorizeUrl, nonce } = await startGoogle(app, purpose as Ga4Purpose, Date.now(), { account });
+  const { authorizeUrl, nonce } = await startGoogle(app, purpose as Ga4Purpose, Date.now(), { account, create: !!create && !!app.provisionedUri });
   return json({ authorizeUrl }, { headers: { 'set-cookie': stateCookie(nonce, config.secureCookies) } });
 });
 

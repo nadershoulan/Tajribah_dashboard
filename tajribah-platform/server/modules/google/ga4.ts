@@ -130,15 +130,18 @@ export async function completeGoogleCallback(query: URLSearchParams, nonce: stri
   // The person may untick the Analytics permission on Google's screen.
   if (typeof granted.scope === 'string' && !granted.scope.split(' ').includes(wanted)) return back('ga4_error=scope');
 
-  let streams: Ga4Stream[];
-  try {
-    streams = await webStreams(granted.access_token, transport);
-  } catch (error) {
-    log.warn('google callback: GA4 streams could not be read', { error: error instanceof Error ? error.message : String(error) });
-    return back('ga4_error=unavailable');
-  }
   const purpose = purposeOf(state);
-  if (streams.length) return back(`ga4=${await ticketFor(app, purpose, streams, now)}`);
+  // Creating (asked for on the screen, or because the read-only sign-in found none): straight to the new account.
+  if (!creating) {
+    let streams: Ga4Stream[];
+    try {
+      streams = await webStreams(granted.access_token, transport);
+    } catch (error) {
+      log.warn('google callback: GA4 streams could not be read', { error: error instanceof Error ? error.message : String(error) });
+      return back('ga4_error=unavailable');
+    }
+    if (streams.length) return back(`ga4=${await ticketFor(app, purpose, streams, now)}`);
+  }
 
   // T121: none — create one, when we know what to call it and where Google may send the person back.
   if (!app.provisionedUri || !state.a || !state.w) return back('ga4_error=none');

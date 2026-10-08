@@ -1942,3 +1942,14 @@ failed for everyone on the live site. Local workerd does not enforce the cap, so
   now refuses >100k the way a Worker does.
 
 **Rollback path.** None needed; the older hashes still verify. Cost: low.
+
+## T120 · 2026-10-08 · Turnstile on sign-in and sign-up
+
+**Decision.** Sign-in and sign-up need a Cloudflare Turnstile token that siteverify passes, for our hostnames and
+for that form's own action, checked before the password is looked at or any store is created. Turnstile adds to
+the rate limits and the lockout; it does not replace them. Without the secret, production refuses (501) rather
+than open the door; this computer and the tests run without it. One site key and secret (widget
+`tajribah-contact`, hostname tajribah.org, which covers its subdomains) serve all three forms.
+
+**Trade-off.** Scripts that sign in over the API (the smoke test) need a token too; a staging copy for them can use
+Cloudflare's always-pass test keys. **Rollback path.** Remove the two `requireHuman` lines. Cost: low.

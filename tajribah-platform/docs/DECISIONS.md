@@ -1883,3 +1883,30 @@ on new accounts (checked from tajribah-1), and a new server's address lands in s
   (a cookie), so no hreflang.
 
 **Rollback path.** Revert the commits. Cost: low.
+
+## T115 · 2026-10-08 · The contact form keeps its messages; Turnstile in front
+
+**Decision.** Nader: messages should not go out by email. They should be stored, and staff should see them in
+the dashboard, with a Cloudflare "are you human?" check against attacks.
+- **Stored** in `contact_messages`, readable only by the admin role, the same way as `site_settings`. The public
+  form writes through the admin role after its checks. The sender's IP is kept only as an HMAC (keyed with
+  AUTH_SECRET), which is enough to recognise a repeat sender but not reversible.
+- **Defences, cheapest first:** same origin; a rate limit of 5 an hour per sender, counted *before* validation so
+  junk cannot dodge it; a hidden trap field (the sender is told "sent" and nothing is kept); strict field checks;
+  then **Turnstile verified on the server** (success, our hostnames, action `contact`; Cloudflare refuses a reused
+  token). In production, a missing secret makes the form refuse rather than take bots.
+- **Staff:** «رسائل التواصل» lists messages newest first with a count per status. Opening a message marks it read;
+  staff can archive it, put it back to new, or delete it with a reason. All of this goes in the staff trail
+  (without the message text).
+- **Not emailed to staff:** as asked. The console is the inbox.
+
+**Rollback path.** Revert the commit; the table can stay (expand-only). Cost: low.
+
+## T116 · 2026-10-08 · The Node worker on the server
+
+**Decision.** The two jobs that need `sharp` (model optimisation and try-on picture checks) run as a systemd
+service on tajribah-1, with production settings and a 3 GB memory cap. Its start was blocked only by the SMS
+rule, which T110 removed. Its settings file is built from the same sources as the launch, so it carries no value
+of its own.
+
+**Rollback path.** `systemctl disable --now tajribah-worker`. Cost: low; those jobs then wait in the queue.

@@ -1953,3 +1953,15 @@ than open the door; this computer and the tests run without it. One site key and
 
 **Trade-off.** Scripts that sign in over the API (the smoke test) need a token too; a staging copy for them can use
 Cloudflare's always-pass test keys. **Rollback path.** Remove the two `requireHuman` lines. Cost: low.
+
+## T121 · 2026-10-08 · Create a GA4 account for someone who has none
+
+**Decision.** The Google sign-in stays read-only first. Only when it finds no GA4 web stream does it ask Google for
+`analytics.edit`, so people who already have Analytics never grant more than reading. Google requires the person
+to accept the Analytics terms on its own page; we cannot skip that, so we use the account ticket and return
+address Google provides for it. Across that page the access token is kept only in the person's browser,
+encrypted, HttpOnly, for twenty minutes; it is never stored on our side. The new account is found by the name we
+asked for and having no property yet (the newest if several).
+
+**Trade-off.** `analytics.edit` is a sensitive scope: until Google verifies the app, only listed test users can
+sign in. **Rollback path.** Without `provisionedUri` the flow answers "no web stream" as before. Cost: low.

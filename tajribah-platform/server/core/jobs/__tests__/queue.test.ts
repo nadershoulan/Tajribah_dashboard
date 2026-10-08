@@ -185,3 +185,40 @@ test('the runner executes a handler and records the outcome', async () => {
     assert.match(rows.find((r) => r.id === bad.id)!.lastError!, /model unavailable/);
   } finally { clearHandlers(); await harness.close(); }
 });
+
+test('P7: where each unit of work opens its own connections (Workers), a batch runs four jobs at a time — each on its own — and all complete', async () => {
+  const harness = await createTestDb();
+  clearHandlers();
+  let running = 0, most = 0, opened = 0, ended = 0;
+  // Queries still go to the test database (it is registered first); the connector only counts what a unit opens.
+  const { registerDbConnector, unsafeAdminDb, appDb } = await import('@/db/client');
+  registerDbConnector(() => { opened++; return { app: appDb(), admin: unsafeAdminDb(), end: async () => { ended++; } }; });
+  try {
+    // Five stores, two jobs each: a fair batch takes at most 20% from any one store.
+    const stores = [];
+    for (const name of ['alpha', 'beta', 'gamma', 'delta', 'epsilon']) stores.push(await seedTenant(harness, name));
+    registerHandler('sync.products', async () => {
+      running++; most = Math.max(most, running);
+      await new Promise((r) => setTimeout(r, 20));
+      running--;
+    });
+    for (const store of stores) for (let i = 0; i < 2; i++) await enqueue({ queue: 'sync.products', tenantId: store.tenantId, payload: { i } });
+    const result = await tick('w1', 10);
+    assert.deepEqual([result.claimed, result.done, result.failed], [10, 10, 0]);
+    assert.equal(most, 4, 'four at a time, never more');
+    assert.equal(opened, 0, 'the test database answered; the connector is only asked when a query needs it');
+    assert.equal(ended, opened);
+  } finally { registerDbConnector(null); clearHandlers(); await harness.close(); }
+});
+
+test('P7: with one shared connection (tests, Node) the batch still runs one job at a time', async () => {
+  const harness = await createTestDb();
+  clearHandlers();
+  let running = 0, most = 0;
+  try {
+    registerHandler('sync.products', async () => { running++; most = Math.max(most, running); await new Promise((r) => setTimeout(r, 5)); running--; });
+    for (const name of ['alpha', 'beta', 'gamma']) { const t = await seedTenant(harness, name); for (let i = 0; i < 2; i++) await enqueue({ queue: 'sync.products', tenantId: t.tenantId, payload: { i } }); }
+    assert.equal((await tick('w1', 10)).done, 6);
+    assert.equal(most, 1);
+  } finally { clearHandlers(); await harness.close(); }
+});

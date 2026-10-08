@@ -45,6 +45,11 @@ export function registerDbConnector(connect: (() => DbConnection) | null): void 
   connector = connect;
 }
 
+/** Workers: each unit of work opens its own connections (so units can run side by side, each on its own). */
+export function opensConnectionsPerUnit(): boolean {
+  return connector !== null;
+}
+
 export function isDbRegistered(): boolean {
   return handles !== null || connector !== null;
 }

@@ -5,6 +5,7 @@
  * work but before `complete`), and the framework guarantees at-least-once, never
  * exactly-once. Every handler receives the tenant id in its payload and must use it.
  */
+import { opensConnectionsPerUnit, withDbConnection } from '@/db/client';
 import { claim, complete, fail, releaseStale, start, type QueueName } from './queue';
 import type { Job } from '@/db/schema';
 import { log } from '../observability/log';
@@ -30,6 +31,14 @@ export function clearHandlers(): void {
 
 export type TickResult = { claimed: number; done: number; failed: number };
 
+/**
+ * P7 (found by the ingest load test): on Cloudflare every query crosses to the database server and back, so a
+ * batch run one job after another spent ~2 s a job waiting — 10 roll-ups a minute against the 40 a minute that
+ * 200 busy stores need. There a batch's jobs run up to this many at a time, each on its own connections (one
+ * connection cannot hold two transactions at once). In tests and the Node process they run one by one, as before.
+ */
+export const JOB_CONCURRENCY = 4;
+
 /** One pass: reclaim abandoned work, take a fair batch, run it. */
 export async function tick(worker: string, limit = 10): Promise<TickResult> {
   await releaseStale();
@@ -37,11 +46,18 @@ export async function tick(worker: string, limit = 10): Promise<TickResult> {
   const batch = await claim({ worker, queues: registeredQueues(), limit });
   const result: TickResult = { claimed: batch.length, done: 0, failed: 0 };
 
-  for (const job of batch) {
-    // Each job runs in its own scope: the originating request's id when there was one, so
-    // "what did request X cause" includes the background work.
+  // Each job runs in its own scope: the originating request's id when there was one, so
+  // "what did request X cause" includes the background work.
+  const run = (job: Job) => {
     const requestId = (job.payload as { _requestId?: string } | null)?._requestId ?? `job-${job.id}`;
-    await runInScope({ requestId, jobId: job.id, tenantId: job.tenantId }, () => runOne(job, result));
+    return runInScope({ requestId, jobId: job.id, tenantId: job.tenantId }, () => runOne(job, result));
+  };
+  if (!opensConnectionsPerUnit()) {
+    for (const job of batch) await run(job);
+  } else {
+    let next = 0;
+    const lane = async () => { while (next < batch.length) { const job = batch[next++]!; await withDbConnection(() => run(job), { own: true }); } };
+    await Promise.all(Array.from({ length: Math.min(JOB_CONCURRENCY, batch.length) }, lane));
   }
 
   return result;

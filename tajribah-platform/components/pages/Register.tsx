@@ -14,6 +14,7 @@ import { safeNext } from '@/lib/safe-next';
 import { slugify } from '@/lib/slug';
 import { PASSWORDS_DIFFER, passwordsDiffer } from '@/lib/password-confirm';
 import { TRIAL_DAYS, TRIAL_PLAN, planByCode, type PlanCode } from '@/lib/plans';
+import { PasswordInput } from '@/components/dashboard/password-input';
 
 export default function Register() {
   const { t, lang } = useLang();
@@ -146,13 +147,13 @@ export default function Register() {
 
             <div className="field">
               <label htmlFor="password">{t('كلمة المرور', 'Password')}</label>
-              <input id="password" name="password" type="password" autoComplete="new-password" dir="ltr" minLength={10} required />
+              <PasswordInput id="password" name="password" autoComplete="new-password" minLength={10} required />
               <span className="field-hint">{t('10 أحرف على الأقل.', 'At least 10 characters.')}</span>
             </div>
 
             <div className="field">
               <label htmlFor="passwordAgain">{t('أكّد كلمة المرور', 'Confirm the password')}</label>
-              <input id="passwordAgain" name="passwordAgain" type="password" autoComplete="new-password" dir="ltr" required
+              <PasswordInput id="passwordAgain" name="passwordAgain" autoComplete="new-password" required
                 aria-invalid={differ} aria-describedby={differ ? 'passwordAgain-error' : undefined} onChange={() => setDiffer(false)} />
               {differ && <span id="passwordAgain-error" className="field-error">{t(PASSWORDS_DIFFER.ar, PASSWORDS_DIFFER.en)}</span>}
             </div>

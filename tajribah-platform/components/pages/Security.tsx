@@ -11,6 +11,7 @@ import { useLang } from '@/lib/i18n';
 import { Shell } from '@/components/dashboard/chrome';
 import { Badge, ErrorNote, Loading, PageHead, Panel } from '@/components/dashboard/ui';
 import { authErrorMessage } from './auth-errors';
+import { PasswordInput } from '@/components/dashboard/password-input';
 
 /** The server's field messages this screen meets, in Arabic. */
 const MESSAGE_AR: [RegExp, string][] = [
@@ -164,7 +165,7 @@ function PasswordStep({ purpose, onCancel, onSetup, onCodes, onDisabled }: {
       <form onSubmit={submit} noValidate style={{ maxWidth: 420 }}>
         <div className="field">
           <label htmlFor="sec-password">{t('كلمة المرور', 'Password')}</label>
-          <input id="sec-password" name="password" type="password" dir="ltr" autoComplete="current-password" required autoFocus aria-invalid={!!fields.password} />
+          <PasswordInput id="sec-password" name="password" autoComplete="current-password" required autoFocus aria-invalid={!!fields.password} />
           {fields.password && <span className="field-error">{say(fields.password[0])}</span>}
         </div>
         {purpose === 'disable' && (

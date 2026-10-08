@@ -4,7 +4,7 @@
 // AUTH-18 — Reset password: set new · AUTH-19 — password changed
 
 import { useState, type FormEvent } from 'react';
-import { Eye, EyeOff, KeyRound, MailCheck } from 'lucide-react';
+import { KeyRound, MailCheck } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { ApiError } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
@@ -12,6 +12,7 @@ import { useLang } from '@/lib/i18n';
 import { AuthTop } from './AuthTop';
 import { authErrorMessage } from './auth-errors';
 import { PASSWORDS_DIFFER, passwordsDiffer } from '@/lib/password-confirm';
+import { PasswordInput } from '@/components/dashboard/password-input';
 
 /** The same rule as the API's `PASSWORD` (server/modules/auth/http.ts). */
 const MIN_PASSWORD = 10;
@@ -105,7 +106,6 @@ function RequestLink() {
 function SetPassword({ token }: { token: string }) {
   const { t } = useLang();
   const auth = useAuth();
-  const [show, setShow] = useState(false);
   const [pending, setPending] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [expired, setExpired] = useState(false);
@@ -176,21 +176,12 @@ function SetPassword({ token }: { token: string }) {
       <form onSubmit={onSubmit} noValidate>
         <div className="field">
           <label htmlFor="password">{t('كلمة المرور الجديدة', 'New password')}</label>
-          <div style={{ position: 'relative' }} dir="ltr">
-            <input id="password" name="password" type={show ? 'text' : 'password'} autoComplete="new-password" dir="ltr" minLength={MIN_PASSWORD} required aria-describedby="password-hint" style={{ paddingInlineEnd: 44 }} />
-            <button
-              type="button" className="btn btn-quiet btn-sm" onClick={() => setShow((v) => !v)}
-              style={{ position: 'absolute', insetInlineEnd: 4, top: 4 }}
-              aria-label={show ? t('إخفاء كلمة المرور', 'Hide password') : t('إظهار كلمة المرور', 'Show password')}
-            >
-              {show ? <EyeOff size={15} /> : <Eye size={15} />}
-            </button>
-          </div>
+          <PasswordInput id="password" name="password" autoComplete="new-password" minLength={MIN_PASSWORD} required aria-describedby="password-hint" />
           <span id="password-hint" className="field-hint">{t('10 أحرف على الأقل.', 'At least 10 characters.')}</span>
         </div>
         <div className="field">
           <label htmlFor="passwordAgain">{t('أكّد كلمة المرور', 'Confirm the password')}</label>
-          <input id="passwordAgain" name="passwordAgain" type={show ? 'text' : 'password'} autoComplete="new-password" dir="ltr" required
+          <PasswordInput id="passwordAgain" name="passwordAgain" autoComplete="new-password" required
             aria-invalid={differ} aria-describedby={differ ? 'passwordAgain-error' : undefined} onChange={() => setDiffer(false)} />
           {differ && <span id="passwordAgain-error" className="field-error">{t(PASSWORDS_DIFFER.ar, PASSWORDS_DIFFER.en)}</span>}
         </div>

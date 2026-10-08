@@ -14,6 +14,7 @@ import { planByCode } from '@/lib/plans';
 import type { SsoSettingsView } from '@/lib/view-models';
 import { useWriteLock } from '@/components/dashboard/write-lock';
 import { Badge, ErrorNote, Loading, Panel } from '@/components/dashboard/ui';
+import { PasswordInput } from '@/components/dashboard/password-input';
 
 /**
  * Owners and admins connect the store's provider (Microsoft Entra, Google Workspace, Okta…). Its people
@@ -80,7 +81,7 @@ function SsoForm({ view, canEdit, onSaved }: { view: SsoSettingsView; canEdit: b
       <label className="field"><span>{t('معرّف التطبيق (Client ID)', 'Client ID')}</span>
         <input dir="ltr" value={form.clientId} onChange={set('clientId')} disabled={!canEdit} maxLength={300} /></label>
       <label className="field"><span>{t('السر (Client secret)', 'Client secret')}</span>
-        <input dir="ltr" type="password" autoComplete="new-password" value={form.clientSecret} onChange={set('clientSecret')} disabled={!canEdit} maxLength={1000}
+        <PasswordInput autoComplete="new-password" value={form.clientSecret} onChange={set('clientSecret')} disabled={!canEdit} maxLength={1000}
           placeholder={view.configured ? t('محفوظ — اتركه فارغًا لإبقائه', 'Saved — leave empty to keep it') : ''} /></label>
       <label className="field"><span>{t('نطاقات البريد المسموحة (اختياري)', 'Allowed email domains (optional)')}</span>
         <input dir="ltr" value={form.domains} onChange={set('domains')} placeholder="bigco.sa" disabled={!canEdit} /></label>

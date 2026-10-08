@@ -3,7 +3,7 @@
 // AUTH-001 — Sign in · AUTH-12 — two-step code · AUTH-14 — backup code
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { Check, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Check, ShieldCheck } from 'lucide-react';
 import { ApiError } from '@/lib/api-client';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useLang } from '@/lib/i18n';
@@ -11,12 +11,12 @@ import { AuthTop } from './AuthTop';
 import { useAuth } from '@/lib/auth';
 import { safeNext } from '@/lib/safe-next';
 import { authErrorMessage } from './auth-errors';
+import { PasswordInput } from '@/components/dashboard/password-input';
 
 export default function Login() {
   const { t } = useLang();
   const env = useEnv();
   const auth = useAuth();
-  const [showPassword, setShowPassword] = useState(false);
   const [pending, setPending] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   // P1.2b: set once the password was right and a code is still needed.
@@ -137,18 +137,7 @@ export default function Login() {
 
             <div className="field">
               <label htmlFor="password">{t('كلمة المرور', 'Password')}</label>
-              <div style={{ position: 'relative' }} dir="ltr">
-                <input id="password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" dir="ltr" required style={{ paddingInlineEnd: 44 }} />
-                <button
-                  type="button"
-                  className="btn btn-quiet btn-sm"
-                  onClick={() => setShowPassword((v) => !v)}
-                  style={{ position: 'absolute', insetInlineEnd: 4, top: 4 }}
-                  aria-label={showPassword ? t('إخفاء كلمة المرور', 'Hide password') : t('إظهار كلمة المرور', 'Show password')}
-                >
-                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
-              </div>
+              <PasswordInput id="password" name="password" autoComplete="current-password" required />
             </div>
 
             {note && <p className="field-hint" role="alert" style={{ color: 'var(--warn)', marginBottom: 12 }}>{note}</p>}

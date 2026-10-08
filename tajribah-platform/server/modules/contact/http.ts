@@ -6,19 +6,18 @@ import { route } from '@/server/core/observability/request';
 import { apiConfig, assertSameOrigin, json } from '@/server/core/http/api';
 import { loadEnv } from '@/server/core/config/env';
 import { submitContact } from './service';
-import { turnstileVerifier } from './turnstile';
+import { siteHosts, turnstileVerifier } from '@/server/core/http/turnstile';
 
 export const contactHandler = route(async (request) => {
   const config = apiConfig();
   assertSameOrigin(request, config);
   const env = loadEnv();
-  const hosts = (process.env.SITE_HOSTS ?? '').split(',').map((h) => h.trim()).filter(Boolean);
   const body = await request.json().catch(() => null);
   await submitContact(body, {
     ip: request.headers.get('cf-connecting-ip'),
     userAgent: request.headers.get('user-agent'),
   }, {
-    verify: env.TURNSTILE_SECRET_KEY ? turnstileVerifier(env.TURNSTILE_SECRET_KEY, hosts) : null,
+    verify: env.TURNSTILE_SECRET_KEY ? turnstileVerifier(env.TURNSTILE_SECRET_KEY, siteHosts()) : null,
     requireTurnstile: env.NODE_ENV === 'production',
     hashKey: env.AUTH_SECRET,
   });

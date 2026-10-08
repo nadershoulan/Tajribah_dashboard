@@ -2,7 +2,7 @@
 
 /**
  * T115 — Cloudflare Turnstile, the "are you human?" check under the contact form. Loaded once, rendered
- * explicitly; the token it gives is checked on the server (server/modules/contact/turnstile.ts). The page's CSP
+ * explicitly; the token it gives is checked on the server (server/core/http/turnstile.ts). The page's CSP
  * allows its script through 'strict-dynamic' and its frame through frame-src (site/lib/security.ts).
  */
 import { useEffect, useRef } from 'react';
@@ -30,7 +30,8 @@ function loadTurnstile(): Promise<TurnstileApi> {
   return loading;
 }
 
-export function Turnstile({ siteKey, lang, onToken, resetKey }: { siteKey: string; lang: 'ar' | 'en'; onToken: (token: string | null) => void; resetKey: number }) {
+/** T120: `action` names the form (contact, login, register); the server refuses a token earned on another one. */
+export function Turnstile({ siteKey, lang, onToken, resetKey, action = 'contact' }: { siteKey: string; lang: 'ar' | 'en'; onToken: (token: string | null) => void; resetKey: number; action?: 'contact' | 'login' | 'register' }) {
   const box = useRef<HTMLDivElement>(null);
   const widget = useRef<string | null>(null);
   const tokenFn = useRef(onToken);
@@ -44,14 +45,14 @@ export function Turnstile({ siteKey, lang, onToken, resetKey }: { siteKey: strin
       // sideways — there Turnstile's compact size (150px) fits.
       const size = box.current.clientWidth < 300 ? 'compact' : 'normal';
       widget.current = api.render(box.current, {
-        sitekey: siteKey, action: 'contact', language: lang, theme: 'auto', size,
+        sitekey: siteKey, action, language: lang, theme: 'auto', size,
         callback: (token: string) => tokenFn.current(token),
         'expired-callback': () => tokenFn.current(null),
         'error-callback': () => tokenFn.current(null),
       });
     }, () => tokenFn.current(null));
     return () => { gone = true; if (widget.current) window.turnstile?.remove(widget.current); widget.current = null; };
-  }, [siteKey, lang]);
+  }, [siteKey, lang, action]);
 
   // After a send, a fresh check for the next message (a token is good once).
   useEffect(() => { if (resetKey && widget.current) { window.turnstile?.reset(widget.current); tokenFn.current(null); } }, [resetKey]);

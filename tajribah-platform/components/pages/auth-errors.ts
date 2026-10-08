@@ -19,6 +19,7 @@ export function authErrorMessage(error: unknown, t: T): string {
       return t('هذا البريد مسجّل مسبقًا — سجّل الدخول بدلًا من ذلك.', 'This email already has an account — sign in instead.');
     case 'validation_failed': {
       const fields = Object.keys(error.fields ?? {});
+      if (fields.includes('turnstileToken')) return t('لم يكتمل التحقق الأمني. انتظر حتى يظهر التأكيد أسفل النموذج ثم حاول مرة أخرى.', 'The security check did not pass. Wait for it to finish below the form, then try again.');
       if (fields.includes('password')) return t('كلمة المرور يجب أن تكون 10 أحرف على الأقل.', 'The password must be at least 10 characters.');
       if (fields.includes('email')) return t('البريد الإلكتروني غير صالح.', 'That email address is not valid.');
       return t('تحقّق من الحقول وحاول مرة أخرى.', 'Check the fields and try again.');

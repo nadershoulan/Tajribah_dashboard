@@ -31,7 +31,7 @@ export type AuthApi = {
   /** False in the preview: the forms explain there is no server instead of submitting. */
   live: boolean;
   /** Resolves with a challenge when two-step sign-in still needs a code (P1.2b), else null. */
-  login(email: string, password: string): Promise<{ twoFactorChallenge: string } | null>;
+  login(email: string, password: string, turnstileToken?: string): Promise<{ twoFactorChallenge: string } | null>;
   /** P1.2b. `ApiError` 401 `invalid_credentials` for a wrong code, 401 `unauthenticated` for an expired step. */
   completeTwoFactor(challenge: string, code: string): Promise<void>;
   /** P1.2b: the signed-in person's own two-step sign-in. */
@@ -342,8 +342,8 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
   const api = useMemo<AuthApi>(() => ({
     ...state,
     live: true,
-    login: async (email, password) => {
-      const pending = await client.login(email, password);
+    login: async (email, password, turnstileToken) => {
+      const pending = await client.login(email, password, turnstileToken);
       if (!pending) await load();
       return pending;
     },

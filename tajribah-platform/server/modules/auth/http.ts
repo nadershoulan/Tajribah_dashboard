@@ -24,6 +24,7 @@ import { LIMITS, rateLimiter } from '@/server/core/ratelimit/limiter';
 import { EMAIL, sendEmail } from '@/server/core/notify/messages';
 import { recordSessionEvent } from '@/server/core/audit/audit';
 import { log } from '@/server/core/observability/log';
+import { requireHuman } from '@/server/core/http/turnstile';
 import { currentScope } from '@/server/core/observability/scope';
 import { addStore, login, register, registerByInvitation, requestPasswordReset, resendEmailVerification, resetPassword, verifyEmail } from './service';
 import {
@@ -60,7 +61,10 @@ export const registerHandler = route(async (request) => {
     invitation: z.string().min(1).max(200).optional(),
     locale: z.enum(['ar', 'en']).default('ar'),
     phone: z.string().max(32).optional(),
+    turnstileToken: z.string().max(2048).optional(),
   }).refine((b) => !!b.invitation || !!b.storeName, { path: ['storeName'], message: 'the store needs a name' }));
+  // T120: a person, not a script making stores — before anything is created.
+  await requireHuman(body.turnstileToken, clientIp(request), 'register');
 
   if (body.invitation) {
     const joined = await registerByInvitation({ ...body, invitation: body.invitation, userAgent: userAgent(request), ip: clientIp(request) }, config);
@@ -87,7 +91,9 @@ export const registerHandler = route(async (request) => {
 export const loginHandler = route(async (request) => {
   const config = apiConfig();
   assertSameOrigin(request, config);
-  const body = await readJson(request, z.object({ email: EMAIL_FIELD, password: z.string().min(1).max(200) }));
+  const body = await readJson(request, z.object({ email: EMAIL_FIELD, password: z.string().min(1).max(200), turnstileToken: z.string().max(2048).optional() }));
+  // T120: a person, not a credential-stuffing script — before the password is looked at.
+  await requireHuman(body.turnstileToken, clientIp(request), 'login');
   const issued = await login({ ...body, userAgent: userAgent(request), ip: clientIp(request) }, config);
   // P1.2b: the password was right but a code is still needed — no session, no cookie yet.
   if ('twoFactorChallenge' in issued) return json({ twoFactorRequired: true, challenge: issued.twoFactorChallenge });

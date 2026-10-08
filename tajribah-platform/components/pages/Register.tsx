@@ -15,6 +15,7 @@ import { slugify } from '@/lib/slug';
 import { PASSWORDS_DIFFER, passwordsDiffer } from '@/lib/password-confirm';
 import { TRIAL_DAYS, TRIAL_PLAN, planByCode, type PlanCode } from '@/lib/plans';
 import { PasswordInput } from '@/components/dashboard/password-input';
+import { TURNSTILE_WAIT, useAuthTurnstile } from './auth-turnstile';
 
 export default function Register() {
   const { t, lang } = useLang();
@@ -24,6 +25,7 @@ export default function Register() {
   const [note, setNote] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [differ, setDiffer] = useState(false);
+  const human = useAuthTurnstile('register');
 
   // T49: arriving from a team invitation (`?next=/invite/<token>`): an account only, no store of its own.
   const next = new URLSearchParams(env.search).get('next');
@@ -49,6 +51,7 @@ export default function Register() {
       setNote(t('هذه معاينة ثابتة بدون خادم — لا يُنشأ حساب فعلي.', 'This is a static preview with no server — no account is created.'));
       return;
     }
+    if (!human.ready) { setNote(t(TURNSTILE_WAIT.ar, TURNSTILE_WAIT.en)); return; }
     const form = new FormData(event.currentTarget);
     const phone = String(form.get('phone') ?? '').trim();
     setPending(true);
@@ -60,6 +63,7 @@ export default function Register() {
         password: String(form.get('password') ?? ''),
         locale: lang,
         ...(phone ? { phone } : {}),
+        ...(human.token ? { turnstileToken: human.token } : {}),
       };
       if (invitation) {
         // Joined already: straight into the team's store.
@@ -73,6 +77,7 @@ export default function Register() {
       env.navigate(safeNext(next, '/dashboard/onboarding'));
     } catch (error) {
       setNote(authErrorMessage(error, t));
+      human.reset(); // the token was spent on this attempt
     } finally {
       setPending(false);
     }
@@ -157,6 +162,8 @@ export default function Register() {
                 aria-invalid={differ} aria-describedby={differ ? 'passwordAgain-error' : undefined} onChange={() => setDiffer(false)} />
               {differ && <span id="passwordAgain-error" className="field-error">{t(PASSWORDS_DIFFER.ar, PASSWORDS_DIFFER.en)}</span>}
             </div>
+
+            {human.widget}
 
             {note && <p className="field-hint" role="alert" style={{ color: 'var(--warn)', marginBottom: 12 }}>{note}</p>}
 

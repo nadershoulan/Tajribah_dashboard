@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth';
 import { safeNext } from '@/lib/safe-next';
 import { authErrorMessage } from './auth-errors';
 import { PasswordInput } from '@/components/dashboard/password-input';
+import { TURNSTILE_WAIT, useAuthTurnstile } from './auth-turnstile';
 
 export default function Login() {
   const { t } = useLang();
@@ -23,6 +24,7 @@ export default function Login() {
   const [challenge, setChallenge] = useState<string | null>(null);
   const [useBackup, setUseBackup] = useState(false);
   const next = safeNext(new URLSearchParams(env.search).get('next'));
+  const human = useAuthTurnstile('login');
 
   // Already signed in (a restored session): go straight on.
   useEffect(() => {
@@ -36,15 +38,17 @@ export default function Login() {
       setNote(t('هذه معاينة ثابتة بدون خادم — لا يتم تسجيل دخول فعلي.', 'This is a static preview with no server — no real sign-in happens.'));
       return;
     }
+    if (!human.ready) { setNote(t(TURNSTILE_WAIT.ar, TURNSTILE_WAIT.en)); return; }
     const form = new FormData(event.currentTarget);
     setPending(true);
     setNote(null);
     try {
-      const pending = await auth.login(String(form.get('email') ?? ''), String(form.get('password') ?? ''));
+      const pending = await auth.login(String(form.get('email') ?? ''), String(form.get('password') ?? ''), human.token);
       if (pending) { setChallenge(pending.twoFactorChallenge); return; }
       env.navigate(next);
     } catch (error) {
       setNote(authErrorMessage(error, t));
+      human.reset(); // the token was spent on this attempt
     } finally {
       setPending(false);
     }
@@ -139,6 +143,8 @@ export default function Login() {
               <label htmlFor="password">{t('كلمة المرور', 'Password')}</label>
               <PasswordInput id="password" name="password" autoComplete="current-password" required />
             </div>
+
+            {human.widget}
 
             {note && <p className="field-hint" role="alert" style={{ color: 'var(--warn)', marginBottom: 12 }}>{note}</p>}
 

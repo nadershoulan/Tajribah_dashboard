@@ -11,7 +11,7 @@ import { contactMessages } from '@/db/schema';
 import { errors, fieldErrorsFrom } from '@/server/core/errors/problem';
 import { LIMITS, rateLimiter } from '@/server/core/ratelimit/limiter';
 import { foldDigits } from '@/lib/money';
-import type { TurnstileVerifier } from './turnstile';
+import type { TurnstileVerifier } from '@/server/core/http/turnstile';
 
 export const CONTACT_PLATFORMS = ['salla', 'zid', 'shopify', 'woocommerce', 'custom', 'other'] as const;
 

@@ -65,6 +65,8 @@ export type TwoFactorStatus = { enabled: boolean; backupCodesLeft: number };
 
 export type RegisterBody = {
   email: string; password: string; fullName: string; locale?: 'ar' | 'en'; phone?: string;
+  /** T120: Cloudflare Turnstile's token, when the page shows the check. */
+  turnstileToken?: string;
 } & ({ storeName: string; invitation?: undefined } | { invitation: string; storeName?: undefined }); // T49: joining by invitation makes no store
 
 type Listener = (signedIn: boolean) => void;
@@ -181,8 +183,8 @@ export class ApiClient {
    * The password step. With two-step sign-in on, nothing is signed in yet: the challenge comes
    * back for `completeTwoFactor` (P1.2b).
    */
-  async login(email: string, password: string): Promise<{ twoFactorChallenge: string } | null> {
-    const response = await this.send('/api/auth/login', { body: { email, password } });
+  async login(email: string, password: string, turnstileToken?: string): Promise<{ twoFactorChallenge: string } | null> {
+    const response = await this.send('/api/auth/login', { body: { email, password, ...(turnstileToken ? { turnstileToken } : {}) } });
     if (!response.ok) return ApiClient.fail(response);
     const body = await response.json() as TokenBody | { twoFactorRequired: true; challenge: string };
     if ('twoFactorRequired' in body) return { twoFactorChallenge: body.challenge };

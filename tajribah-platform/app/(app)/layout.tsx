@@ -4,6 +4,7 @@ import '../globals.css';
 import { dirOf, langFromCookie } from '@/lib/lang';
 import { themeAttribute, themeFromCookie } from '@/lib/theme';
 import { NextProviders } from '@/components/next-shell';
+import { TURNSTILE_META } from '@/components/pages/auth-turnstile';
 
 export const metadata: Metadata = {
   title: { default: 'لوحة تجربة — Tajribah Dashboard', template: '%s | تجربة Tajribah' },
@@ -22,6 +23,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang={lang} dir={dirOf(lang)} data-theme={themeAttribute(themeFromCookie(cookie))}>
       <head>
+        {/* T120: the public Turnstile key for the sign-in and sign-up check, read at request time. */}
+        {process.env.TURNSTILE_SITE_KEY && <meta name={TURNSTILE_META} content={process.env.TURNSTILE_SITE_KEY} />}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link

@@ -86,11 +86,11 @@ export const REGISTRY = {
   }),
   TURNSTILE_SITE_KEY: entry({
     schema: z.string().optional(),
-    scope: 'runtime', doc: 'T115: Cloudflare Turnstile site key for the contact form (public). Unset: the form shows no challenge — and in production refuses to send.',
+    scope: 'runtime', doc: 'T115/T120: Cloudflare Turnstile site key for the contact form, sign-in and sign-up (public). Unset: no challenge is shown — and in production those forms refuse.',
   }),
   TURNSTILE_SECRET_KEY: entry({
     schema: z.string().optional(),
-    scope: 'runtime', secret: true, doc: 'T115: Cloudflare Turnstile secret, checked on the server for every contact message.',
+    scope: 'runtime', secret: true, doc: 'T115/T120: Cloudflare Turnstile secret, checked on the server for every contact message, sign-in and sign-up.',
   }),
   RESEND_API_KEY: entry({
     schema: z.string().optional(),

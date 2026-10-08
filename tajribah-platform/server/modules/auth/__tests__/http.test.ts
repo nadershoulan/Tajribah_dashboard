@@ -394,3 +394,52 @@ test('add a store: not from a staff view, and a handful a day', async () => {
   } finally { await harness.close(); }
 });
 
+
+test('T120: with Turnstile set up, sign-in and sign-up need a token Cloudflare passes — for that form', async () => {
+  setup();
+  resetEnv();
+  loadEnv({ APP_URL: APP, AUTH_SECRET: 's'.repeat(40), ENCRYPTION_KEY: 'e'.repeat(40), TURNSTILE_SECRET_KEY: 'turnstile-secret' });
+  const harness = await createTestDb();
+  const original = globalThis.fetch;
+  const asked: string[] = [];
+  // Cloudflare's siteverify, played here: `good-<action>` passes for that action; anything else fails.
+  globalThis.fetch = (async (url: string, init: { body: FormData }) => {
+    assert.equal(url, 'https://challenges.cloudflare.com/turnstile/v0/siteverify');
+    const token = String(init.body.get('response'));
+    asked.push(token);
+    const action = token.startsWith('good-') ? token.slice(5) : null;
+    return new Response(JSON.stringify(action ? { success: true, hostname: 'localhost', action } : { success: false, 'error-codes': ['invalid-input-response'] }));
+  }) as unknown as typeof fetch;
+  try {
+    const refused = async (response: Response) => {
+      assert.equal(response.status, 422);
+      assert.ok((await response.json() as any).errors.turnstileToken);
+    };
+    await refused(await registerHandler(req('/api/auth/register', { body: ACCOUNT })));
+    await refused(await registerHandler(req('/api/auth/register', { body: { ...ACCOUNT, turnstileToken: 'forged' } })));
+    await refused(await registerHandler(req('/api/auth/register', { body: { ...ACCOUNT, turnstileToken: 'good-login' } })));
+    assert.equal((await harness.db.select().from(tenants)).length, 0, 'no store for a refused sign-up');
+    const made = await printed(() => registerHandler(req('/api/auth/register', { body: { ...ACCOUNT, turnstileToken: 'good-register' } })).then((r) => assert.equal(r.status, 201)));
+    void made;
+
+    await refused(await loginHandler(req('/api/auth/login', { body: { email: ACCOUNT.email, password: ACCOUNT.password } })));
+    await refused(await loginHandler(req('/api/auth/login', { body: { email: ACCOUNT.email, password: ACCOUNT.password, turnstileToken: 'good-register' } })));
+    const ok = await loginHandler(req('/api/auth/login', { body: { email: ACCOUNT.email, password: ACCOUNT.password, turnstileToken: 'good-login' } }));
+    assert.equal(ok.status, 200);
+    assert.ok(cookieFrom(ok), 'signed in');
+    assert.ok(!asked.includes(''), 'no token: Cloudflare is not even asked');
+  } finally { globalThis.fetch = original; await harness.close(); resetEnv(); }
+});
+
+test('T120: production without a Turnstile secret refuses sign-in and sign-up; this computer without one does not', async () => {
+  setup();
+  const harness = await createTestDb();
+  try {
+    assert.equal((await registerHandler(req('/api/auth/register', { body: ACCOUNT }))).status, 201, 'local: no keys, no check');
+    resetEnv();
+    loadEnv({ NODE_ENV: 'production', APP_URL: APP, AUTH_SECRET: 's'.repeat(40), ENCRYPTION_KEY: 'e'.repeat(40), EMAIL_PROVIDER: 'console', SMS_PROVIDER: 'none', JOBS_MODE: 'cf-queue', STORAGE_PROVIDER: 'r2', CDN_BASE_URL: 'https://cdn.example', CONFIG_STORE: 'kv', RATE_LIMITER: 'kv' } as any);
+    const login = await loginHandler(req('/api/auth/login', { body: { email: ACCOUNT.email, password: ACCOUNT.password } }));
+    assert.equal(login.status, 501);
+    assert.equal((await registerHandler(req('/api/auth/register', { body: { ...ACCOUNT, email: 'second@example.test' } }))).status, 501);
+  } finally { await harness.close(); resetEnv(); }
+});

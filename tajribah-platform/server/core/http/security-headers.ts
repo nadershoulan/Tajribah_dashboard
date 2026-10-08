@@ -59,6 +59,9 @@ export function pageCsp(nonce: string, { dev = false, framedBy, local = false, l
     // `local`: a page served from this computer may also upload to storage running on it (an S3 server
     // such as SeaweedFS, docs/DATABASE.md); a page on a real address never is local.
     `connect-src 'self' blob: https://*.r2.cloudflarestorage.com${local ? ` http://localhost:* http://127.0.0.1:*${lanHost ? ` http://${lanHost}:*` : ''}` : ''}${dev ? ' ws: wss:' : ''}`,
+    // T120: Cloudflare Turnstile's challenge frame on the sign-in and sign-up screens (its script comes through
+    // 'strict-dynamic', loaded by the app's own trusted code). Nothing else may be framed in.
+    "frame-src 'self' https://challenges.cloudflare.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

@@ -17,7 +17,7 @@ import { createTestDb, seedTenant } from '@/server/testing/harness';
 import type { StaffContext } from '@/server/modules/admin/access';
 import { contactInbox, deleteContact, setContactStatus } from '@/server/modules/admin/contact';
 import { submitContact, type ContactDeps } from '../service';
-import { TURNSTILE_ACTION, turnstileVerifier } from '../turnstile';
+import { TURNSTILE_ACTION, turnstileVerifier } from '@/server/core/http/turnstile';
 
 setLogLevel('error');
 const PASS: ContactDeps = { verify: async () => ({ ok: true }), requireTurnstile: true, hashKey: 'k'.repeat(48) };

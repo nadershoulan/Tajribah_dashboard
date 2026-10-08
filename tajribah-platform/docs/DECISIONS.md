@@ -1927,3 +1927,18 @@ limits and Turnstile rule are the real ones. A test fails if the two ever share 
   It never gets production's key.
 
 **Rollback path.** `npx wrangler delete tajribah-staging`, drop the staging database and logins. Cost: low.
+
+## T118 · 2026-10-08 · Password hashing within Cloudflare's PBKDF2 limit
+
+**Decision.** Cloudflare Workers refuse a single PBKDF2 call above 100,000 iterations. Sign-up asked for 600,000 and
+failed for everyone on the live site. Local workerd does not enforce the cap, so every local check had passed.
+- **Strength kept:** six chained PBKDF2-HMAC-SHA256 calls of 100,000. Each step's 32-byte output is the next
+  step's password, with the same salt, so a guess still costs 600,000 iterations. The format is
+  `pbkdf2c$sha256$6x100000$salt$hash`. The older single-call form still verifies where the runtime allows it, and
+  is upgraded at sign-in. Verification refuses a step above 100,000 and more than 50 steps.
+- **No partial sign-ups:** the hash is computed before any write, and the store, the person and the membership are
+  written in one transaction.
+- **Checked where it matters:** on Cloudflare's own runtime (`wrangler dev --remote`), not only locally. A test
+  now refuses >100k the way a Worker does.
+
+**Rollback path.** None needed; the older hashes still verify. Cost: low.

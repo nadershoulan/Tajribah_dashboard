@@ -1965,3 +1965,25 @@ asked for and having no property yet (the newest if several).
 
 **Trade-off.** `analytics.edit` is a sensitive scope: until Google verifies the app, only listed test users can
 sign in. **Rollback path.** Without `provisionedUri` the flow answers "no web stream" as before. Cost: low.
+
+## T122 · 2026-10-08 · The event collector answers before it writes
+
+**Decision.** The collector's answer never depended on the write: a kept batch, an unknown store, a robot and a
+limited visitor all get the same 204, and the SDK never retries. So it answers once the body is read, is JSON and
+names a store key, and does the rest after the answer on Cloudflare's `waitUntil`, with its own database
+connection. Found by the ingest load test: 700 ms an answer through the database link at 300 events/s, now the
+network round trip plus ~10 ms. A batch that breaks the contract is still judged after the key, as before, and
+counted `invalid`; it is answered 204 instead of 400 (one less thing a stranger learns).
+
+**Trade-off.** A write that fails after the answer is logged, not reported to the page — which never acted on it.
+**Rollback path.** Call `collect` again in the handler. Cost: low.
+
+## T123 · 2026-10-08 · Background jobs four at a time on Workers
+
+**Decision.** On Workers each query crosses to the database server, so a batch run one job after another spent
+~2 s a job waiting. Roll-ups ran at 10 a minute where 200 busy stores need 40. A batch now runs up to four jobs at
+once there, each on its own connections (one connection cannot hold two transactions at once). Tests and the Node
+worker, which share one connection or pool, keep the old order. Staging's database is capped at 30 connections so
+a load test can never take the live site's (it took 83 of 100 before the cap).
+
+**Rollback path.** `JOB_CONCURRENCY = 1`. Cost: low.

@@ -72,6 +72,9 @@ const eslintConfig = defineConfig([
       "server/modules/admin/retention.ts",
       "server/modules/admin/announcements.ts",
       "server/modules/admin/site.ts",
+      // T115: the contact inbox — a staff-only table, no tenant data (EXEMPT in db/schema/index.ts).
+      "server/modules/admin/contact.ts",
+      "server/modules/contact/service.ts",
       "server/modules/admin/qa.ts",
       "server/modules/admin/professional.ts",
       "server/modules/recommendations/compute.ts",

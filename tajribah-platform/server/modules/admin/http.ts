@@ -20,6 +20,7 @@ import { RESPONSE_DAYS, exportDocument, fulfilErasure, fulfilExport, listPrivacy
 import { retentionState } from './retention';
 import { createAnnouncement, listAnnouncements, updateAnnouncement } from './announcements';
 import { siteSettingsForStaff, updateSiteSettings } from './site';
+import { CONTACT_STATUSES, contactInbox, deleteContact, setContactStatus } from './contact';
 import { decideQa, qaModelFile, qaQueue } from './qa';
 import { confirmDelivery, markPaid, professionalQueue, quoteOrder, startDelivery } from './professional';
 import { aiOperations, cancelJobForStore, setGuardrails } from './ai-ops';
@@ -386,6 +387,33 @@ export const updateSiteSettingsHandler = route(async (request) => {
   assertSameOrigin(request, config);
   const staff = await staffContextFor(request, config);
   return json(await updateSiteSettings(staff, await readJson(request, z.object({ ga4MeasurementId: z.string().max(40).nullable(), reason: z.string().max(500) }))));
+});
+
+/** API-A70 — GET /api/admin/contact?status=new|read|archived|all&before=…: the contact inbox (T115). */
+export const contactInboxHandler = route(async (request) => {
+  await staffContextFor(request);
+  const params = new URL(request.url).searchParams;
+  const status = z.enum([...CONTACT_STATUSES, 'all']).catch('all').parse(params.get('status') ?? 'all');
+  return json(await contactInbox({ status, before: params.get('before') ?? undefined }));
+});
+
+/** API-A71 — PATCH /api/admin/contact/{id} { status }: read, archived, or back to new. */
+export const contactStatusHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const body = await readJson(request, z.object({ status: z.enum(CONTACT_STATUSES) }));
+  return json(await setContactStatus(staff, uuidAt(request, 0, 'message'), body.status));
+});
+
+/** API-A72 — DELETE /api/admin/contact/{id} { reason }: gone for good, with the reason in the staff trail. */
+export const contactDeleteHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const body = await readJson(request, z.object({ reason: z.string().max(500) }));
+  await deleteContact(staff, uuidAt(request, 0, 'message'), body.reason);
+  return new Response(null, { status: 204 });
 });
 
 /** A path segment `fromEnd` places from the end, as a uuid, or a 404 naming `what`. */

@@ -117,6 +117,8 @@ export const LIMITS = {
   invite: { limit: 20, windowSeconds: 60 * 60 },
   /** Per store (P7): each install check fetches a page from the shop (and asks DNS) — not a free crawler. */
   installCheck: { limit: 30, windowSeconds: 60 * 60 },
+  /** Per sender's address (T115): the contact form is not a way to fill the inbox. */
+  contact: { limit: 5, windowSeconds: 60 * 60 },
   /** Per store (P7): each export reads every day of the range; a report is not a polling target. */
   analyticsExport: { limit: 30, windowSeconds: 60 * 60 },
 } as const;

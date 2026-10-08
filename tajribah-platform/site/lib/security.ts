@@ -16,6 +16,8 @@
  *  - analytics (T68, only when a GA4 id is set): Google's script arrives through 'strict-dynamic' — the
  *    site's own code adds it after the visitor accepts — and it may send to Google's collection hosts.
  *  - frame-ancestors: the try-on frame opens over merchants' https pages; nothing else is framed.
+ *  - frame-src (T115): Cloudflare Turnstile's challenge frame under the contact form; its script arrives through
+ *    'strict-dynamic' (the site's own code adds it).
  * On this machine (`local`) the local test servers are allowed too; a public page never is local.
  */
 import { GA_CONNECT } from './analytics';
@@ -24,6 +26,8 @@ export const CONFIG_HOST = 'https://cfg.tajribah.org';
 export const FILE_HOST = 'https://cdn.tajribah.org';
 /** The collector: a product page's visits go to the merchant's Analytics, as the shop widget's do. */
 export const EVENTS_HOST = 'https://ev.tajribah.org';
+/** T115: Cloudflare Turnstile (the contact form's check). */
+export const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
 
 export function pageCsp(nonce: string, { dev = false, local = false, framed = false, analytics = false, lanHost }: { dev?: boolean; local?: boolean; framed?: boolean; analytics?: boolean; lanHost?: string } = {}): string {
   // T82: opened at this computer's Wi-Fi address (a phone testing the QR), its own servers there too.
@@ -38,6 +42,7 @@ export function pageCsp(nonce: string, { dev = false, local = false, framed = fa
     `img-src 'self' data: blob: https:${here}`,
     `connect-src 'self' blob: data: ${CONFIG_HOST} ${FILE_HOST} ${EVENTS_HOST}${ga}${here}${dev ? ' ws: wss:' : ''}`,
     "media-src 'self' blob:",
+    `frame-src 'self' ${TURNSTILE_ORIGIN}`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",

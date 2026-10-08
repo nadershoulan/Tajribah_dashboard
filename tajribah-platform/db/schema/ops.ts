@@ -344,3 +344,30 @@ export const siteSettings = pgTable('site_settings', {
   updatedBy: uuid('updated_by'),
   ...timestamps(),
 });
+
+/**
+ * T115 (drizzle/0045): messages from the website's contact form, kept here instead of an email (Nader, 2026-10-08).
+ * Written by the public form (behind Turnstile, a rate limit and a trap field), read and handled by staff in the
+ * admin console. Tajribah's, not any store's: admin role only, the application role has no grant.
+ * `ip_hash` is a keyed hash of the sender's address — enough to see one sender writing again and again, never
+ * the address itself.
+ */
+export const contactStatus = pgEnum('contact_status', ['new', 'read', 'archived']);
+export const contactMessages = pgTable('contact_messages', {
+  id: pk(),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+  phone: text('phone'),
+  storeUrl: text('store_url'),
+  platform: text('platform'),
+  message: text('message').notNull(),
+  lang: text('lang').notNull(),
+  status: contactStatus('status').notNull().default('new'),
+  ipHash: text('ip_hash'),
+  userAgent: text('user_agent'),
+  handledBy: uuid('handled_by'),
+  handledAt: ts('handled_at'),
+  ...timestamps(),
+}, (t) => [index('contact_messages_status_idx').on(t.status, t.createdAt)]);
+
+export type ContactMessage = typeof contactMessages.$inferSelect;

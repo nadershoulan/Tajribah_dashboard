@@ -1,43 +1,54 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { Mail, Send } from 'lucide-react';
+import { CheckCircle2, Mail, Send } from 'lucide-react';
 import { useLang } from '@site/lib/i18n';
 import { SiteLink } from '@site/lib/site-env';
 import { COMPANY } from '@site/lib/site';
 import { Shell } from '@site/components/site/chrome';
 import { PageHero } from '@site/components/site/ui';
+import { Turnstile } from '@site/components/site/turnstile';
 
 /**
- * No backend is wired for enquiries yet, so the form composes an email in the
- * visitor's mail app — and says so. It never pretends a message was sent.
+ * T115 — the form sends to Tajribah's own inbox (`POST /api/contact` → `contact_messages`), read by staff in the
+ * admin console. Behind it: Cloudflare Turnstile (checked on the server), a hidden trap field bots fill, and a
+ * rate limit. It says "sent" only when the server kept the message.
  */
-export default function Contact() {
-  const { t } = useLang();
-  const [opened, setOpened] = useState(false);
+type State = { kind: 'idle' } | { kind: 'sending' } | { kind: 'sent' } | { kind: 'error'; message: string };
+
+export default function Contact({ turnstileSiteKey = null }: { turnstileSiteKey?: string | null }) {
+  const { t, lang } = useLang();
+  const [state, setState] = useState<State>({ kind: 'idle' });
+  const [token, setToken] = useState<string | null>(null);
+  const [resets, setResets] = useState(0);
 
   const platforms = [
     ['salla', t('سلة', 'Salla')], ['zid', t('زد', 'Zid')], ['shopify', 'Shopify'],
     ['woocommerce', 'WooCommerce'], ['custom', t('متجر مخصص', 'Custom store')], ['other', t('أخرى', 'Other')],
   ] as const;
 
-  function submit(e: FormEvent<HTMLFormElement>) {
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const f = new FormData(e.currentTarget);
+    if (turnstileSiteKey && !token) { setState({ kind: 'error', message: t('أكمل التحقق أعلى زر الإرسال أولًا.', 'Complete the check above the send button first.') }); return; }
+    const form = e.currentTarget;
+    const f = new FormData(form);
     const get = (k: string) => String(f.get(k) ?? '').trim();
-    const platform = platforms.find(([id]) => id === get('platform'))?.[1] ?? '';
-    const subject = t(`طلب عرض لمتجر ${get('store') || get('name')}`, `Store demo request — ${get('store') || get('name')}`);
-    const body = [
-      `${t('الاسم', 'Name')}: ${get('name')}`,
-      `${t('البريد', 'Email')}: ${get('email')}`,
-      `${t('الجوال', 'Phone')}: ${get('phone')}`,
-      `${t('رابط المتجر', 'Store URL')}: ${get('store')}`,
-      `${t('المنصة', 'Platform')}: ${platform}`,
-      '',
-      get('message'),
-    ].join('\n');
-    window.location.href = `mailto:${COMPANY.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    setOpened(true);
+    setState({ kind: 'sending' });
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: get('name'), email: get('email'), phone: get('phone') || undefined, store: get('store') || undefined, platform: get('platform') || undefined, message: get('message'), website: get('website'), token: token ?? undefined, lang }),
+      });
+      if (response.ok) { form.reset(); setState({ kind: 'sent' }); setResets((n) => n + 1); return; }
+      const problem = await response.json().catch(() => null) as { status?: number; errors?: Record<string, string[]> } | null;
+      setResets((n) => n + 1);
+      if (response.status === 429) setState({ kind: 'error', message: t('أرسلت عدة رسائل خلال وقت قصير. حاول بعد قليل، أو راسلنا مباشرة.', 'You sent several messages in a short time. Try again later, or email us directly.') });
+      else if (problem?.errors?.token) setState({ kind: 'error', message: t('لم يكتمل التحقق. أعد المحاولة.', 'The check did not complete. Please try again.') });
+      else if (problem?.errors) setState({ kind: 'error', message: t('راجع الحقول: ', 'Check these fields: ') + Object.keys(problem.errors).map((k) => ({ name: t('الاسم', 'name'), email: t('البريد', 'email'), phone: t('الجوال', 'phone'), store: t('رابط المتجر', 'store URL'), message: t('الرسالة', 'message') } as Record<string, string>)[k] ?? k).join('، ') });
+      else setState({ kind: 'error', message: t('تعذّر الإرسال الآن. حاول مرة أخرى، أو راسلنا مباشرة.', 'It could not be sent right now. Try again, or email us directly.') });
+    } catch {
+      setState({ kind: 'error', message: t('تعذّر الاتصال. تحقق من الإنترنت وحاول مرة أخرى.', 'Could not connect. Check your connection and try again.') });
+    }
   }
 
   return (
@@ -64,14 +75,20 @@ export default function Contact() {
               </select>
             </label>
             <label className="field"><span>{t('ماذا تبيع، وماذا تريد أن يجرّب عملاؤك؟', 'What do you sell, and what should shoppers try?')}</span>
-              <textarea id="c-message" name="message" rows={5} />
+              <textarea id="c-message" name="message" rows={5} maxLength={4000} />
             </label>
-            <button className="btn btn-primary" type="submit"><Send size={17} aria-hidden />{t('جهّز الرسالة', 'Prepare the email')}</button>
+            {/* The trap: off-screen and skipped by keyboards and password managers; a bot fills it, a person never sees it. */}
+            <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, overflow: 'hidden' }}>
+              <label>Website<input name="website" tabIndex={-1} autoComplete="off" /></label>
+            </div>
+            {turnstileSiteKey && <Turnstile siteKey={turnstileSiteKey} lang={lang} onToken={setToken} resetKey={resets} />}
+            <button className="btn btn-primary" type="submit" disabled={state.kind === 'sending'}>
+              <Send size={17} aria-hidden />{state.kind === 'sending' ? t('جارٍ الإرسال…', 'Sending…') : t('أرسل الرسالة', 'Send the message')}
+            </button>
+            {state.kind === 'sent' && <p role="status" className="fine"><CheckCircle2 size={16} aria-hidden /> {t('وصلتنا رسالتك، شكرًا لك. سنتواصل معك قريبًا على بريدك.', 'Your message reached us, thank you. We will get back to you by email soon.')}</p>}
+            {state.kind === 'error' && <p role="alert" className="fine" style={{ color: 'var(--danger, #b42318)' }}>{state.message}</p>}
             <p className="fine">
-              {opened
-                ? t('فُتح تطبيق البريد لديك وفيه رسالتك جاهزة. اضغط «إرسال» هناك لتصلنا.', 'Your mail app opened with the message ready. Press send there to reach us.')
-                : t('سيفتح تطبيق البريد لديك ورسالتك جاهزة للإرسال. باستخدامك النموذج توافق على', 'Your mail app will open with the message ready to send. By using this form you agree to our')}
-              {!opened && <> <SiteLink href="/privacy">{t('سياسة الخصوصية', 'privacy policy')}</SiteLink>.</>}
+              {t('باستخدامك النموذج توافق على', 'By using this form you agree to our')} <SiteLink href="/privacy">{t('سياسة الخصوصية', 'privacy policy')}</SiteLink>.
             </p>
           </form>
 

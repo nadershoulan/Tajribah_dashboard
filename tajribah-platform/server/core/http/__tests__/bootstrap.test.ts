@@ -32,9 +32,10 @@ import * as domainsHttp from '@/server/modules/domains/http';
 import * as professionalHttp from '@/server/modules/professional/http';
 import * as recommendationsHttp from '@/server/modules/recommendations/http';
 import * as googleHttp from '@/server/modules/google/http';
+import * as contactHttp from '@/server/modules/contact/http';
 
 // Every module's handlers. A new module's http.ts is added here once.
-const MODULE_HANDLERS: Record<string, Record<string, unknown>> = { auth: authHttp, onboarding: onboardingHttp, products: productsHttp, webhooks: webhooksHttp, models: modelsHttp, connections: connectionsHttp, team: teamHttp, settings: settingsHttp, dashboard: dashboardHttp, ar: arHttp, notifications: notificationsHttp, embed: embedHttp, billing: billingHttp, admin: adminHttp, analytics: analyticsHttp, 'ai-jobs': aiJobsHttp, tryon: tryOnHttp, 'api-keys': apiKeysHttp, 'public-api': publicApiHttp, health: healthHttp, 'outgoing-webhooks': outgoingWebhooksHttp, sso: ssoHttp, agency: agencyHttp, domains: domainsHttp, professional: professionalHttp, recommendations: recommendationsHttp, google: googleHttp };
+const MODULE_HANDLERS: Record<string, Record<string, unknown>> = { auth: authHttp, onboarding: onboardingHttp, products: productsHttp, webhooks: webhooksHttp, models: modelsHttp, connections: connectionsHttp, team: teamHttp, settings: settingsHttp, dashboard: dashboardHttp, ar: arHttp, notifications: notificationsHttp, embed: embedHttp, billing: billingHttp, admin: adminHttp, analytics: analyticsHttp, 'ai-jobs': aiJobsHttp, tryon: tryOnHttp, 'api-keys': apiKeysHttp, 'public-api': publicApiHttp, health: healthHttp, 'outgoing-webhooks': outgoingWebhooksHttp, sso: ssoHttp, agency: agencyHttp, domains: domainsHttp, professional: professionalHttp, recommendations: recommendationsHttp, google: googleHttp, contact: contactHttp };
 
 const BASE = { APP_URL: 'http://localhost:5173', AUTH_SECRET: 'a'.repeat(40), ENCRYPTION_KEY: 'b'.repeat(40) };
 

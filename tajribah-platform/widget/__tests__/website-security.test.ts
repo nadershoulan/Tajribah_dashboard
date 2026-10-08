@@ -19,6 +19,7 @@ test('scripts run only by the page’s nonce; WebAssembly compiles, JavaScript e
   assert.ok(!d['script-src']!.includes("'unsafe-eval'"), 'no eval in a build');
   assert.ok(directives(pageCsp('x', { dev: true }))['script-src']!.includes("'unsafe-eval'"), 'the dev server only');
   assert.deepEqual(d['object-src'], ["'none'"]);
+  assert.deepEqual(d['frame-src'], ["'self'", 'https://challenges.cloudflare.com'], 'T115: only Turnstile’s frame, nothing else');
   assert.deepEqual(d['base-uri'], ["'self'"]);
   assert.deepEqual(d['form-action'], ["'self'"]);
   assert.deepEqual(d['connect-src'], ["'self'", 'blob:', 'data:', 'https://cfg.tajribah.org', 'https://cdn.tajribah.org', 'https://ev.tajribah.org'], 'the config host, the file host and the collector, nothing else');

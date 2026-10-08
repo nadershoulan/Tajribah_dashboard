@@ -201,6 +201,10 @@ export type AdminAnnouncementFields = {
   level: 'info' | 'warning'; link: string | null; startsAt: string; endsAt: string; active: boolean;
 };
 export type AdminAnnouncement = AdminAnnouncementFields & { id: string; createdAt: string; live: boolean };
+/** T115 — a message from the website's contact form. */
+export type AdminContactStatus = 'new' | 'read' | 'archived';
+export type AdminContact = { id: string; name: string; email: string; phone: string | null; storeUrl: string | null; platform: string | null; message: string; lang: string; status: AdminContactStatus; createdAt: string; handledAt: string | null };
+export type AdminContactInbox = { items: AdminContact[]; counts: Record<AdminContactStatus, number>; next: string | null };
 /** P3.10 — server/modules/admin/professional.ts */
 export type AdminProfessionalRow = import('./contracts/professional').ProfessionalOrderView & {
   store: { id: string; name: string; nameAr: string | null };
@@ -277,6 +281,9 @@ export type AdminApi = {
   rejectPrivacy(id: string, reason: string): Promise<void>;
   retention(): Promise<AdminRetention>;
   announcements(): Promise<AdminAnnouncement[]>;
+  contactInbox(filter?: { status?: AdminContactStatus | 'all'; before?: string }): Promise<AdminContactInbox>;
+  setContactStatus(id: string, status: AdminContactStatus): Promise<AdminContact>;
+  deleteContact(id: string, reason: string): Promise<void>;
   /** T69 — the website's own settings: its GA4 measurement id. */
   site(): Promise<AdminSiteSettings>;
   updateSite(input: { ga4MeasurementId: string | null; reason: string }): Promise<AdminSiteSettings>;
@@ -382,6 +389,14 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       rejectPrivacy: async (id, reason) => { await client.call(`/api/admin/privacy/${encodeURIComponent(id)}/reject`, { body: { reason } }); },
       retention: () => client.call('/api/admin/retention'),
       announcements: async () => (await client.call<{ announcements: AdminAnnouncement[] }>('/api/admin/announcements')).announcements,
+      contactInbox: async (filter = {}) => {
+        const q = new URLSearchParams();
+        if (filter.status) q.set('status', filter.status);
+        if (filter.before) q.set('before', filter.before);
+        return client.call<AdminContactInbox>(`/api/admin/contact${q.size ? `?${q}` : ''}`);
+      },
+      setContactStatus: async (id, status) => client.call<AdminContact>(`/api/admin/contact/${encodeURIComponent(id)}`, { method: 'PATCH', body: { status } }),
+      deleteContact: async (id, reason) => { await client.call(`/api/admin/contact/${encodeURIComponent(id)}`, { method: 'DELETE', body: { reason } }); },
       site: () => client.call('/api/admin/site'),
       updateSite: (input) => client.call('/api/admin/site', { method: 'PUT', body: input }),
       ga4Picker: ga4PickerFor(client, 'site'),
@@ -474,7 +489,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound, announcements: notFound, site: notFound, updateSite: notFound, ga4Picker: noGa4Picker, createAnnouncement: notFound, updateAnnouncement: notFound, qaQueue: notFound, professionalQueue: notFound, quoteProfessional: notFound, markProfessionalPaid: notFound, deliverProfessional: notFound, decideQa: notFound, qaModel: notFound, aiOperations: notFound, cancelAiJob: notFound, setAiGuardrails: notFound, aiModels: notFound, registerAiModel: notFound, setAiSplits: notFound, setAiModelActive: notFound, rollbackAiModel: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound, announcements: notFound, contactInbox: notFound, setContactStatus: notFound, deleteContact: notFound, site: notFound, updateSite: notFound, ga4Picker: noGa4Picker, createAnnouncement: notFound, updateAnnouncement: notFound, qaQueue: notFound, professionalQueue: notFound, quoteProfessional: notFound, markProfessionalPaid: notFound, deliverProfessional: notFound, decideQa: notFound, qaModel: notFound, aiOperations: notFound, cancelAiJob: notFound, setAiGuardrails: notFound, aiModels: notFound, registerAiModel: notFound, setAiSplits: notFound, setAiModelActive: notFound, rollbackAiModel: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

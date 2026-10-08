@@ -33,6 +33,8 @@ const ADMIN_ALLOWED: Record<string, string> = {
   'server/modules/admin/privacy.ts': 'the privacy-request register and its fulfilment (A14, T22): a request about an account belongs to no store, and erasure reaches every store the person belongs to',
   'server/modules/admin/retention.ts': 'the retention sweep (A14, T22) deletes past-period rows across every store, including from append-only tables — the admin role keeps DML for exactly this',
   'server/modules/admin/site.ts': 'staff write the website’s own settings (T69), which no store reads — the app role has no grant at all',
+  'server/modules/admin/contact.ts': 'staff read and handle the contact inbox (T115) — messages from visitors, no store’s data; the app role has no grant at all',
+  'server/modules/contact/service.ts': 'the website’s contact form keeps a message (T115) after Turnstile, a rate limit and a trap field — a staff-only table, the app role has no grant at all',
   'server/modules/admin/announcements.ts': 'staff write the announcements catalogue (A13, T23), which the app role may only read',
   'server/modules/admin/plans.ts': 'staff change the platform plan catalogue (A6, T19): the rows, the reach count and the staff trail in one transaction',
   'server/modules/admin/users.ts': 'staff find people across every store and end their sessions or reset two-step sign-in (A5); users are not tenant-scoped',

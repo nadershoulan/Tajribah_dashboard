@@ -80,6 +80,14 @@ export const REGISTRY = {
     schema: z.string().optional(),
     scope: 'runtime', secret: true, doc: 'T112: an app password for SMTP_USER (Zoho: Security → App Passwords), never the account password.',
   }),
+  TURNSTILE_SITE_KEY: entry({
+    schema: z.string().optional(),
+    scope: 'runtime', doc: 'T115: Cloudflare Turnstile site key for the contact form (public). Unset: the form shows no challenge — and in production refuses to send.',
+  }),
+  TURNSTILE_SECRET_KEY: entry({
+    schema: z.string().optional(),
+    scope: 'runtime', secret: true, doc: 'T115: Cloudflare Turnstile secret, checked on the server for every contact message.',
+  }),
   RESEND_API_KEY: entry({
     schema: z.string().optional(),
     scope: 'runtime', secret: true, doc: 'Required when EMAIL_PROVIDER=resend.',

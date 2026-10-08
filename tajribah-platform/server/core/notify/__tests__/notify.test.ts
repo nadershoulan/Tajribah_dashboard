@@ -100,6 +100,32 @@ test('email templates render both languages with the link', () => {
   assert.match(en.text, /60 minutes/);
 });
 
+test('T119: every email has a branded HTML part — right to left in Arabic, the link as a button, nothing injected', () => {
+  const link = 'https://app.example/verify?t=1&x=2';
+  const ar = EMAIL.verifyEmail({ link }, 'ar');
+  const en = EMAIL.verifyEmail({ link }, 'en');
+  assert.match(ar.html, /<html lang="ar" dir="rtl">/);
+  assert.match(ar.html, /text-align:right/);
+  assert.doesNotMatch(ar.html, /text-align:left/, 'no block of an Arabic mail is left-aligned');
+  assert.match(en.html, /<html lang="en" dir="ltr">/);
+  assert.match(ar.html, />تأكيد البريد الإلكتروني<\/a>/, 'the button carries its label');
+  assert.match(en.html, />Confirm my email<\/a>/);
+  assert.ok(ar.html.includes('href="https://app.example/verify?t=1&amp;x=2"'), 'the link is the button, escaped');
+  assert.ok(ar.html.includes('tajribah-wordmark.png'), 'the logo heads the mail');
+  assert.ok(ar.text.includes(link) && !ar.text.includes('<'), 'the text part stays plain, with the raw link');
+  // a store name is the merchant's own text: it is escaped, never markup
+  const invite = EMAIL.teamInvite({ link, store: '<img src=x onerror=alert(1)>', days: 7 }, 'en');
+  assert.doesNotMatch(invite.html, /<img src=x/);
+  assert.match(invite.html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  // a template with no link has no button
+  assert.doesNotMatch(EMAIL.twoFactorResetByStaff({}, 'ar').html, /background:#00a7bc/);
+  // and every template renders
+  for (const [name, t] of Object.entries(EMAIL)) {
+    const sample = { link, minutes: 60, store: 's', days: 7, number: '1', total: '1', amount: '1', retryAt: null, title: { ar: 'a', en: 'a' }, body: { ar: 'b', en: 'b' }, period: { ar: 'p', en: 'p' }, lines: { ar: 'l', en: 'l' }, on: true };
+    for (const lang of ['ar', 'en'] as const) assert.match((t as (p: unknown, l: string) => { html: string })(sample, lang).html, /^<!doctype html>/, name);
+  }
+});
+
 test('a number that is not E.164 is refused before anything is sent', async () => {
   const console_ = new ConsoleSmsSender();
   await assert.rejects(() => console_.send({ to: '0501234567', text: 'x' }), /E\.164/);

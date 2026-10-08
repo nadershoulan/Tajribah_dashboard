@@ -17,6 +17,13 @@ every change. They run at the P1, P4 and P7 gates; a regression blocks the gate.
 k6 is a single binary (`k6 run …`); nothing here is installed by `pnpm install`.
 
 ```sh
+# 2, without k6 (Node only; staging only — it refuses any other address):
+#   first the 200 test stores, on the staging database only:
+ssh tajribah "sudo -u postgres psql -d tajribah_staging -v ON_ERROR_STOP=1" < load/seed-stores.sql
+#   then a short warm-up, then the full run; it prints the SQL for the zero-loss check
+node load/ingest.mjs --base https://staging.tajribah.org --rate 300 --seconds 60
+node load/ingest.mjs --base https://staging.tajribah.org --rate 3000 --seconds 600
+
 # 1 — viewer path (TARGETS: store/product-ref pairs with a published config)
 k6 run load/viewer.js -e CFG_BASE=https://cfg.tajribah.org -e TARGETS=failet/820241410,failet/820241411
 

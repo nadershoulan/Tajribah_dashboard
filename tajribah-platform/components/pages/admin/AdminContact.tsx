@@ -77,7 +77,10 @@ function Inbox() {
           ))}
         </div>
         {inbox.items.length === 0 ? (
-          <Empty title={t('لا رسائل هنا', 'No messages here')} body={filter === 'new' ? t('كل الرسائل الجديدة قُرئت.', 'Every new message has been read.') : t('لا شيء في هذا القسم.', 'Nothing in this section.')} />
+          tabs[3]!.n === 0
+            // Nothing has ever arrived: say so, not "every new message has been read".
+            ? <Empty title={t('لم تصل أي رسالة بعد', 'No messages yet')} body={t('تظهر هنا كل رسالة تُرسل من صفحة «تواصل معنا» على tajribah.org/contact فور وصولها.', 'Every message sent from the Contact page at tajribah.org/contact appears here as soon as it arrives.')} />
+            : <Empty title={t('لا رسائل هنا', 'No messages here')} body={filter === 'new' ? t('كل الرسائل الجديدة قُرئت.', 'Every new message has been read.') : t('لا شيء في هذا القسم.', 'Nothing in this section.')} />
         ) : (
           <ul className="ops-list">
             {inbox.items.map((m) => (

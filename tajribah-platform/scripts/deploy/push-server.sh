@@ -18,6 +18,7 @@ if [ -n "$(git status --porcelain -- .)" ]; then
 fi
 ssh -o BatchMode=yes tajribah true || { echo "cannot reach the server with 'ssh tajribah' — see deploy/server/README.md"; exit 1; }
 
-tr -d '\r' < deploy/server/receive.sh | ssh -o BatchMode=yes tajribah 'install -m 755 /dev/stdin /usr/local/sbin/tajribah-receive'
+# Through a file: `install` cannot read a pipe on the server (found 2026-10-08).
+tr -d '\r' < deploy/server/receive.sh | ssh -o BatchMode=yes tajribah 'cat > /usr/local/sbin/tajribah-receive.new && install -m 755 /usr/local/sbin/tajribah-receive.new /usr/local/sbin/tajribah-receive && rm -f /usr/local/sbin/tajribah-receive.new'
 echo "uploading $REV to tajribah-1…"
 git archive --format=tar HEAD | ssh -o BatchMode=yes tajribah tajribah-receive "$REV" "$MIGRATE"

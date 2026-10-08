@@ -6,9 +6,10 @@
  * environment answers every request with a 500 problem document and logs why — it does not
  * half-start.
  */
-import { env } from 'cloudflare:workers';
+import { env, waitUntil } from 'cloudflare:workers';
 import { connect } from 'cloudflare:sockets';
 import { bootstrap } from '@/server/core/http/bootstrap';
+import { setBackgroundRunner } from '@/server/core/http/background';
 import { problemResponse } from '@/server/core/errors/problem';
 import { log } from '@/server/core/observability/log';
 import { setSmtpConnector } from '@/server/core/notify/notify';
@@ -16,6 +17,8 @@ import { cloudflareConnector } from '@/server/core/notify/smtp';
 
 // T112: email through Zoho goes over a TLS socket the Workers runtime opens.
 setSmtpConnector(cloudflareConnector(connect));
+// P7: work that may finish after the answer (the event collector's write) stays alive through the runtime.
+setBackgroundRunner((work) => waitUntil(work));
 
 let booted = false;
 

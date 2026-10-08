@@ -7,7 +7,7 @@ import { route } from '@/server/core/observability/request';
 import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@/server/core/http/api';
 import { analyticsCsv, analyticsView } from './metrics';
 import { reportSubscription, setReportSubscription } from './report';
-import { collect, collectResponse } from './ingest';
+import { collectResponse, collectThenAnswer } from './ingest';
 import { liveActivity } from './live';
 import { SESSION_FILTERS, sessionList, sessionPath } from './sessions';
 
@@ -75,5 +75,5 @@ export const analyticsSessionHandler = route(async (request) => {
  * events. No session, no same-origin check, no CORS: the page sends a beacon and reads nothing back.
  */
 export const collectHandler = route(async (request) => {
-  return collectResponse(await collect(request, { secret: apiConfig().authSecret }));
+  return collectResponse(await collectThenAnswer(request, { secret: apiConfig().authSecret }));
 });

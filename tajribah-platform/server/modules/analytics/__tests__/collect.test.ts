@@ -12,7 +12,8 @@ import { uuidv7 } from '@/lib/ids';
 import { setLogLevel } from '@/server/core/observability/log';
 import { MemoryRateLimiter, rateLimiter, setRateLimiter } from '@/server/core/ratelimit/limiter';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
-import { COLLECT_LIMITS, MAX_BATCH_BYTES, ROLLUP_EVERY_MS, collect, collectResponse, collectorCounts, deviceOf, pageHost, placeOf, readCapped, resetCollector } from '@/server/modules/analytics/ingest';
+import { COLLECT_LIMITS, MAX_BATCH_BYTES, ROLLUP_EVERY_MS, collect, collectResponse, collectThenAnswer, collectorCounts, deviceOf, pageHost, placeOf, readCapped, resetCollector } from '@/server/modules/analytics/ingest';
+import { setBackgroundRunner } from '@/server/core/http/background';
 import { createTracker } from '@/widget/src/track';
 import { LIMITS, type EventBatch, type TrackInput } from '@/widget/src/events';
 
@@ -287,4 +288,32 @@ test('what is derived from the request: device, system and browser family; the p
   assert.deepEqual(placeOf(h({ 'cf-ipcountry': 'sa', 'cf-region-code': '01' })), { country: 'SA', region: '01' });
   assert.deepEqual(placeOf(h({ 'cf-ipcountry': 'T1' })), { country: null, region: null }, 'Tor and unknown are not countries');
   assert.deepEqual(placeOf(h({ 'cf-ipcountry': 'Saudi Arabia', 'cf-region-code': 'Riyadh Province' })), { country: null, region: null });
+});
+
+test('P7: the Worker answers once the batch is checked, and writes it after — nothing lost, a bad batch never written', async () => {
+  const harness = await createTestDb();
+  resetCollector(); setRateLimiter(new MemoryRateLimiter());
+  const later: Promise<unknown>[] = [];
+  setBackgroundRunner((work) => { later.push(work); });
+  try {
+    await shop(harness, 'oud-shop');
+    const answer = await collectThenAnswer(post(sdkBatch('oud-shop', [{ type: 'product_view', productId: 'sku-41' }, { type: 'ar_open', productId: 'sku-41' }])), { secret: SECRET, now: NOW });
+    assert.equal(answer, 'accepted');
+    assert.equal(collectResponse(answer).status, 204);
+    assert.equal(later.length, 1, 'the write was handed to the runtime');
+    assert.equal((await stored(harness)).length, 0, 'answered before the write');
+    await Promise.all(later);
+    assert.equal((await stored(harness)).length, 2, 'and the write landed');
+    // What can be judged without the database is answered at once, and starts no work.
+    assert.equal(collectResponse(await collectThenAnswer(post('{nope'), { secret: SECRET, now: NOW })).status, 400);
+    assert.equal(collectResponse(await collectThenAnswer(post(JSON.stringify({ store: 7 })), { secret: SECRET, now: NOW })).status, 400);
+    assert.equal(later.length, 1, 'no work for a refused batch');
+    // A batch that breaks the contract is judged after the key, as before: answered like any, never written.
+    assert.equal(collectResponse(await collectThenAnswer(post(JSON.stringify({ v: 1, store: 'oud-shop', events: 'x' })), { secret: SECRET, now: NOW })).status, 204);
+    // An unknown store gets the same 204 as a kept batch — and nothing is written.
+    assert.equal(collectResponse(await collectThenAnswer(post(sdkBatch('no-such-shop', [{ type: 'product_view' }])), { secret: SECRET, now: NOW })).status, 204);
+    await Promise.all(later);
+    assert.equal((await stored(harness)).length, 2);
+    assert.ok(collectorCounts().unknown_store >= 1, 'counted when the work ran');
+  } finally { setBackgroundRunner(null); await harness.close(); }
 });

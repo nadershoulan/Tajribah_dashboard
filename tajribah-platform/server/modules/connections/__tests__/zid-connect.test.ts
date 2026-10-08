@@ -157,7 +157,7 @@ test('a link that is forged, expired or for another store is refused', async () 
     const [payload, mac] = ticket.split('.');
     const forbidden = (e: any) => e.code === 'forbidden';
     await assert.rejects(() => linkZidStore(ctx, `${Buffer.from(JSON.stringify({ m: '4', e: Date.now() + 60_000 })).toString('base64url')}.${mac}`, CONFIG, { transport: transportFor(store) }), forbidden);
-    await assert.rejects(() => linkZidStore(ctx, `${payload}.x${mac!.slice(1)}`, CONFIG, { transport: transportFor(store) }), forbidden);
+    await assert.rejects(() => linkZidStore(ctx, `${payload}.${mac![0] === 'x' ? 'y' : 'x'}${mac!.slice(1)}`, CONFIG, { transport: transportFor(store) }), forbidden);
     await assert.rejects(() => linkZidStore(ctx, ticket, CONFIG, { transport: transportFor(store), now: Date.now() + 11 * 60_000 }), forbidden);
     // The waiting tokens now open another store (Zid says so): never crossed.
     const other = new ZidStore([]);

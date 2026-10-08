@@ -38,6 +38,7 @@ import { keyedHash } from '@/server/core/auth/crypto';
 import { enqueue } from '@/server/core/jobs/queue';
 import { log } from '@/server/core/observability/log';
 import { MemoryRateLimiter, rateLimiter } from '@/server/core/ratelimit/limiter';
+import { afterAnswer } from '@/server/core/http/background';
 import { withTenant } from '@/server/core/tenancy/rls';
 
 /** While streaming: three bytes per character of the SDK's own cap. */
@@ -205,31 +206,61 @@ async function queueRollups(tenantId: string, days: Set<string>, now: number): P
  * `secret` salts the session and the visitor hash (the app's `AUTH_SECRET`).
  */
 export async function collect(request: Request, deps: { secret: string; now?: Date; limits?: Limits }): Promise<CollectOutcome> {
-  const outcome = await take(request, deps.secret, deps.now ?? new Date(), deps.limits ?? COLLECT_LIMITS);
+  const receivedAt = deps.now ?? new Date();
+  const read = await readBatch(request);
+  const outcome = typeof read === 'string' ? read : await keep(read, request.headers, deps.secret, receivedAt, deps.limits ?? COLLECT_LIMITS);
   counts[outcome] += 1;
   return outcome;
 }
 
-async function take(request: Request, secret: string, receivedAt: Date, limits: Limits): Promise<CollectOutcome> {
-  const now = receivedAt.getTime();
+/**
+ * P7 (the ingest load test) — the collector as the Worker runs it: the answer depends only on the batch's
+ * size and JSON (`collectResponse`), so it is given as soon as those are checked, and everything that
+ * needs the database — the store, the limits, the products, the write and the roll-up — runs after it
+ * (`afterAnswer`). Waiting for the write cost about 700 ms an answer through the database link; the
+ * shop's page never needed it, and the SDK never retries either way.
+ */
+export async function collectThenAnswer(request: Request, deps: { secret: string; now?: Date; limits?: Limits }): Promise<CollectOutcome> {
+  const receivedAt = deps.now ?? new Date();
+  const read = await readBatch(request);
+  if (typeof read === 'string') { counts[read] += 1; return read; }
+  const headers = new Headers(request.headers);
+  await afterAnswer('collect', async () => {
+    counts[await keep(read, headers, deps.secret, receivedAt, deps.limits ?? COLLECT_LIMITS)] += 1;
+  });
+  return 'accepted';
+}
+
+type Read = { key: string; body: unknown };
+
+/**
+ * The checks that need nothing but the request: size, JSON, a store key. The contract is judged later, after
+ * the key (a batch for no store is dropped as that, whatever else is wrong with it) — so a batch that breaks
+ * it is answered like any other and counted as `invalid` once the work runs.
+ */
+async function readBatch(request: Request): Promise<Read | 'too_large' | 'not_json' | 'invalid'> {
   const text = await readCapped(request);
   if (text === null || text.length > EVENT_LIMITS.bodyBytes) return 'too_large';
-
   let body: unknown;
   try { body = JSON.parse(text); } catch { return 'not_json'; }
   const key = (body as { store?: unknown } | null)?.store;
   if (typeof key !== 'string') return 'invalid';
+  return { key, body };
+}
 
+/** Everything else: the store, robots, the limits, then the rows and their roll-up. */
+async function keep({ key, body }: Read, headers: Headers, secret: string, receivedAt: Date, limits: Limits): Promise<CollectOutcome> {
+  const now = receivedAt.getTime();
   const store = await storeOf(key, now);
   if (!store) return 'unknown_store';
   if (!store.open) return 'store_off';
 
-  const device = deviceOf(request.headers.get('user-agent'));
+  const device = deviceOf(headers.get('user-agent'));
   if (device.robot) return 'robot';
 
   // The visitor: the address hashed with the day — a key for this minute's counter, never a column.
   const day = riyadhDay(receivedAt);
-  const address = request.headers.get('cf-connecting-ip') ?? 'none';
+  const address = headers.get('cf-connecting-ip') ?? 'none';
   const visitor = (await keyedHash(secret, 'collect-visitor', `${day}:${address}`)).slice(0, 22);
   try {
     const hit = await rateLimiter().hit(`collect:${store.id}:${visitor}`, limits.visitor.limit, limits.visitor.windowSeconds);
@@ -255,8 +286,8 @@ async function take(request: Request, secret: string, receivedAt: Date, limits: 
   const refs = [...new Set(batch.events.map((e) => e.productId).filter((ref): ref is string => !!ref))];
   const resolved = await resolveProducts(store.id, refs, now);
   const sessionId = await keyedHash(secret, 'analytics-session', `${store.id}:${day}:${batch.session}`);
-  const place = placeOf(request.headers);
-  const referrerHost = pageHost(request.headers);
+  const place = placeOf(headers);
+  const referrerHost = pageHost(headers);
   const rows = batch.events.map((event) => toRow(event, batch, {
     tenantId: store.id, sessionId, receivedAt,
     // A reference this store does not have is counted for the store and for no product.

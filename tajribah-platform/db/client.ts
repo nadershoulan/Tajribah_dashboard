@@ -53,9 +53,12 @@ export function isDbRegistered(): boolean {
  * Run `fn` as one unit of work: with a connector registered, its queries share connections opened
  * on first use and ended when it settles. Nested calls share the outer one; without a connector
  * (tests, a Node process) it is only `fn()`.
+ *
+ * `own` (P7): work that runs after the answer has gone (`afterAnswer`) — the request's connections are
+ * ended with the request, so it opens its own instead of sharing them.
  */
-export async function withDbConnection<T>(fn: () => Promise<T>): Promise<T> {
-  if (!connector || connections.getStore()) return fn();
+export async function withDbConnection<T>(fn: () => Promise<T>, { own = false }: { own?: boolean } = {}): Promise<T> {
+  if (!connector || (connections.getStore() && !own)) return fn();
   const slot: { open: DbConnection | null } = { open: null };
   try {
     return await connections.run(slot, fn);

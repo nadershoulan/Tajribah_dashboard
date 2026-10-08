@@ -80,6 +80,10 @@ export const REGISTRY = {
     schema: z.string().optional(),
     scope: 'runtime', secret: true, doc: 'T112: an app password for SMTP_USER (Zoho: Security → App Passwords), never the account password.',
   }),
+  SITE_NOINDEX: entry({
+    schema: z.enum(['0', '1']).optional(),
+    scope: 'runtime', doc: 'T117: 1 on a copy that is not the real site (staging): robots.txt disallows everything and every response says noindex.',
+  }),
   TURNSTILE_SITE_KEY: entry({
     schema: z.string().optional(),
     scope: 'runtime', doc: 'T115: Cloudflare Turnstile site key for the contact form (public). Unset: the form shows no challenge — and in production refuses to send.',

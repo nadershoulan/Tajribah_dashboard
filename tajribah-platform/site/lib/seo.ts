@@ -32,7 +32,9 @@ export function pageMeta(path: string, override: { title?: string; description?:
  * form (`robots.ts`) lost to the dashboard's catch-all route on the live site, which answered with an HTML page.
  * Crawl the website; not the API, a phone's one-time capture page, the try-on frame or the signed-in dashboard.
  */
-export function robotsTxt(siteUrl: string): string {
+export function robotsTxt(siteUrl: string, { noindex = false }: { noindex?: boolean } = {}): string {
+  // T117: a copy that is not the real site (staging) is closed to every crawler.
+  if (noindex) return ['User-agent: *', 'Disallow: /', ''].join(String.fromCharCode(10));
   return [
     'User-agent: *',
     'Allow: /',

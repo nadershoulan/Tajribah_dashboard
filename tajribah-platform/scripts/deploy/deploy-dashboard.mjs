@@ -6,6 +6,7 @@
  *   node scripts/deploy/deploy-dashboard.mjs --create-hyperdrive   once: the two Hyperdrive configs from the database logins
  *   node scripts/deploy/deploy-dashboard.mjs --dry-run             build and assemble; wrangler checks it without deploying
  *   node scripts/deploy/deploy-dashboard.mjs                       build, send the secrets, deploy
+ *   … --env staging                                                 the same for staging (T117): deploy/staging.jsonc and .env.staging.local
  *
  * Settings: `deploy/production.jsonc` (committed, nothing secret). Secrets: the git-ignored
  * `.env.production.local`. Before anything reaches Cloudflare the two together are checked by the
@@ -24,17 +25,22 @@ const wrangler = (args, opts = {}) => spawnSync(process.execPath, [path.join(ROO
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   const has = (f) => process.argv.includes(f);
-  const prodPath = path.join(ROOT, 'deploy/production.jsonc');
+  // T117: one script for both copies — production (the default) and staging.
+  const target = (() => { const i = process.argv.indexOf('--env'); return i > -1 ? process.argv[i + 1] : 'production'; })();
+  if (!['production', 'staging'].includes(target)) { console.error('--env is production or staging'); process.exit(2); }
+  const settingsFile = `deploy/${target}.jsonc`;
+  const secretsFile = `.env.${target}.local`;
+  const prodPath = path.join(ROOT, settingsFile);
   const production = parseJsonc(fs.readFileSync(prodPath, 'utf8'));
-  const envPath = path.join(ROOT, '.env.production.local');
+  const envPath = path.join(ROOT, secretsFile);
   const fileEnv = fs.existsSync(envPath) ? readEnvFile(fs.readFileSync(envPath, 'utf8')) : {};
 
   if (has('--create-hyperdrive')) {
     const raw = fs.readFileSync(prodPath, 'utf8');
     let next = raw;
-    for (const [binding, name, url] of [['HYPERDRIVE_APP', 'tajribah-app', fileEnv.DATABASE_APP_URL], ['HYPERDRIVE_ADMIN', 'tajribah-admin', fileEnv.DATABASE_ADMIN_URL]]) {
+    for (const [binding, name, url] of [['HYPERDRIVE_APP', `tajribah-${target === 'production' ? '' : `${target}-`}app`, fileEnv.DATABASE_APP_URL], ['HYPERDRIVE_ADMIN', `tajribah-${target === 'production' ? '' : `${target}-`}admin`, fileEnv.DATABASE_ADMIN_URL]]) {
       if (!placeholdersIn(production).includes(binding)) { console.log(`${binding}: already set`); continue; }
-      if (!url) { console.error(`${binding}: add ${binding === 'HYPERDRIVE_APP' ? 'DATABASE_APP_URL' : 'DATABASE_ADMIN_URL'} to .env.production.local first`); process.exit(1); }
+      if (!url) { console.error(`${binding}: add ${binding === 'HYPERDRIVE_APP' ? 'DATABASE_APP_URL' : 'DATABASE_ADMIN_URL'} to ${secretsFile} first`); process.exit(1); }
       const r = wrangler(hyperdriveArgs(name, url, { id: fileEnv.HYPERDRIVE_ACCESS_CLIENT_ID, secret: fileEnv.HYPERDRIVE_ACCESS_CLIENT_SECRET }));
       const id = /"id":\s*"([0-9a-f]{32})"|\bid[:=]\s*"?([0-9a-f]{32})/.exec(r.stdout ?? '');
       const why = `${r.stderr ?? ''}\n${r.stdout ?? ''}`.split('\n').find((l) => /error|fail/i.test(l))?.replace(/(password|secret)=\S+/gi, '$1=…');
@@ -48,9 +54,12 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
 
   // Everything missing, at once.
   const problems = [];
-  if (!fs.existsSync(envPath)) problems.push('.env.production.local does not exist');
-  for (const [name, why] of Object.entries(NEEDED)) if (!fileEnv[name]) problems.push(`.env.production.local: ${name} — ${why}`);
-  for (const binding of placeholdersIn(production)) problems.push(`deploy/production.jsonc: ${binding} has no Hyperdrive id — run with --create-hyperdrive once the database logins are in .env.production.local`);
+  if (!fs.existsSync(envPath)) problems.push(`${secretsFile} does not exist`);
+  // T117: staging has no R2 key of its own yet (one is made in the Cloudflare dashboard), and never gets production's —
+  // without it, browsers there cannot upload straight to the bucket; the server's own storage works.
+  const optionalHere = target === 'staging' ? new Set(['R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY']) : new Set();
+  for (const [name, why] of Object.entries(NEEDED)) if (!fileEnv[name] && !optionalHere.has(name)) problems.push(`${secretsFile}: ${name} — ${why}`);
+  for (const binding of placeholdersIn(production)) problems.push(`${settingsFile}: ${binding} has no Hyperdrive id — run with --create-hyperdrive once the database logins are in ${secretsFile}`);
   const { loadEnv } = await import(pathToFileURL(path.join(ROOT, 'server/core/config/env.ts')).href);
   try { loadEnv({ ...production.vars, ...secretsOf(fileEnv, production.vars) }); } catch (e) {
     // "  NAME: why" lines; a name already listed above is not repeated.
@@ -65,7 +74,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
   const build = spawnSync('npm', ['run', 'build'], { cwd: ROOT, stdio: 'inherit', shell: true });
   if (build.status !== 0) process.exit(build.status ?? 1);
   const built = JSON.parse(fs.readFileSync(path.join(ROOT, 'dist/server/wrangler.json'), 'utf8'));
-  const config = path.join(ROOT, 'dist/server/wrangler.production.json');
+  const config = path.join(ROOT, `dist/server/wrangler.${target}.json`);
   fs.writeFileSync(config, JSON.stringify(assemble(built, production), null, 2));
   console.log(`✓ assembled ${path.relative(ROOT, config)}`);
 

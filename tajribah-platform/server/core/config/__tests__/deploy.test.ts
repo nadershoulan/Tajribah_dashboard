@@ -83,3 +83,25 @@ test('T110: Hyperdrive reaches the database through the tunnel — host and Acce
   assert.deepEqual(hyperdriveArgs('x', url), ['hyperdrive', 'create', 'x', '--connection-string=' + url], 'without a token: the plain string');
   assert.deepEqual(secretsOf({ AUTH_SECRET: 'a', HYPERDRIVE_ACCESS_CLIENT_ID: 'i', HYPERDRIVE_ACCESS_CLIENT_SECRET: 's' }, {}), { AUTH_SECRET: 'a' });
 });
+
+test('T117: staging shares nothing it could write to with production, is closed to search engines, and boots', () => {
+  const staging = parseJsonc(readFileSync(join(ROOT, 'deploy/staging.jsonc'), 'utf8'));
+  const ids = (c: typeof production) => [
+    ...c.r2_buckets.map((b: { bucket_name: string }) => `r2:${b.bucket_name}`),
+    ...c.kv_namespaces.map((k: { id: string }) => `kv:${k.id}`),
+    ...c.hyperdrive.map((h: { id: string }) => `hd:${h.id}`),
+    ...c.queues.producers.map((q: { queue: string }) => `q:${q.queue}`),
+    `worker:${c.name}`,
+    ...c.routes.map((r: { pattern: string }) => `route:${r.pattern}`),
+  ];
+  const shared = ids(staging).filter((id) => ids(production).includes(id) && !id.endsWith(':SET_ON_SERVER_DAY'));
+  assert.deepEqual(shared, [], 'no bucket, store, database connection, queue, Worker or address in common');
+  assert.equal(staging.vars.SITE_NOINDEX, '1', 'staging tells crawlers to stay out');
+  assert.equal(production.vars.SITE_NOINDEX, undefined, 'production never does');
+  assert.equal(staging.vars.SITE_HOSTS, 'staging.tajribah.org');
+  assert.ok(!staging.vars.R2_BUCKET_NAME.includes('tajribah-files') || staging.vars.R2_BUCKET_NAME.endsWith('-staging'));
+  assert.deepEqual(staging.hyperdrive.map((h: { binding: string }) => h.binding).sort(), ['HYPERDRIVE_ADMIN', 'HYPERDRIVE_APP'], 'the same bindings as production');
+  resetEnv();
+  loadEnv({ ...staging.vars, ...secretsOf(filled, staging.vars) });
+  resetEnv();
+});

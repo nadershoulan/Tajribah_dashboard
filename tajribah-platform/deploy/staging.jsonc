@@ -1,0 +1,53 @@
+// T117 — the staging copy (P0.22): the same Worker code on staging.tajribah.org, with its OWN database
+// (tajribah_staging, logins that cannot reach production), KV, buckets and queue — nothing shared with production
+// that it could write to. Closed to search engines (SITE_NOINDEX). Deployed with
+//   node scripts/deploy/deploy-dashboard.mjs --env staging
+// Secrets: the git-ignored .env.staging.local (its own AUTH_SECRET and ENCRYPTION_KEY).
+{
+  "name": "tajribah-staging",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "staging.tajribah.org", "custom_domain": true }
+  ],
+  "d1_databases": [],
+  "r2_buckets": [
+    { "binding": "BUCKET", "bucket_name": "tajribah-files-staging" },
+    { "binding": "PAIR_BUCKET", "bucket_name": "tajribah-pair-staging" }
+  ],
+  "kv_namespaces": [
+    { "binding": "CONFIGS", "id": "166b02fda497486f9cbc98c6a11cbcd7" },
+    { "binding": "RATE_LIMITS", "id": "aba1b14d601a458f997498ab0b93a561" }
+  ],
+  "queues": {
+    "producers": [{ "binding": "JOBS", "queue": "tajribah-jobs-staging" }],
+    "consumers": [{ "queue": "tajribah-jobs-staging", "max_batch_size": 100, "max_batch_timeout": 1, "max_concurrency": 5, "max_retries": 0 }]
+  },
+  "hyperdrive": [
+    { "binding": "HYPERDRIVE_APP", "id": "1c7f7f5a7a9a449392c3b3e64b818d7e" },
+    { "binding": "HYPERDRIVE_ADMIN", "id": "2b6771a3a3f14f8b926797b03624a6ed" }
+  ],
+  "observability": { "enabled": true },
+  "vars": {
+    "NODE_ENV": "production",
+    "SITE_NOINDEX": "1",
+    "APP_URL": "https://staging.tajribah.org",
+    "NEXT_PUBLIC_SITE_URL": "https://staging.tajribah.org",
+    "SITE_HOSTS": "staging.tajribah.org",
+    "CDN_BASE_URL": "https://pub-778264eae40c4bd393821b4b032b63c4.r2.dev",
+    "STORAGE_PROVIDER": "r2",
+    "R2_ACCOUNT_ID": "bd0491e496ffa057396c434b050520a1",
+    "R2_BUCKET_NAME": "tajribah-files-staging",
+    "CONFIG_STORE": "kv",
+    "RATE_LIMITER": "kv",
+    "JOBS_MODE": "cf-queue",
+    "HOSTED_PAGE_BASE": "https://staging.tajribah.org/p",
+    "CUSTOM_DOMAIN_TARGET": "domains.tajribah.org",
+    "EMAIL_PROVIDER": "smtp",
+    "SMTP_HOST": "smtppro.zoho.com",
+    "SMTP_PORT": "465",
+    "SMTP_USER": "info@baqah.org",
+    "EMAIL_FROM": "Tajribah Staging <no-reply@tajribah.org>",
+    "SMS_PROVIDER": "none",
+    "LOG_LEVEL": "info"
+  }
+}

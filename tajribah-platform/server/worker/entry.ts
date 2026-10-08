@@ -22,6 +22,7 @@ import { sweepExpiredPairs } from '@site/lib/pair-sweep';
 import { markStoreHost, siteHosts, storeHostRedirect } from '@site/lib/store-host';
 import { isLocalHost } from '@site/lib/tryon-config';
 import { keyOf, serveConfig } from '@/server/core/edge/host';
+import { noindex } from './noindex';
 
 // Never `./main` or `./handlers`: they import `sharp`, which cannot load in a Worker.
 chooseHandlers(registerEdgeHandlers);
@@ -49,7 +50,10 @@ const worker = {
     // served — the dashboard and the marketing pages are sent to Tajribah's own host (`SITE_HOSTS`).
     const hosts = siteHosts((env as { SITE_HOSTS?: string } | null)?.SITE_HOSTS);
     const elsewhere = storeHostRedirect(new URL(request.url), hosts);
-    return elsewhere ? Response.redirect(elsewhere, 302) : handler.fetch(markStoreHost(request, hosts), env, ctx);
+    if (elsewhere) return Response.redirect(elsewhere, 302);
+    const served = handler.fetch(markStoreHost(request, hosts), env, ctx);
+    // T117: staging (SITE_NOINDEX=1) tells every crawler, on every response, to keep it out of search.
+    return (env as { SITE_NOINDEX?: string } | null)?.SITE_NOINDEX === '1' ? Promise.resolve(served).then(noindex) : served;
   },
   async scheduled(_event: unknown, _env: unknown, ctx?: Ctx) {
     // P5.7: QR photos never received are gone within a minute of their session expiring.

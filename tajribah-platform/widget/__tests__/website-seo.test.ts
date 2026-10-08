@@ -51,3 +51,15 @@ test('the header offers sign-up beside the demo, on desktop and in the phone men
   assert.equal(count('/register`} className="btn btn-ghost'), 2, 'both go to /register, outlined beside the solid demo button');
   assert.ok(head.indexOf("'إنشاء حساب'") < head.indexOf("'جرّب العرض'"), 'beside the demo, before it');
 });
+
+test('T117: a staging copy (SITE_NOINDEX=1) is closed to crawlers — robots.txt and a header on every response', async () => {
+  assert.equal(robotsTxt('https://staging.tajribah.org', { noindex: true }), 'User-agent: *\nDisallow: /\n');
+  assert.match(robotsTxt('https://tajribah.org'), /^Allow: \/$/m, 'the real site stays open');
+  const route = readFileSync(sitePath('app/robots.txt/route.ts'), 'utf8');
+  assert.match(route, /noindex: process\.env\.SITE_NOINDEX === '1'/);
+  const { noindex } = await import('../../server/worker/noindex');
+  const marked = noindex(new Response('ok', { status: 201, headers: { 'content-type': 'text/plain' } }));
+  assert.equal(marked.headers.get('x-robots-tag'), 'noindex, nofollow');
+  assert.equal(marked.status, 201);
+  assert.equal(marked.headers.get('content-type'), 'text/plain');
+});

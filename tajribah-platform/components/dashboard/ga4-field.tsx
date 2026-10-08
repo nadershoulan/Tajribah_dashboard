@@ -18,6 +18,9 @@ const WHY: Record<string, { ar: string; en: string }> = {
   denied: { ar: 'أُلغي تسجيل الدخول في Google.', en: 'The Google sign-in was cancelled.' },
   scope: { ar: 'لم يُسمح بقراءة Google Analytics — سجّل الدخول مرة أخرى واترك الإذن مفعّلًا.', en: 'Reading Google Analytics was not allowed — sign in again and leave that permission ticked.' },
   none: { ar: 'لا يوجد في هذا الحساب مصدر بيانات ويب في GA4. أنشئ واحدًا في Google Analytics أو الصق المعرّف.', en: 'This account has no GA4 web data stream. Create one in Google Analytics, or paste the id.' },
+  // T121: creating an account for someone who had none.
+  tos: { ar: 'لم تُقبل شروط Google Analytics، فلم يُنشأ الحساب. حاول مرة أخرى واقبل الشروط في صفحة Google.', en: 'The Google Analytics terms were not accepted, so no account was created. Try again and accept them on Google’s page.' },
+  create: { ar: 'تعذّر إنشاء حساب Google Analytics الآن — حاول بعد قليل أو أنشئه في Google Analytics والصق المعرّف.', en: 'The Google Analytics account could not be created just now — try again shortly, or create it in Google Analytics and paste the id.' },
   state: { ar: 'انتهت مهلة تسجيل الدخول أو بدأ من متصفح آخر — حاول مرة أخرى.', en: 'The sign-in expired or started in another browser — try again.' },
   setup: { ar: 'إعداد تسجيل الدخول بـ Google لدينا غير مكتمل — الصق المعرّف الآن.', en: 'Our Google sign-in is not set up correctly — paste the id for now.' },
   code: { ar: 'لم يقبل Google تسجيل الدخول — حاول مرة أخرى.', en: 'Google did not accept the sign-in — try again.' },
@@ -53,6 +56,7 @@ export function Ga4Field({ id, value, onChange, error, picker, hint, disabled }:
       picker.streams(ticket).then((found) => {
         if (!live) return;
         setStreams(found);
+        // One stream (or the one just created): fill it in; the screen's save keeps it.
         if (found.length === 1) onChange(found[0]!.measurementId);
       }, (e: Error) => { if (live) setProblem(e.message); });
     }
@@ -78,9 +82,9 @@ export function Ga4Field({ id, value, onChange, error, picker, hint, disabled }:
       {available && (
         <div style={{ marginTop: 10 }}>
           <button type="button" className="btn btn-ghost btn-sm" onClick={signIn} disabled={busy || disabled}>
-            <ExternalLink size={14} aria-hidden />{busy ? t('جارٍ الفتح…', 'Opening…') : t('اختره بتسجيل الدخول بـ Google', 'Pick it by signing in with Google')}
+            <ExternalLink size={14} aria-hidden />{busy ? t('جارٍ الفتح…', 'Opening…') : t('املأه بتسجيل الدخول بـ Google', 'Fill it by signing in with Google')}
           </button>
-          <p className="hint" style={{ margin: '6px 0 0' }}>{t('قراءة فقط: نعرض مصادر بياناتك لتختار منها، ولا نحتفظ بأي شيء من حسابك.', 'Read-only: we list your data streams for you to choose from, and keep nothing from your account.')}</p>
+          <p className="hint" style={{ margin: '6px 0 0' }}>{t('نعرض مصادر بياناتك في Google Analytics لتختار منها. ليس لديك حساب؟ ننشئه لك بعد موافقتك على شروط Google، ونملأ المعرّف تلقائيًا. لا نحتفظ بأي شيء من حسابك.', 'We list your Google Analytics data streams for you to pick from. No account yet? We create one once you accept Google’s terms, and fill in the id for you. We keep nothing from your account.')}</p>
         </div>
       )}
 

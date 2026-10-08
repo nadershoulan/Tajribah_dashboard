@@ -53,12 +53,17 @@ Analytics). To also offer "Pick it by signing in with Google", make one OAuth cl
 1. console.cloud.google.com → a project for Tajribah → **APIs & Services → Library** → enable
    **Google Analytics Admin API**.
 2. **OAuth consent screen** → External → app name Tajribah, support email, the domain; add the scope
-   `.../auth/analytics.readonly`. (Read-only Analytics is a "sensitive" scope: until Google verifies
-   the app, only test users you list can sign in — enough for you and the first stores.)
-3. **Credentials → Create OAuth client ID → Web application**; authorised redirect URI:
-   `https://app.tajribah.org/api/google/callback` (and `http://localhost:8799/api/google/callback`
-   for this machine).
+   `.../auth/analytics.readonly` and (T121, to create a GA4 account for someone who has none)
+   `.../auth/analytics.edit`. (Both are "sensitive" scopes: until Google verifies the app, only test
+   users you list can sign in — enough for you and the first stores.)
+3. **Credentials → Create OAuth client ID → Web application**; authorised redirect URIs:
+   `https://tajribah.org/api/google/callback` and `https://tajribah.org/api/google/provisioned`
+   (T121: where Google returns after its terms page), the same two on `https://staging.tajribah.org`,
+   and `http://localhost:8799/...` for this machine. They follow `APP_URL`.
 4. Put the two values on the dashboard Worker: `GOOGLE_CLIENT_ID` (a variable) and
    `GOOGLE_CLIENT_SECRET` (`wrangler secret put`). The button appears on both screens.
 
-Nothing of Google's is stored: the sign-in is used once to list the web streams, then dropped.
+Nothing of Google's is stored: the sign-in is used once to list the web streams, then dropped. When there is
+none, it asks for `analytics.edit`, creates the account (after the person accepts Google's terms), its property
+(Riyadh time, SAR) and a web stream, and fills in the new `G-…` id; the token waits across Google's terms page
+only as an encrypted cookie in that browser, twenty minutes at most.

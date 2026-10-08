@@ -25,7 +25,9 @@ import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness'
 import type { StaffContext } from '@/server/modules/admin/access';
 import { SITE_SETTINGS_KEY, siteSettingsForStaff, updateSiteSettings } from '@/server/modules/admin/site';
 import { getSettings, updateSettings } from '@/server/modules/settings/service';
-import { GA4_SCOPE, STATE_TTL_MS, TICKET_TTL_MS, completeGoogleCallback, openTicket, startGoogle, type GoogleApp } from '@/server/modules/google/ga4';
+import { GA4_EDIT_SCOPE, GA4_SCOPE, GA_TERMS, STATE_TTL_MS, TICKET_TTL_MS, completeGoogleCallback as callbackResult, completeProvisioning, openTicket, startGoogle, type GoogleApp } from '@/server/modules/google/ga4';
+/** The location alone, as the T69 tests read it. */
+const completeGoogleCallback = async (...a: Parameters<typeof callbackResult>) => (await callbackResult(...a)).location;
 
 setLogLevel('error');
 resetEnv();
@@ -209,4 +211,105 @@ test('a store’s own GA4 id is a store setting: checked, saved, and its live co
     assert.ok(queued.some((j) => j.queue === 'edge.publish-config'), 'its products’ pages pick it up');
     assert.equal((await updateSettings(ctx, { ga4MeasurementId: '' })).ga4MeasurementId, null, 'blank clears');
   } finally { await harness.close(); }
+});
+
+/** T121: Google, for someone with no GA4 yet — it hands out an account ticket, and makes the account once its terms are accepted. */
+class EmptyGoogle extends Google {
+  tickets = new Map<string, string>();
+  made: string[] = [];
+  constructor() { super(); this.accounts = []; this.streams = {}; }
+  /** Everything that is not a create: Google as T69 plays it (taken before the override below replaces it). */
+  private read = this.fetch;
+  accept(ticket: string) { this.accounts.push({ account: `accounts/${900 + this.accounts.length}`, displayName: this.tickets.get(ticket)!, propertySummaries: [] }); }
+  override fetch = async (input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> => {
+    const url = new URL(String(input));
+    if (init.method !== 'POST' || url.hostname !== 'analyticsadmin.googleapis.com') return this.read(input, init);
+    this.seen.push(`POST ${url.pathname}`);
+    if (this.down) return new Response('busy', { status: 503 });
+    if (new Headers(init.headers).get('authorization') !== `Bearer ${this.token}`) return Response.json({ error: { code: 401 } }, { status: 401 });
+    const body = JSON.parse(String(init.body));
+    if (url.pathname === '/v1beta/accounts:provisionAccountTicket') {
+      if (this.grantedScope !== GA4_EDIT_SCOPE) return Response.json({ error: { code: 403 } }, { status: 403 });
+      assert.equal(body.redirectUri, 'https://app.tajribah.sa/api/google/provisioned');
+      assert.equal(body.account.regionCode, 'SA');
+      const id = `ticket-${this.tickets.size + 1}`;
+      this.tickets.set(id, body.account.displayName);
+      return Response.json({ accountTicketId: id });
+    }
+    if (url.pathname === '/v1beta/properties') {
+      assert.deepEqual([body.timeZone, body.currencyCode], ['Asia/Riyadh', 'SAR']);
+      const account = this.accounts.find((a) => a.account === body.parent)!;
+      const property = `properties/${700 + this.made.length}`;
+      account.propertySummaries.push({ property, displayName: body.displayName });
+      this.made.push(property);
+      return Response.json({ name: property, displayName: body.displayName });
+    }
+    const p = /^\/v1beta\/(properties\/\d+)\/dataStreams$/.exec(url.pathname)?.[1];
+    if (p && body.type === 'WEB_DATA_STREAM') {
+      const stream = { type: 'WEB_DATA_STREAM', displayName: body.displayName, webStreamData: { measurementId: 'G-NEW1234567', defaultUri: body.webStreamData.defaultUri } };
+      this.streams[p] = [stream];
+      return Response.json(stream);
+    }
+    return Response.json({ error: { code: 400 } }, { status: 400 });
+  };
+}
+
+const CREATE_APP: GoogleApp = { ...APP, provisionedUri: 'https://app.tajribah.sa/api/google/provisioned' };
+const STORE = { p: 'store', t: '00000000-0000-7000-8000-0000000000aa', u: STAFF.u } as const;
+const NEW = { name: 'متجر العود', website: 'https://app.tajribah.sa/p/oud' };
+
+test('T121: no GA4 yet — Google asks for the permission to create, the person accepts the terms, and the new id comes back', async () => {
+  const google = new EmptyGoogle();
+  const started = await startGoogle(CREATE_APP, STORE, Date.now(), { account: NEW });
+  assert.equal(new URL(started.authorizeUrl).searchParams.get('scope'), GA4_SCOPE, 'read-only first: people who have GA4 never grant more');
+
+  // Read-only finds nothing: straight back to Google, now for analytics.edit, with the same browser nonce.
+  const first = await callbackResult(new URLSearchParams({ code: google.approve(), state: stateOf(started.authorizeUrl) }), started.nonce, CREATE_APP, { transport: google.transport() });
+  assert.equal(first.keepState, true);
+  const again = new URL(first.location);
+  assert.equal(again.origin + again.pathname, 'https://accounts.google.com/o/oauth2/v2/auth');
+  assert.equal(again.searchParams.get('scope'), GA4_EDIT_SCOPE);
+
+  // Granted: an account ticket and Google's terms page; the token waits sealed in the browser.
+  google.grantedScope = GA4_EDIT_SCOPE;
+  const second = await callbackResult(new URLSearchParams({ code: google.approve(), state: again.searchParams.get('state')! }), started.nonce, CREATE_APP, { transport: google.transport() });
+  assert.equal(second.location, `${GA_TERMS}ticket-1`);
+  assert.ok(second.pending && !second.pending.includes(google.token), 'the token is sealed, not readable');
+  assert.equal(google.tickets.get('ticket-1'), 'متجر العود', 'the account is named after the store');
+
+  // Back before accepting: nothing is made, and a reason.
+  assert.equal(fragment((await completeProvisioning(second.pending!, CREATE_APP, { transport: google.transport() })).location).get('ga4_error'), 'tos');
+  assert.equal(google.made.length, 0);
+
+  // Accepted: a property and a web stream, and the id in a ticket only this person in this store opens.
+  google.accept('ticket-1');
+  const done = await completeProvisioning(second.pending!, CREATE_APP, { transport: google.transport() });
+  assert.match(done.location, /^\/dashboard\/settings#ga4=/);
+  assert.equal(done.pending, undefined, 'the sealed token is cleared');
+  assert.deepEqual(await openTicket(CREATE_APP, fragment(done.location).get('ga4')!, STORE),
+    [{ measurementId: 'G-NEW1234567', stream: 'متجر العود', property: 'متجر العود', account: 'متجر العود', url: 'https://app.tajribah.sa/p/oud' }]);
+  await assert.rejects(() => openTicket(CREATE_APP, fragment(done.location).get('ga4')!, { ...STORE, t: '00000000-0000-7000-8000-0000000000bb' }), /not yours/);
+});
+
+test('T121: the creation path refuses what it should — no return address, an unticked permission, a sealed token missing, changed or expired', async () => {
+  const google = new EmptyGoogle();
+  const why = (r: { location: string }) => fragment(r.location).get('ga4_error');
+  // Without the return address (or the account details) it says "none", as before.
+  const plain = await startGoogle(APP, STAFF);
+  assert.equal(why(await callbackResult(new URLSearchParams({ code: google.approve(), state: stateOf(plain.authorizeUrl) }), plain.nonce, APP, { transport: google.transport() })), 'none');
+  // The edit permission unticked on Google's screen.
+  const s1 = await startGoogle(CREATE_APP, STAFF, Date.now(), { account: NEW, create: true });
+  assert.equal(why(await callbackResult(new URLSearchParams({ code: google.approve(), state: stateOf(s1.authorizeUrl) }), s1.nonce, CREATE_APP, { transport: google.transport() })), 'scope');
+  // The sealed token: missing, changed, or past its twenty minutes.
+  google.grantedScope = GA4_EDIT_SCOPE;
+  const s2 = await startGoogle(CREATE_APP, STAFF, Date.now(), { account: NEW, create: true });
+  const sealed = (await callbackResult(new URLSearchParams({ code: google.approve(), state: stateOf(s2.authorizeUrl) }), s2.nonce, CREATE_APP, { transport: google.transport() })).pending!;
+  assert.ok(sealed);
+  assert.equal(why(await completeProvisioning(null, CREATE_APP)), 'state');
+  assert.equal(why(await completeProvisioning(`${sealed.slice(0, -4)}AAAA`, CREATE_APP)), 'state');
+  assert.equal(why(await completeProvisioning(sealed, CREATE_APP, { now: Date.now() + 21 * 60_000 })), 'state');
+  // Google failing while it makes the property: a reason, not a half-told success.
+  google.accept('ticket-1');
+  google.down = true;
+  assert.equal(why(await completeProvisioning(sealed, CREATE_APP, { transport: google.transport() })), 'create');
 });

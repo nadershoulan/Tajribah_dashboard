@@ -170,7 +170,7 @@ export const REGISTRY = {
   }),
   GOOGLE_CLIENT_ID: entry({
     schema: z.string().regex(/^[0-9a-z-]+\.apps\.googleusercontent\.com$/, 'an OAuth client id ending .apps.googleusercontent.com').optional(), scope: 'runtime',
-    doc: 'T69: a Google Cloud OAuth client (web application) with the Google Analytics Admin API on; redirect {APP_URL}/api/google/callback. Unset: GA4 ids are pasted, not picked after a Google sign-in.',
+    doc: 'T69/T121: a Google Cloud OAuth client (web application) with the Google Analytics Admin API on; redirects {APP_URL}/api/google/callback and {APP_URL}/api/google/provisioned (T121: Google returns there after its terms page when it creates a GA4 account). Unset: GA4 ids are pasted, not picked after a Google sign-in.',
   }),
   GOOGLE_CLIENT_SECRET: entry({
     schema: z.string().optional(), scope: 'runtime', secret: true,

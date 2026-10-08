@@ -13,14 +13,14 @@ P0 Foundation     ████████████████████�
 P1 Core loop      ███████████████████████████░░░░░  20 / 24   (+ P1.19 product pages, built) ← first sellable product · the rest needs Cloudflare / domain · Salla linking → v2
 P2 Billing        █████████████░░░░░░░░░░░░░░░░░░░   6 / 15   (+ 3 partly) · the rest needs Moyasar / ZATCA
 P3 3D pipeline    █████████████░░░░░░░░░░░░░░░░░░░   5 / 12   (+ P3.7 photo screen, P3.10 professional models up to payment) · the rest needs a provider, prices or caps
-P4 Analytics      ███████████████████████████░░░░░  10 / 12   · P4.7 needs a store connection, P4.12 the staging server
-P5 Try-on         █████████████████████████░░░░░░░  11 / 14   (+ watch partly) · every kind on the model, beside known objects and on the shopper's own photo; the watch waits on Cloudflare
+P4 Analytics      ███████████████████████████░░░░░  10 / 12   · P4.12 load test running on staging (no event lost at 300/s; the shared server's connections are the limit) · P4.7 return rates needs Salla/Zid → v2
+P5 Try-on         ██████████████████████████████░░  13 / 14   (+ watch partly) · every kind on the model, beside known objects and on the shopper's own photo; the watch's last step is one published from a real store
 P6 AI+connectors  ████████████████░░░░░░░░░░░░░░░░   7 / 14   (+ recommendations without AI) · the rest needs AI providers · Shopify, Zid → v2
 P7 Scale          ████████████░░░░░░░░░░░░░░░░░░░░   5 / 13   · live: background work, caching, safe updates, backups, rate limits · monitoring needs an account, load tests and database speed a staging copy
 P8 Enterprise     ███████████████████░░░░░░░░░░░░░   7 / 12
 M  Marketing      █████████████████████████████░░░  11 / 12   (+ 1 partly) · the website, now in this platform (site/)
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
-                                            overall 116 / 165
+                                            overall 118 / 165
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -290,6 +290,8 @@ The public site that sells Tajribah, Arabic first.
 | ✅ | T35 Trial on Growth, plans enforced | The **free trial runs on Growth** (sync included), so setup and sign-up's promise work. Each plan is now **checked where it is used**: connecting and syncing a store platform (Salla and Zid from Growth, Shopify and WooCommerce from Pro — a store that drops a plan stops syncing, quietly), AI 3D generation (Pro, refused before any charge), analytics (basic on Starter; conversion reports, the funnel, top products and export from Growth). A trial store gets Growth's AI credits too |
 | ✅ | T33 Plans made consistent | **Every plan** sets watches up for your studio (it was Pro only, while the website promised on-the-model and size comparison to all); **on me** — the shopper's own photo — stays Pro and up, and your studio hides that tab for other shops (an optional setting; your demo unchanged, checked to the pixel). Analytics: basic on Starter, full from Growth, and the website's table now says so. A test keeps the website's plan table and the dashboard's catalogue in step |
 | ✅ | P5.10 Try-on settings | **Virtual try-on** in the dashboard lists every watch. For each: upload the watch as worn and the product shot — each checked for a transparent background (a checkerboard shows it) and refused with the reason if not — enter the case width in mm (the product's width is suggested), an optional finish line in Arabic and English, and switch the "Try it on" button on once all is there. Pro plan; on other plans the screen explains and stays read-only. Pictures count toward storage |
+| ✅ | P5.8 Anchor calibration tool | Counted 2026-10-08 (built as T68, never numbered): each try-on picture gets **"Mark the case edges"** — two lines dragged (or moved with the arrow keys) to the real edges; the picture is cropped to them in the background, the watch's own pixels kept exactly, then checked again. 4 tests pass (crop bounds, the worker's exact pixels, WebP stays lossless, stale or unauthorised marks refused) |
+| ✅ | P5.11 Shopper try-on experience | Counted 2026-10-08 (built across P5.1, P5.7, T100, T101, T103, never numbered): on a shop's product page the shopper taps the button, the try-on opens in a window over the page (tap outside to close, focus returns to the button), with the privacy notice, every way to try, and **«أضف للسلة»** handing back to the store's own cart button. 43 shop-script and try-on tests pass |
 
 ---
 

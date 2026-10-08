@@ -818,6 +818,24 @@ html[lang="en"] .legal-body p { line-height: 1.75; }
 
 /* T68 — the demo's watch / glasses switch */
 .demo-kind { margin: 0 0 18px; }
+/* Phones (Nader, 2026-10-08): the six-way product switch was 469px wide and pushed the whole page sideways.
+   It becomes a grid of four per row inside the screen — every option still in sight. Scoped to the demo: the
+   pricing page's two-way billing switch keeps its pill. */
+@media (max-width: 600px) {
+  .demo-kind { display: block; }
+  .demo-kind .cycle-toggle { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; border-radius: 18px; }
+  .demo-kind .cycle-btn { padding: 9px 4px; font-size: 14px; text-align: center; }
+  .demo-kind .cycle-save { display: block; margin-top: 10px; }
+  /* as in the shop's popup: on a narrow phone the studio's icons go under its tabs, never off the edge */
+  .studio-topbar { flex-wrap: wrap; row-gap: 6px; }
+}
+/* The smallest phones (320–360px): the header and the studio's tabs a little tighter, so nothing passes the edge. */
+@media (max-width: 360px) {
+  .logo img { height: 26px; }
+  .head-row { gap: 8px; }
+  .mode-tabs [data-slot="tabs-trigger"] { padding: 7px 7px; font-size: 12.5px; gap: 4px; }
+  .model-option span { font-size: 12px; }
+}
 .product-image-wide img { height: auto; width: 100%; max-width: 300px; transform: rotate(-3deg); }
 @media (max-width: 1100px) { .product-image-wide img { height: auto; width: 100%; max-width: 220px; } }
 

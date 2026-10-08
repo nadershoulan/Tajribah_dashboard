@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq } from 'drizzle-orm';
-import { sessions, users } from '@/db/schema';
+import { sessions, tenants, users } from '@/db/schema';
 import { createTestDb } from '@/server/testing/harness';
 import {
   login, normalisePhone, register, requestPasswordReset, resetPassword, safeNext, verifyEmail,
@@ -34,7 +34,7 @@ test('registration creates the user, the store and the owner membership', async 
 
     const stored = (await db.select().from(users))[0];
     assert.notEqual(stored.passwordHash, account.password, 'the password must never be stored');
-    assert.match(stored.passwordHash, /^pbkdf2\$/);
+    assert.match(stored.passwordHash, /^pbkdf2c\$/);
   } finally { await harness.close(); }
 });
 
@@ -232,4 +232,24 @@ test('?next= cannot leave the dashboard', () => {
   assert.equal(safeNext(null), '/dashboard');
   assert.equal(safeNext('/\t/evil.example'), '/dashboard', 'browsers drop the tab and follow //evil.example');
   assert.equal(safeNext('/\n/evil.example'), '/dashboard');
+});
+
+test('T118: a sign-up that fails leaves nothing behind — not a store without an owner', async () => {
+  fresh();
+  const harness = await createTestDb();
+  const subtle = crypto.subtle as unknown as { deriveBits: (...a: unknown[]) => Promise<ArrayBuffer> };
+  const original = subtle.deriveBits.bind(crypto.subtle);
+  try {
+    // the live incident: the runtime refuses the password hash
+    subtle.deriveBits = async () => { throw new Error('Pbkdf2 failed: iteration counts above 100000 are not supported'); };
+    await assert.rejects(() => register(account, config), /Pbkdf2 failed/);
+    subtle.deriveBits = original;
+    assert.equal((await harness.db.select().from(tenants)).length, 0, 'no store was created');
+    // a failure inside the transaction (the person's row refused) rolls the store back too
+    await assert.rejects(() => register({ ...account, fullName: null as unknown as string }, config));
+    assert.equal((await harness.db.select().from(tenants)).length, 0, 'the store was rolled back with it');
+    assert.equal((await harness.db.select().from(users)).length, 0);
+    // and a clean sign-up afterwards still works
+    assert.equal((await register(account, config)).tenant.slug, 'failet-watches', 'the name was not taken by a ghost');
+  } finally { subtle.deriveBits = original; await harness.close(); }
 });

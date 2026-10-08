@@ -4,16 +4,26 @@
  * Read this file carefully once rather than trusting it implicitly: it is the whole reason
  * there is no auth library here.
  *
- * Password hashes carry their own parameters (`pbkdf2$sha256$600000$salt$hash`), so the
- * algorithm can change later without a migration or a forced reset — `needsRehash` tells
- * the login path when to upgrade a hash it just verified (T3).
+ * Password hashes carry their own parameters, so the algorithm can change later without a migration or a
+ * forced reset — `needsRehash` tells the login path when to upgrade a hash it just verified (T3).
+ *
+ * T118 (found live, 2026-10-08): Cloudflare Workers refuse a PBKDF2 call above 100,000 iterations
+ * ("iteration counts above 100000 are not supported") — every sign-up failed on the live site while the local
+ * runtime allowed it. The strength stays OWASP's 600,000: six chained PBKDF2 steps of 100,000, each step's
+ * output the next step's password, so an attacker still does all 600,000 iterations per guess.
+ *   current: `pbkdf2c$sha256$6x100000$salt$hash`
+ *   older (still verified where the runtime allows; upgraded at sign-in): `pbkdf2$sha256$N$salt$hash`
  */
 
 const enc = new TextEncoder();
 
 // ---------------------------------------------------------------------------- passwords
 
-const PBKDF2_ITERATIONS = 600_000; // OWASP 2023 for PBKDF2-HMAC-SHA256
+const PBKDF2_ITERATIONS = 600_000; // OWASP 2023 for PBKDF2-HMAC-SHA256 — in total
+/** The most iterations Cloudflare Workers allow in one PBKDF2 call. */
+export const PBKDF2_MAX_PER_CALL = 100_000;
+const PBKDF2_STEPS = PBKDF2_ITERATIONS / PBKDF2_MAX_PER_CALL;
+const CHAINED = /^(\d+)x(\d+)$/;
 const PBKDF2_KEY_BITS = 256;
 
 function toB64(bytes: ArrayBuffer | Uint8Array): string {
@@ -30,8 +40,9 @@ function fromB64(value: string): Uint8Array {
   return out;
 }
 
-async function pbkdf2(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
-  const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+async function pbkdf2(password: string | Uint8Array, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
+  const raw = typeof password === 'string' ? enc.encode(password) : password;
+  const key = await crypto.subtle.importKey('raw', raw as unknown as BufferSource, 'PBKDF2', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits(
     { name: 'PBKDF2', salt: salt as unknown as BufferSource, iterations, hash: 'SHA-256' },
     key,
@@ -40,14 +51,28 @@ async function pbkdf2(password: string, salt: Uint8Array, iterations: number): P
   return new Uint8Array(bits);
 }
 
+/** `steps` chained PBKDF2 calls of `perStep` iterations — never more than a Worker allows in one call. */
+async function chained(password: string, salt: Uint8Array, steps: number, perStep: number): Promise<Uint8Array> {
+  let key: string | Uint8Array = password;
+  for (let i = 0; i < steps; i++) key = await pbkdf2(key, salt, perStep);
+  return key as Uint8Array;
+}
+
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const hash = await pbkdf2(password, salt, PBKDF2_ITERATIONS);
-  return `pbkdf2$sha256$${PBKDF2_ITERATIONS}$${toB64(salt)}$${toB64(hash)}`;
+  const hash = await chained(password, salt, PBKDF2_STEPS, PBKDF2_MAX_PER_CALL);
+  return ['pbkdf2c', 'sha256', `${PBKDF2_STEPS}x${PBKDF2_MAX_PER_CALL}`, toB64(salt), toB64(hash)].join('$');
 }
 
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const parts = stored.split('$');
+  if (parts.length === 5 && parts[0] === 'pbkdf2c' && parts[1] === 'sha256') {
+    const m = CHAINED.exec(parts[2]!);
+    if (!m) return false;
+    const steps = Number(m[1]), perStep = Number(m[2]);
+    if (steps < 1 || steps > 50 || perStep < 1 || perStep > PBKDF2_MAX_PER_CALL) return false;
+    return timingSafeEqual(await chained(password, fromB64(parts[3]!), steps, perStep), fromB64(parts[4]!));
+  }
   if (parts.length !== 5 || parts[0] !== 'pbkdf2' || parts[1] !== 'sha256') return false;
   const iterations = Number(parts[2]);
   if (!Number.isFinite(iterations) || iterations < 1) return false;
@@ -60,8 +85,9 @@ export async function verifyPassword(password: string, stored: string): Promise<
 /** True when a verified hash used weaker parameters than we now require. Rehash on login. */
 export function needsRehash(stored: string): boolean {
   const parts = stored.split('$');
-  if (parts.length !== 5 || parts[0] !== 'pbkdf2') return true;
-  return Number(parts[2]) < PBKDF2_ITERATIONS;
+  if (parts.length !== 5 || parts[0] !== 'pbkdf2c') return true; // the older single-call form: a Worker cannot verify one above 100,000
+  const m = CHAINED.exec(parts[2]!);
+  return !m || Number(m[1]) * Number(m[2]) < PBKDF2_ITERATIONS;
 }
 
 export function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {

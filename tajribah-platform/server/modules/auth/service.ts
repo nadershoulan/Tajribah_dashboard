@@ -116,19 +116,23 @@ export async function register(input: RegisterInput, config: SessionSecrets): Pr
     throw errors.conflict('this email already has an account — sign in instead');
   }
 
-  const { tenant, derived } = await createTrialStore(db, input.storeName, input.locale);
-
-  const [user] = await db.insert(users).values({
-    id: uuidv7(),
-    email,
-    fullName: input.fullName,
-    passwordHash: await hashPassword(input.password),
-    locale: input.locale ?? 'ar',
-    phone: input.phone ? normalisePhone(input.phone) : null,
-  }).returning();
-
-  await db.insert(tenantMemberships).values({
-    id: uuidv7(), tenantId: tenant.id, userId: user.id, role: 'owner', status: 'active',
+  // T118: the slow, fallible work first — a failure here creates nothing — then the store, the person and the
+  // membership together: before, a hash refused by the live runtime left a store with no owner on each try.
+  const passwordHash = await hashPassword(input.password);
+  const { tenant, derived, user } = await db.transaction(async (tx) => {
+    const store = await createTrialStore(tx as unknown as typeof db, input.storeName, input.locale);
+    const [person] = await tx.insert(users).values({
+      id: uuidv7(),
+      email,
+      fullName: input.fullName,
+      passwordHash,
+      locale: input.locale ?? 'ar',
+      phone: input.phone ? normalisePhone(input.phone) : null,
+    }).returning();
+    await tx.insert(tenantMemberships).values({
+      id: uuidv7(), tenantId: store.tenant.id, userId: person!.id, role: 'owner', status: 'active',
+    });
+    return { ...store, user: person! };
   });
 
   const emailVerificationToken = await createVerificationToken({

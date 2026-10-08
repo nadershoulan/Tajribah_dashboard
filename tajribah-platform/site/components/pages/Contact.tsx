@@ -77,8 +77,9 @@ export default function Contact({ turnstileSiteKey = null }: { turnstileSiteKey?
             <label className="field"><span>{t('ماذا تبيع، وماذا تريد أن يجرّب عملاؤك؟', 'What do you sell, and what should shoppers try?')}</span>
               <textarea id="c-message" name="message" rows={5} maxLength={4000} />
             </label>
-            {/* The trap: off-screen and skipped by keyboards and password managers; a bot fills it, a person never sees it. */}
-            <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, overflow: 'hidden' }}>
+            {/* The trap: clipped to nothing (never moved off-screen — on a right-to-left page that made the page 10,000px
+                wide), skipped by keyboards and password managers; a bot fills it, a person never sees it. */}
+            <div aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clipPath: 'inset(50%)', whiteSpace: 'nowrap', opacity: 0, pointerEvents: 'none' }}>
               <label>Website<input name="website" tabIndex={-1} autoComplete="off" /></label>
             </div>
             {turnstileSiteKey && <Turnstile siteKey={turnstileSiteKey} lang={lang} onToken={setToken} resetKey={resets} />}

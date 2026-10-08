@@ -9,7 +9,7 @@ const SECRET = 'test-secret-at-least-32-characters-long!!';
 
 test('password verifies, and a wrong password does not', async () => {
   const stored = await hashPassword('correct horse battery staple');
-  assert.match(stored, /^pbkdf2\$sha256\$\d+\$/);
+  assert.match(stored, /^pbkdf2c\$sha256\$\d+x\d+\$/);
   assert.equal(await verifyPassword('correct horse battery staple', stored), true);
   assert.equal(await verifyPassword('Correct horse battery staple', stored), false);
   assert.equal(await verifyPassword('', stored), false);
@@ -120,4 +120,29 @@ test('timingSafeEqual compares contents, not references', () => {
   assert.equal(timingSafeEqual(new Uint8Array([1, 2, 3]), new Uint8Array([1, 2, 3])), true);
   assert.equal(timingSafeEqual(new Uint8Array([1, 2, 3]), new Uint8Array([1, 2, 4])), false);
   assert.equal(timingSafeEqual(new Uint8Array([1, 2]), new Uint8Array([1, 2, 3])), false);
+});
+
+test('T118: like a Cloudflare Worker, refuse any PBKDF2 call above 100,000 — hashing and verifying still work, at 600,000 in all', async () => {
+  const subtle = crypto.subtle as unknown as { deriveBits: (...a: unknown[]) => Promise<ArrayBuffer> };
+  const original = subtle.deriveBits.bind(crypto.subtle);
+  let calls = 0, total = 0;
+  subtle.deriveBits = async (params: unknown, ...rest: unknown[]) => {
+    const n = (params as { iterations: number }).iterations;
+    if (n > 100_000) throw new Error(`Pbkdf2 failed: iteration counts above 100000 are not supported (requested ${n}).`);
+    calls++; total += n;
+    return original(params, ...rest);
+  };
+  try {
+    const stored = await hashPassword('correct horse battery staple');
+    assert.match(stored, /^pbkdf2c\$sha256\$6x100000\$[A-Za-z0-9+/=]+\$[A-Za-z0-9+/=]+$/);
+    assert.equal(total, 600_000, 'the full strength, in calls a Worker accepts');
+    assert.equal(calls, 6);
+    assert.equal(await verifyPassword('correct horse battery staple', stored), true);
+    assert.equal(await verifyPassword('wrong horse', stored), false);
+    assert.equal(needsRehash(stored), false);
+    assert.equal(needsRehash('pbkdf2$sha256$600000$c2FsdA==$aGFzaA=='), true, 'the older single-call form is upgraded at sign-in');
+    assert.equal(needsRehash('pbkdf2c$sha256$2x100000$c2FsdA==$aGFzaA=='), true, 'fewer than 600,000 in all');
+    assert.equal(await verifyPassword('x', 'pbkdf2c$sha256$1x900000$c2FsdA==$aGFzaA=='), false, 'never a step above the limit');
+    assert.equal(await verifyPassword('x', 'pbkdf2c$sha256$99x100000$c2FsdA==$aGFzaA=='), false, 'nor an absurd number of steps');
+  } finally { subtle.deriveBits = original; }
 });

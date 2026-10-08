@@ -18,9 +18,9 @@ P5 Try-on         ████████████████████�
 P6 AI+connectors  ████████████████░░░░░░░░░░░░░░░░   7 / 14   (+ recommendations without AI) · the rest needs AI providers · Shopify, Zid → v2
 P7 Scale          ████████████░░░░░░░░░░░░░░░░░░░░   5 / 13   · live: background work, caching, safe updates, backups, rate limits · monitoring needs an account, load tests and database speed a staging copy
 P8 Enterprise     ███████████████████░░░░░░░░░░░░░   7 / 12
-M  Marketing      █████████████████████████████░░░  11 / 12   (+ 1 partly) · the website, now in this platform (site/)
+M  Marketing      ████████████████████████████████  12 / 12   · the website, now in this platform (site/) — complete; real customer stories replace the examples as customers agree
 A  Admin console  ████████████████████████████░░░░  13 / 15   (+ A7 partly) · A8 payments needs Moyasar
-                                            overall 119 / 165
+                                            overall 120 / 165
 ```
 
 "Done" means the check was **run and seen to pass**, and also seen to **fail** when the
@@ -170,7 +170,7 @@ The public site that sells Tajribah, Arabic first.
 | ✅ | M10 Company & careers | About and careers pages |
 | ✅ | M11 Legal pages | Privacy, terms, refunds, cookies — need a lawyer's review before launch |
 | ✅ | M1 Site setup | Built; site analytics (Google Analytics 4) behind an Arabic-first consent banner — nothing loads before "Accept", ads always off; on once you give a GA4 id |
-| ◐ | M9 Customer stories | The page exists, with its stories clearly marked as examples; real ones need real customers |
+| ✅ | M9 Customer stories | Built: `/customers`, with three stories clearly marked as examples. Counted done 2026-10-08 (your call): what is left is content, not building — real logos, quotes and figures go in when customers agree to them in writing (never invented) |
 | ✅ | M12 Search engines & conversion | Sitemap, page titles and share cards done, all on **tajribah.org** (T82; was tajribah.sa, T29). **Conversion (T32):** "Start with this plan" now opens the dashboard's sign-up at app.tajribah.sa with the plan (Enterprise: talk to sales); the install lines on the Integrations page fixed (wrong script address, no store key) and a claim of a feature that is not built removed. **Left:** the domains themselves (DNS) **Done 2026-10-08: live on tajribah.org; robots.txt fixed, manifest, favicon, og:url, structured data; sign-up in the header; Search Console file live.** |
 
 ## P4 — analytics (started 2026-09-27, shared with the other session)

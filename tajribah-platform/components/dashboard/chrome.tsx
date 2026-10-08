@@ -403,6 +403,10 @@ export function Shell({ tenant, crumbs = [], children }: {
                 {t('بيانات تجريبية', 'Demo data')}
               </span>
             )}
+            {/* Staff: one tap back to the staff console from any store screen (the sidebar link is also there). */}
+            {me?.user.isStaff && !me?.staffView && (
+              <AppLink href="/admin" className="btn btn-ghost btn-sm staff-console-btn" aria-label={t('لوحة الموظفين', 'Staff console')}><ShieldAlert size={14} aria-hidden /><span>{t('لوحة الموظفين', 'Staff console')}</span></AppLink>
+            )}
             <CommandPalette />
             <ThemeToggle />
             <LangToggle />

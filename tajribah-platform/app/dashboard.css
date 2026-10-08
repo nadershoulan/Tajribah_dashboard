@@ -214,6 +214,8 @@ button { font: inherit; color: inherit; }
 /* The buttons never shrink (they cannot get narrower, they would only spill out); the
    breadcrumb takes all the squeeze and ends in an ellipsis. */
 .top-actions { margin-inline-start: auto; display: flex; align-items: center; gap: 8px; flex: none; }
+/* Staff console button: icon only on a phone, so the top bar never overflows. */
+@media (max-width: 600px) { .staff-console-btn span { display: none; } }
 .crumbs, .demo-flag, .tenant-switch { white-space: nowrap; }
 .crumbs { min-width: 0; overflow: hidden; flex: 0 1 auto; }
 /* A long product name ends in an ellipsis instead of pushing the store switcher off a phone. */

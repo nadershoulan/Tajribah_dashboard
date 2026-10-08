@@ -1910,3 +1910,20 @@ rule, which T110 removed. Its settings file is built from the same sources as th
 of its own.
 
 **Rollback path.** `systemctl disable --now tajribah-worker`. Cost: low; those jobs then wait in the queue.
+
+## T117 · 2026-10-08 · A staging copy (P0.22)
+
+**Decision.** Staging is the same code on `staging.tajribah.org`, sharing **nothing it could write to** with
+production:
+- its own database on the same server, with logins that can reach only it. `CONNECT` is revoked from PUBLIC on
+  both databases, so neither copy's logins open the other's database;
+- its own KV, buckets, queue and Hyperdrive configurations. It reaches its database through the same tunnel, with
+  the same Access token, which proves only "this is Cloudflare", not which database;
+- its own AUTH_SECRET and ENCRYPTION_KEY, so a production session or token means nothing there.
+
+It is closed to search engines (`SITE_NOINDEX=1`). It runs with `NODE_ENV=production`, so the boot checks, rate
+limits and Turnstile rule are the real ones. A test fails if the two ever share a resource.
+- **Left:** deploying from CI (a Cloudflare API token in GitHub secrets) and an R2 upload key for its own bucket.
+  It never gets production's key.
+
+**Rollback path.** `npx wrangler delete tajribah-staging`, drop the staging database and logins. Cost: low.

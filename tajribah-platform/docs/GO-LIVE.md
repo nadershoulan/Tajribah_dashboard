@@ -199,7 +199,15 @@ since production refuses console SMS).
       product in Zid → it updates within a minute (the webhook). Then confirm the four details in DECISIONS T61
       (page size, unpublished products, a missing price, a refused refresh) and capture Zid's uninstall
       message to handle it.
-- [ ] Custom domains (P8, T62), with the Cloudflare account: enable **Cloudflare for SaaS** on the zone
+- [ ] Custom domains (P8, T62) — **state on 2026-10-08:** Cloudflare for SaaS **on** for tajribah.org (100 hostnames included);
+      DNS `domains` A 192.0.2.1 proxied; fallback origin **domains.tajribah.org** set; token "Tajribah custom hostnames
+      (tajribah.org)" (SSL and Certificates: Edit, this zone only) and `CLOUDFLARE_SAAS_ZONE_ID` in `.env.production.local`
+      and on the Worker; routes `cdn.tajribah.org/*` and `pg.tajribah.org/*` with Workers disabled. **Left — the routing:**
+      a `*/*` route to `tajribah` catches *other Workers' custom domains too* (tried 2026-10-08: cfg. and staging. were
+      redirected to tajribah.org for ~3 minutes; removed). So first add `cfg.tajribah.org/*` → `tajribah-config-host` and
+      `staging.tajribah.org/*` → `tajribah-staging`, check both, then add `*/*` → `tajribah`, and check every hostname
+      (cdn, cfg, ev, www, app, staging, /api/health/ready). Any new proxied hostname on the zone needs its own route.
+      Original steps: enable **Cloudflare for SaaS** on the zone
       that serves the website (`tajribah.org`); its fallback origin **`domains.tajribah.org`** (or set
       **`CUSTOM_DOMAIN_TARGET`** on the dashboard Worker to the one chosen). On the dashboard Worker set
       **`CLOUDFLARE_SAAS_ZONE_ID`** and **`CLOUDFLARE_SAAS_API_TOKEN`** (a token that may edit that zone's

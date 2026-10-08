@@ -225,13 +225,17 @@ export async function collectThenAnswer(request: Request, deps: { secret: string
   const read = await readBatch(request);
   if (typeof read === 'string') { counts[read] += 1; return read; }
   const headers = new Headers(request.headers);
+  // Kept across attempts: a retry after the rows were written does not write them again, nor count the visitor twice.
+  const progress: Progress = {};
   await afterAnswer('collect', async () => {
-    counts[await keep(read, headers, deps.secret, receivedAt, deps.limits ?? COLLECT_LIMITS)] += 1;
+    counts[await keep(read, headers, deps.secret, receivedAt, deps.limits ?? COLLECT_LIMITS, progress)] += 1;
   });
   return 'accepted';
 }
 
 type Read = { key: string; body: unknown };
+/** What one batch's work has already done, should it run again. */
+type Progress = { passed?: { storeId: string; device: ReturnType<typeof deviceOf> }; written?: { days: Set<string> } };
 
 /**
  * The checks that need nothing but the request: size, JSON, a store key. The contract is judged later, after
@@ -249,7 +253,42 @@ async function readBatch(request: Request): Promise<Read | 'too_large' | 'not_js
 }
 
 /** Everything else: the store, robots, the limits, then the rows and their roll-up. */
-async function keep({ key, body }: Read, headers: Headers, secret: string, receivedAt: Date, limits: Limits): Promise<CollectOutcome> {
+async function keep({ key, body }: Read, headers: Headers, secret: string, receivedAt: Date, limits: Limits, progress: Progress = {}): Promise<CollectOutcome> {
+  const now = receivedAt.getTime();
+  if (progress.written) {
+    await queueRollups(progress.passed!.storeId, progress.written.days, now);
+    return 'accepted';
+  }
+  const checked = progress.passed ?? await admit(key, headers, secret, receivedAt, limits);
+  if (typeof checked === 'string') return checked;
+  progress.passed = checked;
+  const { storeId, device } = checked;
+  const day = riyadhDay(receivedAt);
+
+  const parsed = parseBatch(body);
+  if (!parsed.ok) return 'invalid';
+  const batch = parsed.batch;
+
+  const refs = [...new Set(batch.events.map((e) => e.productId).filter((ref): ref is string => !!ref))];
+  const resolved = await resolveProducts(storeId, refs, now);
+  const sessionId = await keyedHash(secret, 'analytics-session', `${storeId}:${day}:${batch.session}`);
+  const place = placeOf(headers);
+  const referrerHost = pageHost(headers);
+  const rows = batch.events.map((event) => toRow(event, batch, {
+    tenantId: storeId, sessionId, receivedAt,
+    // A reference this store does not have is counted for the store and for no product.
+    productId: event.productId ? resolved.get(event.productId) ?? null : null,
+    deviceType: device.deviceType, os: device.os, browser: device.browser, ...place, referrerHost,
+  }));
+
+  await withTenant(storeId, (tx) => tx.insert(analyticsEvents, rows));
+  progress.written = { days: new Set(rows.map((row) => riyadhDay(row.occurredAt as Date))) };
+  await queueRollups(storeId, progress.written.days, now);
+  return 'accepted';
+}
+
+/** The store, robots and the two limits: whether this batch is taken at all. */
+async function admit(key: string, headers: Headers, secret: string, receivedAt: Date, limits: Limits): Promise<CollectOutcome | NonNullable<Progress['passed']>> {
   const now = receivedAt.getTime();
   const store = await storeOf(key, now);
   if (!store) return 'unknown_store';
@@ -278,26 +317,7 @@ async function keep({ key, body }: Read, headers: Headers, secret: string, recei
     }
     return 'limited_store';
   }
-
-  const parsed = parseBatch(body);
-  if (!parsed.ok) return 'invalid';
-  const batch = parsed.batch;
-
-  const refs = [...new Set(batch.events.map((e) => e.productId).filter((ref): ref is string => !!ref))];
-  const resolved = await resolveProducts(store.id, refs, now);
-  const sessionId = await keyedHash(secret, 'analytics-session', `${store.id}:${day}:${batch.session}`);
-  const place = placeOf(headers);
-  const referrerHost = pageHost(headers);
-  const rows = batch.events.map((event) => toRow(event, batch, {
-    tenantId: store.id, sessionId, receivedAt,
-    // A reference this store does not have is counted for the store and for no product.
-    productId: event.productId ? resolved.get(event.productId) ?? null : null,
-    deviceType: device.deviceType, os: device.os, browser: device.browser, ...place, referrerHost,
-  }));
-
-  await withTenant(store.id, (tx) => tx.insert(analyticsEvents, rows));
-  await queueRollups(store.id, new Set(rows.map((row) => riyadhDay(row.occurredAt as Date))), now);
-  return 'accepted';
+  return { storeId: store.id, device };
 }
 
 /** The answer the browser gets: nothing to read in any case, and no hint of which limit was met. */

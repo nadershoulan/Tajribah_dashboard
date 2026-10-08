@@ -317,3 +317,23 @@ test('P7: the Worker answers once the batch is checked, and writes it after — 
     assert.ok(collectorCounts().unknown_store >= 1, 'counted when the work ran');
   } finally { setBackgroundRunner(null); await harness.close(); }
 });
+
+test('T124: a write retried after its rows went in does not write them twice — it only finishes the roll-up', async () => {
+  const harness = await createTestDb();
+  resetCollector(); setRateLimiter(new MemoryRateLimiter());
+  const later: Promise<unknown>[] = [];
+  setBackgroundRunner((work) => { later.push(work); });
+  try {
+    await shop(harness, 'oud-shop');
+    const { sql } = await import('drizzle-orm');
+    // The roll-up's table goes missing for a moment: the rows are written, queuing the roll-up fails.
+    await harness.asAdmin(() => harness.db.execute(sql`ALTER TABLE jobs RENAME TO jobs_away`));
+    await collectThenAnswer(post(sdkBatch('oud-shop', [{ type: 'product_view', productId: 'sku-41' }, { type: 'ar_open', productId: 'sku-41' }])), { secret: SECRET, now: NOW });
+    await new Promise((r) => setTimeout(r, 50));
+    await harness.asAdmin(() => harness.db.execute(sql`ALTER TABLE jobs_away RENAME TO jobs`)); // back before the retry (250 ms)
+    await Promise.all(later);
+    assert.equal((await stored(harness)).length, 2, 'the two events once, not four');
+    const queued = await harness.asAdmin(() => harness.db.select().from(jobs));
+    assert.equal(queued.filter((j) => j.queue === 'analytics.rollup').length, 1, 'and the roll-up was queued on the retry');
+  } finally { setBackgroundRunner(null); await harness.close(); }
+});

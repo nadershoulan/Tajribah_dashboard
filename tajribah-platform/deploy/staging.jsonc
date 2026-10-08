@@ -48,6 +48,8 @@
     "SMTP_USER": "info@baqah.org",
     "EMAIL_FROM": "Tajribah Staging <no-reply@tajribah.org>",
     "SMS_PROVIDER": "none",
+    // T115: the contact form's Turnstile widget (tajribah-contact; public by design — it is in every page). The secret is in the env file.
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAFRGb2mOjQQTPIzK",
     "LOG_LEVEL": "info"
   }
 }

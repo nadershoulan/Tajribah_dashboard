@@ -33,6 +33,7 @@ export const NEEDED = {
   R2_ACCESS_KEY_ID: 'direct uploads to tajribah-files (already there)',
   R2_SECRET_ACCESS_KEY: 'direct uploads to tajribah-files (already there)',
   SMTP_PASSWORD: 'the Zoho app password for info@baqah.org (Security → App Passwords) — sign-in and invoice emails',
+  TURNSTILE_SECRET_KEY: 'the contact form’s Cloudflare Turnstile secret (Turnstile → tajribah-contact) — without it the live form refuses messages',
   DATABASE_APP_URL: 'the tajribah_app login on the server (for --create-hyperdrive and the Node worker)',
   DATABASE_ADMIN_URL: 'the tajribah_admin login on the server (likewise)',
 };

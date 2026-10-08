@@ -61,6 +61,8 @@
     "EMAIL_FROM": "Tajribah <no-reply@tajribah.org>",
     // T110: no feature sends SMS in this version; Unifonic moves to version 2.
     "SMS_PROVIDER": "none",
+    // T115: the contact form's Turnstile widget (tajribah-contact; public by design — it is in every page). The secret is in the env file.
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAFRGb2mOjQQTPIzK",
     "LOG_LEVEL": "info"
   }
 }

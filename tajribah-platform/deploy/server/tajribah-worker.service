@@ -1,0 +1,24 @@
+# T116 — the Node worker (scripts/worker-node.mjs): the two jobs that need sharp and cannot run on Workers —
+# ai.postprocess (optimising an uploaded 3D model) and tryon.quality (checking a try-on picture). Everything else
+# runs on the Cloudflare Worker. Installed and restarted by scripts/deploy/push-server.sh with the other units.
+# Settings (secrets, root only): /etc/tajribah/worker.env — the production variables; STORAGE_PROVIDER=s3.
+# Status: systemctl status tajribah-worker · logs: journalctl -u tajribah-worker
+[Unit]
+Description=Tajribah Node worker (model and picture jobs)
+After=postgresql.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tajribah
+WorkingDirectory=/opt/tajribah/app
+EnvironmentFile=/etc/tajribah/worker.env
+ExecStart=/usr/bin/node scripts/worker-node.mjs
+Restart=always
+RestartSec=5
+Nice=5
+# sharp may use memory on a large picture; the machine has 8 GB and 2 GB swap — keep the worker within 3 GB.
+MemoryMax=3G
+
+[Install]
+WantedBy=multi-user.target

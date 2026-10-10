@@ -190,7 +190,7 @@ function TryItOn({ product }: { product: ProductRow }) {
       {loading && <Loading rows={2} />}
       {error && <ErrorNote error={error} />}
       {data && <PreviewNotes data={data} productId={product.id} />}
-      {data?.picture === 'store' && data.kind && data.config && <ClearBackground product={product} kind={data.kind} own={data.own} url={String(data.config.tryon.worn)} onSaved={() => setVersion((v) => v + 1)} />}
+      {data?.kind && data.picture && <PictureEditor product={product} kind={data.kind} own={data.own} hasOwn={data.picture === 'cutout'} onSaved={() => setVersion((v) => v + 1)} />}
       {frame
         ? <iframe key={configKey} ref={frameRef} src={frame} title={t('التجربة الافتراضية', 'The virtual try-on')} className={'preview-tryon-frame' + (height ? ' is-ready' : '')} style={height ? { height } : undefined} scrolling="no" allow="camera" />
         : data && kind && (
@@ -206,13 +206,12 @@ function TryItOn({ product }: { product: ProductRow }) {
 const TYPE_OF: Record<TryOnKind, ProductRow['productType']> = { watch: 'watch', glasses: 'eyewear', bag: 'bag', ring: 'jewelry', necklace: 'jewelry', earring: 'jewelry' };
 
 /**
- * T88, T128 — the store picture made the try-on picture: «حرّر الصورة» opens the picture editor on it (its plain
- * background already off and cropped to the product, as the old one-click button did; turn, crop, light… if needed),
- * and saving sends it through the same upload and checks as a cut-out made by hand. A product of another type is
- * first set up as what it is being tried as — the hint says so. (The one-click button went, Nader 2026-10-10: the
- * editor does the same in one press of «احفظ للتجربة», and shows the result first.)
+ * T88, T128, T133 — the try-on picture, edited here. «حرّر الصورة» opens the picture editor on the product's own try-on
+ * picture when it has one (to edit it again — it never disappears once saved, Nader 2026-10-11), and on its store
+ * pictures either way (the background already off and cropped to the product). Saving sends it through the same upload
+ * and checks as a cut-out made by hand. A product of another type is first set up as what it is being tried as.
  */
-function ClearBackground({ product, kind, own, url, onSaved }: { product: ProductRow; kind: TryOnKind; own: TryOnKind | null; url: string; onSaved: () => void }) {
+function PictureEditor({ product, kind, own, hasOwn, onSaved }: { product: ProductRow; kind: TryOnKind; own: TryOnKind | null; hasOwn: boolean; onSaved: () => void }) {
   const { t, pick } = useLang();
   const source = useData();
   const lock = useWriteLock();
@@ -226,17 +225,23 @@ function ClearBackground({ product, kind, own, url, onSaved }: { product: Produc
     if (kind === 'watch') await source.uploadCutout(product.id, 'flat', file);
     onSaved();
   };
+  const sources = [
+    ...(hasOwn ? [{ id: 'current', label: { ar: 'صورة التجربة الحالية', en: 'The current try-on picture' }, load: () => source.cutoutImage(product.id, 'worn') }] : []),
+    ...(product.images ?? []).map((url, i) => ({ id: `store-${i}`, label: { ar: `صورة المتجر ${i + 1}`, en: `Store picture ${i + 1}` }, thumb: url, store: true, load: () => source.storePhoto(product.id, url) })),
+  ];
+  if (!sources.length) return null;
   return (
     <div className="preview-clear">
-      <button type="button" className="btn btn-primary btn-sm" disabled={lock.locked} onClick={() => setEditing(true)}>
+      <button type="button" className={`btn btn-sm ${hasOwn ? 'btn-ghost' : 'btn-primary'}`} disabled={lock.locked} onClick={() => setEditing(true)}>
         <Wand2 size={15} aria-hidden />{t('حرّر الصورة', 'Edit picture')}
       </button>
       {editing && <ImageEditor open title={`${t('محرّر الصور', 'Picture editor')} — ${t(product.nameAr ?? product.name, product.name)}`} fileName={`tajribah-${product.id}.png`}
-        sources={[{ id: 'store', label: { ar: 'صورة المتجر', en: 'The store picture' }, thumb: url, store: true, load: () => source.storePhoto(product.id, url) }]}
-        onSave={keep} onClose={() => setEditing(false)} />}
-      <span className="hint" style={{ margin: 0 }}>{retypes
-        ? t(`تُزال الخلفية تلقائيًا، ثم «احفظ للتجربة» — ويصبح نوعه «${pick(KIND_LABEL[kind])}».`, `The background comes off by itself, then “Save to the try-on” — and its type becomes “${pick(KIND_LABEL[kind])}”.`)
-        : t('تُزال الخلفية تلقائيًا ويُقصّ على المنتج؛ عدّل ما تريد ثم «احفظ للتجربة».', 'The background comes off by itself, cropped to the product; adjust anything, then “Save to the try-on”.')}</span>
+        sources={sources} initialSource={sources[0]!.id} onSave={keep} onClose={() => setEditing(false)} />}
+      <span className="hint" style={{ margin: 0 }}>{hasOwn
+        ? t('عدّل صورة التجربة المحفوظة متى شئت، أو ابدأ من جديد من صورة المتجر.', 'Edit the saved try-on picture any time, or start again from a store picture.')
+        : retypes
+          ? t(`تُزال الخلفية تلقائيًا، ثم «احفظ للتجربة» — ويصبح نوعه «${pick(KIND_LABEL[kind])}».`, `The background comes off by itself, then “Save to the try-on” — and its type becomes “${pick(KIND_LABEL[kind])}”.`)
+          : t('تُزال الخلفية تلقائيًا ويُقصّ على المنتج؛ عدّل ما تريد ثم «احفظ للتجربة».', 'The background comes off by itself, cropped to the product; adjust anything, then “Save to the try-on”.')}</span>
     </div>
   );
 }

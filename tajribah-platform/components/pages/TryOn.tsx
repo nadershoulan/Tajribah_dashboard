@@ -194,7 +194,7 @@ function WatchCard({ initial, editable, onUnmarked, number = null }: { initial: 
             }}
             onMark={editable && w.quality[slot] && !w.quality[slot]!.issue ? () => setMarking(slot) : undefined}
             // T93: a watch's product shot is often the very same cut-out — one click copies it over
-            onSameAsWorn={slot === 'flat' && w.worn && !w.flat && editable ? () => {
+            onSameAsWorn={slot === 'flat' && w.worn && editable ? () => { // T133: also once a product shot exists — to use the watch picture again
               setMarking(null);
               void run(slot, async () => {
                 const worn = await source.cutoutImage(w.productId, 'worn');
@@ -325,7 +325,7 @@ function Picture({ kind, productId, slot, has, quality, disabled, busy, onPick, 
         )}
         <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} onClick={() => { setChoosing(false); setEditing(true); }}><Wand2 size={14} aria-hidden />{t('حرّر الصورة', 'Edit picture')}</button>
         {has && onMark && <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} onClick={onMark}>{pick(KIND_WORDS[kind].markButton)}</button>}
-        {!has && onSameAsWorn && <button type="button" className="btn btn-primary btn-sm" disabled={disabled} onClick={onSameAsWorn}>{t('استخدم صورة الساعة نفسها', 'Use the same watch picture')}</button>}
+        {onSameAsWorn && <button type="button" className={`btn btn-sm ${has ? 'btn-ghost' : 'btn-primary'}`} disabled={disabled} onClick={onSameAsWorn}>{t('استخدم صورة الساعة نفسها', 'Use the same watch picture')}</button>}
       </div>
       {editing && <ImageEditor open title={`${t('محرّر الصور', 'Picture editor')} — ${pick(info.label)}`} sources={editorSources}
         initialSource={has ? 'current' : editorSources[0]?.id} fileName={`tajribah-${slot}.png`}

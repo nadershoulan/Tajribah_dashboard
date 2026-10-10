@@ -7,17 +7,44 @@
 
 const HEX = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, '0'));
 
-/** RFC 9562 uuid v7. Time-ordered; safe to expose. */
+// The last millisecond an id was minted in, and the sequence within it (RFC 9562 §6.2, method 1: rand_a as a counter).
+let lastMs = -1;
+let seq = 0;
+
+/**
+ * RFC 9562 uuid v7. Time-ordered; safe to expose. **Strictly increasing within one process**: ids minted in the same
+ * millisecond count up in the 12 bits after the timestamp (starting from a random point in the lower half, so a
+ * thousand-odd ids fit before the next millisecond is borrowed). Lists ordered by id — "newest first" — are then exact
+ * even for rows made in the same instant (T133: a test saw two same-millisecond products swap places).
+ * A time earlier than the last (a clock step back, or a test minting an old id) gets its own random sequence and keeps
+ * the time it was given.
+ */
 export function uuidv7(now: number = Date.now()): string {
   const b = new Uint8Array(16);
   crypto.getRandomValues(b);
-  b[0] = Math.floor(now / 2 ** 40) & 0xff;
-  b[1] = Math.floor(now / 2 ** 32) & 0xff;
-  b[2] = Math.floor(now / 2 ** 24) & 0xff;
-  b[3] = Math.floor(now / 2 ** 16) & 0xff;
-  b[4] = Math.floor(now / 2 ** 8) & 0xff;
-  b[5] = now & 0xff;
-  b[6] = (b[6] & 0x0f) | 0x70; // version 7
+  let ms = now;
+  let counter: number;
+  if (ms === lastMs || (ms < lastMs && ms > lastMs - 2)) {
+    // the same millisecond (or one just borrowed): count up; past 12 bits, borrow the next millisecond
+    ms = lastMs;
+    seq++;
+    if (seq > 0xfff) { lastMs++; ms = lastMs; seq = ((b[6]! << 8) | b[7]!) & 0x7ff; }
+    counter = seq;
+  } else if (ms > lastMs) {
+    lastMs = ms;
+    seq = ((b[6]! << 8) | b[7]!) & 0x7ff;
+    counter = seq;
+  } else {
+    counter = ((b[6]! << 8) | b[7]!) & 0xfff;
+  }
+  b[0] = Math.floor(ms / 2 ** 40) & 0xff;
+  b[1] = Math.floor(ms / 2 ** 32) & 0xff;
+  b[2] = Math.floor(ms / 2 ** 24) & 0xff;
+  b[3] = Math.floor(ms / 2 ** 16) & 0xff;
+  b[4] = Math.floor(ms / 2 ** 8) & 0xff;
+  b[5] = ms & 0xff;
+  b[6] = 0x70 | (counter >> 8); // version 7, then the counter's top 4 bits
+  b[7] = counter & 0xff;
   b[8] = (b[8] & 0x3f) | 0x80; // variant 10xx
   const h = HEX;
   return (

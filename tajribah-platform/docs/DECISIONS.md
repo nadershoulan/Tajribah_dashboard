@@ -2126,3 +2126,22 @@ both reports behaved correctly.
 
 **Trade-off.** Every read reaches Postgres; the connection limits set for the load test (T124) already size for it.
 **Rollback path.** `wrangler hyperdrive update <id> --max-age 60 --swr 15`. Cost: low.
+
+## T133 · 2026-10-11 · Nothing is hidden because it is done; ids strictly increasing
+
+**Decision (Nader: "follow this principle throughout the project").** Once something is saved or published, the way to
+change it again stays on the screen, and saved values reload into their fields. A control is conditioned on whether it
+*can* act, never on whether the thing has been done.
+- The product preview's «حرّر الصورة» was shown only while the product used its store photo, so it vanished after a
+  save. It now always shows (when there is any picture): it opens on the saved try-on picture when there is one, with
+  the store pictures as other starting points.
+- The try-on page's «استخدم صورة الساعة نفسها» now stays once a product shot exists (to use the watch picture again).
+- Audit of the dashboard for controls hidden after a save or publish: the try-on page, display settings and product
+  page keep their forms; onboarding's step buttons are a checklist, not edits.
+
+**Also: uuid v7 ids now count up within a millisecond** (RFC 9562 §6.2 method 1, the 12 bits after the timestamp as a
+counter, borrowing the next millisecond past 4 095). A test of "newest first" by id failed about one run in six —
+two products made in the same millisecond took random bits and could swap. Every list ordered by id is now exact.
+A time earlier than the last keeps its own timestamp (tests mint old ids).
+
+**Rollback path.** Revert the commit. Cost: low.

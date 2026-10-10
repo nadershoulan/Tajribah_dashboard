@@ -139,6 +139,7 @@ try-on: full screen, the store's feel, nothing that says "you left the shop".
 | Date | Phase | What happened |
 |---|---|---|
 | 2026-10-11 | — | Plan written after reading the studio, capture page, pairing API and QR code paths. |
+| 2026-10-11 | 3, 4 | Live (prod 84d6c75c, staging fb428b1d): the same walk on tajribah.org — watch, ring (camera refused), glasses, ended session, and a real store's watch (owner-3 / 23446039, 25 mm) from its try-on frame: the store's name and product on the phone, no Tajribah. The store is still named «owner» in its settings (Nader to rename). |
 | 2026-10-11 | 3, 4 | The phone page is the try-on: full screen, store-first, live camera with the kind's guide and live feedback, the product following the hand, capture / adjust / shots / send; the pairing carries the product (read on the server). Guide on the studio's «عليّ». Watch rule: case edge 10 mm above the crease (MediaPipe's wrist point checked on the photo: on the crease). Next: Phase 6 (store-set zones). |
 | 2026-10-11 | 5 | Placement engine (watch true size, on the wrist, across the arm), harder hand detection (turned photos, weaker sighting), confidence note; walked on the real wrist photo upright and sideways. Next: Phase 4 (guides) with Phase 3 (phone page). |
 | 2026-10-11 | 1, 2 | Shadow (contact + ambient, product-shaped, per kind) and the QR corner mark (level H, read back by jsQR) built, walked, deployed. Next: Phase 5, the placement engine. |

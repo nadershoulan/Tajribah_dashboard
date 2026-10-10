@@ -6,13 +6,14 @@
  * field in `Edits`, its neutral value in `NO_EDITS`, and a control in the editor's tool list); nothing else changes.
  *
  * The order is deliberate: the merchant's erase clicks land on the picture as the store took it (so a later turn or
- * crop never moves them); the background comes off that same picture (its edges must still be the plain colour); then
- * the manual crop (on the picture as seen before turning it), the turn and the mirror, the
+ * crop never moves them); the background comes off that same picture (its edges must still be the plain colour), which
+ * keeps its size; the selections used (T131) cut that same picture; then the manual crop (on the picture as seen before turning it), the turn and the mirror, the
  * light and colour, the crop to the product, the clear margin, and last the size.
  *
  * Nothing here talks to the network or the page; the editor decodes the picture, calls `applyEdits`, and draws.
  */
 import { NEAR, removeBackground, type Rgba } from './background';
+import { applyCut, type Cut } from './selection';
 
 export type { Rgba };
 
@@ -22,11 +23,13 @@ export type Spot = { x: number; y: number };
 export type Edits = {
   /** Click-to-erase: each spot clears the area round it that shares its colour (a bust, a shadow, a second backdrop). */
   erase: Spot[];
+  /** T131: selections used — what was selected cleared, or everything else (lib/selection.ts). */
+  cuts: Cut[];
   /** Take a plain (one-colour) background off — the store picture's white, usually. */
   removeBackground: boolean;
   /** How far from the background colour still counts as background (RGB distance; `NEAR` is the default). */
   tolerance: number;
-  /** Percent cut from each side, 0…45 — before turning, as the picture is seen. */
+  /** Percent cut from each side, 0…95 (at least 5% is left each way) — before turning, as the picture is seen. */
   cropTop: number; cropRight: number; cropBottom: number; cropLeft: number;
   /** Degrees, clockwise; any angle. Quarter turns are exact (no resampling). */
   rotate: number;
@@ -47,7 +50,7 @@ export type Edits = {
 };
 
 export const NO_EDITS: Edits = {
-  erase: [], removeBackground: false, tolerance: NEAR, cropTop: 0, cropRight: 0, cropBottom: 0, cropLeft: 0,
+  erase: [], cuts: [], removeBackground: false, tolerance: NEAR, cropTop: 0, cropRight: 0, cropBottom: 0, cropLeft: 0,
   rotate: 0, flipX: false, flipY: false, brightness: 0, contrast: 0, saturation: 0, trim: false, padding: 0, scale: 100,
 };
 
@@ -156,11 +159,11 @@ export function adjust(img: Rgba, brightness: number, contrast: number, saturati
   return out;
 }
 
-/** Cut a share (percent, 0…45) from each side. Null when nothing is left. */
+/** Cut a share (percent, 0…95) from each side. Null when nothing is left. */
 export function crop(img: Rgba, top: number, right: number, bottom: number, left: number): Rgba | null {
   const { width: w, height: h, data } = img;
-  const x0 = Math.round((w * clamp(left, 0, 45)) / 100), x1 = w - Math.round((w * clamp(right, 0, 45)) / 100);
-  const y0 = Math.round((h * clamp(top, 0, 45)) / 100), y1 = h - Math.round((h * clamp(bottom, 0, 45)) / 100);
+  const x0 = Math.round((w * clamp(left, 0, 95)) / 100), x1 = w - Math.round((w * clamp(right, 0, 95)) / 100);
+  const y0 = Math.round((h * clamp(top, 0, 95)) / 100), y1 = h - Math.round((h * clamp(bottom, 0, 95)) / 100);
   const cw = x1 - x0, ch = y1 - y0;
   if (cw < 1 || ch < 1) return null;
   if (cw === w && ch === h) return img;
@@ -192,6 +195,59 @@ export function pad(img: Rgba, percent: number): Rgba {
   const out = blank(W, H);
   for (let j = 0; j < img.height; j++) out.data.set(img.data.subarray(j * img.width * 4, (j + 1) * img.width * 4), ((j + m) * W + m) * 4);
   return out;
+}
+
+// ------------------------------------------------------------------ the crop box (T130)
+
+export type CropBox = Pick<Edits, 'cropTop' | 'cropRight' | 'cropBottom' | 'cropLeft'>;
+/** A handle on the crop box: an edge (one side), a corner (two sides at once), or the box itself (moves it). */
+export type CropHandle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw' | 'move';
+/** The least share of the picture a crop leaves, each way. */
+export const CROP_KEEP = 5;
+
+const r1 = (v: number) => Math.round(v * 10) / 10;
+
+/** Two opposite sides that must leave CROP_KEEP between them: the side(s) that grew give back the excess. */
+function fitPair(a: number, b: number, a0: number, b0: number): [number, number] {
+  a = Math.max(0, a); b = Math.max(0, b);
+  const excess = a + b - (100 - CROP_KEEP);
+  if (excess <= 0) return [a, b];
+  const da = Math.max(0, a - a0), db = Math.max(0, b - b0);
+  if (da + db === 0) { const k = (100 - CROP_KEEP) / (a + b); return [a * k, b * k]; }
+  return [a - (excess * da) / (da + db), b - (excess * db) / (da + db)];
+}
+
+/**
+ * Where the crop box goes when a handle is dragged by (dx, dy) — shares of the picture's width and height, in percent,
+ * on screen (x to the right, y down, whatever the language). An edge moves its side; a corner its two sides together;
+ * the box moves whole, staying inside the picture. `linked`: every side moves in or out by the same amount (the
+ * picture is trimmed evenly all round). The result always leaves CROP_KEEP each way.
+ */
+export function dragCrop(start: CropBox, handle: CropHandle, dx: number, dy: number, linked = false): CropBox {
+  const s = start;
+  let { cropLeft: l, cropRight: r, cropTop: t, cropBottom: b } = s;
+  if (handle === 'move') {
+    const mx = clamp(dx, -s.cropLeft, s.cropRight), my = clamp(dy, -s.cropTop, s.cropBottom);
+    return { cropLeft: r1(s.cropLeft + mx), cropRight: r1(s.cropRight - mx), cropTop: r1(s.cropTop + my), cropBottom: r1(s.cropBottom - my) };
+  }
+  const west = handle.includes('w'), east = handle.includes('e'), north = handle.includes('n'), south = handle.includes('s');
+  if (linked) {
+    // how far inward the dragged side(s) went; a corner averages its two
+    const pulls = [west ? dx : null, east ? -dx : null, north ? dy : null, south ? -dy : null].filter((v): v is number => v !== null);
+    const d = pulls.reduce((a, v) => a + v, 0) / pulls.length;
+    // inward: as far as leaves CROP_KEEP both ways; outward: each side stops at the picture's edge, the rest go on
+    const room = Math.min((100 - CROP_KEEP - s.cropLeft - s.cropRight) / 2, (100 - CROP_KEEP - s.cropTop - s.cropBottom) / 2);
+    const dd = Math.min(d, room);
+    const side = (v: number) => r1(Math.max(0, v + dd));
+    return { cropLeft: side(s.cropLeft), cropRight: side(s.cropRight), cropTop: side(s.cropTop), cropBottom: side(s.cropBottom) };
+  }
+  if (west) l = s.cropLeft + dx;
+  if (east) r = s.cropRight - dx;
+  if (north) t = s.cropTop + dy;
+  if (south) b = s.cropBottom - dy;
+  [l, r] = fitPair(l, r, s.cropLeft, s.cropRight);
+  [t, b] = fitPair(t, b, s.cropTop, s.cropBottom);
+  return { cropLeft: r1(l), cropRight: r1(r), cropTop: r1(t), cropBottom: r1(b) };
 }
 
 /** The most erase clicks kept — far beyond a real picture's need. */
@@ -250,7 +306,9 @@ const failed = (reason: EditFailure): EditResult => ({ ok: false, reason });
 
 export const EDIT_STEPS: EditStep[] = [
   { id: 'erase', applies: (e) => e.erase.length > 0, run: (img, e) => eraseAt(img, e.erase, e.tolerance) },
-  { id: 'background', applies: (e) => e.removeBackground, run: (img, e) => removeBackground(img, { near: clamp(e.tolerance, 5, 120) }) },
+  // the picture keeps its size here, so erase spots, selections and the crop all share its coordinates; `trim` crops
+  { id: 'background', applies: (e) => e.removeBackground, run: (img, e) => removeBackground(img, { near: clamp(e.tolerance, 5, 120), crop: false }) },
+  { id: 'cuts', applies: (e) => e.cuts.length > 0, run: (img, e) => e.cuts.reduce(applyCut, img) },
   { id: 'crop', applies: (e) => e.cropTop + e.cropRight + e.cropBottom + e.cropLeft > 0, run: (img, e) => crop(img, e.cropTop, e.cropRight, e.cropBottom, e.cropLeft) ?? failed('nothing_left') },
   { id: 'rotate', applies: (e) => turnOf(e.rotate) !== 0, run: (img, e) => rotate(img, e.rotate) },
   { id: 'flip', applies: (e) => e.flipX || e.flipY, run: (img, e) => flip(img, e.flipX, e.flipY) },
@@ -270,6 +328,15 @@ export function applyEdits(source: Rgba, edits: Edits, steps: EditStep[] = EDIT_
     if (img.width > MAX_SIDE || img.height > MAX_SIDE) return failed('too_large');
   }
   return { ok: true, image: img };
+}
+
+/**
+ * T130: whether any pixel is see-through. The try-on draws the product over the shopper, so a picture with none is a
+ * box that hides them — and the browser writes such a picture as a PNG with no alpha at all, which the server refuses.
+ */
+export function hasClearPixel(img: Rgba): boolean {
+  for (let i = 3; i < img.data.length; i += 4) if (img.data[i]! < 250) return true;
+  return false;
 }
 
 /** Whether any edit is chosen (the editor's "nothing to save yet"); a list counts by what is in it. */

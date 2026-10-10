@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  EDIT_STEPS, MAX_SIDE, MAX_SPOTS, NO_EDITS, adjust, applyEdits, crop, eraseAt, flip, isEdited, pad, resize, rotate, trim, type Edits, type Rgba,
+  CROP_KEEP, EDIT_STEPS, MAX_SIDE, MAX_SPOTS, NO_EDITS, adjust, applyEdits, crop, dragCrop, eraseAt, hasClearPixel, flip, isEdited, pad, resize, rotate, trim, type Edits, type Rgba,
 } from '@/lib/image-edit';
 
 /** A w×h picture whose pixel (x, y) is opaque with red = x, green = y (so every pixel says where it came from). */
@@ -102,10 +102,14 @@ test('crop by percent from each side; trim to what is not clear; pad with a clea
 
 test('the steps run in order on a store photo: background off, turned, scaled — and failures say why', () => {
   const photo = onWhite();
-  const cut = applyEdits(photo, edits({ removeBackground: true }));
+  const clear = applyEdits(photo, edits({ removeBackground: true }));
+  assert.ok(clear.ok);
+  assert.deepEqual([clear.image.width, clear.image.height], [40, 30], 'white gone, the picture keeps its size (T131: steps share its coordinates)');
+  assert.equal(px(clear.image, 0, 0)[3], 0, 'the background is clear');
+  const cut = applyEdits(photo, edits({ removeBackground: true, trim: true }));
   assert.ok(cut.ok);
-  assert.deepEqual([cut.image.width, cut.image.height], [20, 14], 'white gone, cropped to the product');
-  const turned = applyEdits(photo, edits({ removeBackground: true, rotate: 90, scale: 50 }));
+  assert.deepEqual([cut.image.width, cut.image.height], [20, 14], 'with trim: cropped to the product');
+  const turned = applyEdits(photo, edits({ removeBackground: true, trim: true, rotate: 90, scale: 50 }));
   assert.ok(turned.ok);
   assert.deepEqual([turned.image.width, turned.image.height], [7, 10], 'turned a quarter, then halved');
   // a scene behind the product is not a plain background
@@ -123,12 +127,12 @@ test('the background step widens with tolerance: an off-white background comes o
   // tint the background a little unevenly (as a phone photo of a white sheet)
   for (let i = 0; i < photo.data.length; i += 4) if (photo.data[i + 1]! > 200) { const off = (i / 4) % 7 * 6; photo.data[i] = 255 - off; photo.data[i + 1] = 255 - off; photo.data[i + 2] = 250 - off; }
   assert.equal(applyEdits(photo, edits({ removeBackground: true, tolerance: 5 })).ok, false, 'strict: refused');
-  const loose = applyEdits(photo, edits({ removeBackground: true, tolerance: 60 }));
+  const loose = applyEdits(photo, edits({ removeBackground: true, trim: true, tolerance: 60 }));
   assert.ok(loose.ok && loose.image.width === 20, 'widened: the product alone');
 });
 
 test('a new tool is one more step; isEdited knows a picture was changed', () => {
-  assert.deepEqual(EDIT_STEPS.map((s) => s.id), ['erase', 'background', 'crop', 'rotate', 'flip', 'adjust', 'trim', 'padding', 'scale']);
+  assert.deepEqual(EDIT_STEPS.map((s) => s.id), ['erase', 'background', 'cuts', 'crop', 'rotate', 'flip', 'adjust', 'trim', 'padding', 'scale']);
   const invert = { id: 'invert', applies: () => true, run: (img: Rgba) => ({ ...img, data: img.data.map((v, i) => (i % 4 === 3 ? v : 255 - v)) }) };
   const out = applyEdits(grid(2, 1), NO_EDITS, [...EDIT_STEPS, invert]);
   assert.ok(out.ok);
@@ -179,4 +183,41 @@ test('erase clicks are shares of the source: the same spot at any size, and they
   assert.deepEqual([turned.image.width, turned.image.height], [10, 30]);
   assert.equal(px(turned.image, 5, 2)[3], 0, 'the erased left grey is at the top after a quarter turn clockwise');
   assert.equal(px(turned.image, 5, 27)[3], 255, 'the right grey, at the bottom, stays');
+});
+
+test('the crop box: an edge moves one side, a corner two at once, the box moves whole — and something is always left', () => {
+  const none = { cropTop: 0, cropRight: 0, cropBottom: 0, cropLeft: 0 };
+  assert.deepEqual(dragCrop(none, 'w', 10, 99), { ...none, cropLeft: 10 }, 'the left edge: only the left side, the drag down ignored');
+  assert.deepEqual(dragCrop(none, 'e', -15, 0), { ...none, cropRight: 15 }, 'the right edge dragged left cuts from the right');
+  assert.deepEqual(dragCrop(none, 's', 0, -20), { ...none, cropBottom: 20 });
+  assert.deepEqual(dragCrop(none, 'nw', 10, 5), { ...none, cropLeft: 10, cropTop: 5 }, 'a corner: two directions together');
+  assert.deepEqual(dragCrop(none, 'se', -8, -12), { ...none, cropRight: 8, cropBottom: 12 });
+  const box = { cropTop: 10, cropRight: 20, cropBottom: 10, cropLeft: 20 };
+  assert.deepEqual(dragCrop(box, 'move', 5, -3), { cropTop: 7, cropRight: 15, cropBottom: 13, cropLeft: 25 }, 'moved, same size');
+  assert.deepEqual(dragCrop(box, 'move', 50, 50), { cropTop: 20, cropRight: 0, cropBottom: 0, cropLeft: 40 }, 'moved as far as the picture allows');
+  assert.deepEqual(dragCrop(box, 'w', -40, 0), { ...box, cropLeft: 0 }, 'never past the picture’s edge');
+  const squeezed = dragCrop(box, 'w', 90, 0);
+  assert.equal(squeezed.cropLeft + squeezed.cropRight, 100 - CROP_KEEP, `${CROP_KEEP}% is always left`);
+  assert.equal(squeezed.cropRight, 20, 'the side not dragged stays');
+  assert.ok(crop({ data: new Uint8ClampedArray(100 * 100 * 4), width: 100, height: 100 }, squeezed.cropTop, squeezed.cropRight, squeezed.cropBottom, squeezed.cropLeft), 'and the crop still has a picture');
+});
+
+test('the crop box linked: all four sides move in or out together, evenly', () => {
+  const box = { cropTop: 10, cropRight: 0, cropBottom: 10, cropLeft: 0 };
+  assert.deepEqual(dragCrop(box, 'w', 5, 0, true), { cropTop: 15, cropRight: 5, cropBottom: 15, cropLeft: 5 }, 'any edge pulls every side in');
+  assert.deepEqual(dragCrop(box, 'e', 4, 0, true), { cropTop: 6, cropRight: 0, cropBottom: 6, cropLeft: 0 }, 'out again — no side below 0');
+  assert.deepEqual(dragCrop({ cropTop: 0, cropRight: 0, cropBottom: 0, cropLeft: 0 }, 'se', -6, -10, true), { cropTop: 8, cropRight: 8, cropBottom: 8, cropLeft: 8 }, 'a corner: the average of its two pulls');
+  const tight = dragCrop(box, 'n', 80, 0, true);
+  assert.ok(tight.cropTop + tight.cropBottom <= 100 - CROP_KEEP && tight.cropLeft + tight.cropRight <= 100 - CROP_KEEP, 'something is left both ways');
+  assert.equal(tight.cropTop - tight.cropLeft, 10, 'evenly: the sides keep their differences');
+});
+
+test('saving for the try-on needs a see-through pixel: an opaque picture is caught before the upload', () => {
+  assert.equal(hasClearPixel(grid(4, 4)), false, 'fully opaque');
+  const cut = applyEdits(onWhite(), edits({ removeBackground: true }));
+  assert.ok(cut.ok && hasClearPixel(cut.image), 'background off: clear around the product');
+  const tight = applyEdits(onWhite(), edits({ removeBackground: true, trim: true }));
+  assert.ok(tight.ok && !hasClearPixel(tight.image), 'trimmed to a solid rectangle: nothing clear left — the editor says so');
+  const almost = grid(2, 1); almost.data[3] = 249;
+  assert.equal(hasClearPixel(almost), true);
 });

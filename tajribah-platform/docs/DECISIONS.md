@@ -2079,3 +2079,50 @@ added later. Full requirements (functional and non-functional): `docs/BANK-TRANS
 
 **Rollback path.** Switch bank transfer off in the console (nothing is offered), or migration 0047's ROLLBACK (drops
 the four tables and two enums; invoices and payments already issued stay). Cost: low.
+
+## T130 · 2026-10-11 · The editor's save checked before it uploads; the crop frame; one button on the preview
+
+**Decisions (Nader).**
+- *"Sometimes it does not save."* Cause: a picture with no see-through pixel (background kept, or cropped tight) is
+  written by the browser as a PNG with no alpha channel, which the server refuses (`no_transparency`) — and on the
+  try-on page the editor closed before the upload finished, so the refusal went unseen. Now the editor checks before
+  uploading (`hasClearPixel`, then the server's own `checkCutout` on the very bytes) and says what to do; the try-on
+  page's save waits for the upload (`onSaveEdited`) and a refusal stays in the editor, in Arabic. Downloading a copy
+  needs no transparency.
+- *The crop frame*: on the picture, an edge crops one side, a corner two at once, the middle moves the frame;
+  «اربط الجوانب الأربعة» moves every side evenly (handles and sliders alike). `dragCrop` is pure and tested; each side
+  may go to 95 % with 5 % always left each way. The whole picture shows while cropping, the cut part shaded; «اعرض
+  النتيجة» shows the result.
+- *The preview page's «أزل الخلفية واحفظها» is gone*: «حرّر الصورة» opens the editor with the background already off
+  and trimmed — the same result, seen before saving.
+
+## T131 · 2026-10-11 · Photoshop's selection tools in the picture editor
+
+**Decision (Nader: "make it work like in Photoshop").** A «التحديد» tab with the Selection Brush, the Lasso, the
+Polygonal Lasso and the Magnetic Lasso (Width, Contrast, Frequency), the modes New / Add (Shift) / Subtract (Alt) /
+Intersect (Shift+Alt), Feather, marching ants, and Photoshop's keys (Delete, Ctrl+D, Ctrl+A, Ctrl+Shift+I, L and
+Shift+L round the lassos, A for the brush; Backspace / Esc / Enter / double click while drawing). A selection changes
+nothing until «احذف المحدد» or «أبقِ المحدد فقط»; then it becomes a `Cut` in the edits — undoable, and applied again
+to the full picture on save.
+
+**How.** `lib/selection.ts` (pure, tested): shapes in shares of the picture (a radius and a feather in shares of its
+larger side), rasterised by scanline (non-zero, pixel centres) and stamped brush discs; feather by three box blurs;
+the magnetic lasso's `edgeMap` (Sobel), `snapToEdge` and `liveWire` (Dijkstra in a box round the last anchor and the
+pointer, edges under Contrast costing full price), anchors dropped every Frequency, paths simplified (RDP).
+`components/dashboard/selection-tools.tsx` draws over the preview and turns pointer moves into shapes.
+
+**One change to the pipeline.** In the editor, removing the background no longer crops the picture by itself
+(`removeBackground(…, { crop: false })`): erase spots, selections and the crop then share one picture's coordinates.
+«قصّ على المنتج» (on by default for a store photo) still crops to the product, so the usual result is unchanged.
+
+## T132 · 2026-10-11 · Hyperdrive query caching off
+
+**Decision.** Nader saw a saved size vanish on refresh, and the try-on page look reset after publishing. Production's
+history showed the save landed (20:49, depth 20 mm); the read after it was stale. Cause: Cloudflare Hyperdrive caches
+read queries by default (about 60 s, plus 15 s stale) — on all four of our configs (production and staging, app and
+admin). An app that reads its own writes cannot have that. Caching is now disabled on all four
+(`wrangler hyperdrive update <id> --caching-disabled`); the site was healthy right after. Locally (no Hyperdrive)
+both reports behaved correctly.
+
+**Trade-off.** Every read reaches Postgres; the connection limits set for the load test (T124) already size for it.
+**Rollback path.** `wrangler hyperdrive update <id> --max-age 60 --swr 15`. Cost: low.

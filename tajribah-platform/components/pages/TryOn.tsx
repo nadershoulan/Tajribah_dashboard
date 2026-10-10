@@ -176,6 +176,12 @@ function WatchCard({ initial, editable, onUnmarked, number = null }: { initial: 
         {SLOTS_OF[w.kind].map((slot) => (
           <Picture key={slot} kind={w.kind} productId={w.productId} slot={slot} has={w[slot]} quality={w.quality[slot]} disabled={!editable || busy !== null}
             busy={busy === slot} onPick={(file) => { setMarking(null); void run(slot, () => source.uploadCutout(w.productId, slot, file), { ar: 'قُبلت الصورة.', en: 'Picture accepted.' }); }}
+            onSaveEdited={async (file) => {
+              // T130: awaited, and a refusal thrown back — the editor stays open and says why (it used to close first)
+              setMarking(null);
+              const next = await source.uploadCutout(w.productId, slot, file);
+              setW(next); setNote({ tone: 'ok', text: { ar: 'حُفظت الصورة المعدّلة وقُبلت.', en: 'The edited picture was saved and accepted.' } });
+            }}
             storePictures={w.storePictures ?? []}
             onStorePicture={(url) => {
               setMarking(null);
@@ -272,8 +278,10 @@ function WatchCard({ initial, editable, onUnmarked, number = null }: { initial: 
   );
 }
 
-function Picture({ kind, productId, slot, has, quality, disabled, busy, onPick, onMark, storePictures = [], onStorePicture, onSameAsWorn }: {
+function Picture({ kind, productId, slot, has, quality, disabled, busy, onPick, onSaveEdited, onMark, storePictures = [], onStorePicture, onSameAsWorn }: {
   kind: TryOnKind; productId: string; slot: 'worn' | 'flat'; has: { bytes: number } | null; quality: SlotQuality | null; disabled: boolean; busy: boolean; onPick: (file: File) => void; onMark?: () => void;
+  /** T130: the editor's save — resolves once the picture is stored and accepted, rejects with the server's refusal. */
+  onSaveEdited: (file: File) => Promise<void>;
   /** T80: the product's store pictures, one of which can be chosen instead of an upload. */
   storePictures?: string[]; onStorePicture?: (url: string) => void; onSameAsWorn?: () => void;
 }) {
@@ -321,7 +329,7 @@ function Picture({ kind, productId, slot, has, quality, disabled, busy, onPick, 
       </div>
       {editing && <ImageEditor open title={`${t('محرّر الصور', 'Picture editor')} — ${pick(info.label)}`} sources={editorSources}
         initialSource={has ? 'current' : editorSources[0]?.id} fileName={`tajribah-${slot}.png`}
-        onSave={async (file) => { onPick(file); }} onClose={() => setEditing(false)} />}
+        onSave={onSaveEdited} onClose={() => setEditing(false)} />}
       {choosing && onStorePicture && (
         <div className="store-pictures">
           <span className="hint" style={{ margin: 0 }}>{t('اختر صورة من متجرك: نزيل خلفيتها (البيضاء أو أي لون واحد) ونقصّها على المنتج، ثم نفحصها كما نفحص الصورة المرفوعة.', 'Choose one of your store’s pictures: its background (white, or any one plain colour) is taken off and it is cropped to the product, then checked like an uploaded one.')}</span>

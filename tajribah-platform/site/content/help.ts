@@ -202,13 +202,14 @@ export const HELP_ARTICLES: HelpArticle[] = [
   },
   {
     // T128 — the picture editor (components/dashboard/image-editor.tsx), as built.
-    slug: 'picture-editor', category: 'button', updated: '2026-10-10',
+    slug: 'picture-editor', category: 'button', updated: '2026-10-11',
     title: { ar: 'محرّر الصور: جهّز صورة التجربة بنفسك', en: 'The picture editor: get the try-on picture ready yourself' },
     summary: { ar: 'أزل الخلفية بنقرة، ودوّر واقلب وقصّ واضبط الإضاءة، ثم احفظها للتجربة أو حمّلها إلى جهازك.', en: 'Take the background off in one click, rotate, flip, crop and adjust the light, then save it for the try-on or download it.' },
     steps: [
       { ar: 'في «التجربة الافتراضية» اضغط «حرّر الصورة» تحت صورة المنتج — أو «حرّر أولًا» في معاينة المنتج. ابدأ من الصورة الحالية أو من صورة متجرك أو من صورة على جهازك.', en: 'In “Virtual try-on” press “Edit picture” under the product’s picture — or “Edit first” on the product’s preview. Start from the current picture, a picture from your store, or one from your computer.' },
       { ar: 'صورة المتجر تبدأ وخلفيتها مزالة ومقصوصة على المنتج. إن لم تكن الخلفية لونًا واحدًا (مجسّم عرض أو ظل) اضغط «أبقِ الخلفية» ثم «امسح بالنقر» وانقر على ما تريد إزالته.', en: 'A store picture starts with its background off and cropped to the product. If the background is not one colour (a display bust, a shadow), press “Keep the background”, then “Erase by clicking” and click what you want gone.' },
-      { ar: 'دوّر ربع دورة أو بأي زاوية، واقلب أفقيًا أو رأسيًا، وقصّ من كل جانب، واضبط السطوع والتباين والتشبّع، وغيّر المقياس أو أضف هامشًا شفافًا. «تراجع» (Ctrl+Z) و«إعادة» (Ctrl+Y) لكل خطوة.', en: 'Rotate a quarter turn or by any angle, flip either way, crop from each side, adjust brightness, contrast and saturation, change the scale or add a clear margin. Undo (Ctrl+Z) and Redo (Ctrl+Y) work for every step.' },
+      { ar: 'في «التحديد» أدوات فوتوشوب: فرشاة التحديد، واللاسو، واللاسو المضلّع، واللاسو المغناطيسي الذي يلتصق بحافة المنتج وحده. اجمع التحديدات (Shift إضافة، Alt طرح)، ثم «أبقِ المحدد فقط» أو «احذف المحدد».', en: 'In “Select” you have Photoshop’s tools: the Selection Brush, the Lasso, the Polygonal Lasso and the Magnetic Lasso, which sticks to the product’s edge by itself. Combine selections (Shift adds, Alt subtracts), then “Keep only the selection” or “Delete the selection”.' },
+      { ar: 'في «القص» اسحب حواف الإطار أو زواياه في الصورة (الزاوية تقصّ من جهتين معًا)، أو اربط الجوانب الأربعة لتقصّ منها بالتساوي. دوّر ربع دورة أو بأي زاوية، واقلب، واضبط الإضاءة والألوان والمقياس. «تراجع» (Ctrl+Z) و«إعادة» (Ctrl+Y) لكل خطوة.', en: 'In “Crop”, drag the frame’s edges or corners on the picture (a corner crops two sides at once), or link all four sides to crop them evenly. Rotate a quarter or by any angle, flip, adjust light, colour and scale. Undo (Ctrl+Z) and Redo (Ctrl+Y) work for every step.' },
       { ar: 'اضغط «احفظ للتجربة»: تُحفظ صورةً للتجربة وتُفحص كأي صورة مرفوعة. أو «حمّلها إلى جهازك» لتحتفظ بنسخة PNG.', en: 'Press “Save to the try-on”: it becomes the try-on picture and is checked like any upload. Or “Download” to keep a PNG copy.' },
     ],
     body: [

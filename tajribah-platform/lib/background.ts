@@ -28,10 +28,11 @@ const dist = (d: Uint8ClampedArray, i: number, bg: [number, number, number]) =>
 const median = (values: number[]) => { const s = [...values].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]!; };
 
 /**
+ * `crop: false` (T131, the editor): the background goes clear but the picture keeps its size.
  * `near` (T128, the editor's tolerance): how close to the background colour a pixel must be to go clear — `NEAR`
  * unless the merchant widens it for a picture whose background is not quite even. The fade ends `FAR - NEAR` above it.
  */
-export function removeBackground({ data, width: w, height: h }: Rgba, { near: nearAt = NEAR }: { near?: number } = {}): BackgroundResult {
+export function removeBackground({ data, width: w, height: h }: Rgba, { near: nearAt = NEAR, crop = true }: { near?: number; crop?: boolean } = {}): BackgroundResult {
   const farAt = nearAt + (FAR - NEAR);
   const n = w * h;
   const edge: number[] = [];
@@ -84,6 +85,8 @@ export function removeBackground({ data, width: w, height: h }: Rgba, { near: ne
   }
   if (x1 < 0 || (x1 - x0 + 1) * (y1 - y0 + 1) < 64) return { ok: false, reason: 'nothing_left' };
 
+  // T131: the editor keeps the picture's size (its later steps and selections share its coordinates; its own trim crops)
+  if (!crop) return { ok: true, image: { data: out, width: w, height: h } };
   // cropped to the product: the try-on reads the picture's width as the product's
   const cw = x1 - x0 + 1, ch = y1 - y0 + 1;
   const cropped = new Uint8ClampedArray(cw * ch * 4);

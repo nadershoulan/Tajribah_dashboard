@@ -6,9 +6,8 @@
 // tried as any kind, its cut-out or else its store picture, its size or else the example's.
 
 import { useEffect, useRef, useState } from 'react';
-import { clearStorePicture } from '@/lib/clear-picture';
 import { useWriteLock } from '@/components/dashboard/write-lock';
-import { ArrowRight, Box, Eraser, ExternalLink, ImageOff, Package, Ruler, Sparkles, Wand2 } from 'lucide-react';
+import { ArrowRight, Box, ExternalLink, ImageOff, Package, Ruler, Sparkles, Wand2 } from 'lucide-react';
 import { ImageEditor } from '@/components/dashboard/image-editor';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useData, useResource } from '@/lib/data';
@@ -207,22 +206,19 @@ function TryItOn({ product }: { product: ProductRow }) {
 const TYPE_OF: Record<TryOnKind, ProductRow['productType']> = { watch: 'watch', glasses: 'eyewear', bag: 'bag', ring: 'jewelry', necklace: 'jewelry', earring: 'jewelry' };
 
 /**
- * T88 — one click: the store picture's plain background taken off here, in the browser
- * (`lib/background.ts`), and the result saved as this product's try-on picture through the same upload
- * and checks as a cut-out made by hand. A product of another type is first set up as what it is being
- * tried as — the button says so. T128: «حرّر أولًا» opens the picture editor on the same store picture (turn, crop,
- * light…) and saves the edited one the same way.
+ * T88, T128 — the store picture made the try-on picture: «حرّر الصورة» opens the picture editor on it (its plain
+ * background already off and cropped to the product, as the old one-click button did; turn, crop, light… if needed),
+ * and saving sends it through the same upload and checks as a cut-out made by hand. A product of another type is
+ * first set up as what it is being tried as — the hint says so. (The one-click button went, Nader 2026-10-10: the
+ * editor does the same in one press of «احفظ للتجربة», and shows the result first.)
  */
 function ClearBackground({ product, kind, own, url, onSaved }: { product: ProductRow; kind: TryOnKind; own: TryOnKind | null; url: string; onSaved: () => void }) {
   const { t, pick } = useLang();
   const source = useData();
   const lock = useWriteLock();
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<Error | null>(null);
-  const [refusal, setRefusal] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const retypes = own !== kind;
-  /** Set up as what it is tried as, then the picture (a watch takes it as both of its pictures). */
+  /** Set up as what it is tried as, then the picture (a watch takes it as both of its pictures). Errors show in the editor. */
   const keep = async (file: File) => {
     if (product.productType !== TYPE_OF[kind]) await source.updateProduct(product.id, { productType: TYPE_OF[kind] });
     if (TYPE_OF[kind] === 'jewelry' && own !== kind) await source.updateTryOn(product.id, { jewelry: kind as 'ring' | 'necklace' | 'earring' });
@@ -230,34 +226,17 @@ function ClearBackground({ product, kind, own, url, onSaved }: { product: Produc
     if (kind === 'watch') await source.uploadCutout(product.id, 'flat', file);
     onSaved();
   };
-  const run = async () => {
-    setBusy(true); setFailure(null); setRefusal(null);
-    try {
-      const cleared = await clearStorePicture(await source.storePhoto(product.id, url));
-      if (!cleared.ok) { setRefusal(pick(cleared.reason)); return; }
-      await keep(cleared.file);
-    } catch (e) {
-      setFailure(e as Error);
-    } finally {
-      setBusy(false);
-    }
-  };
   return (
     <div className="preview-clear">
-      <button type="button" className="btn btn-primary btn-sm" disabled={busy || lock.locked} onClick={() => void run()}>
-        <Eraser size={15} aria-hidden />{busy ? t('نزيل الخلفية…', 'Taking the background off…') : t('أزل الخلفية واحفظها', 'Remove the background and save it')}
-      </button>
-      <button type="button" className="btn btn-ghost btn-sm" disabled={busy || lock.locked} onClick={() => { setFailure(null); setRefusal(null); setEditing(true); }}>
-        <Wand2 size={15} aria-hidden />{t('حرّر أولًا', 'Edit first')}
+      <button type="button" className="btn btn-primary btn-sm" disabled={lock.locked} onClick={() => setEditing(true)}>
+        <Wand2 size={15} aria-hidden />{t('حرّر الصورة', 'Edit picture')}
       </button>
       {editing && <ImageEditor open title={`${t('محرّر الصور', 'Picture editor')} — ${t(product.nameAr ?? product.name, product.name)}`} fileName={`tajribah-${product.id}.png`}
         sources={[{ id: 'store', label: { ar: 'صورة المتجر', en: 'The store picture' }, thumb: url, store: true, load: () => source.storePhoto(product.id, url) }]}
         onSave={keep} onClose={() => setEditing(false)} />}
       <span className="hint" style={{ margin: 0 }}>{retypes
-        ? t(`يُحفظ صورةً للتجربة، ويصبح نوعه «${pick(KIND_LABEL[kind])}».`, `Saved as its try-on picture, and its type becomes “${pick(KIND_LABEL[kind])}”.`)
-        : t('يُحفظ صورةً للتجربة. يعمل حين تكون الخلفية بلون واحد، كالأبيض.', 'Saved as its try-on picture. Works when the background is one plain colour, such as white.')}</span>
-      {refusal && <p className="hint" role="alert" style={{ margin: 0, color: 'var(--bad)' }}>{refusal}</p>}
-      {failure && <ErrorNote error={failure} />}
+        ? t(`تُزال الخلفية تلقائيًا، ثم «احفظ للتجربة» — ويصبح نوعه «${pick(KIND_LABEL[kind])}».`, `The background comes off by itself, then “Save to the try-on” — and its type becomes “${pick(KIND_LABEL[kind])}”.`)
+        : t('تُزال الخلفية تلقائيًا ويُقصّ على المنتج؛ عدّل ما تريد ثم «احفظ للتجربة».', 'The background comes off by itself, cropped to the product; adjust anything, then “Save to the try-on”.')}</span>
     </div>
   );
 }

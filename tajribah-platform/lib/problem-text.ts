@@ -68,7 +68,7 @@ const LINES: [RegExp, string | ((m: RegExpMatchArray) => string)][] = [
   [/^the uploaded file is no longer in storage/, 'الملف المرفوع لم يعد محفوظًا — ارفعه مرة أخرى.'],
   [/^remove the picture first/, 'احذف الصورة أولًا.'],
   [/^not one of this product’s pictures from its store/, 'هذه ليست من صور المنتج في متجرك.'],
-  [/^this picture is a JPEG/, 'هذه الصورة JPEG بلا خلفية شفافة — استخدم «أزل الخلفية واحفظها» أو ارفع صورة مقصوصة.'],
+  [/^this picture is a JPEG/, 'هذه الصورة JPEG بلا خلفية شفافة — استخدم «حرّر الصورة» لإزالة الخلفية، أو ارفع صورة مقصوصة.'],
   [/^the picture is larger than 10 MB/, 'الصورة أكبر من 10 ميجابايت.'],
   [/^the store answered (\d+) for this picture/, (m) => `ردّ المتجر بالرمز ${m[1]} على هذه الصورة — تأكد أن الصورة ما زالت موجودة.`],
   [/^the store’s picture did not answer/, 'لم تُجب صورة المتجر — حاول بعد قليل.'],

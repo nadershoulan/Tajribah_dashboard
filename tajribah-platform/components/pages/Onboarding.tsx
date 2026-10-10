@@ -235,8 +235,8 @@ function StepPanel({ step, onMoved }: { step: StepState; onMoved: (view: Onboard
       body = (
         <>
           <p>{t(
-            'افتح معاينة أي منتج من «المنتجات» (أيقونة العين)، واضغط «أزل الخلفية واحفظها»، ثم أضف مقاسه في إعدادات تجربته. تتم الخطوة حين تكتمل تجربة منتج واحد.',
-            'Open any product’s preview from Products (the eye icon), press “Remove the background and save it”, then add its size in its try-on settings. The step is done once one product’s try-on is complete.',
+            'افتح معاينة أي منتج من «المنتجات» (أيقونة العين)، واضغط «حرّر الصورة» ثم «احفظ للتجربة» (تُزال الخلفية تلقائيًا)، ثم أضف مقاسه في إعدادات تجربته. تتم الخطوة حين تكتمل تجربة منتج واحد.',
+            'Open any product’s preview from Products (the eye icon), press “Edit picture”, then “Save to the try-on” (the background comes off by itself), then add its size in its try-on settings. The step is done once one product’s try-on is complete.',
           )}</p>
           {!step.done && <div className="btn-row"><AppLink href="/dashboard/products" className="btn btn-primary">{t('المنتجات', 'Products')}</AppLink>{goTo(t('التجربة الافتراضية', 'Virtual try-on'))}</div>}
         </>

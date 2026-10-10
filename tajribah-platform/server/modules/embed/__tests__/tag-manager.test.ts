@@ -36,7 +36,10 @@ test('the containers a page loads, and what a published container says about our
   assert.deepEqual(inspectContainer(container('<script>other()</script>'), 'failet'), { status: 'missing' });
   assert.deepEqual(inspectContainer(container(tagManagerSnippet('another-store')), 'failet'), { status: 'wrong_store', key: 'another-store' });
   assert.deepEqual(inspectContainer(container(`<script src="${WIDGET_SRC}" ${ATTR.store}="failet" async></script>`), 'failet'), { status: 'not_auto' }, 'the template’s script, pasted without self-placing, finds no product');
-  assert.deepEqual(inspectContainer(`"vtp_html":"\\x3cscript src=\\x22${WIDGET_SRC.replace(/\//g, '\\/')}\\x22 ${ATTR.store}=\\x22failet\\x22 ${ATTR.auto}=\\x22salla\\x22\\x3e\\x3c\\/script\\x3e"`, 'failet'), { status: 'ok' }, 'hex escapes too');
+  assert.deepEqual(inspectContainer(`"vtp_html":"\\x3cscript src=\\x22${WIDGET_SRC.replace(/\//g, '\\/')}?store=failet\\x26amp;auto=salla\\x22 async\\x3e\\x3c\\/script\\x3e"`, 'failet'), { status: 'ok' }, 'hex escapes too');
+  // T125: the tag before T125 said it all in data- attributes, which Tag Manager drops on the page — replace it.
+  assert.deepEqual(inspectContainer(`"vtp_html":"\\x3cscript src=\\x22${WIDGET_SRC.replace(/\//g, '\\/')}\\x22 ${ATTR.store}=\\x22failet\\x22 ${ATTR.auto}=\\x22salla\\x22\\x3e\\x3c\\/script\\x3e"`, 'failet'), { status: 'not_auto' }, 'the old attribute-only tag needs replacing');
+  assert.match(ours, /widget\.js\?store=failet&amp;auto=salla"/, 'the install page gives the address form');
 });
 
 test('checking a Salla page installed through Tag Manager: the tag, the page’s product, and its button', async () => {

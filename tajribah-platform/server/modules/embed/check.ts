@@ -69,10 +69,13 @@ export function inspectContainer(js: string, storeKey: string): ContainerVerdict
     .replace(/\\\//g, '/').replace(/\\"/g, '"');
   const ours = [...text.matchAll(/<script\b[^>]*>/gi)].map((m) => m[0]).filter((tag) => tag.includes(WIDGET_SRC) || /\/w\/v\d+\/widget\.js/.test(tag));
   if (!ours.length) return { status: 'missing' };
-  const keyOf = (tag: string) => new RegExp(`${ATTR.store}\\s*=\\s*["']?([^"'\\s>]+)`, 'i').exec(tag)?.[1] ?? null;
+  // T125: Tag Manager keeps only the script's src, so the store and the switch must be in its address; the
+  // attributes alone (the tag before T125) never reach the page — that tag needs replacing.
+  const inAddress = (tag: string, name: string) => new RegExp(`[?&](?:amp;)?${name}=([^&"'\\s>]+)`, 'i').exec(tag)?.[1] ?? null;
+  const keyOf = (tag: string) => inAddress(tag, 'store') ?? new RegExp(`${ATTR.store}\\s*=\\s*["']?([^"'\\s>]+)`, 'i').exec(tag)?.[1] ?? null;
   const mine = ours.find((tag) => keyOf(tag) === storeKey);
   if (!mine) return { status: 'wrong_store', key: keyOf(ours[0]!) };
-  return new RegExp(`${ATTR.auto}\\s*=\\s*["']?salla\\b`, 'i').test(mine) ? { status: 'ok' } : { status: 'not_auto' };
+  return inAddress(mine, 'store') === storeKey && inAddress(mine, 'auto') === 'salla' ? { status: 'ok' } : { status: 'not_auto' };
 }
 
 /**

@@ -281,21 +281,33 @@ async function openViewer(host: HTMLElement, config: ModelConfig, lang: 'ar' | '
   close.focus();
 }
 
-function settingsOf(doc: Document): Settings | null {
-  const script = (doc.currentScript as HTMLScriptElement | null) ?? doc.querySelector<HTMLScriptElement>(`script[${ATTR.store}]`);
-  const store = script?.getAttribute(ATTR.store);
-  if (!store) return null;
+/**
+ * The script's settings: its `data-tajribah-*` attributes — or, T125, the same names in its address
+ * (`widget.js?store=…&auto=salla`). Google Tag Manager re-creates a Custom HTML tag's script with its `src` alone
+ * and drops every `data-` attribute (seen on failet.sa, 2026-10-10), so a tag added there can only speak through
+ * the address. Only the shop's own choices travel that way — never where the widget loads its parts from.
+ */
+export function settingsOf(doc: Document): Settings | null {
+  const script = (doc.currentScript as HTMLScriptElement | null)
+    ?? doc.querySelector<HTMLScriptElement>(`script[${ATTR.store}]`)
+    ?? doc.querySelector<HTMLScriptElement>('script[src*="/w/v"][src*="widget.js"][src*="store="]');
+  if (!script) return null;
+  let query: URLSearchParams | null = null;
+  try { query = new URL(script.getAttribute('src') ?? '', doc.baseURI || 'https://cdn.tajribah.org/').searchParams; } catch { query = null; }
+  const shop = (attr: string, param: string) => script.getAttribute(attr) ?? query?.get(param) ?? null;
+  const store = shop(ATTR.store, 'store');
+  if (!store || !/^[a-z0-9][a-z0-9-]{0,62}$/i.test(store)) return null;
   return {
     store,
-    configBase: script!.getAttribute(ATTR.config) ?? DEFAULT_CONFIG_BASE,
-    viewer: script!.getAttribute(ATTR.viewer) ?? DEFAULT_VIEWER,
-    events: script!.getAttribute(ATTR.events) ?? DEFAULT_EVENTS,
+    configBase: script.getAttribute(ATTR.config) ?? DEFAULT_CONFIG_BASE,
+    viewer: script.getAttribute(ATTR.viewer) ?? DEFAULT_VIEWER,
+    events: script.getAttribute(ATTR.events) ?? DEFAULT_EVENTS,
     // A shop that runs a consent banner says so here; until it grants consent, nothing is sent.
-    consent: script!.getAttribute(ATTR.consent) === 'required' ? 'required' : 'granted',
-    tryon: script!.getAttribute(ATTR.tryon) ?? DEFAULT_TRYON,
-    auto: autoPlatformOf(script!.getAttribute(ATTR.auto)),
-    anchor: script!.getAttribute(ATTR.anchor) || null,
-    spot: spotOf(script!.getAttribute(ATTR.spot)),
+    consent: shop(ATTR.consent, 'consent') === 'required' ? 'required' : 'granted',
+    tryon: script.getAttribute(ATTR.tryon) ?? DEFAULT_TRYON,
+    auto: autoPlatformOf(shop(ATTR.auto, 'auto')),
+    anchor: shop(ATTR.anchor, 'anchor') || null,
+    spot: spotOf(shop(ATTR.spot, 'spot')),
   };
 }
 

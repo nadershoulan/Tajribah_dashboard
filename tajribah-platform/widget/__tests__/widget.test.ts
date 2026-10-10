@@ -66,3 +66,24 @@ test('T104: the minimal button is a style the config may carry — and anything 
   assert.deepEqual(['minimal', 'solid', 'outline'].map(at), ['minimal', 'solid', 'outline']);
   for (const bad of ['ghost', '', null, 'Minimal']) assert.equal(at(bad), null, String(bad));
 });
+
+test('T125: through Google Tag Manager the script arrives with its src only — the settings come from its address', async () => {
+  const { settingsOf } = await import('../src/main');
+  const { tagManagerSnippet } = await import('../src/snippet');
+  /** A document whose running script has only what Tag Manager keeps: `src` (no data- attributes). */
+  const page = (src: string, attrs: Record<string, string> = {}) => ({
+    baseURI: 'https://failet.sa/ar/p1',
+    currentScript: { getAttribute: (n: string) => (n === 'src' ? src : attrs[n] ?? null) },
+    querySelector: () => null,
+  }) as unknown as Document;
+  // the tag the install page gives, as the browser will read its src (&amp; becomes &)
+  const given = /src="([^"]+)"/.exec(tagManagerSnippet('owner-3', { spot: 'options', consent: true }))![1]!.replace(/&amp;/g, '&');
+  const s = settingsOf(page(given))!;
+  assert.deepEqual([s.store, s.auto, s.spot, s.consent], ['owner-3', 'salla', 'options', 'required']);
+  assert.equal(s.configBase, settingsOf(page('https://cdn.tajribah.org/w/v1/widget.js', { 'data-tajribah-store': 'x' }))!.configBase, 'where parts load from never comes from the address');
+  // the template's script, with attributes, still works; attributes win over the address
+  assert.equal(settingsOf(page('https://cdn.tajribah.org/w/v1/widget.js?store=other', { 'data-tajribah-store': 'failet' }))!.store, 'failet');
+  // nothing to go on, or a key that is not a key: no settings, no button
+  assert.equal(settingsOf(page('https://cdn.tajribah.org/w/v1/widget.js')), null);
+  assert.equal(settingsOf(page('https://cdn.tajribah.org/w/v1/widget.js?store=%3Cscript%3E')), null);
+});

@@ -22,13 +22,18 @@ export const PRODUCT_PLACEHOLDER = '{{ product.id }}';
  */
 export function tagManagerSnippet(storeKey: string, options: { consent?: boolean; anchor?: string; spot?: ButtonSpot } = {}): string {
   const safe = storeKey.replace(/[^a-z0-9-]/gi, '');
-  const consent = options.consent ? ` ${ATTR.consent}="required"` : '';
   // the owner's own spot (a CSS selector): quotes and angle brackets would end the attribute, so they go
   const spot = options.anchor?.replace(/["<>&]/g, '').trim().slice(0, 200);
-  const anchor = spot ? ` ${ATTR.anchor}="${spot}"` : '';
-  // T100: under the picture is the default, so only the other choice is written
-  const place = options.spot === 'options' ? ` ${ATTR.spot}="options"` : '';
-  return `<script src="${WIDGET_SRC}" ${ATTR.store}="${safe}" ${ATTR.auto}="salla"${place}${anchor}${consent} async></script>`;
+  // T125: Google Tag Manager keeps a Custom HTML script's src and drops its data- attributes, so through Tag
+  // Manager the settings ride in the address (the widget reads either). `&amp;` is how HTML writes "&".
+  const query = [
+    `store=${safe}`, 'auto=salla',
+    // T100: under the picture is the default, so only the other choice is written
+    ...(options.spot === 'options' ? ['spot=options'] : []),
+    ...(spot ? [`anchor=${encodeURIComponent(spot)}`] : []),
+    ...(options.consent ? ['consent=required'] : []),
+  ].join('&amp;');
+  return `<script src="${WIDGET_SRC}?${query}" async></script>`;
 }
 
 export function embedSnippet(storeKey: string, productRef = PRODUCT_PLACEHOLDER, options: { consent?: boolean } = {}): string {

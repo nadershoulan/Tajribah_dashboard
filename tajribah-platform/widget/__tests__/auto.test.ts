@@ -103,18 +103,20 @@ test('the owner’s own spot comes first; a mistyped one falls back to Salla’s
 });
 
 test('the Tag Manager tag: our script, this store, self-placing — the owner’s spot cannot break out of its attribute', () => {
+  // T125: Tag Manager keeps only the script's src, so everything the tag says is in its address
   const tag = tagManagerSnippet('failet');
-  assert.equal(tag, `<script src="${WIDGET_SRC}" ${ATTR.store}="failet" ${ATTR.auto}="salla" async></script>`);
+  assert.equal(tag, `<script src="${WIDGET_SRC}?store=failet&amp;auto=salla" async></script>`);
+  assert.ok(!tag.includes(ATTR.store), 'no data- attributes: Tag Manager would drop them');
   assert.equal(autoPlatformOf('salla'), 'salla');
   assert.equal(autoPlatformOf('zid'), null, 'a platform the widget cannot read is not guessed at');
-  assert.ok(tagManagerSnippet('failet', { consent: true }).includes(`${ATTR.consent}="required"`));
+  assert.ok(tagManagerSnippet('failet', { consent: true }).includes('&amp;consent=required"'));
   const spot = tagManagerSnippet('failet', { anchor: '.price"><script>alert(1)</script>' });
   assert.ok(!spot.includes('"><script>alert'), spot);
-  assert.ok(spot.includes(`${ATTR.anchor}=".pricescriptalert(1)/script"`), spot);
-  assert.ok(!tagManagerSnippet('failet', { anchor: '   ' }).includes(ATTR.anchor), 'an empty spot is left out');
+  assert.ok(spot.includes('&amp;anchor=.pricescriptalert(1)%2Fscript"'), spot);
+  assert.ok(!tagManagerSnippet('failet', { anchor: '   ' }).includes('anchor='), 'an empty spot is left out');
   // T100: under the picture is the default, so only the other choice is written
-  assert.ok(!tagManagerSnippet('failet', { spot: 'image' }).includes(ATTR.spot));
-  assert.ok(tagManagerSnippet('failet', { spot: 'options' }).includes(`${ATTR.spot}="options"`));
+  assert.ok(!tagManagerSnippet('failet', { spot: 'image' }).includes('spot='));
+  assert.ok(tagManagerSnippet('failet', { spot: 'options' }).includes('&amp;spot=options'));
 });
 
 /** Just enough of an element for `renderButton` and `mount` (no DOM library in these tests). */

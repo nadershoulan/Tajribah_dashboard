@@ -113,17 +113,23 @@ try-on: full screen, the store's feel, nothing that says "you left the shop".
       better).
 - [x] Tests: 7 (scale, true size, any angle, confidence, ring, landmark mapping, quarter-turn round trip); 13 breakages caught across T134. Real photo: the demo's wrist photo as a shopper's photo — found upright and turned sideways (only via the retries), the watch on the wrist across the arm; first look sat it against the hand and a little small → 0.28 palm and 58 mm, seen right on the second look.
 
-## Phase 6 — The store sets where the product sits («جرّبه كما يراه المتسوّق»)  ·  status: ☐
+## Phase 6 — The store sets where the product sits («جرّبه كما يراه المتسوّق»)  ·  status: ✅ live 2026-10-11
 
-- [ ] Per product and per model photo: a **zone** the product may move in (on the wrist, not the hand or the air) and
-      a **default pose** (place, size, angle). Stored on the try-on config (`tryon_configs.placement`, migration 0048,
-      ROLLBACK), published with the config, read by the studio: `constrainToModel` uses the store's zone when set,
-      the built-in box otherwise.
-- [ ] Editor in the preview: «اضبط الموضع» — choose the model photo, drag / rotate / size the product, draw the zone
-      (a frame with handles, like the crop frame); «أعد الوضع التلقائي». Saved, reloads into the editor, stays editable.
-- [ ] Shoppers can still move the product, inside the zone only.
-- [ ] Tests: zone constraint (inside, edge, outside), contract, migration + rollback; walk: set a zone, publish, try
-      as a shopper — it stays on the wrist.
+- [x] Per product and per model photo: a **zone** the product's centre stays in and a **starting pose** (centre,
+      angle, size as a share of the real size — 1 = true size). `tryon_configs.placement` (migration 0048, ROLLBACK),
+      one parser `lib/tryon-placement.ts` (strict on save, lenient on read), in the preview config, published with the
+      try-on (the widget ignores it), read by `tryOnProductFrom`; the studio starts there and clamps to the zone,
+      the built-in boxes otherwise (`DEFAULT_ZONES` = those boxes as rectangles).
+- [x] Editor in the preview (`components/dashboard/placement-editor.tsx`): «اضبط الموضع» — the model photo, drag the
+      product (arrows too), size and angle sliders (a note when not 100 %), the zone's frame with **corner** handles
+      (edge handles sat under the product on the thin wrist zone and caught it — found in the walk), its middle moves
+      it; «احفظ الموضع», «أعد الوضع التلقائي»; «مضبوط» per photo. Saved, it reloads into the editor and stays editable;
+      the preview below shows it; a published product is updated in the shop (`keepLive`).
+- [x] Shoppers can still move the product, inside the zone only (walked: dragged far left, it stopped at the zone's edge).
+- [x] Tests: `tryon-placement` (4: strict save, lenient read + the studio's product, zone maths, every built-in place
+      valid), server (2: save → reload → preview → published → reset; refusals save nothing); migration safety; 15
+      breakages caught. Walk (local store, a watch): open, drag, corner, 120 %, 10°, save, reload — as saved; the
+      shopper's studio starts there and stops at the zone; reset — the built-in place.
 
 ---
 
@@ -139,6 +145,7 @@ try-on: full screen, the store's feel, nothing that says "you left the shop".
 | Date | Phase | What happened |
 |---|---|---|
 | 2026-10-11 | — | Plan written after reading the studio, capture page, pairing API and QR code paths. |
+| 2026-10-11 | 6 | Store-set placement: zone + starting pose per model photo, saved with the try-on, in the preview, published; «اضبط الموضع» editor; the studio starts there and keeps the product in the zone. **T134 complete** (left as options: Phase 1's edge blend; face-detection turn retries; the shopper's adjusted pose sent with «أرسل إلى شاشتي»). |
 | 2026-10-11 | 3, 4 | Live (prod 84d6c75c, staging fb428b1d): the same walk on tajribah.org — watch, ring (camera refused), glasses, ended session, and a real store's watch (owner-3 / 23446039, 25 mm) from its try-on frame: the store's name and product on the phone, no Tajribah. The store is still named «owner» in its settings (Nader to rename). |
 | 2026-10-11 | 3, 4 | The phone page is the try-on: full screen, store-first, live camera with the kind's guide and live feedback, the product following the hand, capture / adjust / shots / send; the pairing carries the product (read on the server). Guide on the studio's «عليّ». Watch rule: case edge 10 mm above the crease (MediaPipe's wrist point checked on the photo: on the crease). Next: Phase 6 (store-set zones). |
 | 2026-10-11 | 5 | Placement engine (watch true size, on the wrist, across the arm), harder hand detection (turned photos, weaker sighting), confidence note; walked on the real wrist photo upright and sideways. Next: Phase 4 (guides) with Phase 3 (phone page). |

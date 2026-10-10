@@ -2192,3 +2192,12 @@ piece, outlined by an SVG filter (grow the shape, keep what grew — no lines wh
 dashed; faces as lines. Live feedback (`live-feedback.ts`): none / closer / show more (where the product goes must be in
 frame) / ready — the guide greens and fades so the product on the hand shows. Capture is never locked to «ready»: a
 detector that fails to load must not lock a shopper out. The studio's «عليّ» shows the same guide, small.
+
+**T134.6 — the store sets the placement (2026-10-11).** In «جرّبه كما يراه المتسوّق» a store sets, per model photo, the zone
+its product's centre stays in and where it starts (centre, angle, size as a share of its real size — stored as a
+multiple, so a new case width still scales and 1 stays the true-size promise; the editor says when it is not 100 %).
+`tryon_configs.placement` (0048, nullable jsonb), checked by one parser (`lib/tryon-placement.ts`: strict on save —
+each photo's problem named; lenient on read — a bad entry is dropped and the built-in place used). It rides in the
+preview config and the published try-on block (the widget's parser rebuilds its own block and ignores it); the
+studio starts there and clamps to the zone, the built-in boxes otherwise. The editor's zone has corner handles only:
+on the thin wrist zone the edge handles' touch targets covered the product and caught its drag.

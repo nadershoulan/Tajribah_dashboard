@@ -28,6 +28,7 @@
  * shop cannot read never leaves: the contract has one definition, not two that drift.
  */
 import { kindOf, placementFitsKind } from '@/lib/tryon';
+import { placementOf, type Placement } from '@/lib/tryon-placement';
 import { and, asc, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import { arConfigs, customDomains, edgeConfigs, hostedPages, modelFiles, models3d, productRelations, products, tenantSettings, tryonConfigs } from '@/db/schema';
 import { isShopUrl, type PublishedPage } from '@/lib/contracts/hosted-page';
@@ -56,7 +57,7 @@ export const BLOCK_TEXT: Record<EdgeBlock, string> = {
 export type PublishedConfig = Omit<ViewerConfig, 'tryon' | 'ref'> & {
   /** T95: the product's own ref — only in a config also published at its store page's ref (absent otherwise, so other configs are unchanged). */
   ref?: string;
-  tryon: (NonNullable<ViewerConfig['tryon']> & { finish: { ar: string; en: string } | null }) | null;
+  tryon: (NonNullable<ViewerConfig['tryon']> & { finish: { ar: string; en: string } | null; placement?: Placement }) | null;
   brand: StoreBrand | null;
   page: PublishedPage | null;
   /** P3.8: the live model's picture (the view chosen in the 3D editor) — the page's link preview and loading picture. */
@@ -115,6 +116,8 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
       sku: product.sku && product.sku.length <= 64 ? product.sku : null,
       onMe: entitlements.has('virtual_tryon'),
       finish: tryon.finishAr && tryon.finishEn ? { ar: tryon.finishAr, en: tryon.finishEn } : null,
+      // T134.6: where the store set it on the model photos (the website's studio reads it; the widget ignores it)
+      ...(placementOf(kind ?? 'watch', tryon.placement) ? { placement: placementOf(kind ?? 'watch', tryon.placement)! } : {}),
     }
     : null;
   if (!model && !watch) return { ok: false, key, reason: 'nothing_to_show' };

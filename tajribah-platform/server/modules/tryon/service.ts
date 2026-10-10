@@ -36,6 +36,7 @@ import { dailyProductStats, products, tryonConfigs } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { CUTOUT_ISSUES, JEWELRY_KINDS, RING_PRODUCT_TYPE, SLOTS_OF, TRYON_LISTED_TYPES, WIDTH_MM, kindOf, tryOnMissing, type JewelryKind, type TryOnKind } from '@/lib/tryon';
 import { CALIBRATE_MIN_PX } from '@/lib/tryon-quality';
+import { parsePlacement, placementOf } from '@/lib/tryon-placement';
 import type { TryOnOne, TryOnScreen, TryOnWatchView } from '@/lib/view-models';
 import { record } from '@/server/core/audit/audit';
 import { assertRoomToShow, assertStorageRoom, entitlementsOf } from '@/server/core/billing/entitlements';
@@ -90,6 +91,8 @@ function view(product: Product, config: Config | null, last30: Last30 = null): T
     ready: missing.length === 0,
     missing,
     last30,
+    // T134.6: saved, it reloads into the placement editor (and stays editable)
+    placement: placementOf(kind, config?.placement),
   };
 }
 
@@ -303,7 +306,7 @@ export async function confirmCutout(ctx: TenantContext, productId: string, input
  * `jewelry: 'ring' | 'necklace' | 'earring'` marks a Jewelry product as one; `jewelry: null` takes that back while it
  * has no picture.
  */
-export async function updateTryOn(ctx: TenantContext, productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean; jewelry?: JewelryKind | null }): Promise<TryOnWatchView> {
+export async function updateTryOn(ctx: TenantContext, productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean; jewelry?: JewelryKind | null; placement?: unknown }): Promise<TryOnWatchView> {
   await mayChange(ctx);
   const problems: Record<string, string[]> = {};
 
@@ -317,7 +320,8 @@ export async function updateTryOn(ctx: TenantContext, productId: string, patch: 
   if (patch.enabled === true) await assertRoomToShow(ctx, productId);
   const result = await withTenant(ctx.tenantId, async (db) => {
     const product = await watchOf(db, productId);
-    const range = WIDTH_MM[await kindFor(db, product)];
+    const kind = await kindFor(db, product);
+    const range = WIDTH_MM[kind];
     if (patch.caseMm != null && (!Number.isFinite(patch.caseMm) || patch.caseMm < range.min || patch.caseMm > range.max)) throw errors.validation({ caseMm: [`between ${range.min} and ${range.max} mm`] });
     await db.lockById(products, productId);
     const before = await db.findOne(tryonConfigs, eq(tryonConfigs.productId, productId));
@@ -330,6 +334,11 @@ export async function updateTryOn(ctx: TenantContext, productId: string, patch: 
       values.finishEn = ar && en ? en : null;
     }
     if (patch.enabled !== undefined) values.enabled = patch.enabled;
+    if (patch.placement !== undefined) { // T134.6: the whole map at once; null or {} — the built-in places again
+      const { placement, problems } = parsePlacement(kind, patch.placement);
+      if (Object.keys(problems).length) throw errors.validation(Object.fromEntries(Object.entries(problems).map(([id, why]) => [`placement.${id}`, [why]])));
+      values.placement = placement;
+    }
     const next = { ...(before ?? {}), ...values } as Config;
     if (next.enabled) {
       const missing = view(product, next).missing;

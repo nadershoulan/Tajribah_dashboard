@@ -17,6 +17,7 @@ import { eq } from 'drizzle-orm';
 import { categories, products, tryonConfigs } from '@/db/schema';
 import { jewelryKindOf, typeFromCategory } from '@/lib/product-feed';
 import { WIDTH_MM, kindOf, type TryOnKind } from '@/lib/tryon';
+import { placementOf } from '@/lib/tryon-placement';
 import type { TryOnPreview } from '@/lib/view-models';
 import { entitlementsOf } from '@/server/core/billing/entitlements';
 import { errors } from '@/server/core/errors/problem';
@@ -83,6 +84,8 @@ export async function tryOnPreview(ctx: TenantContext, productId: string, as: Tr
       sku: product.sku && product.sku.length <= 64 ? product.sku : null,
       onMe,
       finish: mine?.finishAr && mine.finishEn ? { ar: mine.finishAr, en: mine.finishEn } : null,
+      // T134.6: where the store set it on the model photos — the preview shows it before anything is published
+      ...(placementOf(kind, mine?.placement) ? { placement: placementOf(kind, mine?.placement)! } : {}),
     },
   } : null;
   return { kind, own, guessed, picture, size, config, onMe };

@@ -14,6 +14,7 @@ import { bool, createdAt, json, pk, tenantId, timestamps, ts } from './_shared';
 import { tenants } from './identity';
 import { products } from './commerce';
 import type { TryOnQuality } from '../../lib/tryon-quality';
+import type { Placement } from '../../lib/tryon-placement';
 
 export const MODEL_SOURCE = ['uploaded', 'ai_generated', 'professional_service'] as const;
 export const MODEL_STATUS = ['draft', 'processing', 'ready', 'failed', 'archived'] as const;
@@ -140,6 +141,8 @@ export const tryonConfigs = pgTable('tryon_configs', {
   enabled: bool('enabled').notNull().default(false),
   /** P5.9 (0018) — each picture's check, against the key it was made for (`lib/tryon-quality.ts`). */
   quality: json<TryOnQuality>('quality'),
+  /** T134.6 (0048) — where the store wants it on each model photo: a zone and a starting pose (`lib/tryon-placement.ts`). */
+  placement: json<Placement>('placement'),
   ...timestamps(),
 }, (t) => [uniqueIndex('tryon_configs_product_unq').on(t.productId)]);
 

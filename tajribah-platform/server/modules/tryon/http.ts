@@ -83,7 +83,7 @@ export const publishTryOnHandler = route(async (request) => {
   return json(await publishTryOn(ctx, productAt(request, 1)));
 });
 
-/** API-153 — PATCH /api/tryon/[productId]: case width, finish, on/off. */
+/** API-153 — PATCH /api/tryon/[productId]: case width, finish, on/off, where it sits on the model photos (T134.6). */
 export const updateTryOnHandler = route(async (request) => {
   const config = apiConfig();
   assertSameOrigin(request, config);
@@ -91,6 +91,7 @@ export const updateTryOnHandler = route(async (request) => {
   const body = await readJson(request, z.object({
     caseMm: z.number().nullable().optional(), finishAr: z.string().max(200).nullable().optional(),
     finishEn: z.string().max(200).nullable().optional(), enabled: z.boolean().optional(), jewelry: z.enum(['ring', 'necklace', 'earring']).nullable().optional(),
+    placement: z.record(z.string().max(20), z.unknown()).nullable().optional(), // T134.6: checked in full by lib/tryon-placement.ts
   }));
   return json(await updateTryOn(ctx, productAt(request, 0), body));
 });

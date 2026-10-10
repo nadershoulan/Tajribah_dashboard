@@ -10,6 +10,7 @@
  */
 import type { Bi } from './lang';
 import { MODELS, type TryOnProduct } from './demo-product';
+import { placementOf } from '@/lib/tryon-placement';
 
 /** Where published configs live (the same host the storefront widget reads). */
 export const CONFIG_BASE = 'https://cfg.tajribah.org/v1';
@@ -83,6 +84,8 @@ export function tryOnProductFrom(config: unknown, local = false): TryOnProduct |
   if (typeof tryon.caseMm !== 'number' || !Number.isFinite(tryon.caseMm) || tryon.caseMm < lo || tryon.caseMm > hi) return null;
   if (!(tryon.sku == null || str(tryon.sku, 64))) return null;
   const name: Bi = { ar: (product.nameAr as string | null) ?? product.name, en: product.name };
+  // T134.6: where the store wants it on each model photo (a bad entry is dropped: the built-in place instead)
+  const placement = placementOf(glasses ? 'glasses' : ring ? 'ring' : necklace ? 'necklace' : earring ? 'earring' : bag ? 'bag' : 'watch', tryon.placement);
   return {
     sku: (tryon.sku as string | null | undefined) ?? '—',
     collection: { ar: 'تجربة افتراضية', en: 'Virtual try-on' },
@@ -102,6 +105,7 @@ export function tryOnProductFrom(config: unknown, local = false): TryOnProduct |
     // T33: the shopper's own photo — Pro and up (a watch, glasses and a ring alike)
     onMe: tryon.onMe === true, // every kind on the shopper's own photo (T83 earrings, T84 bags)
     ...(glasses ? { category: 'eyewear' as const } : ring ? { category: 'ring' as const } : necklace ? { category: 'necklace' as const } : earring ? { category: 'earring' as const } : bag ? { category: 'bag' as const } : {}),
+    ...(placement ? { placement } : {}),
   };
 }
 

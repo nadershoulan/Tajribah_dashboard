@@ -1,4 +1,5 @@
 import type { Bi } from './lang';
+import type { Placement } from '@/lib/tryon-placement';
 
 /** Stage size and scale the studio works in (unchanged from the original build). */
 export const STAGE = { W: 1200, H: 1050 };
@@ -36,6 +37,11 @@ export type TryOnProduct = {
    * `caseMm` then being the frame's front width. The studio's modes and controls are the same.
    */
   category?: 'watch' | 'eyewear' | 'ring' | 'necklace' | 'bag' | 'earring';
+  /**
+   * T134.6 — where the store wants it on each model photo: the zone its centre stays in and where it starts (its size
+   * as a share of its real size). Left out: the built-in places below (`constrainToModel`, each photo's `pose`).
+   */
+  placement?: Placement | null;
 };
 
 /**
@@ -286,6 +292,20 @@ export const REFERENCES: Record<ReferenceId, { name: Bi; src: string; w: number;
 };
 
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
+
+/**
+ * T134.6 — the built-in boxes below as rectangles (the lifestyle photo's slanted band as the box around it): where the
+ * store's zone editor starts when the store has not set one.
+ */
+export const DEFAULT_ZONES: Record<ModelId, { x: number; y: number; w: number; h: number }> = {
+  wrist: { x: 240, y: 537, w: 200, h: 31 },
+  lifestyle: { x: 550, y: 447, w: 105, h: 95 },
+  face: { x: 555, y: 495, w: 80, h: 70 },
+  hand: { x: 600, y: 520, w: 90, h: 120 },
+  neck: { x: 640, y: 560, w: 110, h: 80 },
+  bag: { x: 620, y: 600, w: 70, h: 220 },
+  ear: { x: 500, y: 540, w: 100, h: 120 },
+};
 
 /** Keep the watch on the wrist in each photo — tuned to the two model shots. */
 export function constrainToModel(model: ModelId, p: Pose): Pose {

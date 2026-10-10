@@ -17,6 +17,7 @@ import { castShadow } from '@site/lib/shadow';
 import { markedQrPng } from '@/lib/qr-mark';
 import { earringPlacement, glassesPlacement, handPoints, necklacePlacement, watchPlacement } from '@site/lib/placement';
 import { kindOf } from '@site/lib/pair-product';
+import { inZone } from '@/lib/tryon-placement';
 import { Guide } from './guides';
 import { detectHand } from '@site/lib/hand-detect';
 import {
@@ -55,9 +56,13 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
   const [model, setModel] = useState(0);
   // On the model photos the poses are tuned to the demo watch; another watch is drawn in
   // proportion to its case width, so the size shown is true (Nader, 2026-09-28). The demo: factor 1.
+  // T134.6: where the store set it on this photo, if it did — its size a share of the true size
+  const spotOf = (i: number) => product.placement?.[MODELS[i]?.id as ModelId] ?? null;
   const modelPose = (i: number): Pose => {
     const k = product.caseMm / baseMm;
-    return k === 1 ? { ...MODELS[i].pose } : { ...MODELS[i].pose, width: MODELS[i].pose.width * k };
+    const base = k === 1 ? { ...MODELS[i].pose } : { ...MODELS[i].pose, width: MODELS[i].pose.width * k };
+    const spot = spotOf(i);
+    return spot ? { x: spot.pose.x, y: spot.pose.y, angle: spot.pose.angle, width: base.width * spot.pose.scale } : base;
   };
   const [pose, setPose] = useState<Pose>(modelPose(0));
   const [scale, setScale] = useState(100);
@@ -245,6 +250,8 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
   }
   function constrain(p: Pose): Pose {
     if (mode !== 'model') return { ...p, x: clamp(p.x, 50, W - 50), y: clamp(p.y, 50, H - 50) };
+    const spot = spotOf(model); // T134.6: the store's zone, when it set one; the built-in box otherwise
+    if (spot) return { ...p, ...inZone(p, spot.zone) };
     return constrainToModel(MODELS[model].id as ModelId, p);
   }
   function pointerDown(e: React.PointerEvent<HTMLCanvasElement>) {

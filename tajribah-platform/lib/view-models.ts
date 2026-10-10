@@ -9,6 +9,7 @@ import type { CheckoutOptions } from './payment-methods';
 import type { TransferView } from './contracts/bank-transfer';
 import type { AiJobStage } from './ai-jobs';
 import type { Bi } from './lang';
+import type { Placement } from './tryon-placement';
 import type { PlanCode } from './plans';
 import type { SlotQuality } from './tryon-quality';
 import type { ConnectionHealth } from './connection-health';
@@ -517,6 +518,8 @@ export type TryOnWatchView = {
    * worse picture's share of its real size, 0–100, once both are checked.
    */
   quality: { worn: SlotQuality | null; flat: SlotQuality | null; score: number | null };
+  /** T134.6 — where the store set it on each model photo; null: the built-in places. */
+  placement?: Placement | null;
 };
 
 /**

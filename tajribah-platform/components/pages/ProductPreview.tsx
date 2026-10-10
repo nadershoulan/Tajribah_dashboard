@@ -7,8 +7,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useWriteLock } from '@/components/dashboard/write-lock';
-import { ArrowRight, Box, ExternalLink, ImageOff, Package, Ruler, Sparkles, Wand2 } from 'lucide-react';
+import { ArrowRight, Box, Crosshair, ExternalLink, ImageOff, Package, Ruler, Sparkles, Wand2 } from 'lucide-react';
 import { ImageEditor } from '@/components/dashboard/image-editor';
+import { PlacementEditor } from '@/components/dashboard/placement-editor';
+import { placementOf } from '@/lib/tryon-placement';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useData, useResource } from '@/lib/data';
 import { formatMoney } from '@/lib/money';
@@ -160,6 +162,10 @@ function TryItOn({ product }: { product: ProductRow }) {
   const config = data?.config ?? null;
   const configKey = config ? JSON.stringify(config) : '';
   const [measured, setMeasured] = useState<{ key: string; height: number } | null>(null);
+  const [placing, setPlacing] = useState(false); // T134.6: «اضبط الموضع» open
+  // the place is the product's own setting, for the kind it is set up as (like its cut-out)
+  const canPlace = !!(config && kind && data?.own === kind);
+  const saved = canPlace && kind ? placementOf(kind, config?.tryon.placement) : null;
   const height = measured?.key === configKey ? measured.height : null; // a new frame measures itself again
   // The frame asks once it is listening; the settings go only to it, on this same address. T87: it then
   // says its height, and the page gives it all of it — the studio reads as part of the page.
@@ -191,6 +197,17 @@ function TryItOn({ product }: { product: ProductRow }) {
       {error && <ErrorNote error={error} />}
       {data && <PreviewNotes data={data} productId={product.id} />}
       {data?.kind && data.picture && <PictureEditor product={product} kind={data.kind} own={data.own} hasOwn={data.picture === 'cutout'} onSaved={() => setVersion((v) => v + 1)} />}
+      {canPlace && kind && config && (placing
+        ? <PlacementEditor productId={product.id} kind={kind} worn={String(config.tryon.worn)} caseMm={Number(config.tryon.caseMm)} saved={saved}
+          onSaved={() => setVersion((v) => v + 1)} onClose={() => setPlacing(false)} />
+        : (
+          <div className="preview-clear">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPlacing(true)}><Crosshair size={15} aria-hidden />{t('اضبط الموضع', 'Set the placement')}</button>
+            <span className="hint" style={{ margin: 0 }}>{saved
+              ? t('مضبوط على صور النموذج — عدّله متى شئت.', 'Set on the model photos — change it any time.')
+              : t('ضع المنتج حيث تريد على صور النموذج، وحدّد المنطقة التي لا يخرج منها.', 'Place the product where you want it on the model photos, and mark the zone it stays in.')}</span>
+          </div>
+        ))}
       {frame
         ? <iframe key={configKey} ref={frameRef} src={frame} title={t('التجربة الافتراضية', 'The virtual try-on')} className={'preview-tryon-frame' + (height ? ' is-ready' : '')} style={height ? { height } : undefined} scrolling="no" allow="camera" />
         : data && kind && (

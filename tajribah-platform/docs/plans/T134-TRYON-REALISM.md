@@ -96,7 +96,7 @@ try-on: full screen, the store's feel, nothing that says "you left the shop".
 - [x] Walk: watch (ready on the wrist), ring (the pick screen's open hand), glasses («أظهر وجهك كاملًا» on a
       close-up, ready on a framed face), the studio tile; 23 breakages caught across T134.3/4.
 
-## Phase 5 — Better auto-detect and auto-place  ·  status: ✅ core live 2026-10-11 (watch engine, harder detection); face retries next
+## Phase 5 — Better auto-detect and auto-place  ·  status: ✅ live 2026-10-11
 
 - [x] `site/lib/placement.ts` (pure, tested with hands drawn from measurements): watch and ring placements
       **at true size** (knuckle span 58 mm unisex, palm 100 mm, the larger wins). *(T134.3: the watch's case edge
@@ -106,7 +106,7 @@ try-on: full screen, the store's feel, nothing that says "you left the shop".
       average, wrist width ≈ 0.72 of it), the strap across the forearm, on the wrist crease (not the hand); a ring at
       the ring finger's base between MCP and PIP; glasses from pupils (62 mm); necklace from the jaw and shoulders;
       earring from the ear landmarks; bag from wrist and knuckles (T84).
-- [x] Robustness (hands): `site/lib/hand-detect.ts` tries the photo at 0/90/270/180° then a weaker sighting; the confidence drops for a small hand (the studio says «تأكد من الموضع»). *(Face detection retries: next.)* Was: try the photo at 0/90/180/270° and with a contrast lift when the first pass finds nothing; prefer
+- [x] Robustness (hands): `site/lib/hand-detect.ts` tries the photo at 0/90/270/180° then a weaker sighting; the confidence drops for a small hand (the studio says «تأكد من الموضع»). Faces too (`site/lib/face-detect.ts`, glasses and necklace, studio and phone): a face turned a quarter counter-clockwise was not found live; with the turns it is (the face model already copes with the other quarter and upside down). Was: try the photo at 0/90/180/270° and with a contrast lift when the first pass finds nothing; prefer
       the hand facing the camera's back; reject a hand too small to place; a confidence score that decides between
       "placed" and "please adjust".
 - [x] The studio's watch path uses the engine; ring and bag use the harder detection. *(The phone page: Phase 3.)* Was: The studio and the phone page both use the engine (the studio's inline maths moved behind it, same behaviour or
@@ -145,6 +145,7 @@ try-on: full screen, the store's feel, nothing that says "you left the shop".
 | Date | Phase | What happened |
 |---|---|---|
 | 2026-10-11 | — | Plan written after reading the studio, capture page, pairing API and QR code paths. |
+| 2026-10-11 | 5 | Face detection tries the photo turned too (the hand already did): walked live without it — a face turned 90° counter-clockwise not found; locally with it — found, the glasses on the eyes. |
 | 2026-10-11 | 6 | Store-set placement: zone + starting pose per model photo, saved with the try-on, in the preview, published; «اضبط الموضع» editor; the studio starts there and keeps the product in the zone. **T134 complete** (left as options: Phase 1's edge blend; face-detection turn retries; the shopper's adjusted pose sent with «أرسل إلى شاشتي»). |
 | 2026-10-11 | 3, 4 | Live (prod 84d6c75c, staging fb428b1d): the same walk on tajribah.org — watch, ring (camera refused), glasses, ended session, and a real store's watch (owner-3 / 23446039, 25 mm) from its try-on frame: the store's name and product on the phone, no Tajribah. The store is still named «owner» in its settings (Nader to rename). |
 | 2026-10-11 | 3, 4 | The phone page is the try-on: full screen, store-first, live camera with the kind's guide and live feedback, the product following the hand, capture / adjust / shots / send; the pairing carries the product (read on the server). Guide on the studio's «عليّ». Watch rule: case edge 10 mm above the crease (MediaPipe's wrist point checked on the photo: on the crease). Next: Phase 6 (store-set zones). |

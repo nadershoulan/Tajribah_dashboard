@@ -17,8 +17,8 @@ type Detector = {
 
 export type HandFound = { landmarks: Landmark[][]; score: number; quarters: number; loose: boolean };
 
-/** The photo turned `quarters` × 90° clockwise, on a canvas. */
-function turned(img: HTMLImageElement, quarters: number): HTMLCanvasElement {
+/** The photo turned `quarters` × 90° clockwise, on a canvas (T134: the face's retries use it too). */
+export function turned(img: HTMLImageElement, quarters: number): HTMLCanvasElement {
   const c = document.createElement('canvas');
   const side = quarters % 2 === 1;
   c.width = side ? img.height : img.width;

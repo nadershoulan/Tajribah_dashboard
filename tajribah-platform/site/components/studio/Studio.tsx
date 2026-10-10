@@ -20,6 +20,7 @@ import { kindOf } from '@site/lib/pair-product';
 import { inZone } from '@/lib/tryon-placement';
 import { Guide } from './guides';
 import { detectHand } from '@site/lib/hand-detect';
+import { detectFace } from '@site/lib/face-detect';
 import {
   DEMO_WATCH, PX_PER_MM, REFERENCES, STAGE, constrainToModel, modelsFor,
   type ModelId, type Pose, type ReferenceId, type TryOnProduct,
@@ -446,7 +447,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
           runningMode: 'IMAGE', numFaces: 1, minFaceDetectionConfidence: 0.4,
         });
       }
-      const result = faceDetector.current.detect(img);
+      const result = (await detectFace(faceDetector.current, img)) ?? { faceLandmarks: [] }; // T134.5: a sideways photo too
       if (request !== photoRequest.current) return;
       const lm = result.faceLandmarks?.[0];
       if (lm && lm[468] && lm[473]) { // the two iris centres

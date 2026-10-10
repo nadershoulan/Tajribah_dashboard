@@ -23,6 +23,7 @@ import { Guide, guideText, type GuideState } from '@site/components/studio/guide
 import type { Pairing } from '@site/lib/pair-product';
 import { cssShadow, type ShadowKind } from '@site/lib/shadow';
 import { detectHand } from '@site/lib/hand-detect';
+import { detectFace } from '@site/lib/face-detect';
 import { model } from '@site/lib/detectors';
 import { earringPlacement, facePoints, handPoints, placeOnFace, placeOnHand, type Pose, type Pt } from '@site/lib/placement';
 import { faceFeedback, follow, handFeedback } from '@site/lib/live-feedback';
@@ -178,7 +179,7 @@ export default function Capture({ token, pairing }: { token: string; pairing: Pa
     try {
       if (onFace) {
         let lm = seen?.landmarks ?? null;
-        if (!lm) lm = ((await model('face', 'IMAGE', asset)).detect(img).faceLandmarks?.[0] as Landmark[] | undefined) ?? null;
+        if (!lm) lm = ((await detectFace(await model('face', 'IMAGE', asset), img))?.faceLandmarks[0] as Landmark[] | undefined) ?? null;
         const f = lm ? facePoints(lm, size, flat) : null;
         return f ? { pose: placeOnFace(kind === 'necklace' ? 'necklace' : 'glasses', f, product.caseMm, aspect), found: true } : { pose: null, found: false };
       }

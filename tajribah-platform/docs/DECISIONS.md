@@ -2201,3 +2201,9 @@ each photo's problem named; lenient on read — a bad entry is dropped and the b
 preview config and the published try-on block (the widget's parser rebuilds its own block and ignores it); the
 studio starts there and clamps to the zone, the built-in boxes otherwise. The editor's zone has corner handles only:
 on the thin wrist zone the edge handles' touch targets covered the product and caught its drag.
+
+**T134.5 (faces) — 2026-10-11.** Face detection looks harder like the hand's: the photo as it is, then turned a quarter /
+three quarters / a half, points brought back (`site/lib/face-detect.ts`). Walked on the demo's face photo: the face model
+already finds it upside down and turned clockwise, but not turned counter-clockwise — found with the turns. A turned
+face's glasses may come out the wrong way up (pupils ordered left to right so a mirrored selfie stays right): rare, and
+the shopper can turn them.

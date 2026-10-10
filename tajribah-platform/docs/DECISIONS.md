@@ -1987,3 +1987,12 @@ worker, which share one connection or pool, keep the old order. Staging's databa
 a load test can never take the live site's (it took 83 of 100 before the cap).
 
 **Rollback path.** `JOB_CONCURRENCY = 1`. Cost: low.
+
+## T126 · 2026-10-10 · "On me" on every plan
+
+**Decision (Nader).** Trying the product on the shopper's own photo — taken on their phone through the QR scan — is
+on every plan, not only Pro and up (T33). Seen live: Failet's trial runs on Growth, so its studio hid the QR tab.
+Production was switched from the staff Plans page (logged, every published config refreshed); migration 0046 makes
+every database match `lib/plans.ts`. The pricing page lists it under Starter and ticks it on every plan.
+
+**Rollback path.** Migration 0046's ROLLBACK, and `virtual_tryon` off Starter and Growth in `lib/plans.ts`. Cost: low.

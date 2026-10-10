@@ -202,11 +202,7 @@ since production refuses console SMS).
 - [ ] Custom domains (P8, T62) — **state on 2026-10-08:** Cloudflare for SaaS **on** for tajribah.org (100 hostnames included);
       DNS `domains` A 192.0.2.1 proxied; fallback origin **domains.tajribah.org** set; token "Tajribah custom hostnames
       (tajribah.org)" (SSL and Certificates: Edit, this zone only) and `CLOUDFLARE_SAAS_ZONE_ID` in `.env.production.local`
-      and on the Worker; routes `cdn.tajribah.org/*` and `pg.tajribah.org/*` with Workers disabled. **Left — the routing:**
-      a `*/*` route to `tajribah` catches *other Workers' custom domains too* (tried 2026-10-08: cfg. and staging. were
-      redirected to tajribah.org for ~3 minutes; removed). So first add `cfg.tajribah.org/*` → `tajribah-config-host` and
-      `staging.tajribah.org/*` → `tajribah-staging`, check both, then add `*/*` → `tajribah`, and check every hostname
-      (cdn, cfg, ev, www, app, staging, /api/health/ready). Any new proxied hostname on the zone needs its own route.
+      and on the Worker; routes `cdn.tajribah.org/*` and `pg.tajribah.org/*` with Workers disabled. **Routing done 2026-10-10** (Cloudflare API, zone tajribah.org): `cfg.tajribah.org/*` → `tajribah-config-host`, `staging.tajribah.org/*` → `tajribah-staging`, then `*/*` → `tajribah` — a `*/*` route catches other Workers' custom domains too (tried 2026-10-08: cfg. and staging. were redirected for ~3 minutes), so every non-dashboard proxied hostname needs its own route; **a new one added to the zone later needs one too**. Checked after: cfg 404 + CORS, staging and live healthy, cdn 200, ev, www, app. **Left:** the end-to-end check below with a real store's subdomain.
       Original steps: enable **Cloudflare for SaaS** on the zone
       that serves the website (`tajribah.org`); its fallback origin **`domains.tajribah.org`** (or set
       **`CUSTOM_DOMAIN_TARGET`** on the dashboard Worker to the one chosen). On the dashboard Worker set

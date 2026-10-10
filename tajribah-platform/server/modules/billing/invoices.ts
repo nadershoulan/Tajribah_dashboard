@@ -63,6 +63,8 @@ export type IssueInvoiceInput = {
   dueInDays?: number;
   /** P2.13: tell the store's billing people (in-app + email), once. The payment path passes the app's URL. */
   announce?: { appUrl: string };
+  /** T129: bought for a company — its name and numbers on the invoice instead of the store's own. */
+  buyer?: { name: string; crNumber: string | null; vatNumber: string | null };
 };
 
 /**
@@ -70,6 +72,17 @@ export type IssueInvoiceInput = {
  * commits together or not at all. `seller` is injectable for tests only.
  */
 export async function issueInvoice(ctx: TenantContext, input: IssueInvoiceInput, seller: Seller = SELLER): Promise<InvoiceDocument> {
+  const id = await withTenant(ctx.tenantId, (db) => issueInvoiceIn(db, ctx, input, seller));
+  const issued = (await invoiceOf(ctx, id))!;
+  if (input.announce) await announceInvoice(ctx, issued, input.announce.appUrl); // after the commit
+  return issued;
+}
+
+/**
+ * The same, inside a transaction the caller holds (T129: approving a bank transfer issues its invoice in the
+ * transaction that activates the plan — both or neither). Returns the invoice's id; announcing is the caller's.
+ */
+export async function issueInvoiceIn(db: TenantDb, ctx: TenantContext, input: IssueInvoiceInput, seller: Seller = SELLER): Promise<string> {
   ctx.require('billing:write');
   const sellerVat = VAT_NUMBER.safeParse(seller.vatNumber);
   if (!sellerVat.success || !sellerVat.data) {
@@ -88,49 +101,45 @@ export async function issueInvoice(ctx: TenantContext, input: IssueInvoiceInput,
     throw errors.conflict(`VAT can only be invoiced from the seller's registration date (${seller.vatEffectiveFrom ?? 'not registered'})`);
   }
 
-  const id = await withTenant(ctx.tenantId, async (db) => {
-    const buyer = await db.requireById(tenants, ctx.tenantId);
-    const n = await allocateInvoiceNumber(db, riyadhYear(issuedAt));
-    const row = await db.insert(invoices, {
-      id: uuidv7(),
-      invoiceNumber: invoiceNumber(ctx.tenantId, riyadhYear(issuedAt), n),
-      subscriptionId: input.subscriptionId ?? null,
-      status: input.paid ? 'paid' : 'issued',
-      subtotalMinor: priced.subtotalMinor,
-      vatRateBp: priced.vatRateBp,
-      vatMinor: priced.vatMinor,
-      totalMinor: priced.totalMinor,
-      issuedAt,
-      dueAt: new Date(issuedAt.getTime() + (input.dueInDays ?? 0) * 86_400_000),
-      paidAt: input.paid ? issuedAt : null,
-      sellerName: seller.nameEn,
-      sellerNameAr: seller.nameAr,
-      sellerCrNumber: seller.crNumber,
-      sellerVatNumber: seller.vatNumber,
-      sellerAddress: addressLine(seller.address, 'en'),
-      sellerAddressAr: addressLine(seller.address, 'ar'),
-      buyerName: buyer.name,
-      buyerNameAr: buyer.nameAr,
-      buyerCrNumber: buyer.crNumber,
-      buyerVatNumber: buyer.vatNumber,
-      buyerAddress: [buyer.nationalAddress, buyer.city].filter(Boolean).join(', ') || null,
-    } as never);
-    await db.insert(invoiceLines, priced.lines.map((line) => ({
-      id: uuidv7(),
-      invoiceId: row.id,
-      description: line.description,
-      descriptionAr: line.descriptionAr,
-      quantity: line.quantity,
-      unitPriceMinor: line.unitPriceMinor,
-      amountMinor: line.amountMinor,
-      taxMinor: line.taxMinor,
-    })) as never);
-    await record(ctx, { action: 'create', resourceType: 'invoice', resourceId: row.id, after: row as never }, db);
-    return row.id;
-  });
-  const issued = (await invoiceOf(ctx, id))!;
-  if (input.announce) await announceInvoice(ctx, issued, input.announce.appUrl); // after the commit
-  return issued;
+  const buyer = await db.requireById(tenants, ctx.tenantId);
+  const company = input.buyer;
+  const n = await allocateInvoiceNumber(db, riyadhYear(issuedAt));
+  const row = await db.insert(invoices, {
+    id: uuidv7(),
+    invoiceNumber: invoiceNumber(ctx.tenantId, riyadhYear(issuedAt), n),
+    subscriptionId: input.subscriptionId ?? null,
+    status: input.paid ? 'paid' : 'issued',
+    subtotalMinor: priced.subtotalMinor,
+    vatRateBp: priced.vatRateBp,
+    vatMinor: priced.vatMinor,
+    totalMinor: priced.totalMinor,
+    issuedAt,
+    dueAt: new Date(issuedAt.getTime() + (input.dueInDays ?? 0) * 86_400_000),
+    paidAt: input.paid ? issuedAt : null,
+    sellerName: seller.nameEn,
+    sellerNameAr: seller.nameAr,
+    sellerCrNumber: seller.crNumber,
+    sellerVatNumber: seller.vatNumber,
+    sellerAddress: addressLine(seller.address, 'en'),
+    sellerAddressAr: addressLine(seller.address, 'ar'),
+    buyerName: company?.name ?? buyer.name,
+    buyerNameAr: company ? null : buyer.nameAr,
+    buyerCrNumber: company ? company.crNumber : buyer.crNumber,
+    buyerVatNumber: company ? company.vatNumber : buyer.vatNumber,
+    buyerAddress: [buyer.nationalAddress, buyer.city].filter(Boolean).join(', ') || null,
+  } as never);
+  await db.insert(invoiceLines, priced.lines.map((line) => ({
+    id: uuidv7(),
+    invoiceId: row.id,
+    description: line.description,
+    descriptionAr: line.descriptionAr,
+    quantity: line.quantity,
+    unitPriceMinor: line.unitPriceMinor,
+    amountMinor: line.amountMinor,
+    taxMinor: line.taxMinor,
+  })) as never);
+  await record(ctx, { action: 'create', resourceType: 'invoice', resourceId: row.id, after: row as never }, db);
+  return row.id;
 }
 
 type InvoiceRowDb = typeof invoices.$inferSelect;

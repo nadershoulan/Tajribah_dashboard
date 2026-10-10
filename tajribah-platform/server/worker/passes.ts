@@ -21,6 +21,7 @@ import { sweepAiJobs, sweepUnconfirmedPhotos } from '@/server/modules/ai-jobs/sw
 import { resealWebhookSecrets, sweepWebhookDeliveries } from '@/server/modules/outgoing-webhooks/sweep';
 import { activateCustomDomains, watchCustomDomains } from '@/server/modules/domains/activation';
 import { sendTrialReminders } from '@/server/modules/billing/trial';
+import { sweepTransferRenewals } from '@/server/modules/billing/transfer-renewals';
 import { sendWeeklyReports } from '@/server/modules/analytics/report';
 import { refreshRelations } from '@/server/modules/recommendations/compute';
 import { refreshConnectionHealth } from '@/server/modules/connections/health';
@@ -95,6 +96,7 @@ export const SWEEPS: [string, () => Promise<unknown>][] = [
   ['reseal connections', resealConnections],
   ['reseal two-factor secrets', resealTwoFactorSecrets],
   ['trial reminders', sendTrialReminders],
+  ['bank transfer renewals', () => sweepTransferRenewals()], // T129: reminders, past due, read-only — plans paid by transfer do not renew themselves
   ['weekly reports', () => sendWeeklyReports()], // P4.8: the week's summary, to the members who asked for it
   ['retention', sweepRetentionHourly], // A14, T22: data past its retention period
   ['AI jobs', sweepAiJobs], // P3.2: AI jobs never dispatched, or abandoned mid-run

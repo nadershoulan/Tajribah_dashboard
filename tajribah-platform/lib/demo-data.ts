@@ -244,6 +244,10 @@ export const DEMO_BILLING: BillingSummary = {
   invoices: [],
   paymentMethod: null,
   catalogue: PLANS.map((p) => ({ code: p.code, priceMonthlyMinor: p.priceMonthlyMinor, priceAnnualMinor: p.priceAnnualMinor })),
+  // The demo has no server to pay: no method is offered, and no transfer was sent.
+  paidBy: null,
+  checkout: { methods: [], bankTransfer: null },
+  transfers: [],
 };
 
 export const DEMO_ANALYTICS: AnalyticsView = {

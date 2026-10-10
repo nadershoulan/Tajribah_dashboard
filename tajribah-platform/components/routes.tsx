@@ -52,6 +52,8 @@ import AdminCompliance from '@/components/pages/admin/AdminCompliance';
 import AdminAnnouncements from '@/components/pages/admin/AdminAnnouncements';
 import AdminSite from '@/components/pages/admin/AdminSite';
 import AdminContact from '@/components/pages/admin/AdminContact';
+import AdminBankTransfers from '@/components/pages/admin/AdminBankTransfers';
+import AdminPaymentMethods from '@/components/pages/admin/AdminPaymentMethods';
 import SallaApp from '@/components/pages/SallaApp';
 import AgencyStores from '@/components/pages/AgencyStores';
 import AnalyticsSessions from '@/components/pages/AnalyticsSessions';
@@ -98,6 +100,8 @@ export const ROUTES: Record<string, () => ReactElement> = {
   '/admin/announcements': AdminAnnouncements,
   '/admin/site': AdminSite,
   '/admin/contact': AdminContact,
+  '/admin/bank-transfers': AdminBankTransfers, // T129
+  '/admin/payment-methods': AdminPaymentMethods, // T129
   '/admin/audit': AdminAudit,
   '/verify-email': VerifyEmail,
   '/reset-password': ResetPassword,

@@ -2028,3 +2028,54 @@ the store's plan. The editor `<dialog>` sets `margin: auto` because the global r
 centring (it hugged the right edge in Arabic).
 
 **Rollback path.** Remove the two buttons; nothing else depends on the editor. Cost: low.
+
+## T129 · 2026-10-10 · Paying by bank transfer, and payment methods staff switch on and off
+
+**Decision (Nader).** A store can subscribe by bank transfer: it sends the money to one of Tajribah's accounts,
+attaches the receipt and the sender's name, and staff approve or decline it in the console («التحويلات البنكية»), with
+an email at every step. Staff switch each payment method on or off and order them («طرق الدفع»), so new methods can be
+added later. Full requirements (functional and non-functional): `docs/BANK-TRANSFER.md`.
+
+**How it is built.**
+- *A registry of methods* (`lib/payment-methods.ts`): `ready` in code (Tajribah can take money this way) and `enabled`
+  in the database (`payment_method_settings`, staff). Only bank transfer is ready; card, mada, Apple Pay, STC Bank,
+  Tamara and Tabby are listed and cannot be switched on until their gateway is wired — a store would otherwise pick a
+  method nothing collects. A new method is one entry.
+- *Requests* (`bank_transfer_requests`, tenant table, RLS) keep the amounts **as quoted** (server-priced, coupon
+  re-checked) and a snapshot of the account shown. **One open request per store** is a partial unique index.
+  *Timeline* (`bank_transfer_events`) is append-only for the application role.
+- *Approval is one transaction*: subscription (plan, period, active, `provider = bank_transfer`), the store's status
+  (never undoing a suspension), a paid tax invoice through the existing issuer (`issueInvoiceIn`, now usable inside a
+  caller's transaction; a company as buyer when the store bought for one), a captured payment (idempotency key
+  `bank_transfer:<id>`), the store's audit row, the request, the timeline. Staff must tick that the money arrived.
+- *The period* (`periodFor`): a renewal of the same plan extends from the paid end; a change of plan starts on
+  approval and carries the old plan's paid days over at their value; nothing paid left → starts now.
+- *Coupons are redeemed when the request is sent* (the last use cannot go to two stores) and given back on decline or
+  cancel.
+- *Receipts*: presigned upload under the store's prefix, judged by their bytes on submit (PNG/JPEG/WebP/PDF, 10 MB),
+  never-sent uploads swept with the others; served only through the server (store or staff) with `no-store`,
+  `nosniff` and a sandboxing CSP. The storage key never leaves the server. Kept after a decision (the payment's
+  record); a replaced one is deleted.
+- *Renewal*: plans paid by transfer do not renew themselves, so a sweep (every minute) sends the nearest reminder (7,
+  2 days by default), moves the plan to past due at the end (still working), and to read-only after the grace days
+  (7) — never while a renewal transfer waits on staff.
+- *Emails*: the store's billing people at each step in their language (and in-app), staff on new, resent and
+  cancelled requests (every staff account plus extra addresses set on bank transfer).
+- *Staff console*: the list (status tabs with counts, search, a pending count in the menu), the request in full with
+  the receipt and the period approval would grant, approve / decline (presets) / ask for more / staff note; the
+  payment methods page with bank transfer's settings and Tajribah's bank accounts (IBAN checked with mod 97, unique; an
+  account a transfer named is switched off, never deleted).
+
+**Choices made without asking (Nader: "make the decisions").**
+- Single-step transfer (as in the reference screen), not "reserve a reference first": the store transfers, then sends
+  the request; staff match by amount, sender and the store name in the transfer note. The reference (`TJR-XXXXXX`,
+  no 0/O/1/I/L) follows the request everywhere after.
+- No bank account is seeded: the IBAN in the reference screen is another company's. Staff add Tajribah's own.
+- Bank transfer starts **on** (migration 0047) but is offered only once an account exists.
+- 20 requests and uploads an hour per store (a person fixing mistakes stays under it; a script does not).
+- The changeType of a renewal is recorded as `resume` (the enum has no `renew`), a different plan as up/downgrade.
+- P2.10 (the pay button works — by transfer) and P2.12 (coupons redeemed at payment) are counted done; card payments
+  remain P2.3 (Moyasar).
+
+**Rollback path.** Switch bank transfer off in the console (nothing is offered), or migration 0047's ROLLBACK (drops
+the four tables and two enums; invoices and payments already issued stay). Cost: low.

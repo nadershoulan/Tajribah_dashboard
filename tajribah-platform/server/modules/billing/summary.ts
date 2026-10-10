@@ -10,8 +10,10 @@ import { implicitPlan } from '@/lib/plans';
 import type { BillingSummary } from '@/lib/view-models';
 import { planCatalogue } from '@/server/core/billing/entitlements';
 import type { TenantContext } from '@/server/core/tenancy/context';
+import { transfersOf } from './bank-transfer';
 import { creditSummary } from './credits';
 import { invoicesOf } from './invoices';
+import { checkoutOptions } from './payment-methods';
 
 export async function billingSummary(ctx: TenantContext, now = new Date()): Promise<BillingSummary> {
   ctx.require('billing:read');
@@ -24,6 +26,7 @@ export async function billingSummary(ctx: TenantContext, now = new Date()): Prom
   const row = catalogue.find((p) => p.code === code);
   const credits = await creditSummary(ctx, now);
   const invoices = await invoicesOf(ctx);
+  const [checkout, transfers] = await Promise.all([checkoutOptions(), transfersOf(ctx)]);
 
   return {
     plan: code,
@@ -37,5 +40,8 @@ export async function billingSummary(ctx: TenantContext, now = new Date()): Prom
     invoices,
     paymentMethod: null,
     catalogue: catalogue.filter((p) => p.isPublic).map((p) => ({ code: p.code, priceMonthlyMinor: p.priceMonthlyMinor, priceAnnualMinor: p.priceAnnualMinor })),
+    paidBy: found?.subscription.provider && found.subscription.provider !== 'none' ? found.subscription.provider : null,
+    checkout,
+    transfers,
   };
 }

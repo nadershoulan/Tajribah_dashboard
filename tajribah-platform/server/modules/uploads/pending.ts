@@ -12,14 +12,14 @@
  */
 import { asc, eq, lt, or } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
-import { models3d, pendingUploads, tryonConfigs } from '@/db/schema';
+import { bankTransferRequests, models3d, pendingUploads, tryonConfigs } from '@/db/schema';
 import { log } from '@/server/core/observability/log';
 import { forTenant } from '@/server/core/storage/storage';
 import { withTenant } from '@/server/core/tenancy/rls';
 import type { TenantDb } from '@/server/core/tenancy/tenant-db';
 
 export const PENDING_UPLOAD_TTL_MS = 24 * 60 * 60_000;
-export type PendingPurpose = 'tryon_cutout' | 'model_picture';
+export type PendingPurpose = 'tryon_cutout' | 'model_picture' | 'transfer_receipt';
 
 /** A confirm with no record: started more than a day ago (its bytes are swept), or never by this store. */
 export const EXPIRED = 'this upload has expired — upload the picture again';
@@ -37,10 +37,11 @@ export async function takePendingUpload(db: TenantDb, storageKey: string): Promi
   return (await db.delete(pendingUploads, eq(pendingUploads.storageKey, storageKey))) > 0;
 }
 
-/** Whether a try-on config or a model names these bytes. */
+/** Whether a try-on config, a model or a bank transfer request (T129) names these bytes. */
 async function attached(db: TenantDb, key: string): Promise<boolean> {
   return (await db.exists(tryonConfigs, or(eq(tryonConfigs.wornKey, key), eq(tryonConfigs.flatKey, key))))
-    || db.exists(models3d, eq(models3d.pictureKey, key));
+    || (await db.exists(models3d, eq(models3d.pictureKey, key)))
+    || db.exists(bankTransferRequests, eq(bankTransferRequests.receiptKey, key));
 }
 
 export async function sweepPendingUploads(now = new Date(), limit = 100): Promise<number> {

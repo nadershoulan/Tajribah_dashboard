@@ -51,7 +51,7 @@ export interface Storage {
   publicUrl(key: string): string;
 }
 
-export type AssetKind = 'model' | 'texture' | 'thumbnail' | 'photo' | 'invoice' | 'export';
+export type AssetKind = 'model' | 'texture' | 'thumbnail' | 'photo' | 'invoice' | 'export' | 'receipt';
 
 /**
  * The only way to build a storage key.

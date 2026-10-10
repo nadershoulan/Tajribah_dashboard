@@ -68,6 +68,8 @@ export const EXEMPT: Record<string, string> = {
   ai_guardrails: 'Platform limits on AI spend (P6.7): one row, set by staff in the admin console and read by the server through the admin role before a job is charged. It holds no tenant data; the application role has no grant at all.',
   store_grants: 'A store platform’s access for a store no Tajribah account has linked yet (T61: Salla sends it by webhook on install). There is no tenant until the merchant links the store; then the tokens move onto the tenant’s connection and the row is deleted. Admin role only — the application role has no grant at all.',
   contact_messages: 'Messages from the website’s contact form (T115) — sent by visitors before any store exists, read and handled only by Tajribah staff in the admin console. Admin role only — the application role has no grant at all.',
+  payment_method_settings: 'How stores may pay (T129): one row per payment method — whether staff offer it, its order, its settings. Tajribah’s, the same for every store; written only by the admin console, read by the server through the admin role. The application role has no grant at all.',
+  bank_accounts: 'Tajribah’s own bank accounts that stores transfer to (T129) — the same for every store; written only by the admin console, shown at checkout through the server’s admin role. Which store sent what is tenant data, in bank_transfer_requests. The application role has no grant at all.',
   staff_audit: 'What Tajribah staff did in the admin console (A1). Platform-wide — an action may concern no store — and read and written only by the admin role; the application role has no grant at all.',
 };
 
@@ -94,6 +96,7 @@ export const RLS_EXEMPT: Record<string, string> = {
  */
 export const APPEND_ONLY: Record<string, string> = {
   audit_logs: 'The record of who changed what. A trail the application can rewrite proves nothing: a compromised session, or a bug, could remove the evidence of itself. Erasure (PDPL) and retention run as tajribah_admin.',
+  bank_transfer_events: 'The timeline of a bank transfer request (T129): submitted, more asked for, approved, declined. A timeline the application can rewrite proves nothing about who decided what; corrections are new rows.',
   credit_ledger: 'AI credits (§7.4 rule 1, P2.9): the balance is the sum of the deltas, so a row changed or removed afterwards silently changes what a store has. Corrections are new rows (`adjustment`), never edits.',
 };
 

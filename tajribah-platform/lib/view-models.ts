@@ -5,6 +5,8 @@
  * them here means the dashboard can be built, reviewed and looked at before the API
  * exists — and when the API arrives, the screens do not change.
  */
+import type { CheckoutOptions } from './payment-methods';
+import type { TransferView } from './contracts/bank-transfer';
 import type { AiJobStage } from './ai-jobs';
 import type { Bi } from './lang';
 import type { PlanCode } from './plans';
@@ -409,6 +411,12 @@ export type BillingSummary = {
   paymentMethod: { type: 'mada' | 'card' | 'applepay' | 'stcpay'; last4: string; expiry: string } | null;
   /** P2.10: list prices from the plan rows (P2.1) — what a checkout quotes. Null = "talk to us". */
   catalogue: { code: PlanCode; priceMonthlyMinor: number | null; priceAnnualMinor: number | null }[];
+  /** T129: who took the money for the current period — `bank_transfer` when it was a transfer (it does not renew by itself). */
+  paidBy: string | null;
+  /** T129: the payment methods staff offer now, with bank transfer's accounts. */
+  checkout: CheckoutOptions;
+  /** T129: this store's bank transfer requests, newest first (an open one first of all). */
+  transfers: TransferView[];
 };
 
 export type AnalyticsView = {

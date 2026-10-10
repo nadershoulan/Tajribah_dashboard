@@ -1,10 +1,13 @@
 'use client';
 
-// MD-160 — Subscription and invoices · P2.10: checkout up to the payment step
+// MD-160 — Subscription and invoices · P2.10: checkout up to the payment step · T129: pay by bank transfer, its status and history
 
 import { CREDITS_PER_3D_GENERATION } from '@/lib/ai-credits';
 import { useState } from 'react';
-import { CheckCircle2, Clock, CreditCard, FileText, Lock, Mail, Phone, Sparkles, X } from 'lucide-react';
+import { CheckCircle2, Clock, CreditCard, FileText, Landmark, Lock, Mail, Phone, Sparkles, X } from 'lucide-react';
+import { isOpen, type TransferView } from '@/lib/contracts/bank-transfer';
+import { paymentMethod, type PaymentMethodKey } from '@/lib/payment-methods';
+import { BankTransferForm, TransferHistory, TransferStatus } from '@/components/dashboard/bank-transfer';
 import { AppLink } from '@/lib/app-env';
 import { inArabic } from '@/lib/problem-text';
 import { useLang } from '@/lib/i18n';
@@ -21,7 +24,11 @@ import { Badge, Empty, ErrorNote, Loading, Meter, PageHead, Panel } from '@/comp
 
 export default function Billing() {
   const { t, pick, lang } = useLang();
-  const { data, loading, error } = useResource((source) => source.billing());
+  // T129: bumped after a transfer is sent, sent again or cancelled — the page reads the server again
+  const [version, setVersion] = useState(0);
+  const { data, loading, error } = useResource((source) => source.billing(), [version]);
+  const reload = () => setVersion((v) => v + 1);
+  const [openedAt] = useState(() => Date.now());
   // P2.10: the plan and cycle being checked out, or null. Nothing is charged: payment opens with Moyasar (P2.3).
   const [checkout, setCheckout] = useState<{ plan: PlanCode; cycle: 'monthly' | 'annual' } | null>(null);
   const openCheckout = (plan: PlanCode, cycle: 'monthly' | 'annual') => {
@@ -35,6 +42,10 @@ export default function Billing() {
   ];
 
   const current = data ? planByCode(data.plan) : null;
+  // T129: the request that matters now — open, or decided in the last two weeks; the rest is history
+  const recent = data?.transfers.find((x) => isOpen(x.status) || openedAt - new Date(x.decidedAt ?? x.updatedAt).getTime() < 14 * 86_400_000) ?? null;
+  const history = data?.transfers.filter((x) => x.id !== recent?.id) ?? [];
+  const byTransfer = data?.paidBy === 'bank_transfer';
 
   return (
     <Shell tenant={null} crumbs={crumbs}>
@@ -51,6 +62,7 @@ export default function Billing() {
 
       {!loading && data && current && (
         <>
+          {recent && <TransferStatus transfer={recent} onChanged={reload} onNew={() => openCheckout(recent.plan, recent.cycle)} />}
           <Panel
             title={t('باقتك الحالية', 'Your plan')}
             actions={<button type="button" className="btn btn-ghost btn-sm" onClick={() => document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth' })}>{t('قارن الباقات', 'Compare plans')}</button>}
@@ -62,6 +74,7 @@ export default function Billing() {
                   {data.status === 'trialing' && <Badge tone="warn">{t('فترة تجريبية', 'Trial')}</Badge>}
                   {data.status === 'active' && <Badge tone="ok" dot>{t('نشط', 'Active')}</Badge>}
                   {data.status === 'past_due' && <Badge tone="bad">{t('دفعة متأخرة', 'Past due')}</Badge>}
+                  {data.status === 'expired' && <Badge tone="bad">{t('منتهٍ', 'Ended')}</Badge>}
                 </div>
                 <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 14 }}>{pick(current.tagline)}</p>
 
@@ -69,6 +82,15 @@ export default function Billing() {
                   <p style={{ marginTop: 12, fontSize: 14 }}>
                     {t('تنتهي التجربة', 'Trial ends')} <strong>{formatRelative(data.trialEndsAt, lang)}</strong>
                     {' — '}{formatDate(data.trialEndsAt, lang)}
+                  </p>
+                )}
+
+                {byTransfer && data.renewsAt && (data.status === 'active' || data.status === 'past_due') && (
+                  <p style={{ marginTop: 12, fontSize: 14 }}>
+                    <Landmark size={15} aria-hidden style={{ verticalAlign: '-2px' }} />{' '}
+                    {data.status === 'past_due'
+                      ? t(`انتهت المدة المدفوعة في ${formatDate(data.renewsAt, lang)} — جدّد بتحويل قبل أن يصبح المتجر للاطلاع فقط.`, `The paid period ended on ${formatDate(data.renewsAt, lang)} — renew by transfer before the store becomes read-only.`)
+                      : t(`مدفوع بالتحويل البنكي حتى ${formatDate(data.renewsAt, lang)} — لا يتجدد تلقائيًا؛ جدّد قبل نهايته ولن تخسر يومًا.`, `Paid by bank transfer until ${formatDate(data.renewsAt, lang)} — it does not renew by itself; renew before it ends and you lose no day.`)}
                   </p>
                 )}
 
@@ -84,7 +106,7 @@ export default function Billing() {
 
                 <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
                   <button type="button" className="btn btn-accent" onClick={() => openCheckout(data.plan, data.cycle)}>
-                    {data.status === 'active' ? t('غيّر الباقة', 'Change plan') : t('فعّل الاشتراك', 'Start your subscription')}
+                    {data.status === 'active' ? (byTransfer ? t('جدّد أو غيّر الباقة', 'Renew or change plan') : t('غيّر الباقة', 'Change plan')) : data.status === 'past_due' || data.status === 'expired' ? t('جدّد الاشتراك', 'Renew your plan') : t('فعّل الاشتراك', 'Start your subscription')}
                   </button>
                   {data.cycle !== 'annual' && (
                     <button type="button" className="btn btn-ghost" onClick={() => openCheckout(data.plan, 'annual')}>{t('الفوترة السنوية (شهران مجانًا)', 'Switch to annual (2 months free)')}</button>
@@ -110,17 +132,30 @@ export default function Billing() {
           </Panel>
 
           {checkout && <Checkout data={data} plan={checkout.plan} cycle={checkout.cycle}
-            onCycle={(cycle) => setCheckout({ ...checkout, cycle })} onClose={() => setCheckout(null)} />}
+            onCycle={(cycle) => setCheckout({ ...checkout, cycle })} onClose={() => setCheckout(null)}
+            onSent={() => { setCheckout(null); reload(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />}
 
           <div className="grid grid-2" style={{ marginTop: 18 }}>
             <Panel title={t('طريقة الدفع', 'Payment method')}>
-              {data.paymentMethod ? (
+              {byTransfer ? (
+                <p style={{ margin: 0 }}>
+                  <Landmark size={16} aria-hidden /> {t('تحويل بنكي', 'Bank transfer')}
+                  <span className="hint"> — {t('تُراجع كل دفعة وتصدر فاتورتها عند قبولها.', 'each payment is checked and invoiced once accepted.')}</span>
+                </p>
+              ) : data.paymentMethod ? (
                 <p style={{ margin: 0 }}>
                   <CreditCard size={16} aria-hidden /> {data.paymentMethod.type.toUpperCase()} ···· {data.paymentMethod.last4}
                   <span className="hint"> {data.paymentMethod.expiry}</span>
                 </p>
               ) : (
-                <Empty
+                data.checkout.methods.includes('bank_transfer') ? (
+                  <Empty
+                    icon={<Landmark size={22} />}
+                    title={t('ادفع بالتحويل البنكي', 'Pay by bank transfer')}
+                    body={t('اختر باقة ثم «تحويل بنكي»: حوّل المبلغ وأرفق الإيصال، ونفعّل اشتراكك بعد التحقق. مدى والبطاقات وApple Pay قريبًا.', 'Choose a plan, then “Bank transfer”: send the amount and attach the receipt — we switch your plan on once it is checked. mada, cards and Apple Pay are coming.')}
+                    action={<button type="button" className="btn btn-accent" onClick={() => openCheckout(data.plan, data.cycle)}>{t('اختر باقتك', 'Choose your plan')}</button>}
+                  />
+                ) : <Empty
                   icon={<CreditCard size={22} />}
                   title={t('لا توجد طريقة دفع', 'No payment method')}
                   body={t(
@@ -241,6 +276,8 @@ export default function Billing() {
             })}
           </div>
 
+          <TransferHistory transfers={history} />
+
           <p className="hint" style={{ marginTop: 14 }}>
             {t(
               'الأسعار لا تشمل ضريبة القيمة المضافة 15%. الفواتير تصدر باسم منشأتك ورقمها الضريبي كما أدخلتهما في الإعدادات.',
@@ -271,9 +308,9 @@ const COUPON_AR: [RegExp, string][] = [
  * be (the shared contract, prices from the plan rows). Paying opens with the payment gateway
  * (P2.3, Moyasar); until then the button says so and nothing is charged.
  */
-function Checkout({ data, plan, cycle, onCycle, onClose }: {
+function Checkout({ data, plan, cycle, onCycle, onClose, onSent }: {
   data: BillingSummary; plan: PlanCode; cycle: 'monthly' | 'annual';
-  onCycle: (cycle: 'monthly' | 'annual') => void; onClose: () => void;
+  onCycle: (cycle: 'monthly' | 'annual') => void; onClose: () => void; onSent: (transfer: TransferView) => void;
 }) {
   const { t, pick, lang } = useLang();
   const source = useData();
@@ -282,6 +319,10 @@ function Checkout({ data, plan, cycle, onCycle, onClose }: {
   const [coupon, setCoupon] = useState<{ for: string; quote: CouponQuote } | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  // T129: the methods staff offer, in their order; the first is chosen to start
+  const methods = data.checkout.methods;
+  const [method, setMethod] = useState<PaymentMethodKey | null>(methods[0] ?? null);
+  const openTransfer = data.transfers.find((x) => isOpen(x.status)) ?? null;
   const prices = data.catalogue.find((p) => p.code === plan);
   const unit = cycle === 'annual' ? prices?.priceAnnualMinor : prices?.priceMonthlyMinor;
   const name = planByCode(plan).name;
@@ -345,15 +386,45 @@ function Checkout({ data, plan, cycle, onCycle, onClose }: {
           {t('تصدر الفاتورة باسم منشأتك ورقمها الضريبي كما في ', 'The invoice is issued to your business name and VAT number as entered in ')}
           <AppLink href="/dashboard/settings">{t('الإعدادات', 'Settings')}</AppLink>.
         </p>
-        <div className="btn-row">
-          <button type="button" className="btn btn-primary" disabled aria-describedby="pay-note">
-            <Lock size={15} aria-hidden />{t(`ادفع ${money(quote.totalMinor)}`, `Pay ${money(quote.totalMinor)}`)}
-          </button>
-        </div>
-        <p id="pay-note" className="hint">{t(
-          'الدفع يُفتح عند ربط بوابة الدفع (Moyasar). لا يُخصم أي مبلغ الآن.',
-          'Payment opens once the payment gateway (Moyasar) is connected. Nothing is charged now.',
-        )}</p>
+        {methods.length > 0 ? (
+          <fieldset className="pay-methods">
+            <legend>{t('طريقة الدفع', 'Payment method')}</legend>
+            <div className="pay-methods-grid">
+              {methods.map((key) => {
+                const info = paymentMethod(key)!;
+                return (
+                  <label key={key} className={`pay-method${method === key ? ' is-on' : ''}`}>
+                    <input type="radio" name="pay-method" checked={method === key} onChange={() => setMethod(key)} />
+                    {info.kind === 'offline' ? <Landmark size={18} aria-hidden /> : <CreditCard size={18} aria-hidden />}
+                    <span className="pay-method-name">{pick(info.label)}</span>
+                    <span className="pay-method-blurb">{pick(info.blurb)}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        ) : (
+          <>
+            <div className="btn-row">
+              <button type="button" className="btn btn-primary" disabled aria-describedby="pay-note">
+                <Lock size={15} aria-hidden />{t(`ادفع ${money(quote.totalMinor)}`, `Pay ${money(quote.totalMinor)}`)}
+              </button>
+            </div>
+            <p id="pay-note" className="hint">{t(
+              `لا تتوفر طريقة دفع الآن. راسلنا على ${CONTACT.email} لنفعّل اشتراكك. لا يُخصم أي مبلغ.`,
+              `No payment method is available right now. Email ${CONTACT.email} and we will switch your plan on. Nothing is charged.`,
+            )}</p>
+          </>
+        )}
+        {method === 'bank_transfer' && data.checkout.bankTransfer && (openTransfer ? (
+          <p className="bt-say" role="note">{t(
+            `لديك طلب تحويل قيد المراجعة (${openTransfer.reference}) — تابعه أعلى الصفحة، أو ألغه لترسل طلبًا آخر.`,
+            `You have a transfer under review (${openTransfer.reference}) — follow it at the top of the page, or cancel it to send another.`,
+          )}</p>
+        ) : (
+          <BankTransferForm options={data.checkout.bankTransfer} plan={plan} cycle={cycle} couponCode={applied?.code ?? null}
+            totalMinor={quote.totalMinor} currency={data.currency} onSent={onSent} />
+        ))}
       </Panel>
     </div>
   );

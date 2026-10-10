@@ -205,6 +205,35 @@ export type AdminAnnouncement = AdminAnnouncementFields & { id: string; createdA
 export type AdminContactStatus = 'new' | 'read' | 'archived';
 export type AdminContact = { id: string; name: string; email: string; phone: string | null; storeUrl: string | null; platform: string | null; message: string; lang: string; status: AdminContactStatus; createdAt: string; handledAt: string | null };
 export type AdminContactInbox = { items: AdminContact[]; counts: Record<AdminContactStatus, number>; next: string | null };
+/** T129 — server/modules/admin/bank-transfers.ts and server/modules/billing/payment-methods.ts */
+export type AdminTransferStatus = import('./contracts/bank-transfer').TransferStatus;
+export type AdminTransferRow = {
+  id: string; reference: string; status: AdminTransferStatus; storeId: string; storeName: string; storeSlug: string;
+  plan: PlanCode; cycle: 'monthly' | 'annual'; totalMinor: number; currency: string; senderName: string;
+  hasReceipt: boolean; createdAt: string; decidedAt: string | null;
+};
+export type AdminTransferList = { items: AdminTransferRow[]; counts: Record<AdminTransferStatus | 'all', number>; next: string | null };
+export type AdminTransferDetail = import('./contracts/bank-transfer').TransferView & {
+  store: { id: string; name: string; nameAr: string | null; slug: string; status: string; crNumber: string | null; vatNumber: string | null };
+  current: { plan: PlanCode | null; status: string | null; periodEnd: string | null; provider: string | null };
+  staffNote: string | null; invoiceNumber: string | null;
+  preview: { start: string; end: string; extends: boolean; carriedDays: number } | null;
+};
+export type AdminTransferDecision =
+  | { action: 'approve'; confirmed: boolean; note?: string | null }
+  | { action: 'reject'; message: string; note?: string | null }
+  | { action: 'request_info'; message: string }
+  | { action: 'note'; note: string };
+export type AdminPaymentMethod = {
+  key: import('./payment-methods').PaymentMethodKey; kind: 'offline' | 'online'; provider: string | null; ready: boolean;
+  enabled: boolean; sortOrder: number; updatedAt: string | null;
+};
+export type AdminBankAccount = import('./payment-methods').BankAccountView & { note: string | null; used: number; createdAt: string };
+export type AdminPaymentSettings = { methods: AdminPaymentMethod[]; bankTransfer: import('./payment-methods').BankTransferConfig; accounts: AdminBankAccount[] };
+export type AdminBankAccountFields = {
+  bankName: string; bankNameAr: string; accountHolder: string; accountNumber: string; iban: string;
+  swift?: string | null; active?: boolean; sortOrder?: number; note?: string | null;
+};
 /** P3.10 — server/modules/admin/professional.ts */
 export type AdminProfessionalRow = import('./contracts/professional').ProfessionalOrderView & {
   store: { id: string; name: string; nameAr: string | null };
@@ -284,6 +313,16 @@ export type AdminApi = {
   contactInbox(filter?: { status?: AdminContactStatus | 'all'; before?: string }): Promise<AdminContactInbox>;
   setContactStatus(id: string, status: AdminContactStatus): Promise<AdminContact>;
   deleteContact(id: string, reason: string): Promise<void>;
+  bankTransfers(filter?: { status?: AdminTransferStatus | 'all'; q?: string; before?: string }): Promise<AdminTransferList>;
+  pendingTransfers(): Promise<number>;
+  bankTransfer(id: string): Promise<AdminTransferDetail>;
+  decideTransfer(id: string, decision: AdminTransferDecision): Promise<AdminTransferDetail>;
+  transferReceipt(id: string): Promise<Blob>;
+  paymentSettings(): Promise<AdminPaymentSettings>;
+  updatePaymentMethod(key: string, input: { enabled?: boolean; sortOrder?: number; config?: Partial<import('./payment-methods').BankTransferConfig>; reason: string }): Promise<AdminPaymentSettings>;
+  createBankAccount(input: AdminBankAccountFields & { reason: string }): Promise<AdminBankAccount>;
+  updateBankAccount(id: string, input: Partial<AdminBankAccountFields> & { reason: string }): Promise<AdminBankAccount>;
+  deleteBankAccount(id: string, reason: string): Promise<void>;
   /** T69 — the website's own settings: its GA4 measurement id. */
   site(): Promise<AdminSiteSettings>;
   updateSite(input: { ga4MeasurementId: string | null; reason: string }): Promise<AdminSiteSettings>;
@@ -397,6 +436,22 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       },
       setContactStatus: async (id, status) => client.call<AdminContact>(`/api/admin/contact/${encodeURIComponent(id)}`, { method: 'PATCH', body: { status } }),
       deleteContact: async (id, reason) => { await client.call(`/api/admin/contact/${encodeURIComponent(id)}`, { method: 'DELETE', body: { reason } }); },
+      bankTransfers: async (filter = {}) => {
+        const q = new URLSearchParams();
+        if (filter.status) q.set('status', filter.status);
+        if (filter.q) q.set('q', filter.q);
+        if (filter.before) q.set('before', filter.before);
+        return client.call<AdminTransferList>(`/api/admin/bank-transfers${q.size ? `?${q}` : ''}`);
+      },
+      pendingTransfers: async () => (await client.call<{ pending: number }>('/api/admin/bank-transfers/count')).pending,
+      bankTransfer: (id) => client.call<AdminTransferDetail>(`/api/admin/bank-transfers/${encodeURIComponent(id)}`),
+      decideTransfer: (id, decision) => client.call<AdminTransferDetail>(`/api/admin/bank-transfers/${encodeURIComponent(id)}/decision`, { body: decision }),
+      transferReceipt: (id) => client.callBlob(`/api/admin/bank-transfers/${encodeURIComponent(id)}/receipt`),
+      paymentSettings: () => client.call<AdminPaymentSettings>('/api/admin/payment-methods'),
+      updatePaymentMethod: (key, input) => client.call<AdminPaymentSettings>(`/api/admin/payment-methods/${encodeURIComponent(key)}`, { method: 'PATCH', body: input }),
+      createBankAccount: (input) => client.call<AdminBankAccount>('/api/admin/bank-accounts', { body: input }),
+      updateBankAccount: (id, input) => client.call<AdminBankAccount>(`/api/admin/bank-accounts/${encodeURIComponent(id)}`, { method: 'PATCH', body: input }),
+      deleteBankAccount: async (id, reason) => { await client.call(`/api/admin/bank-accounts/${encodeURIComponent(id)}`, { method: 'DELETE', body: { reason } }); },
       site: () => client.call('/api/admin/site'),
       updateSite: (input) => client.call('/api/admin/site', { method: 'PUT', body: input }),
       ga4Picker: ga4PickerFor(client, 'site'),
@@ -489,7 +544,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound, announcements: notFound, contactInbox: notFound, setContactStatus: notFound, deleteContact: notFound, site: notFound, updateSite: notFound, ga4Picker: noGa4Picker, createAnnouncement: notFound, updateAnnouncement: notFound, qaQueue: notFound, professionalQueue: notFound, quoteProfessional: notFound, markProfessionalPaid: notFound, deliverProfessional: notFound, decideQa: notFound, qaModel: notFound, aiOperations: notFound, cancelAiJob: notFound, setAiGuardrails: notFound, aiModels: notFound, registerAiModel: notFound, setAiSplits: notFound, setAiModelActive: notFound, rollbackAiModel: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound, announcements: notFound, contactInbox: notFound, setContactStatus: notFound, deleteContact: notFound, bankTransfers: notFound, pendingTransfers: notFound, bankTransfer: notFound, decideTransfer: notFound, transferReceipt: notFound, paymentSettings: notFound, updatePaymentMethod: notFound, createBankAccount: notFound, updateBankAccount: notFound, deleteBankAccount: notFound, site: notFound, updateSite: notFound, ga4Picker: noGa4Picker, createAnnouncement: notFound, updateAnnouncement: notFound, qaQueue: notFound, professionalQueue: notFound, quoteProfessional: notFound, markProfessionalPaid: notFound, deliverProfessional: notFound, decideQa: notFound, qaModel: notFound, aiOperations: notFound, cancelAiJob: notFound, setAiGuardrails: notFound, aiModels: notFound, registerAiModel: notFound, setAiSplits: notFound, setAiModelActive: notFound, rollbackAiModel: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {

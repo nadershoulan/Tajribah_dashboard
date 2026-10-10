@@ -244,6 +244,24 @@ export const HELP_ARTICLES: HelpArticle[] = [
     ],
   },
   {
+    // T129 — paying by bank transfer, as built (components/dashboard/bank-transfer.tsx).
+    slug: 'pay-by-bank-transfer', category: 'billing', updated: '2026-10-10',
+    title: { ar: 'الاشتراك بالتحويل البنكي', en: 'Subscribing by bank transfer' },
+    summary: { ar: 'حوّل المبلغ، أرفق الإيصال، ونفعّل اشتراكك بعد التحقق — وكيف يتجدد.', en: 'Send the amount, attach the receipt, and we switch your plan on once it is checked — and how it renews.' },
+    steps: [
+      { ar: 'في «الاشتراك والفواتير» اختر باقتك ومدتها (شهرية أو سنوية)، ثم اختر «تحويل بنكي» طريقةً للدفع.', en: 'In “Billing”, choose your plan and term (monthly or annual), then choose “Bank transfer” as the way to pay.' },
+      { ar: 'حوّل المبلغ المعروض (شامل الضريبة) إلى حساب تجربة الظاهر — انسخ رقم الآيبان والمبلغ بزر النسخ. اكتب اسم متجرك في ملاحظة التحويل إن أمكن.', en: 'Transfer the amount shown (VAT included) to Tajribah’s account — copy the IBAN and the amount with the copy buttons. Put your store’s name in the transfer note if you can.' },
+      { ar: 'أرفق صورة الإيصال أو ملف PDF من تطبيق البنك، واكتب اسم صاحب الحساب الذي حوّلت منه كما يظهر في كشف الحساب، ثم «أرسل طلب التحويل».', en: 'Attach the receipt (a screenshot or PDF from your bank’s app), type the name on the account you sent from as your statement shows it, then press “Send the transfer request”.' },
+      { ar: 'نتحقق من وصول المبلغ ونفعّل اشتراكك ونرسل فاتورتك الضريبية بالبريد. إن احتجنا شيئًا (إيصالًا أوضح مثلًا) نخبرك، فترفقه وتعيد الإرسال من الصفحة نفسها.', en: 'We check the money arrived, switch your plan on and email your tax invoice. If we need something (a clearer receipt, say) we tell you, and you attach it and send it again from the same page.' },
+    ],
+    body: [
+      { ar: 'تشتري لمنشأة؟ فعّل «الشراء لمنشأة» واكتب اسمها القانوني ورقمها الضريبي وسجلها التجاري: تصدر الفاتورة باسمها.', en: 'Buying for a company? Tick “Buying for a company” and enter its legal name, VAT number and CR number: the invoice is issued to it.' },
+      { ar: 'الاشتراك المدفوع بالتحويل لا يتجدد تلقائيًا. نذكّرك قبل نهايته، وإن جددت مبكرًا تُضاف المدة الجديدة بعد نهاية الحالية فلا تخسر يومًا. بعد النهاية يبقى متجرك يعمل أيامًا قليلة، ثم يصبح للاطلاع فقط حتى تجدد — لا يُحذف شيء.', en: 'A plan paid by transfer does not renew by itself. We remind you before it ends, and renewing early adds the new time after the current period, so you lose no day. After the end your store keeps working for a few days, then becomes read-only until you renew — nothing is deleted.' },
+      { ar: 'تنتقل إلى باقة أخرى بالتحويل؟ تبدأ الجديدة يوم القبول، وتُحسب الأيام المدفوعة المتبقية من باقتك الحالية بقيمتها وتُضاف إليها.', en: 'Moving to another plan by transfer? The new one starts on the day it is approved, and the paid days left on your current plan are counted at their value and added to it.' },
+      { ar: 'طلب واحد قيد المراجعة في كل مرة، ويمكنك إلغاؤه قبل القرار. مدى والبطاقات وApple Pay قادمة.', en: 'One request under review at a time, and you can cancel it before we decide. mada, cards and Apple Pay are coming.' },
+    ],
+  },
+  {
     slug: 'invoices', category: 'billing', updated: '2026-09-27',
     title: { ar: 'الفواتير الضريبية', en: 'Tax invoices' },
     summary: { ar: 'أين تجدها وما الذي تحتويه.', en: 'Where to find them and what they contain.' },

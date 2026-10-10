@@ -16,6 +16,8 @@ import { sql } from 'drizzle-orm';
 import { index, integer, pgEnum, pgTable, primaryKey, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { amountMinor, bool, createdAt, currency, json, pk, tenantId, timestamps, ts } from './_shared';
 import { tenants } from './identity';
+// Relative, as in _shared.ts: drizzle-kit loads the schema outside the bundler.
+import { TRANSFER_EVENTS, TRANSFER_STATUSES } from '../../lib/contracts/bank-transfer';
 
 export const PLAN_CODE = ['starter', 'growth', 'pro', 'enterprise'] as const;
 export const SUBSCRIPTION_STATUS = ['trialing', 'active', 'past_due', 'paused', 'cancelled', 'expired'] as const;
@@ -247,6 +249,130 @@ export const couponRedemptions = pgTable('coupon_redemptions', {
   index('coupon_redemptions_tenant_idx').on(t.tenantId),
 ]);
 
+/**
+ * T129 (drizzle/0047) — how stores may pay, set by staff in the admin console («طرق الدفع»). One row per method key
+ * of `lib/payment-methods.ts` (the registry says which methods exist and which are ready to take money; this row
+ * says whether staff offer it, in what order, and its own settings — bank transfer's grace days, reminders,
+ * instructions). Platform data: the admin role writes it, the server reads it through the admin role.
+ */
+export const paymentMethodSettings = pgTable('payment_method_settings', {
+  key: text('key').primaryKey(),
+  enabled: bool('enabled').default(false),
+  sortOrder: integer('sort_order').notNull().default(0),
+  config: json<Record<string, unknown>>('config'),
+  updatedBy: uuid('updated_by'),
+  ...timestamps(),
+});
+
+/**
+ * T129 — Tajribah's own bank accounts that stores transfer to. Staff add and edit them; the IBAN is checked (mod 97)
+ * before it is saved. An account a transfer named is never deleted, only switched off — the transfer keeps a
+ * snapshot of what the store was shown either way.
+ */
+export const bankAccounts = pgTable('bank_accounts', {
+  id: pk(),
+  bankName: text('bank_name').notNull(),
+  bankNameAr: text('bank_name_ar').notNull(),
+  /** The account's name exactly as the bank writes it — what the store's bank shows before it sends. */
+  accountHolder: text('account_holder').notNull(),
+  accountNumber: text('account_number').notNull(),
+  iban: text('iban').notNull(),
+  swift: text('swift'),
+  currency: currency(),
+  active: bool('active').default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  /** For staff only (which branch, who manages it); never shown to a store. */
+  note: text('note'),
+  ...timestamps(),
+}, (t) => [uniqueIndex('bank_accounts_iban_unq').on(t.iban)]);
+
+export const transferStatus = pgEnum('bank_transfer_status', TRANSFER_STATUSES);
+export const transferEventType = pgEnum('bank_transfer_event', TRANSFER_EVENTS);
+
+export type BankSnapshot = { bankName: string; bankNameAr: string; accountHolder: string; accountNumber: string; iban: string };
+
+/**
+ * T129 — a store asking for a plan paid by bank transfer: what it chose, the amounts it was quoted (kept as quoted —
+ * a later price change never changes what it paid for), the account it was shown, who sent the money, the receipt,
+ * and staff's decision. **One open request per store** (pending, or waiting for more from the store): the partial
+ * unique index is the guarantee, not a check in code. Approval issues the invoice and the payment and fills
+ * `invoice_id`, `payment_id` and the period granted, in the same transaction.
+ */
+export const bankTransferRequests = pgTable('bank_transfer_requests', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  reference: text('reference').notNull(),
+  status: transferStatus('status').notNull().default('pending'),
+  planId: uuid('plan_id').notNull().references(() => plans.id),
+  planCode: planCode('plan_code').notNull(),
+  billingCycle: billingCycle('billing_cycle').notNull(),
+  unitPriceMinor: amountMinor('unit_price_minor'),
+  discountMinor: integer('discount_minor').notNull().default(0),
+  couponCode: text('coupon_code'),
+  freeMonths: integer('free_months').notNull().default(0),
+  couponRedemptionId: uuid('coupon_redemption_id'),
+  subtotalMinor: amountMinor('subtotal_minor'),
+  vatMinor: amountMinor('vat_minor'),
+  totalMinor: amountMinor('total_minor'),
+  currency: currency(),
+  bankAccountId: uuid('bank_account_id').notNull().references(() => bankAccounts.id, { onDelete: 'restrict' }),
+  bankSnapshot: json<BankSnapshot>('bank_snapshot').notNull(),
+  senderName: text('sender_name').notNull(),
+  senderBank: text('sender_bank'),
+  /** The day the store says it sent the money, `YYYY-MM-DD`. */
+  transferredOn: text('transferred_on'),
+  receiptKey: text('receipt_key'),
+  receiptType: text('receipt_type'),
+  receiptBytes: integer('receipt_bytes'),
+  receiptName: text('receipt_name'),
+  /** Bought for a company: these go on the invoice as the buyer. */
+  buyerCompany: bool('buyer_company').default(false),
+  buyerName: text('buyer_name'),
+  buyerVatNumber: text('buyer_vat_number'),
+  buyerCrNumber: text('buyer_cr_number'),
+  merchantNote: text('merchant_note'),
+  /** Staff's words to the store: why it was declined, or what more is needed. */
+  decisionMessage: text('decision_message'),
+  /** Staff's own note; never shown to the store. */
+  staffNote: text('staff_note'),
+  decidedBy: uuid('decided_by'),
+  decidedAt: ts('decided_at'),
+  submittedBy: uuid('submitted_by').notNull(),
+  subscriptionId: uuid('subscription_id'),
+  invoiceId: uuid('invoice_id'),
+  paymentId: uuid('payment_id'),
+  periodStart: ts('period_start'),
+  periodEnd: ts('period_end'),
+  ...timestamps(),
+}, (t) => [
+  uniqueIndex('bank_transfer_reference_unq').on(t.reference),
+  uniqueIndex('bank_transfer_one_open_unq').on(t.tenantId).where(sql`${t.status} in ('pending', 'info_requested')`),
+  index('bank_transfer_status_idx').on(t.status, t.createdAt),
+  index('bank_transfer_tenant_idx').on(t.tenantId, t.createdAt),
+]);
+
+/**
+ * T129 — what happened to a transfer request, in order: submitted, more asked for, sent again, approved, declined,
+ * cancelled, a staff note. Append-only (APPEND_ONLY): a timeline the application could rewrite proves nothing.
+ * `internal` rows (staff notes) are never shown to the store.
+ */
+export const bankTransferEvents = pgTable('bank_transfer_events', {
+  id: pk(),
+  tenantId: tenantId().references(() => tenants.id, { onDelete: 'cascade' }),
+  requestId: uuid('request_id').notNull().references(() => bankTransferRequests.id, { onDelete: 'cascade' }),
+  type: transferEventType('type').notNull(),
+  /** `store`, `staff` or `system`. */
+  actorType: text('actor_type').notNull(),
+  actorUserId: uuid('actor_user_id'),
+  message: text('message'),
+  internal: bool('internal').default(false),
+  createdAt: createdAt(),
+}, (t) => [index('bank_transfer_events_request_idx').on(t.requestId, t.createdAt)]);
+
+export type PaymentMethodSetting = typeof paymentMethodSettings.$inferSelect;
+export type BankAccount = typeof bankAccounts.$inferSelect;
+export type BankTransferRequest = typeof bankTransferRequests.$inferSelect;
+export type BankTransferEvent = typeof bankTransferEvents.$inferSelect;
 export type Coupon = typeof coupons.$inferSelect;
 export type Plan = typeof plans.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;

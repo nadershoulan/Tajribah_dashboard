@@ -21,6 +21,10 @@ import { retentionState } from './retention';
 import { createAnnouncement, listAnnouncements, updateAnnouncement } from './announcements';
 import { siteSettingsForStaff, updateSiteSettings } from './site';
 import { CONTACT_STATUSES, contactInbox, deleteContact, setContactStatus } from './contact';
+import { approveTransfer, listTransfers, noteTransfer, pendingTransferCount, receiptForStaff, rejectTransfer, requestTransferInfo, transferDetail } from './bank-transfers';
+import { createBankAccount, deleteBankAccount, paymentSettingsForStaff, updateBankAccount, updatePaymentMethod } from '@/server/modules/billing/payment-methods';
+import { receiptResponse } from '@/server/modules/billing/bank-transfer';
+import { TRANSFER_STATUSES } from '@/lib/contracts/bank-transfer';
 import { decideQa, qaModelFile, qaQueue } from './qa';
 import { confirmDelivery, markPaid, professionalQueue, quoteOrder, startDelivery } from './professional';
 import { aiOperations, cancelJobForStore, setGuardrails } from './ai-ops';
@@ -413,6 +417,120 @@ export const contactDeleteHandler = route(async (request) => {
   const staff = await staffContextFor(request, config);
   const body = await readJson(request, z.object({ reason: z.string().max(500) }));
   await deleteContact(staff, uuidAt(request, 0, 'message'), body.reason);
+  return new Response(null, { status: 204 });
+});
+
+// ------------------------------------------------------------------ T129: bank transfers and payment methods
+
+/** API-A73 — GET /api/admin/bank-transfers?status=&q=&before=: every store's transfer requests, with counts. */
+export const listTransfersHandler = route(async (request) => {
+  await staffContextFor(request);
+  const params = new URL(request.url).searchParams;
+  const status = z.enum([...TRANSFER_STATUSES, 'all']).catch('all').parse(params.get('status') ?? 'all');
+  return json(await listTransfers({ status, q: params.get('q') ?? undefined, before: params.get('before') ?? undefined }));
+});
+
+/** API-A74 — GET /api/admin/bank-transfers/count: requests waiting on staff (the menu's badge). */
+export const pendingTransfersHandler = route(async (request) => {
+  await staffContextFor(request);
+  return json({ pending: await pendingTransferCount() });
+});
+
+/** API-A75 — GET /api/admin/bank-transfers/[id]: one request in full — store, current plan, timeline, what approval would grant. */
+export const transferDetailHandler = route(async (request) => {
+  await staffContextFor(request);
+  return json(await transferDetail(uuidAt(request, 0, 'transfer')));
+});
+
+const TRANSFER_DECISION = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('approve'), confirmed: z.boolean(), note: z.string().max(2000).nullable().optional() }),
+  z.object({ action: z.literal('reject'), message: z.string().max(2000), note: z.string().max(2000).nullable().optional() }),
+  z.object({ action: z.literal('request_info'), message: z.string().max(2000) }),
+  z.object({ action: z.literal('note'), note: z.string().max(2000) }),
+]);
+
+/** API-A76 — POST /api/admin/bank-transfers/[id]/decision { action, … }: approve, decline, ask for more, or a staff note. */
+export const transferDecisionHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const id = uuidAt(request, 1, 'transfer');
+  const body = await readJson(request, TRANSFER_DECISION);
+  switch (body.action) {
+    case 'approve': return json(await approveTransfer(staff, id, { confirmed: body.confirmed, note: body.note }, config.appUrl));
+    case 'reject': return json(await rejectTransfer(staff, id, { message: body.message, note: body.note }, config.appUrl));
+    case 'request_info': return json(await requestTransferInfo(staff, id, { message: body.message }, config.appUrl));
+    case 'note': return json(await noteTransfer(staff, id, { note: body.note }));
+  }
+});
+
+/** API-A77 — GET /api/admin/bank-transfers/[id]/receipt[?download=1]: the receipt, for staff. */
+export const transferReceiptForStaffHandler = route(async (request) => {
+  await staffContextFor(request);
+  const file = await receiptForStaff(uuidAt(request, 1, 'transfer'));
+  return receiptResponse(file, new URL(request.url).searchParams.get('download') === '1');
+});
+
+/** API-A78 — GET /api/admin/payment-methods: every method (ready or not), bank transfer's settings, the bank accounts. */
+export const paymentSettingsHandler = route(async (request) => {
+  await staffContextFor(request);
+  return json(await paymentSettingsForStaff());
+});
+
+const REMINDERS = z.array(z.number().int()).max(4);
+const BI = z.object({ ar: z.string().max(1000), en: z.string().max(1000) }).nullable();
+
+/** API-A79 — PATCH /api/admin/payment-methods/[key] { enabled?, sortOrder?, config?, reason }: switch on or off, move, set. */
+export const updatePaymentMethodHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const key = new URL(request.url).pathname.split('/').filter(Boolean).pop() ?? '';
+  const body = await readJson(request, z.object({
+    enabled: z.boolean().optional(), sortOrder: z.number().int().optional(), reason: z.string().max(500),
+    config: z.object({
+      graceDays: z.number().int().optional(), reminderDays: REMINDERS.optional(), receiptRequired: z.boolean().optional(),
+      reviewHours: z.number().int().optional(), notifyEmails: z.array(z.string().max(200)).max(10).optional(), instructions: BI.optional(),
+    }).optional(),
+  }));
+  return json(await updatePaymentMethod(staff, key, body));
+});
+
+const ACCOUNT = {
+  bankName: z.string().max(200), bankNameAr: z.string().max(200), accountHolder: z.string().max(300), accountNumber: z.string().max(60),
+  iban: z.string().max(60), swift: z.string().max(20).nullable().optional(), active: z.boolean().optional(),
+  sortOrder: z.number().int().optional(), note: z.string().max(1000).nullable().optional(),
+};
+
+/** API-A80 — POST /api/admin/bank-accounts { …, reason }: add one of Tajribah's accounts (IBAN checked). */
+export const createBankAccountHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const body = await readJson(request, z.object({ ...ACCOUNT, reason: z.string().max(500) }));
+  return json(await createBankAccount(staff, body), { status: 201 });
+});
+
+/** API-A81 — PATCH /api/admin/bank-accounts/[id] { …, reason }: change it, or switch it off. */
+export const updateBankAccountHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const body = await readJson(request, z.object({
+    bankName: ACCOUNT.bankName.optional(), bankNameAr: ACCOUNT.bankNameAr.optional(), accountHolder: ACCOUNT.accountHolder.optional(),
+    accountNumber: ACCOUNT.accountNumber.optional(), iban: ACCOUNT.iban.optional(), swift: ACCOUNT.swift, active: ACCOUNT.active,
+    sortOrder: ACCOUNT.sortOrder, note: ACCOUNT.note, reason: z.string().max(500),
+  }));
+  return json(await updateBankAccount(staff, uuidAt(request, 0, 'bank account'), body));
+});
+
+/** API-A82 — DELETE /api/admin/bank-accounts/[id] { reason }: only an account no transfer ever named. */
+export const deleteBankAccountHandler = route(async (request) => {
+  const config = apiConfig();
+  assertSameOrigin(request, config);
+  const staff = await staffContextFor(request, config);
+  const body = await readJson(request, z.object({ reason: z.string().max(500) }));
+  await deleteBankAccount(staff, uuidAt(request, 0, 'bank account'), body.reason);
   return new Response(null, { status: 204 });
 });
 

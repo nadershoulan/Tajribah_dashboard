@@ -169,6 +169,90 @@ export const EMAIL = {
     },
   })),
 
+  /** T129: the store sent a bank transfer request — what happens next. */
+  transferSubmitted: emailTemplate(({ store, reference, plan, total, bank, iban, hours, link }: { store: string; reference: string; plan: Bi; total: string; bank: string; iban: string; hours: number; link: string }) => ({
+    subject: { ar: `استلمنا طلب التحويل ${reference} — ${store}`, en: `We have your transfer request ${reference} — ${store}` },
+    cta: { ar: 'متابعة الطلب', en: 'Follow the request' },
+    text: {
+      ar: `مرحباً،\n\nاستلمنا طلب الاشتراك في باقة ${plan.ar} بالتحويل البنكي لمتجر «${store}».\n\nالمرجع: ${reference}\nالمبلغ: ${total} شامل ضريبة القيمة المضافة\nإلى: ${bank} — ${iban}\n\nنراجع التحويل خلال ${hours} ساعة عمل تقريباً، ونفعّل اشتراكك فور التحقق ونرسل لك الفاتورة. تابع الطلب من هنا:\n${link}`,
+      en: `Hello,\n\nWe have the request to subscribe "${store}" to the ${plan.en} plan by bank transfer.\n\nReference: ${reference}\nAmount: ${total} including VAT\nTo: ${bank} — ${iban}\n\nWe check transfers within about ${hours} working hours, switch your plan on as soon as it is confirmed, and send you the invoice. Follow the request here:\n${link}`,
+    },
+  })),
+
+  /** T129: to Tajribah staff — a transfer to check, sent again, or cancelled by the store. */
+  transferForStaff: emailTemplate(({ kind, store, reference, plan, total, sender, link }: { kind: 'new' | 'resubmitted' | 'cancelled'; store: string; reference: string; plan: Bi; total: string; sender: string; link: string }) => ({
+    subject: kind === 'new'
+      ? { ar: `تحويل بنكي جديد للمراجعة ${reference} — ${store}`, en: `New bank transfer to check ${reference} — ${store}` }
+      : kind === 'resubmitted'
+        ? { ar: `أعاد المتجر إرسال التحويل ${reference} — ${store}`, en: `Transfer ${reference} sent again — ${store}` }
+        : { ar: `ألغى المتجر طلب التحويل ${reference} — ${store}`, en: `Transfer ${reference} cancelled by the store — ${store}` },
+    cta: { ar: 'فتح الطلب', en: 'Open the request' },
+    text: {
+      ar: `متجر «${store}»\nالمرجع: ${reference}\nالباقة: ${plan.ar}\nالمبلغ: ${total}\nالمحوِّل: ${sender}\n\n${kind === 'cancelled' ? 'لا يلزم إجراء.' : 'تحقق من وصول المبلغ في كشف الحساب، ثم اقبل الطلب أو ارفضه:'}\n${link}`,
+      en: `Store "${store}"\nReference: ${reference}\nPlan: ${plan.en}\nAmount: ${total}\nSent by: ${sender}\n\n${kind === 'cancelled' ? 'Nothing to do.' : 'Check the money arrived on the bank statement, then approve or decline:'}\n${link}`,
+    },
+  })),
+
+  /** T129: staff need more from the store before deciding. */
+  transferInfoRequested: emailTemplate(({ store, reference, message, link }: { store: string; reference: string; message: string; link: string }) => ({
+    subject: { ar: `نحتاج معلومة إضافية عن التحويل ${reference} — ${store}`, en: `We need a little more about transfer ${reference} — ${store}` },
+    cta: { ar: 'أكمل الطلب', en: 'Complete the request' },
+    text: {
+      ar: `مرحباً،\n\nراجعنا طلب التحويل ${reference} لمتجر «${store}»، ونحتاج قبل تفعيل الاشتراك إلى:\n\n${message}\n\nأرفق المطلوب وأعد إرسال الطلب من هنا:\n${link}`,
+      en: `Hello,\n\nWe looked at transfer ${reference} for "${store}". Before we switch the plan on, we need:\n\n${message}\n\nAdd it and send the request again here:\n${link}`,
+    },
+  })),
+
+  /** T129: the transfer was confirmed — the plan is on, with its invoice. */
+  transferApproved: emailTemplate(({ store, reference, plan, until, link }: { store: string; reference: string; plan: Bi; until: Date; link: string }) => ({
+    subject: { ar: `تم تفعيل اشتراكك — ${store}`, en: `Your plan is on — ${store}` },
+    cta: { ar: 'عرض الفاتورة', en: 'View the invoice' },
+    text: {
+      ar: `مرحباً،\n\nتحققنا من التحويل ${reference}، وفُعّلت باقة ${plan.ar} لمتجر «${store}» حتى ${formatDate(until, 'ar')}. شكراً لك.\n\nفاتورتك الضريبية:\n${link}`,
+      en: `Hello,\n\nWe confirmed transfer ${reference}, and the ${plan.en} plan is on for "${store}" until ${formatDate(until, 'en')}. Thank you.\n\nYour tax invoice:\n${link}`,
+    },
+  })),
+
+  /** T129: the transfer was declined, with staff's reason. */
+  transferRejected: emailTemplate(({ store, reference, reason, link }: { store: string; reference: string; reason: string; link: string }) => ({
+    subject: { ar: `تعذّر قبول التحويل ${reference} — ${store}`, en: `Transfer ${reference} could not be accepted — ${store}` },
+    cta: { ar: 'صفحة الاشتراك', en: 'Billing page' },
+    text: {
+      ar: `مرحباً،\n\nلم نتمكن من قبول طلب التحويل ${reference} لمتجر «${store}»:\n\n${reason}\n\nيمكنك إرسال طلب جديد من صفحة الاشتراك، أو الرد على هذه الرسالة إن كان لديك سؤال:\n${link}`,
+      en: `Hello,\n\nWe could not accept transfer ${reference} for "${store}":\n\n${reason}\n\nYou can send a new request from the Billing page, or reply to this message with any question:\n${link}`,
+    },
+  })),
+
+  /** T129: a plan paid by transfer is about to end. */
+  renewalReminder: emailTemplate(({ store, plan, days, endsAt, link }: { store: string; plan: Bi; days: number; endsAt: Date; link: string }) => ({
+    subject: { ar: `يتجدد اشتراكك بعد ${days} ${days === 1 ? 'يوم' : days === 2 ? 'يومين' : days <= 10 ? 'أيام' : 'يوماً'} — ${store}`, en: `Your plan ends in ${days} day${days === 1 ? '' : 's'} — ${store}` },
+    cta: { ar: 'جدّد الآن', en: 'Renew now' },
+    text: {
+      ar: `مرحباً،\n\nتنتهي باقة ${plan.ar} لمتجر «${store}» في ${formatDate(endsAt, 'ar')}. اشتراكك مدفوع بالتحويل البنكي، فلا يتجدد تلقائياً: أرسل تحويل التجديد من صفحة الاشتراك، وتُضاف المدة الجديدة بعد نهاية الحالية دون أن تخسر يوماً:\n${link}`,
+      en: `Hello,\n\nThe ${plan.en} plan for "${store}" ends on ${formatDate(endsAt, 'en')}. It is paid by bank transfer, so it does not renew by itself: send the renewal transfer from the Billing page — the new time is added after the current period, so no day is lost:\n${link}`,
+    },
+  })),
+
+  /** T129: the paid period ended; the store keeps working for the grace days. */
+  subscriptionPastDue: emailTemplate(({ store, plan, graceUntil, link }: { store: string; plan: Bi; graceUntil: Date; link: string }) => ({
+    subject: { ar: `انتهت مدة اشتراكك — ${store}`, en: `Your plan's paid period has ended — ${store}` },
+    cta: { ar: 'جدّد الاشتراك', en: 'Renew the plan' },
+    text: {
+      ar: `مرحباً،\n\nانتهت المدة المدفوعة من باقة ${plan.ar} لمتجر «${store}». يبقى متجرك يعمل كالمعتاد حتى ${formatDate(graceUntil, 'ar')}؛ بعدها يصبح للاطلاع فقط إلى أن تجدد. أرسل تحويل التجديد من هنا:\n${link}`,
+      en: `Hello,\n\nThe paid period of the ${plan.en} plan for "${store}" has ended. Your store keeps working as usual until ${formatDate(graceUntil, 'en')}; after that it becomes read-only until you renew. Send the renewal transfer here:\n${link}`,
+    },
+  })),
+
+  /** T129: the grace days passed without a renewal; the store is read-only (nothing is deleted). */
+  subscriptionExpired: emailTemplate(({ store, plan, link }: { store: string; plan: Bi; link: string }) => ({
+    subject: { ar: `متجرك للاطلاع فقط الآن — ${store}`, en: `Your store is read-only now — ${store}` },
+    cta: { ar: 'جدّد الاشتراك', en: 'Renew the plan' },
+    text: {
+      ar: `مرحباً،\n\nانتهت باقة ${plan.ar} لمتجر «${store}» دون تجديد، فأصبح المتجر للاطلاع فقط وتوقفت أزرار التجربة في متجرك. لم يُحذف شيء: يعود كل شيء كما كان فور تجديد الاشتراك:\n${link}`,
+      en: `Hello,\n\nThe ${plan.en} plan for "${store}" ended without a renewal, so the store is read-only and its try-on buttons have stopped on your shop. Nothing was deleted: everything comes back as it was once you renew:\n${link}`,
+    },
+  })),
+
   /** P2.11: a trial reminder (3 days left, last day, ended). The wording is the in-app one. */
   trialReminder: emailTemplate(({ title, body, store }: { title: Bi; body: Bi; store: string }) => ({
     subject: { ar: `${title.ar} — ${store}`, en: `${title.en} — ${store}` },

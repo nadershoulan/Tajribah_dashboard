@@ -25,6 +25,7 @@ import { ApiError, currentStore, type ApiClient } from './api-client';
 import type { Bi, Lang } from './lang';
 import type { ProductCategoryCount, ProductListPage, ProductListQuery } from './contracts/products';
 import type { PlanCode } from './plans';
+import { receiptTypeOf, type TransferView } from './contracts/bank-transfer';
 import { DEFAULT_BUTTON_RADIUS, SettingsPatch, type Ga4Picker, type StoreSettings } from './contracts/settings';
 import { ga4PickerFor, noGa4Picker } from './ga4-picker';
 import { ArConfigInput, DEFAULT_AR_CONFIG, defaultLabelsFor, placementErrors, placementsFor, type ArConfigPage, type ArConfigView, type PublishResult } from './contracts/ar-config';
@@ -223,7 +224,22 @@ export interface DataSource {
   invoice(id: string): Promise<InvoiceDocument | null>;
   /** P2.12: may this store use the code for this plan and cycle — the server decides. Refusals: 422 on `code`. */
   checkCoupon(code: string, plan: PlanCode, cycle: 'monthly' | 'annual'): Promise<CouponQuote>;
+  /** T129: send a bank transfer request; the receipt (if any) is uploaded first, straight to storage. */
+  submitTransfer(input: TransferRequestInput, receipt: File | null): Promise<TransferView>;
+  /** T129: after staff asked for more — send it again, with a new receipt if one is attached. */
+  resubmitTransfer(id: string, input: TransferResubmitInput, receipt: File | null): Promise<TransferView>;
+  /** T129: cancel a request still under review. */
+  cancelTransfer(id: string): Promise<TransferView>;
+  /** T129: this store's own receipt, to look at again. */
+  transferReceipt(id: string): Promise<Blob>;
 }
+
+export type TransferRequestInput = {
+  plan: PlanCode; cycle: 'monthly' | 'annual'; couponCode?: string | null; bankAccountId: string; senderName: string;
+  senderBank?: string | null; transferredOn?: string | null; note?: string | null;
+  company?: { name: string; vatNumber?: string | null; crNumber?: string | null } | null;
+};
+export type TransferResubmitInput = { senderName?: string; senderBank?: string | null; transferredOn?: string | null; note?: string | null };
 
 export type CouponQuote = { code: string; kind: 'percent' | 'fixed' | 'free_months'; discountMinor: number; freeMonths: number; description: { ar: string; en: string } };
 
@@ -484,6 +500,18 @@ export function apiSource(client: ApiClient): DataSource {
     async checkCoupon(code, plan, cycle) {
       return client.call<CouponQuote>('/api/billing/coupons/check', { body: { code, plan, cycle } });
     },
+    async submitTransfer(input, receipt) {
+      const uploaded = receipt ? await uploadReceipt(client, receipt) : null;
+      return client.call<TransferView>('/api/billing/transfers', { body: { ...input, receiptKey: uploaded?.key ?? null, receiptName: receipt?.name.slice(0, 200) ?? null } });
+    },
+    async resubmitTransfer(id, input, receipt) {
+      const uploaded = receipt ? await uploadReceipt(client, receipt) : null;
+      return client.call<TransferView>(`/api/billing/transfers/${encodeURIComponent(id)}`, {
+        method: 'PATCH', body: { ...input, ...(uploaded ? { receiptKey: uploaded.key, receiptName: receipt!.name.slice(0, 200) } : {}) },
+      });
+    },
+    async cancelTransfer(id) { return client.call<TransferView>(`/api/billing/transfers/${encodeURIComponent(id)}`, { method: 'DELETE' }); },
+    async transferReceipt(id) { return client.callBlob(`/api/billing/transfers/${encodeURIComponent(id)}/receipt`); },
     async invoice(id) {
       try {
         return await client.call<InvoiceDocument>(`/api/billing/invoices/${encodeURIComponent(id)}`);
@@ -1177,6 +1205,10 @@ export const demoSource: DataSource = {
   async invoice(id) { return id === 'sample' ? sampleInvoice() : null; },
   // The preview has no coupons: every code gets the server's answer for an unknown one.
   async checkCoupon() { throw new ApiError(422, 'validation_failed', 'Validation failed', { code: ['this code is not valid'] }); },
+  async submitTransfer() { throw new ApiError(503, 'unavailable', 'the demo has no server to pay'); },
+  async resubmitTransfer() { throw new ApiError(503, 'unavailable', 'the demo has no server to pay'); },
+  async cancelTransfer() { throw new ApiError(503, 'unavailable', 'the demo has no server to pay'); },
+  async transferReceipt() { throw new ApiError(503, 'unavailable', 'the demo has no server to pay'); },
   async skipStep(step) { return demoOnboardingChange((s, f) => skipRule(s, step, f)); },
   async unskipStep(step) { return demoOnboardingChange((s, f) => unskipRule(s, step, f)); },
   async confirmStore(slug) {
@@ -1235,4 +1267,16 @@ export function useResource<T>(load: (source: DataSource) => Promise<T>, deps: u
 
   const current = state.key === key;
   return { data: state.data, loading: !current, error: current ? state.error : null };
+}
+
+/** T129: the receipt goes straight to storage at the address the server signed; the server judges its bytes on submit. */
+async function uploadReceipt(client: ApiClient, file: File): Promise<{ key: string }> {
+  const contentType = receiptTypeOf(file);
+  if (!contentType) throw new ApiError(422, 'validation_failed', 'Validation failed', { receipt: ['a receipt is a PNG, JPEG, WebP picture or a PDF'] });
+  const started = await client.call<{ key: string; uploadUrl: string; contentType: string }>('/api/billing/transfers/receipt', {
+    body: { filename: file.name.slice(0, 200), contentType, sizeBytes: file.size },
+  });
+  const put = await fetch(started.uploadUrl, { method: 'PUT', headers: { 'content-type': started.contentType }, body: file });
+  if (!put.ok) throw new ApiError(put.status, 'upload_failed', 'the receipt did not reach storage — try again');
+  return { key: started.key };
 }

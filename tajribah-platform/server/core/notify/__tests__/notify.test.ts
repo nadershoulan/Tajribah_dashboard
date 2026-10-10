@@ -121,7 +121,9 @@ test('T119: every email has a branded HTML part — right to left in Arabic, the
   assert.doesNotMatch(EMAIL.twoFactorResetByStaff({}, 'ar').html, /background:#00a7bc/);
   // and every template renders
   for (const [name, t] of Object.entries(EMAIL)) {
-    const sample = { link, minutes: 60, store: 's', days: 7, number: '1', total: '1', amount: '1', retryAt: null, title: { ar: 'a', en: 'a' }, body: { ar: 'b', en: 'b' }, period: { ar: 'p', en: 'p' }, lines: { ar: 'l', en: 'l' }, on: true };
+    const sample = { link, minutes: 60, store: 's', days: 7, number: '1', total: '1', amount: '1', retryAt: null, title: { ar: 'a', en: 'a' }, body: { ar: 'b', en: 'b' }, period: { ar: 'p', en: 'p' }, lines: { ar: 'l', en: 'l' }, on: true,
+      // T129: the transfer and renewal mails
+      reference: 'TJR-ABC234', plan: { ar: 'النمو', en: 'Growth' }, bank: 'b', iban: 'SA00', hours: 24, kind: 'new', sender: 's', message: 'm', reason: 'r', until: new Date(), endsAt: new Date(), graceUntil: new Date() };
     for (const lang of ['ar', 'en'] as const) assert.match((t as (p: unknown, l: string) => { html: string })(sample, lang).html, /^<!doctype html>/, name);
   }
 });

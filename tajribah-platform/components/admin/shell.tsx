@@ -8,7 +8,7 @@
  * to turn it on. The server refuses the same people on every admin endpoint regardless.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Activity, ArrowLeft, Box, Cpu, FileLock2, Globe, Inbox, LayoutDashboard, LifeBuoy, Megaphone, PenTool, Receipt, ScrollText, ShieldAlert, Store, Tags, TicketPercent, Users } from 'lucide-react';
+import { Activity, ArrowLeft, Box, Cpu, FileLock2, Globe, Inbox, Landmark, LayoutDashboard, LifeBuoy, Megaphone, PenTool, Receipt, ScrollText, ShieldAlert, Store, Tags, TicketPercent, Users, WalletCards } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { ApiError } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
@@ -23,6 +23,7 @@ type Access = { state: 'checking' } | { state: 'staff'; email: string } | { stat
 const NAV = [
   { href: '/admin', icon: LayoutDashboard, label: { ar: 'نظرة عامة', en: 'Overview' } },
   { href: '/admin/contact', icon: Inbox, label: { ar: 'رسائل التواصل', en: 'Contact messages' } },
+  { href: '/admin/bank-transfers', icon: Landmark, label: { ar: 'التحويلات البنكية', en: 'Bank transfers' }, badge: 'transfers' as const },
   { href: '/admin/support', icon: LifeBuoy, label: { ar: 'الدعم', en: 'Support' } },
   { href: '/admin/stores', icon: Store, label: { ar: 'المتاجر', en: 'Stores' } },
   { href: '/admin/people', icon: Users, label: { ar: 'الأشخاص', en: 'People' } },
@@ -31,6 +32,7 @@ const NAV = [
   { href: '/admin/announcements', icon: Megaphone, label: { ar: 'الإعلانات', en: 'Announcements' } },
   { href: '/admin/site', icon: Globe, label: { ar: 'الموقع', en: 'Website' } },
   { href: '/admin/billing', icon: Receipt, label: { ar: 'الفوترة', en: 'Billing' }, also: ['/admin/invoices/'] },
+  { href: '/admin/payment-methods', icon: WalletCards, label: { ar: 'طرق الدفع', en: 'Payment methods' } },
   { href: '/admin/operations', icon: Activity, label: { ar: 'التشغيل', en: 'Operations' } },
   { href: '/admin/qa', icon: Box, label: { ar: 'مراجعة النماذج', en: 'Model review' } },
   { href: '/admin/professional', icon: PenTool, label: { ar: 'النماذج الاحترافية', en: 'Professional models' } },
@@ -48,6 +50,8 @@ function Guarded({ title, children }: { title: string; children: ReactNode }) {
   const auth = useAuth();
   const env = useEnv();
   const [access, setAccess] = useState<Access>({ state: 'checking' });
+  // T129: transfers waiting on staff, beside their menu entry (looked at again on each page)
+  const [pending, setPending] = useState(0);
   const nav = useRef<HTMLElement>(null);
   // On a phone the nav is one scrolling row: keep the current section in sight.
   useEffect(() => {
@@ -68,6 +72,16 @@ function Guarded({ title, children }: { title: string; children: ReactNode }) {
     return () => { live = false; };
   }, [auth.admin]);
 
+  useEffect(() => {
+    if (access.state !== 'staff') return;
+    let live = true;
+    const look = () => auth.admin.pendingTransfers().then((n) => { if (live) setPending(n); }, () => undefined);
+    void look();
+    // the bank transfers page says when a request was decided (AdminBankTransfers: TRANSFERS_CHANGED)
+    window.addEventListener('tajribah:transfers-changed', look);
+    return () => { live = false; window.removeEventListener('tajribah:transfers-changed', look); };
+  }, [auth.admin, access.state, env.path]);
+
   if (access.state === 'checking') return <div className="page"><Loading rows={3} /></div>;
   if (access.state === 'not-found') return <NotFound />;
 
@@ -86,6 +100,7 @@ function Guarded({ title, children }: { title: string; children: ReactNode }) {
           {NAV.map((item) => (
             <AppLink key={item.href} href={item.href} className="side-link" aria-current={env.path === item.href || (item.href !== '/admin' && env.path.startsWith(`${item.href}/`)) || item.also?.some((prefix) => env.path.startsWith(prefix)) ? 'page' : undefined}>
               <item.icon size={17} aria-hidden /><span>{pick(item.label)}</span>
+              {'badge' in item && item.badge === 'transfers' && pending > 0 && <span className="nav-count" aria-label={t(`${pending} بانتظار المراجعة`, `${pending} waiting for review`)}>{pending}</span>}
             </AppLink>
           ))}
         </nav>

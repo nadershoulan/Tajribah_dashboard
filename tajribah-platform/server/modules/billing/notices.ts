@@ -27,8 +27,8 @@ export async function billingRecipients(tenantId: string): Promise<{ email: stri
   return members.filter((m) => permissionsFor(m.role).has('billing:read')).map((m) => ({ email: m.email, locale: m.locale }));
 }
 
-/** In-app once (keyed by type + href), then email. Returns false when it had already gone out. */
-async function announce(tenantId: string, input: {
+/** In-app once (keyed by type + href), then email. Returns false when it had already gone out. T129 uses it for transfers and renewals. */
+export async function announce(tenantId: string, input: {
   type: string; href: string; title: Bi; body: Bi; level: 'info' | 'warning' | 'error';
   email: (to: { email: string; locale: Lang }) => Promise<void>;
 }): Promise<boolean> {

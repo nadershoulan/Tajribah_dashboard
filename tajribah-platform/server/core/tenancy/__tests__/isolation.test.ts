@@ -52,8 +52,17 @@ function synthRow(table: PgTable, tenantId: string | null, suffix: string): Reco
         else row[key] = `${column.name}-${suffix}`;
     }
   }
-  return row;
+  return { ...row, ...SEED_AS[getTableName(table)] };
 }
+
+/**
+ * Values a table's own rules require of a seeded row. T129: a store has at most one open bank transfer request
+ * (a partial unique index), and the suite seeds a request as the parent of a timeline row and again as its own
+ * row for the same store — so seeded requests are closed ones.
+ */
+const SEED_AS: Record<string, Record<string, unknown>> = {
+  bank_transfer_requests: { status: 'cancelled' },
+};
 
 /**
  * `synthRow` plus a real parent row behind every required foreign key.

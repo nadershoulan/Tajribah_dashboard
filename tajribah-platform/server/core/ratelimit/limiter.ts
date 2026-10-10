@@ -106,6 +106,8 @@ export const LIMITS = {
   passwordReset: { limit: 5, windowSeconds: 60 * 60 },
   /** Per store (P2.12): coupon codes cannot be guessed at speed. */
   couponCheck: { limit: 20, windowSeconds: 60 * 60 },
+  /** Per store (T129): bank transfer requests and receipt uploads — each one is a staff review. */
+  bankTransfer: { limit: 20, windowSeconds: 60 * 60 },
   /** Per user: each resend is an email to their inbox. */
   verifyResend: { limit: 5, windowSeconds: 60 * 60 },
   otpSend: { limit: 5, windowSeconds: 60 * 60 },

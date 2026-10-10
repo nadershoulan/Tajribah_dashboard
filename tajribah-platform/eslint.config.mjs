@@ -75,6 +75,13 @@ const eslintConfig = defineConfig([
       // T115: the contact inbox — a staff-only table, no tenant data (EXEMPT in db/schema/index.ts).
       "server/modules/admin/contact.ts",
       "server/modules/contact/service.ts",
+      // T129: bank transfers — staff decide across stores; the payment methods and bank accounts are platform tables
+      // (EXEMPT); the store's side reads them, looks up a reference unique across stores, and emails staff; the
+      // renewal sweep walks plans paid by transfer across stores.
+      "server/modules/admin/bank-transfers.ts",
+      "server/modules/billing/payment-methods.ts",
+      "server/modules/billing/bank-transfer.ts",
+      "server/modules/billing/transfer-renewals.ts",
       "server/modules/admin/qa.ts",
       "server/modules/admin/professional.ts",
       "server/modules/recommendations/compute.ts",

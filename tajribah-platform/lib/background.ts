@@ -27,16 +27,21 @@ const dist = (d: Uint8ClampedArray, i: number, bg: [number, number, number]) =>
 
 const median = (values: number[]) => { const s = [...values].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]!; };
 
-export function removeBackground({ data, width: w, height: h }: Rgba): BackgroundResult {
+/**
+ * `near` (T128, the editor's tolerance): how close to the background colour a pixel must be to go clear — `NEAR`
+ * unless the merchant widens it for a picture whose background is not quite even. The fade ends `FAR - NEAR` above it.
+ */
+export function removeBackground({ data, width: w, height: h }: Rgba, { near: nearAt = NEAR }: { near?: number } = {}): BackgroundResult {
+  const farAt = nearAt + (FAR - NEAR);
   const n = w * h;
   const edge: number[] = [];
   for (let x = 0; x < w; x++) edge.push(x, (h - 1) * w + x);
   for (let y = 1; y < h - 1; y++) edge.push(y * w, y * w + w - 1);
   const bg: [number, number, number] = [0, 1, 2].map((c) => median(edge.map((i) => data[i * 4 + c]!))) as [number, number, number];
-  if (edge.filter((i) => dist(data, i, bg) <= NEAR).length < edge.length * PLAIN_SHARE) return { ok: false, reason: 'not_plain' };
+  if (edge.filter((i) => dist(data, i, bg) <= nearAt).length < edge.length * PLAIN_SHARE) return { ok: false, reason: 'not_plain' };
 
   const near = new Uint8Array(n);
-  for (let i = 0; i < n; i++) near[i] = data[i * 4 + 3]! < 16 || dist(data, i, bg) <= NEAR ? 1 : 0;
+  for (let i = 0; i < n; i++) near[i] = data[i * 4 + 3]! < 16 || dist(data, i, bg) <= nearAt ? 1 : 0;
 
   // Background: what is near the colour and connected to an edge; then each enclosed patch large enough to be a hole.
   const clear = new Uint8Array(n);
@@ -72,7 +77,7 @@ export function removeBackground({ data, width: w, height: h }: Rgba): Backgroun
     const touches = (x > 0 && clear[i - 1]) || (x < w - 1 && clear[i + 1]) || (y > 0 && clear[i - w]) || (y < h - 1 && clear[i + w]);
     if (touches) {
       const d = dist(data, i, bg);
-      const keep = Math.min(1, Math.max(0, (d - NEAR) / (FAR - NEAR)));
+      const keep = Math.min(1, Math.max(0, (d - nearAt) / (farAt - nearAt)));
       out[i * 4 + 3] = Math.round(data[i * 4 + 3]! * Math.max(keep, 0.35));
     }
     if (out[i * 4 + 3]! > 0) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }

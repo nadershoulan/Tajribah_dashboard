@@ -8,7 +8,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { clearStorePicture } from '@/lib/clear-picture';
 import { useWriteLock } from '@/components/dashboard/write-lock';
-import { ArrowRight, Box, Eraser, ExternalLink, ImageOff, Package, Ruler, Sparkles } from 'lucide-react';
+import { ArrowRight, Box, Eraser, ExternalLink, ImageOff, Package, Ruler, Sparkles, Wand2 } from 'lucide-react';
+import { ImageEditor } from '@/components/dashboard/image-editor';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { useData, useResource } from '@/lib/data';
 import { formatMoney } from '@/lib/money';
@@ -209,7 +210,8 @@ const TYPE_OF: Record<TryOnKind, ProductRow['productType']> = { watch: 'watch', 
  * T88 — one click: the store picture's plain background taken off here, in the browser
  * (`lib/background.ts`), and the result saved as this product's try-on picture through the same upload
  * and checks as a cut-out made by hand. A product of another type is first set up as what it is being
- * tried as — the button says so.
+ * tried as — the button says so. T128: «حرّر أولًا» opens the picture editor on the same store picture (turn, crop,
+ * light…) and saves the edited one the same way.
  */
 function ClearBackground({ product, kind, own, url, onSaved }: { product: ProductRow; kind: TryOnKind; own: TryOnKind | null; url: string; onSaved: () => void }) {
   const { t, pick } = useLang();
@@ -218,19 +220,22 @@ function ClearBackground({ product, kind, own, url, onSaved }: { product: Produc
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Error | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const retypes = own !== kind;
+  /** Set up as what it is tried as, then the picture (a watch takes it as both of its pictures). */
+  const keep = async (file: File) => {
+    if (product.productType !== TYPE_OF[kind]) await source.updateProduct(product.id, { productType: TYPE_OF[kind] });
+    if (TYPE_OF[kind] === 'jewelry' && own !== kind) await source.updateTryOn(product.id, { jewelry: kind as 'ring' | 'necklace' | 'earring' });
+    await source.uploadCutout(product.id, 'worn', file);
+    if (kind === 'watch') await source.uploadCutout(product.id, 'flat', file);
+    onSaved();
+  };
   const run = async () => {
     setBusy(true); setFailure(null); setRefusal(null);
     try {
       const cleared = await clearStorePicture(await source.storePhoto(product.id, url));
       if (!cleared.ok) { setRefusal(pick(cleared.reason)); return; }
-      // set up as what it is tried as, then the picture (a watch takes it as both of its pictures)
-      if (product.productType !== TYPE_OF[kind]) await source.updateProduct(product.id, { productType: TYPE_OF[kind] });
-      if (TYPE_OF[kind] === 'jewelry' && own !== kind) await source.updateTryOn(product.id, { jewelry: kind as 'ring' | 'necklace' | 'earring' });
-      const file = cleared.file;
-      await source.uploadCutout(product.id, 'worn', file);
-      if (kind === 'watch') await source.uploadCutout(product.id, 'flat', file);
-      onSaved();
+      await keep(cleared.file);
     } catch (e) {
       setFailure(e as Error);
     } finally {
@@ -242,6 +247,12 @@ function ClearBackground({ product, kind, own, url, onSaved }: { product: Produc
       <button type="button" className="btn btn-primary btn-sm" disabled={busy || lock.locked} onClick={() => void run()}>
         <Eraser size={15} aria-hidden />{busy ? t('نزيل الخلفية…', 'Taking the background off…') : t('أزل الخلفية واحفظها', 'Remove the background and save it')}
       </button>
+      <button type="button" className="btn btn-ghost btn-sm" disabled={busy || lock.locked} onClick={() => { setFailure(null); setRefusal(null); setEditing(true); }}>
+        <Wand2 size={15} aria-hidden />{t('حرّر أولًا', 'Edit first')}
+      </button>
+      {editing && <ImageEditor open title={`${t('محرّر الصور', 'Picture editor')} — ${t(product.nameAr ?? product.name, product.name)}`} fileName={`tajribah-${product.id}.png`}
+        sources={[{ id: 'store', label: { ar: 'صورة المتجر', en: 'The store picture' }, thumb: url, store: true, load: () => source.storePhoto(product.id, url) }]}
+        onSave={keep} onClose={() => setEditing(false)} />}
       <span className="hint" style={{ margin: 0 }}>{retypes
         ? t(`يُحفظ صورةً للتجربة، ويصبح نوعه «${pick(KIND_LABEL[kind])}».`, `Saved as its try-on picture, and its type becomes “${pick(KIND_LABEL[kind])}”.`)
         : t('يُحفظ صورةً للتجربة. يعمل حين تكون الخلفية بلون واحد، كالأبيض.', 'Saved as its try-on picture. Works when the background is one plain colour, such as white.')}</span>
@@ -258,7 +269,7 @@ function PreviewNotes({ data, productId }: { data: TryOnPreview; productId: stri
   if (data.picture === 'store') notes.push(t('نستخدم صورة المتجر كما هي، فتظهر خلفيتها. صورة مقصوصة بخلفية شفافة تجعله يبدو ملبوسًا.', 'We use the store picture as it is, so its background shows. A cut-out on a transparent background makes it look worn.'));
   if (data.size?.from === 'example') notes.push(t(`لا مقاس له بعد: نعرضه بمقاس منتج المثال (${data.size.mm} مم). أضف مقاسه الحقيقي في إعدادات التجربة.`, `It has no size yet: shown at the example product's size (${data.size.mm} mm). Add its real size in the try-on settings.`));
   if (data.size?.from === 'product') notes.push(t(`بمقاسه من بيانات المنتج: ${data.size.mm} مم.`, `At its size from the product's details: ${data.size.mm} mm.`));
-  if (!data.onMe) notes.push(t('«عليّ» (صورة المتسوّق) متاحة في الباقة الاحترافية وما فوق.', '“On me” (the shopper’s own photo) is on the Pro plan and up.'));
+  if (!data.onMe) notes.push(t('«عليّ» (صورة المتسوّق) ليست مفعّلة في باقة هذا المتجر.', '“On me” (the shopper’s own photo) is not switched on for this store’s plan.'));
   if (!notes.length) return null;
   return (
     <ul className="preview-tryon-notes">

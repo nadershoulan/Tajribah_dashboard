@@ -4,7 +4,8 @@
 
 import { useWriteLock } from '@/components/dashboard/write-lock';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { Camera, ExternalLink, Lock, Search, Watch } from 'lucide-react';
+import { Camera, ExternalLink, Lock, Search, Wand2, Watch } from 'lucide-react';
+import { ImageEditor, type EditorSource } from '@/components/dashboard/image-editor';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { ApiError, currentStore } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
@@ -281,6 +282,8 @@ function Picture({ kind, productId, slot, has, quality, disabled, busy, onPick, 
   const picker = useRef<HTMLInputElement>(null);
   const [src, setSrc] = useState<string | null>(null);
   const [choosing, setChoosing] = useState(false);
+  // T128: the picture editor — the current picture, a store photo or one from the computer, edited and saved here
+  const [editing, setEditing] = useState(false);
   // Stored pictures are private until published: fetched with the session, shown from a blob.
   const bytes = has?.bytes ?? null;
   useEffect(() => {
@@ -291,6 +294,10 @@ function Picture({ kind, productId, slot, has, quality, disabled, busy, onPick, 
     return () => { live = false; if (url) URL.revokeObjectURL(url); };
   }, [source, productId, slot, bytes]);
   const info = slotInfo(kind, slot);
+  const editorSources: EditorSource[] = [
+    ...(has ? [{ id: 'current', label: { ar: 'الصورة الحالية', en: 'The current picture' }, thumb: src ?? undefined, load: () => source.cutoutImage(productId, slot) }] : []),
+    ...storePictures.map((url, i) => ({ id: `store-${i}`, label: { ar: `صورة المتجر ${i + 1}`, en: `Store picture ${i + 1}` }, thumb: url, store: true, load: () => source.storePhoto(productId, url) })),
+  ];
   return (
     <div className="tryon-picture">
       <strong>{pick(info.label)}</strong>
@@ -308,9 +315,13 @@ function Picture({ kind, productId, slot, has, quality, disabled, busy, onPick, 
         {storePictures.length > 0 && onStorePicture && (
           <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} aria-expanded={choosing} onClick={() => setChoosing((c) => !c)}>{t('من صور المتجر', 'From the store’s pictures')}</button>
         )}
+        <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} onClick={() => { setChoosing(false); setEditing(true); }}><Wand2 size={14} aria-hidden />{t('حرّر الصورة', 'Edit picture')}</button>
         {has && onMark && <button type="button" className="btn btn-ghost btn-sm" disabled={disabled} onClick={onMark}>{pick(KIND_WORDS[kind].markButton)}</button>}
         {!has && onSameAsWorn && <button type="button" className="btn btn-primary btn-sm" disabled={disabled} onClick={onSameAsWorn}>{t('استخدم صورة الساعة نفسها', 'Use the same watch picture')}</button>}
       </div>
+      {editing && <ImageEditor open title={`${t('محرّر الصور', 'Picture editor')} — ${pick(info.label)}`} sources={editorSources}
+        initialSource={has ? 'current' : editorSources[0]?.id} fileName={`tajribah-${slot}.png`}
+        onSave={async (file) => { onPick(file); }} onClose={() => setEditing(false)} />}
       {choosing && onStorePicture && (
         <div className="store-pictures">
           <span className="hint" style={{ margin: 0 }}>{t('اختر صورة من متجرك: نزيل خلفيتها (البيضاء أو أي لون واحد) ونقصّها على المنتج، ثم نفحصها كما نفحص الصورة المرفوعة.', 'Choose one of your store’s pictures: its background (white, or any one plain colour) is taken off and it is cropped to the product, then checked like an uploaded one.')}</span>

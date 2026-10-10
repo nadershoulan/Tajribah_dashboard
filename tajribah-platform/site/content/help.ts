@@ -201,6 +201,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
     ],
   },
   {
+    // T128 — the picture editor (components/dashboard/image-editor.tsx), as built.
+    slug: 'picture-editor', category: 'button', updated: '2026-10-10',
+    title: { ar: 'محرّر الصور: جهّز صورة التجربة بنفسك', en: 'The picture editor: get the try-on picture ready yourself' },
+    summary: { ar: 'أزل الخلفية بنقرة، ودوّر واقلب وقصّ واضبط الإضاءة، ثم احفظها للتجربة أو حمّلها إلى جهازك.', en: 'Take the background off in one click, rotate, flip, crop and adjust the light, then save it for the try-on or download it.' },
+    steps: [
+      { ar: 'في «التجربة الافتراضية» اضغط «حرّر الصورة» تحت صورة المنتج — أو «حرّر أولًا» في معاينة المنتج. ابدأ من الصورة الحالية أو من صورة متجرك أو من صورة على جهازك.', en: 'In “Virtual try-on” press “Edit picture” under the product’s picture — or “Edit first” on the product’s preview. Start from the current picture, a picture from your store, or one from your computer.' },
+      { ar: 'صورة المتجر تبدأ وخلفيتها مزالة ومقصوصة على المنتج. إن لم تكن الخلفية لونًا واحدًا (مجسّم عرض أو ظل) اضغط «أبقِ الخلفية» ثم «امسح بالنقر» وانقر على ما تريد إزالته.', en: 'A store picture starts with its background off and cropped to the product. If the background is not one colour (a display bust, a shadow), press “Keep the background”, then “Erase by clicking” and click what you want gone.' },
+      { ar: 'دوّر ربع دورة أو بأي زاوية، واقلب أفقيًا أو رأسيًا، وقصّ من كل جانب، واضبط السطوع والتباين والتشبّع، وغيّر المقياس أو أضف هامشًا شفافًا. «تراجع» (Ctrl+Z) و«إعادة» (Ctrl+Y) لكل خطوة.', en: 'Rotate a quarter turn or by any angle, flip either way, crop from each side, adjust brightness, contrast and saturation, change the scale or add a clear margin. Undo (Ctrl+Z) and Redo (Ctrl+Y) work for every step.' },
+      { ar: 'اضغط «احفظ للتجربة»: تُحفظ صورةً للتجربة وتُفحص كأي صورة مرفوعة. أو «حمّلها إلى جهازك» لتحتفظ بنسخة PNG.', en: 'Press “Save to the try-on”: it becomes the try-on picture and is checked like any upload. Or “Download” to keep a PNG copy.' },
+    ],
+    body: [
+      { ar: 'يعمل المحرّر كله في متصفحك؛ لا تُرسل الصورة إلا حين تحفظها. تُحفظ بصيغة PNG بخلفية شفافة، وأطول ضلع حتى 1600 بكسل أثناء التحرير — أكثر مما تحتاجه التجربة.', en: 'The editor works entirely in your browser; the picture is sent only when you save it. It is saved as a PNG on a transparent background, with the long side up to 1,600 pixels while editing — more than the try-on needs.' },
+      { ar: 'اترك «قصّ على المنتج» مفعّلًا: التجربة تعدّ عرض الصورة هو عرض المنتج، فالهامش الشفاف يُصغّره.', en: 'Leave “Trim to the product” on: the try-on takes the picture’s width as the product’s, so a clear margin makes it smaller.' },
+    ],
+  },
+  {
     // P5.2/P5.4/P5.5/P5.6 (T68) — glasses, rings, necklaces and bags in the try-on settings, as built.
     slug: 'more-tryon-kinds', category: 'button', updated: '2026-10-03',
     title: { ar: 'تجهيز النظارات والخواتم والقلائد والحقائب للتجربة', en: 'Set up glasses, rings, necklaces and bags for the try-on' },

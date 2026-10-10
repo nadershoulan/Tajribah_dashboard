@@ -1996,3 +1996,35 @@ Production was switched from the staff Plans page (logged, every published confi
 every database match `lib/plans.ts`. The pricing page lists it under Starter and ticks it on every plan.
 
 **Rollback path.** Migration 0046's ROLLBACK, and `virtual_tryon` off Starter and Growth in `lib/plans.ts`. Cost: low.
+
+## T128 · 2026-10-10 · The picture editor
+
+**Decision.** The merchant edits a try-on picture in the browser and saves the edited one as the try-on picture
+(through the same upload and checks as any cut-out) or downloads it as a PNG. Opened from «حرّر الصورة» on each
+picture in the try-on settings and «حرّر أولًا» beside the one-click background removal on a product's preview.
+Sources: the current picture, each store picture, a file from the computer.
+
+**How it is built for more tools.** The work is `lib/image-edit.ts`, pure RGBA, tested pixel by pixel: `Edits` (a
+record of choices), `EDIT_STEPS` (erase clicks → background → crop → turn → flip → light → trim → margin → scale),
+`applyEdits`. The editor (`components/dashboard/image-editor.tsx`) draws its panel from `EDITOR_TOOLS`. A new tool is
+a field, a step and an entry; nothing else changes (a test adds a step from outside to prove it).
+
+**Choices made.**
+- *Erase clicks run first, on the source.* Each click is a share (0…1) of the source picture, so a later turn,
+  crop or scale never moves it, and it means the same on the 640 px preview and the full picture. While erasing,
+  the preview shows the source with only the clicks, so a click lands where the merchant points.
+- *A store picture starts with background off and trim on*, the one-click path's result, so «احفظ للتجربة» right
+  away does what «أزل الخلفية واحفظها» did.
+- *A refused background still shows the picture* (with the background kept) plus «أبقِ الخلفية». Seen on Failet's
+  necklaces, which are shot on a display bust: the automatic removal rightly refuses, and click-to-erase takes the
+  backdrop and the bust off in about a dozen clicks.
+- *Worked at 1600 px, previewed at 640 px*; quarter turns are exact; other angles and resizing sample with
+  premultiplied alpha, so a clear (often black) neighbour never darkens an edge.
+- *No machine-learning background removal yet.* The usual browser libraries are AGPL or need a large model download
+  from a third party (CSP, size); click-to-erase covers busts and shadows now. It can come later as one more step.
+
+**Also.** The preview page's note said "on me" is Pro only (stale since T126); it now says it is not switched on for
+the store's plan. The editor `<dialog>` sets `margin: auto` because the global reset removed the browser's
+centring (it hugged the right edge in Arabic).
+
+**Rollback path.** Remove the two buttons; nothing else depends on the editor. Cost: low.

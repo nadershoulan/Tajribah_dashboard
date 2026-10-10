@@ -2172,3 +2172,23 @@ sighting; the studio's watch, ring and bag paths use it. A confidence (the detec
 hand) chooses between «تم تحديد المعصم» and «تأكد من الموضع». Tuned on the demo's real wrist photo: 62 mm and a fifth
 of a palm drew the watch small and against the hand; 58 mm and 0.28 look right. The studio canvas carries
 `data-pose` (for checks).
+
+**T134.3 — the phone page is the try-on (2026-10-11).** Scanning the QR opens the try-on itself on the phone, full
+screen and the store's: the live camera with the kind's guide, the product following the hand (or face) as it moves,
+«التقط», then the picture with the product at its real size — dragged, sized and turned with fingers, several shots kept,
+«أرسل إلى شاشتي» still sending to the computer. No Tajribah name or logo on that page on **any plan** (Nader: the shopper
+must feel they are still in the store): the store's name from its published product page block (every plan publishes
+it), its logo too under white-label, else the product's name. The pairing records the product and store, **read on
+the server** like T61's brand — from the config host for the frame's or product page's store and product, from the
+site's own list for a demo SKU — never from the request; the studio's body chooses only the guide's kind, so a forged
+pairing can show only a real product as published. Photos stay on the phone unless sent. Picture maths pure
+(`capture-view.ts`): edge to edge unless that cuts the product off, the photo slid up above the buttons, pinch maths,
+mirrored front camera. The product's shadow as a CSS filter (`cssShadow`) on an unturned box. MediaPipe models made
+once per kind and mode (`detectors.ts`). The watch's place became its case's near edge 10 mm above the wrist crease
+(MediaPipe's wrist point checked on the photo: on the crease) — 0.28 of a palm to the centre ignored the case size.
+
+**T134.4 — guides (2026-10-11).** One outline per kind (`guides.tsx`): a hand drawn as fingers, palm and forearm in one
+piece, outlined by an SVG filter (grow the shape, keep what grew — no lines where the parts meet), the product's place
+dashed; faces as lines. Live feedback (`live-feedback.ts`): none / closer / show more (where the product goes must be in
+frame) / ready — the guide greens and fades so the product on the hand shows. Capture is never locked to «ready»: a
+detector that fails to load must not lock a shopper out. The studio's «عليّ» shows the same guide, small.

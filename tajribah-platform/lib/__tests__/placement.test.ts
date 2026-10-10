@@ -6,7 +6,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  KNUCKLE_SPAN_MM, MIN_SPAN_PX, PALM_LENGTH_MM, WATCH_BACK, handPoints, handScale, ringPlacement, rotatePoint, unrotate, watchPlacement,
+  KNUCKLE_SPAN_MM, MIN_SPAN_PX, PALM_LENGTH_MM, WATCH_GAP_MM, bagPlacement, earringPlacement, facePoints, glassesPlacement, handPoints, handScale,
+  necklacePlacement, placeOnFace, placeOnHand, ringPlacement, rotatePoint, unrotate, watchPlacement,
   type HandPoints, type Pt,
 } from '@site/lib/placement';
 
@@ -36,11 +37,12 @@ test('a watch at its real case width, just above the wrist bone up the arm, its 
   const h = hand({ x: 600, y: 500 }, 0, 2); // fingers to the right; the forearm runs to the left
   const w = watchPlacement(h, 38);
   near(w.width, 38 * 2, 1.5, 'a 38 mm case at 2 px a millimetre');
-  near(w.x, 600 - PALM_LENGTH_MM * WATCH_BACK * 2, 1, 'up the forearm from where the hand begins');
+  near(w.x, 600 - (WATCH_GAP_MM + 38 / 2) * 2, 1, 'up the forearm: the case’s near edge 10 mm from where the hand begins');
   near(w.y, 500, 1, 'on the arm, not beside it');
   near(w.angle, 0, 0.5, 'the picture upright: across a horizontal arm');
   const small = watchPlacement(h, 26), big = watchPlacement(h, 46);
   assert.ok(small.width < w.width && w.width < big.width, 'a bigger case is drawn bigger — no more “90 % of the palm” for every watch');
+  near(big.x + big.width / 2, small.x + small.width / 2, 0.01, 'whatever its size, the case’s near edge is at the same place by the hand');
 });
 
 test('at any angle: the watch follows the forearm, and stays on the arm side of the wrist', () => {
@@ -86,4 +88,30 @@ test('a hand found on the photo turned a quarter, a half or three quarters comes
   assert.deepEqual(rotatePoint({ x: 0, y: 0 }, 1), { x: 1, y: 0 });
   assert.deepEqual(unrotate({ x: 1, y: 0 }, 1), { x: 0, y: 0 });
   assert.deepEqual(rotatePoint({ x: 0.2, y: 0.1 }, 2), { x: 0.8, y: 0.9 });
+});
+
+test('T134.3 — glasses, a necklace, an earring and a bag: the studio’s own rules, now shared with the phone page', () => {
+  // glasses: pupils 124 px apart (62 mm at 2 px a millimetre) → a 132 mm frame 264 px wide, tilted with the eyes
+  const g = glassesPlacement({ x: 500, y: 300 }, { x: 376, y: 300 }, 132);
+  near(g.width, 264, 0.01, 'frame width'); near(g.x, 438, 0.01, 'between the pupils'); assert.ok(g.y > 300, 'a touch below them');
+  near(glassesPlacement({ x: 0, y: 0 }, { x: 100, y: 100 }, 132).angle, 45, 0.01, 'tilted as the eyes');
+  // necklace: 170 mm at 2 px/mm = 340 px, hanging from 9.6 mm below the chin
+  const n = necklacePlacement({ x: 400, y: 500 }, 124, 170, 0.5);
+  near(n.width, 340, 0.01, 'necklace width'); near(n.y, 500 + 19.2 + 85, 0.01, 'its top 9.6 mm under the chin');
+  // earring: a 60 mm ear 120 px long → 2 px/mm; the piercing 15 % up from the lobe; hanging from it
+  const e = earringPlacement({ x: 300, y: 100 }, { x: 300, y: 220 }, 10, 2);
+  near(e.width, 20, 0.01, 'earring width'); near(e.y, 220 - 18 + 20, 0.01, 'its top at the piercing');
+  // bag: the hand as the ruler, hanging straight from the grip
+  const h = hand({ x: 400, y: 300 }, 90, 2); // fingers down
+  const b = bagPlacement(h, 280, 0.8);
+  near(b.width, 560, 6, 'bag width (the knuckle span measures a touch over 58 mm on this drawn hand)'); assert.equal(b.angle, 0, 'straight down');
+  assert.ok(b.y - (b.width * 0.8) / 2 > h.middleMcp.y && b.y - (b.width * 0.8) / 2 < h.middlePip.y, 'the handles’ top in the curled fingers');
+  assert.deepEqual(placeOnHand('ring', h, 20, 1), ringPlacement(h, 20));
+  assert.deepEqual(placeOnHand('watch', h, 38, 1), watchPlacement(h, 38));
+  const face = facePoints(Array.from({ length: 478 }, (_, i) => ({ x: i === 468 ? 0.4 : i === 473 ? 0.6 : 0.5, y: i === 152 ? 0.8 : 0.4 })), { width: 1000, height: 1000 }, { scale: 1, ox: 0, oy: 0 })!;
+  near(placeOnFace('glasses', face, 124, 1).width, 400, 0.01, '200 px between the pupils: a 124 mm frame 400 px wide');
+  assert.equal(placeOnFace('necklace', face, 170, 0.5).x, 500, 'a necklace under the chin');
+  assert.ok(placeOnFace('necklace', face, 170, 0.5).y > face.chin.y, 'a necklace hangs below the chin');
+  assert.ok(Math.abs(placeOnFace('glasses', face, 124, 1).y - face.leftPupil.y) < 10, 'glasses on the eyes');
+  assert.equal(facePoints([], { width: 1, height: 1 }, { scale: 1, ox: 0, oy: 0 }), null);
 });

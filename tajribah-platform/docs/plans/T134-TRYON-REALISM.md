@@ -54,39 +54,54 @@ The product must look *on* the skin, not pasted. Reference: the watch on the mod
       exactly; a badge too big is refused.
 - [x] Walk: the studio's pairing QR read back from the page with jsQR — the exact capture link; the dashboard's codes all carry the mark. The mark grown to ~13 % of the side (into a 3-module margin) after the first look — still reads at every size.
 
-## Phase 3 — The phone page: full screen, the store's, the product on the real hand  ·  status: ☐
+## Phase 3 — The phone page: full screen, the store's, the product on the real hand  ·  status: ✅ live 2026-10-11
 
 Today the phone sends a photo and the shopper looks back at the computer. In the reference, the phone *is* the
 try-on: full screen, the store's feel, nothing that says "you left the shop".
 
-- [ ] The pairing carries the product (worn picture URL, size, kind, the store's brand) so the phone can render the
-      try-on itself (`/api/pair` stores it; the studio passes it when it makes the QR).
-- [ ] `capture` becomes a full-screen experience: no Tajribah logo, no site chrome — the store's name/logo only,
-      small (every plan; T61's Enterprise-only branding is widened to the phone page — Nader's call). The privacy
-      line stays, small, on the first screen only.
-- [ ] **Live camera** (getUserMedia, back camera) with a **guide overlay** (Phase 4) and live detection; "التقط"
-      captures; the picture is shown full screen with the product placed (Phase 5's engine), pinch / drag to adjust,
-      a size note ("يظهر على 50mm"), retake; several shots kept as thumbnails (delete any); the native-camera input
-      stays as the fallback (iOS without permission, desktop).
-- [ ] "Send to my screen" keeps the current hand-off (the computer gets the photo and pose).
-- [ ] Tests: pairing payload contract; the page renders store-first; fallback path.
-- [ ] Walk on a 390 px phone emulation with a real hand photo; on a real phone over the LAN (`start-dashboard.sh lan`).
+- [x] The pairing carries the product (worn picture, real width, kind) and the store (`site/lib/pair-product.ts`):
+      **read on the server**, never taken from the request — a store's product from the config host the frame
+      (`/embed/try-on`) or the product page (`/p/{store}/{product}`) names, a demo product from the site's own list by
+      SKU; the studio's body (`{kind, demo}`) chooses only the guide. Config host down → no product, the old hand-off.
+- [x] `capture` is full screen on black: no Tajribah logo or name anywhere (title, page, theme colour) — the store's
+      name on every plan (from its published product page block; logo too under white-label; the demo: «فايلت»),
+      or the product's name. The privacy line, small, on the first screen only (photos now stay on the phone unless sent).
+- [x] **Live camera** (back camera for hand kinds, front — mirrored — for face kinds; a switch) with the guide and
+      live detection; **the product follows the hand or face live** (smoothed). «التقط» keeps the frame and the
+      sighting of that moment; the picture fills the screen with the product placed at real size (Phase 5's engine),
+      a finger drags it, two size/turn it, «أعد المقاس الحقيقي»; the size line; up to 6 shots as thumbnails (delete
+      any); the photo slides up so the buttons never cover the product. No camera (refused / none) → the guide with
+      «التقط صورة» (the phone's camera) and «اختر من الصور». An earring: two taps (top of the ear, lobe).
+- [x] «أرسل إلى شاشتي» keeps the hand-off: the computer gets the photo and places it with the same engine.
+      *(Sending the shopper's own adjusted pose too: later, if wanted.)*
+- [x] Tests: `pair-product` (5: config → product + store name, white-label logo, demo only by SKU, the body
+      ignored, a forged body cannot add a product, the host down, a stored session re-checked), `capture-view` (5).
+- [x] Walk at 390 px with Chrome's camera fed a real photo (the demo's wrist turned upright; the open hand; the
+      face): live «تم تحديد المعصم» with the watch on the wrist, capture, drag, two shots, delete, send — the desktop
+      studio received it and placed it; the ring from a gallery photo after a refused camera; glasses live on the face;
+      an ended session. No «Tajribah» on the page. *(A real phone over the LAN: when Nader tries it.)*
 
-## Phase 4 — Guides on the camera and the hand  ·  status: ☐
+## Phase 4 — Guides on the camera and the hand  ·  status: ✅ live 2026-10-11
 
-- [ ] `site/components/studio/guides.tsx`: an outline drawn over the live camera (and over an uploaded photo while
+- [x] `site/components/studio/guides.tsx`: one outline per kind (a hand drawn as fingers, palm and forearm in one
+      piece and outlined by an SVG filter; the product's place dashed) with its sentence. Was: an outline drawn over the live camera (and over an uploaded photo while
       waiting) per kind — **watch**: a hand and forearm outline with the wrist marked; **ring**: an open hand, fingers
       apart, ring finger marked; **bag**: arm down at the side; **glasses / earring**: a face oval (earring: in
       profile); **necklace**: face and chest. Short Arabic/English instructions ("ضع معصمك داخل الإطار").
-- [ ] Live feedback from detection: "اقترب قليلًا", "أظهر أصابعك", "✓ تم تحديد المعصم"; capture enabled (or
-      automatic after a steady second) only when found.
-- [ ] Also on the desktop studio's on-me upload (the guide shows what kind of photo to take).
-- [ ] Walk: each kind, guide visible, feedback changes as the detection does (recorded frames).
+- [x] Live feedback (`site/lib/live-feedback.ts`, tested): none / «اقترب قليلًا» / show more (the watch's place on
+      the arm, the ring finger's joints, the grip, the chin) / «تم تحديد … — التقط الصورة» — the guide turns green and
+      fades so the product on the hand shows. **Capture stays possible before «ready»** (a detector that fails to
+      load must not lock the shopper out); the shutter's ring turns green when ready.
+- [x] The desktop studio's «عليّ» shows the same guide, small, in place of the camera icon (what photo to take).
+- [x] Walk: watch (ready on the wrist), ring (the pick screen's open hand), glasses («أظهر وجهك كاملًا» on a
+      close-up, ready on a framed face), the studio tile; 23 breakages caught across T134.3/4.
 
 ## Phase 5 — Better auto-detect and auto-place  ·  status: ✅ core live 2026-10-11 (watch engine, harder detection); face retries next
 
 - [x] `site/lib/placement.ts` (pure, tested with hands drawn from measurements): watch and ring placements
-      **at true size** (knuckle span 58 mm unisex, palm 100 mm, the larger wins; watch 0.28 palm up the arm).
+      **at true size** (knuckle span 58 mm unisex, palm 100 mm, the larger wins). *(T134.3: the watch's case edge
+      10 mm up from the wrist crease — was its centre 0.28 palm up, which ignored the case size; glasses, necklace,
+      earring and bag rules moved here too, the studio calls them.)*
       *(Glasses, necklace, earring and bag keep the studio's own T68/T83/T84 maths, already true-size.)* Was: — a watch's case width in millimetres from the hand's own scale (knuckle span ≈ 78 mm adult
       average, wrist width ≈ 0.72 of it), the strap across the forearm, on the wrist crease (not the hand); a ring at
       the ring finger's base between MCP and PIP; glasses from pupils (62 mm); necklace from the jaw and shoulders;
@@ -124,5 +139,6 @@ try-on: full screen, the store's feel, nothing that says "you left the shop".
 | Date | Phase | What happened |
 |---|---|---|
 | 2026-10-11 | — | Plan written after reading the studio, capture page, pairing API and QR code paths. |
+| 2026-10-11 | 3, 4 | The phone page is the try-on: full screen, store-first, live camera with the kind's guide and live feedback, the product following the hand, capture / adjust / shots / send; the pairing carries the product (read on the server). Guide on the studio's «عليّ». Watch rule: case edge 10 mm above the crease (MediaPipe's wrist point checked on the photo: on the crease). Next: Phase 6 (store-set zones). |
 | 2026-10-11 | 5 | Placement engine (watch true size, on the wrist, across the arm), harder hand detection (turned photos, weaker sighting), confidence note; walked on the real wrist photo upright and sideways. Next: Phase 4 (guides) with Phase 3 (phone page). |
 | 2026-10-11 | 1, 2 | Shadow (contact + ambient, product-shaped, per kind) and the QR corner mark (level H, read back by jsQR) built, walked, deployed. Next: Phase 5, the placement engine. |

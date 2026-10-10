@@ -15,7 +15,9 @@ import { useSiteEnv } from '@site/lib/site-env';
 import { preparePhoto } from '@site/lib/photo';
 import { castShadow } from '@site/lib/shadow';
 import { markedQrPng } from '@/lib/qr-mark';
-import { handPoints, watchPlacement } from '@site/lib/placement';
+import { earringPlacement, glassesPlacement, handPoints, necklacePlacement, watchPlacement } from '@site/lib/placement';
+import { kindOf } from '@site/lib/pair-product';
+import { Guide } from './guides';
 import { detectHand } from '@site/lib/hand-detect';
 import {
   DEMO_WATCH, PX_PER_MM, REFERENCES, STAGE, constrainToModel, modelsFor,
@@ -346,13 +348,8 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
    * (the frame's centre sits just below the pupils), tilted as the eyes are.
    */
   function glassesPose(a: { x: number; y: number }, b: { x: number; y: number }): Pose {
-    const [l, r] = a.x <= b.x ? [a, b] : [b, a];
-    const ipd = Math.hypot(r.x - l.x, r.y - l.y);
-    return {
-      x: clamp((l.x + r.x) / 2, 50, W - 50), y: clamp((l.y + r.y) / 2 + ipd * 0.025, 50, H - 50),
-      width: clamp((product.caseMm * ipd) / 62, 80, 1100),
-      angle: (Math.atan2(r.y - l.y, r.x - l.x) * 180) / Math.PI,
-    };
+    const p = glassesPlacement(a, b, product.caseMm); // T134.3: the rule now lives in site/lib/placement.ts (the phone page uses it too)
+    return { x: clamp(p.x, 50, W - 50), y: clamp(p.y, 50, H - 50), width: clamp(p.width, 80, 1100), angle: p.angle };
   }
 
   /**
@@ -361,11 +358,11 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
    * model photo it was measured on.
    */
   function necklacePose(chin: { x: number; y: number }, ipd: number): Pose {
-    const pxPerMm = ipd / 62;
-    const width = clamp(product.caseMm * pxPerMm, 60, 1100);
     const w = images.current.watch;
+    const raw = necklacePlacement(chin, ipd, product.caseMm, w ? w.height / w.width : 1); // T134.3: site/lib/placement.ts
+    const width = clamp(raw.width, 60, 1100);
     const height = w ? (width * w.height) / w.width : width;
-    return { x: clamp(chin.x, 50, W - 50), y: clamp(chin.y + 9.6 * pxPerMm + height / 2, 50, H - 50), width, angle: 0 };
+    return { x: clamp(chin.x, 50, W - 50), y: clamp(raw.y - raw.width * (w ? w.height / w.width : 1) / 2 + height / 2, 50, H - 50), width, angle: 0 };
   }
 
   /**
@@ -375,13 +372,12 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
    * down from there, its top edge at the piercing — the demo hoop's hinge is within 6% of its top.
    */
   function earringPose(top: { x: number; y: number }, lobe: { x: number; y: number }): Pose {
-    const ear = Math.hypot(lobe.x - top.x, lobe.y - top.y);
-    const pxPerMm = ear / 60;
-    const pierce = { x: lobe.x + (top.x - lobe.x) * 0.15, y: lobe.y + (top.y - lobe.y) * 0.15 };
-    const width = clamp(product.caseMm * pxPerMm, 12, 600);
     const w = images.current.watch;
-    const height = w ? (width * w.height) / w.width : width;
-    return { x: clamp(pierce.x, 20, W - 20), y: clamp(pierce.y + height / 2, 20, H - 20), width, angle: 0 };
+    const aspect = w ? w.height / w.width : 1;
+    const raw = earringPlacement(top, lobe, product.caseMm, aspect); // T134.3: site/lib/placement.ts
+    const width = clamp(raw.width, 12, 600);
+    const pierceY = raw.y - (raw.width * aspect) / 2;
+    return { x: clamp(raw.x, 20, W - 20), y: clamp(pierceY + (width * aspect) / 2, 20, H - 20), width, angle: 0 };
   }
 
   /**
@@ -550,7 +546,8 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
   async function startPair() {
     setPairBusy(true); setPairError('');
     try {
-      const r = await fetch('/api/pair', { method: 'POST' });
+      // T134.3: the kind (the phone's guide) and, on the demo, which demo product — the server reads the rest itself
+      const r = await fetch('/api/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: kindOf(product), ...(product.demo ? { demo: product.sku } : {}) }) });
       if (!r.ok) throw Error();
       const p = (await r.json()) as { id: string; expiresAt: number };
       setPair(p);
@@ -729,7 +726,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
               </>
             ) : (
               <div className="personal-empty">
-                <div className="photo-icon"><Camera size={31} strokeWidth={1.3} /></div>
+                <div className="personal-guide"><Guide kind={kindOf(product)} outline={1.3} /></div>
                 <span className="eyebrow">{t('Make it personal', 'جرّبها بنفسك')}</span>
                 <h2>{isBag ? t('Your hand. Your bag.', 'يدك. حقيبتك.') : isEarring ? t('Your ear. Your earring.', 'أذنك. قرطك.') : isNecklace ? t('You. Your necklace.', 'أنتِ. قلادتك.') : isRing ? t('Your hand. Your ring.', 'يدك. خاتمك.') : isGlasses ? t('Your face. Your frame.', 'وجهك. إطارك.') : t('Your wrist. Your watch.', 'معصمك. ساعتك.')}</h2>
                 <p>{isBag ? t('See it in your hand with a photo of you, your hand down at your side. It stays on this device.', 'شاهدي الحقيبة في يدك بصورة لك ويدك منسدلة إلى جانبك. تبقى الصورة على جهازك.') : isEarring ? t('See how it looks on you with a side photo, your ear in view. You tap the top of your ear and your earlobe; it stays on this device.', 'شاهدي كيف يبدو القرط عليك بصورة جانبية تظهر فيها الأذن. تحدّدين أعلى الأذن وشحمتها، وتبقى الصورة على جهازك.') : isNecklace ? t('See how it looks on you with a front photo, your face and chest in view. It stays on this device.', 'شاهدي كيف تبدو القلادة عليك بصورة أمامية يظهر فيها الوجه والصدر. تبقى الصورة على جهازك.') : isRing ? t('See how it looks on you with a photo of the back of your hand, fingers apart. It stays on this device.', 'شاهد كيف يبدو الخاتم عليك بصورة لظهر يدك والأصابع متباعدة. تبقى الصورة على جهازك.') : isGlasses ? t('See how it looks on you with a front photo of your face. It stays on this device.', 'شاهد كيف تبدو النظارة عليك بصورة أمامية لوجهك. تبقى الصورة على جهازك.') : t('See how it looks on you with a photo of your wrist.', 'شاهد كيف تبدو الساعة عليك باستخدام صورة لمعصمك.')}</p>

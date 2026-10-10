@@ -1,5 +1,6 @@
 import { env } from 'cloudflare:workers';
 import type { StoreBrand } from './tryon-config';
+import type { PairKind, PairProduct } from './pair-product';
 export const SESSION_MS=30*60*1000;
 export const NO_CACHE={'Cache-Control':'no-store, private','Referrer-Policy':'no-referrer'};
 // Its own private bucket, never the merchants' public one (`BUCKET`, served by the CDN): a shopper's
@@ -9,7 +10,7 @@ export function validToken(token:string){return /^[a-f0-9]{32}$/.test(token);}
 export async function readSession(token:string){
   if(!validToken(token))return null;
   const obj=await bucket().get(`sessions/${token}.json`);if(!obj)return null;
-  const session=await obj.json<{expiresAt:number;brand?:StoreBrand|null}>();
+  const session=await obj.json<{expiresAt:number;brand?:StoreBrand|null;product?:PairProduct|null;kind?:PairKind}>();
   if(Date.now()>session.expiresAt){await removeSession(token);return null;}
   return session;
 }

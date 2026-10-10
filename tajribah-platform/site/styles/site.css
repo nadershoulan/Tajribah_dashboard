@@ -635,6 +635,11 @@ html[lang="en"] .legal-body p { line-height: 1.75; }
 
 .personal-empty { height: 100%; min-height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 32px 22px; background: linear-gradient(180deg, #fff, var(--tint)); }
 .photo-icon { width: 70px; height: 70px; border-radius: 20px; background: var(--aqua-50); color: var(--aqua); display: grid; place-items: center; margin-bottom: 16px; }
+/* T134.4: the kind of photo to take — the camera guide, small, on the phone page's black */
+.personal-guide { width: 84px; height: 132px; padding: 8px 6px; margin-bottom: 14px; border-radius: 18px; background: #0d151d; }
+.personal-guide .guide { width: 100%; height: 100%; }
+.personal-guide .guide-line { stroke-width: 2; }
+.personal-guide .guide-mark { stroke-width: 1.8; stroke-dasharray: 3 2.4; }
 .personal-empty .eyebrow { margin-bottom: 6px; }
 .personal-empty h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 10px; }
 .personal-empty > p { color: var(--text-2); max-width: 44ch; margin-bottom: 20px; }
@@ -680,23 +685,74 @@ html[lang="en"] .legal-body p { line-height: 1.75; }
 .is-expanded .stage { flex: 1; min-height: 0; aspect-ratio: auto; }
 .is-expanded .stage canvas { object-fit: contain; }
 
-/* ---------- phone capture page -------------------------------------------- */
-.capture-page { max-width: 560px; margin: auto; padding: 0 22px 44px; }
-.capture-page > header { height: 76px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
-.capture-page .logo img { height: 32px; }
 /* T61 — white-label: the store's logo (or name) in Tajribah's place */
 .store-mark { display: inline-flex; align-items: center; min-width: 0; font-family: var(--f-display); font-weight: 700; font-size: 19px; overflow-wrap: anywhere; }
 .store-mark img { height: 32px; width: auto; max-width: 180px; object-fit: contain; }
 .embed-brand .store-mark { font-size: 15px; }
 .embed-brand .store-mark img { height: 24px; max-width: 120px; }
-.capture-card { display: flex; flex-direction: column; align-items: center; text-align: center; padding-top: 36px; }
-.capture-card h1 { font-size: 2rem; font-weight: 700; margin: 8px 0 10px; }
-.capture-card > p { color: var(--text-2); max-width: 40ch; margin-bottom: 20px; }
-.capture-card .primary-button { width: 100%; max-width: 380px; }
-.capture-example { width: 100%; max-width: 360px; margin: 6px 0 26px; padding: 40px 20px 26px; display: grid; justify-items: center; gap: 14px; color: var(--aqua); background: var(--surface); border-radius: 18px; }
-.capture-example span { color: var(--text-2); font-size: 14px; }
-.capture-photo { max-height: 340px; width: 100%; object-fit: contain; margin: 6px 0 22px; border-radius: 14px; }
-.capture-error { color: #b3372f; font-size: 14px; margin-top: 12px; }
+/* ---------- phone capture page — T134.3: the phone is the try-on, full screen, the store's ---------- */
+.cap { position: fixed; inset: 0; overflow: hidden; background: #000; color: #fff; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+.cap button { cursor: pointer; }
+.cap-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cap-mirror { transform: scaleX(-1); }
+.cap-guide { position: absolute; left: 5%; width: 90%; top: calc(env(safe-area-inset-top) + 56px); height: calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 250px); pointer-events: none; transition: opacity .3s, color .3s; }
+.guide { color: rgba(255, 255, 255, .92); filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, .6)); overflow: visible; }
+.guide .guide-body { opacity: .1; }
+.guide .guide-line { fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+.guide .guide-mark { fill: none; stroke: #ffd27a; stroke-width: 1; stroke-dasharray: 2.2 1.6; }
+.guide-ready { color: #6ee7b7; }
+.guide-ready .guide-mark { stroke: #6ee7b7; }
+.cap-guide.guide-ready { opacity: .35; }
+.cap-live-product, .cap-placed { position: absolute; inset: 0; pointer-events: none; }
+.cap-live-product { transition: opacity .2s; }
+.cap-live-product img, .cap-placed img { position: absolute; max-width: none; transform-origin: center; }
+.cap-top { position: absolute; inset: 0 0 auto; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: calc(env(safe-area-inset-top) + 10px) 16px 22px; background: linear-gradient(rgba(0, 0, 0, .5), transparent); pointer-events: none; }
+.cap-top > * { pointer-events: auto; }
+.cap-brand { min-width: 0; max-width: 72%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 600; }
+.cap-brand .store-mark { font-size: 16px; }
+.cap-brand .store-mark img { height: 28px; max-width: 150px; padding: 3px 8px; border-radius: 8px; background: #fff; }
+.cap-chip { min-width: 40px; height: 32px; padding: 0 10px; border-radius: 16px; background: rgba(255, 255, 255, .16); color: #fff; font-size: 13px; font-weight: 600; backdrop-filter: blur(8px); }
+.cap-bottom { position: absolute; inset: auto 0 0; z-index: 3; display: grid; justify-items: center; gap: 14px; padding: 30px 16px calc(env(safe-area-inset-bottom) + 14px); background: linear-gradient(transparent, rgba(0, 0, 0, .62)); }
+.cap-say { display: inline-flex; align-items: center; justify-content: center; gap: 6px; max-width: 34ch; padding: 8px 14px; border-radius: 999px; background: rgba(0, 0, 0, .55); font-size: 14.5px; font-weight: 500; line-height: 1.5; text-align: center; backdrop-filter: blur(8px); }
+.cap-say-ready { background: rgba(12, 110, 78, .88); }
+.cap-controls { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 330px; }
+.cap-round { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .16); color: #fff; backdrop-filter: blur(8px); }
+.cap-shutter { width: 78px; height: 78px; border-radius: 50%; border: 4px solid #fff; display: grid; place-items: center; background: transparent; color: #fff; transition: border-color .2s; }
+.cap-shutter span { width: 60px; height: 60px; border-radius: 50%; background: #fff; transition: transform .15s; }
+.cap-shutter:active span { transform: scale(.9); }
+.cap-shutter.is-ready { border-color: #6ee7b7; }
+.cap-shutter:disabled { opacity: .5; cursor: default; }
+.cap-privacy { max-width: 44ch; font-size: 11.5px; line-height: 1.6; text-align: center; color: rgba(255, 255, 255, .72); }
+.cap-privacy a { color: #fff; text-decoration: underline; }
+.cap-back-to, .cap-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: rgba(255, 255, 255, .88); text-decoration: underline; background: none; }
+.cap-pick { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: calc(env(safe-area-inset-top) + 64px) 22px calc(env(safe-area-inset-bottom) + 20px); }
+.cap-guide-still { flex: 1; min-height: 0; width: 100%; }
+.cap-primary, .cap-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 360px; height: 50px; padding: 0 14px; border-radius: 14px; font-size: 15.5px; font-weight: 600; }
+.cap-primary { background: #fff; color: #0b0b0b; }
+.cap-secondary { background: rgba(255, 255, 255, .15); color: #fff; backdrop-filter: blur(8px); }
+.cap-primary:disabled, .cap-secondary:disabled { opacity: .6; cursor: default; }
+.cap-stage { position: absolute; inset: 0; touch-action: none; }
+.cap-photo { position: absolute; max-width: none; pointer-events: none; }
+.cap-tap { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; border: 2px solid #ffd27a; pointer-events: none; }
+.cap-sheet { position: absolute; inset: auto 0 0; z-index: 3; display: grid; gap: 12px; padding: 40px 16px calc(env(safe-area-inset-bottom) + 14px); background: linear-gradient(transparent, rgba(0, 0, 0, .78) 36%); }
+.cap-sheet-head { display: grid; justify-items: start; gap: 2px; }
+.cap-sheet-head strong { font-size: 15px; font-weight: 600; }
+.cap-sheet-head span { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: rgba(255, 255, 255, .8); }
+.cap-thumbs { display: flex; gap: 10px; overflow-x: auto; padding: 6px 2px; }
+.cap-thumb { position: relative; flex: none; }
+.cap-thumb > button:first-child { display: block; width: 54px; height: 54px; overflow: hidden; border-radius: 10px; border: 2px solid transparent; }
+.cap-thumb.is-on > button:first-child { border-color: #fff; }
+.cap-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.cap-thumb-x { position: absolute; top: -6px; inset-inline-end: -6px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: #000; color: #fff; border: 1px solid rgba(255, 255, 255, .5); }
+.cap-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cap-actions > button { max-width: none; }
+.cap-note, .cap-error { position: absolute; z-index: 4; inset-inline: 16px; width: fit-content; max-width: calc(100% - 32px); margin: 0 auto; padding: 9px 14px; border-radius: 12px; font-size: 14px; text-align: center; backdrop-filter: blur(8px); }
+.cap-note { top: calc(env(safe-area-inset-top) + 60px); background: rgba(0, 0, 0, .72); }
+.cap-error { bottom: calc(env(safe-area-inset-bottom) + 190px); background: rgba(150, 36, 28, .92); }
+.cap-ended { display: grid; place-items: center; padding: 24px; }
+.cap-ended-card { max-width: 34ch; text-align: center; }
+.cap-ended-card h1 { margin-bottom: 8px; font-size: 1.5rem; font-weight: 700; }
+.cap-ended-card p { color: rgba(255, 255, 255, .75); }
 
 /* ==========================================================================
    Responsive

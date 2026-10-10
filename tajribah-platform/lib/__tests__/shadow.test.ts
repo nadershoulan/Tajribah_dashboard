@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { shadowLayers, type ShadowKind } from '@site/lib/shadow';
+import { cssShadow, shadowLayers, type ShadowKind } from '@site/lib/shadow';
 
 const KINDS: ShadowKind[] = ['watch', 'eyewear', 'ring', 'necklace', 'bag', 'earring', 'flat'];
 
@@ -37,4 +37,11 @@ test('each kind as it is worn: glasses throw a faint shadow, a bag a long one, a
   assert.ok(at('eyewear')[0]!.alpha < at('watch')[0]!.alpha, 'glasses: faint on the face');
   assert.ok(at('bag')[1]!.offsetY > at('watch')[1]!.offsetY, 'a bag: a longer shadow');
   assert.ok(at('ring')[0]!.alpha >= at('watch')[0]!.alpha, 'a ring: dark where it touches');
+});
+
+test('T134.3 — the same two shadows as a CSS filter for the phone page: the canvas’s numbers, contact first', () => {
+  const css = cssShadow('watch', 200);
+  const [contact, ambient] = shadowLayers('watch', 200);
+  assert.equal(css, `drop-shadow(${contact!.offsetX.toFixed(1)}px ${contact!.offsetY.toFixed(1)}px ${contact!.blur.toFixed(1)}px rgba(16, 22, 28, 0.5)) drop-shadow(${ambient!.offsetX.toFixed(1)}px ${ambient!.offsetY.toFixed(1)}px ${ambient!.blur.toFixed(1)}px rgba(16, 22, 28, 0.28))`);
+  assert.match(cssShadow('bag', 400), /^drop-shadow\([\d.]+px [\d.]+px [\d.]+px rgba\(16, 22, 28, 0\.3\)\) drop-shadow\(/);
 });

@@ -73,3 +73,14 @@ export function castShadow(
   }
   ctx.restore();
 }
+
+/**
+ * T134.3 — the same two shadows as a CSS `filter` (the phone page draws the product as an image over the photo, not
+ * on a canvas). Put it on an element that is *not* turned, around the turned product, so the light stays above
+ * whatever the angle — as on the canvas. CSS's blur radius is the canvas's shadow blur (both twice the spread).
+ */
+export function cssShadow(kind: ShadowKind, widthPx: number): string {
+  return shadowLayers(kind, widthPx)
+    .map((l) => `drop-shadow(${l.offsetX.toFixed(1)}px ${l.offsetY.toFixed(1)}px ${l.blur.toFixed(1)}px rgba(16, 22, 28, ${l.alpha}))`)
+    .join(' ');
+}

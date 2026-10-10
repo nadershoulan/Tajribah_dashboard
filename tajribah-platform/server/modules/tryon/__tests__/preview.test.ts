@@ -93,9 +93,9 @@ test('glasses set up with a cut-out: its picture and width; tried as something e
 
     const seen = await tryOnPreview(ctx, id, null);
     assert.deepEqual([seen.kind, seen.own, seen.guessed, seen.picture, seen.size?.from, seen.size?.mm], ['glasses', 'glasses', false, 'cutout', 'settings', 132]);
-    assert.equal(seen.onMe, false, 'Starter: on the model and in the comparison only');
+    assert.equal(seen.onMe, true, 'Starter: the shopper’s own photo too (T126: every plan)');
     const studio = tryOnProductFrom(seen.config)!;
-    assert.deepEqual([studio.category, studio.worn.startsWith('https://cdn.example.test/'), studio.onMe], ['eyewear', true, false], 'not published, not switched on — the preview still shows it');
+    assert.deepEqual([studio.category, studio.worn.startsWith('https://cdn.example.test/'), studio.onMe], ['eyewear', true, true], 'not published, not switched on — the preview still shows it');
 
     const asBag = await tryOnPreview(ctx, id, 'bag');
     assert.deepEqual([asBag.picture, asBag.size?.from, tryOnProductFrom(asBag.config)?.worn], ['store', 'example', 'https://shop.example.test/frame.jpg'], 'a frame’s cut-out and width are not a bag’s');

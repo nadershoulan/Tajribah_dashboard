@@ -115,12 +115,12 @@ test('refused pictures are deleted with the reason; a replaced picture’s bytes
   } finally { await harness.close(); }
 });
 
-test('the plan and the role (T33): every plan sets watches up, only Pro and up lets shoppers use their own photo; an analyst can look but not change', async () => {
+test('the plan and the role (T33): every plan sets watches up and (T126) lets shoppers use their own photo; an analyst can look but not change', async () => {
   const harness = await createTestDb();
   try {
     const starter = await proStore(harness, 'bravo', 'starter');
     const screen = await tryOnScreen(starter.ctx);
-    assert.equal(screen.onMe, false, 'Starter: on the model and true-size comparison, not on the shopper’s photo');
+    assert.equal(screen.onMe, true, 'Starter: the shopper’s own photo too (T126: every plan)');
     const worn = await upload(starter.ctx, starter.watch, 'worn', fixture('worn.png'));
     assert.ok(worn.view.worn, 'a Starter store sets its watch up');
     assert.equal((await updateTryOn(starter.ctx, starter.watch, { caseMm: 38 })).caseMm, 38);

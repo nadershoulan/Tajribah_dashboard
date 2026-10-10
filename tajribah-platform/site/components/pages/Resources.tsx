@@ -12,6 +12,7 @@ import { EXPECTED_ROLES, HOW_WE_WORK } from '@site/content/careers';
 import { Forward, Shell } from '@site/components/site/chrome';
 import { Checks, CtaBand, PageHero, SectionHead, Tag } from '@site/components/site/ui';
 import NotFound from './NotFound';
+import { LiveStoreCard } from '@site/components/site/live-store';
 
 /** Gregorian dates with ASCII digits in both languages, as the rest of the site writes them. */
 const dateOf = (iso: string, lang: Lang) =>
@@ -172,6 +173,7 @@ export function StoriesPage() {
     <Shell current="/customers">
       <PageHero eyebrow={t('قصص الاستخدام', 'Customer stories')} title={t('كيف تستخدم المتاجر تجربة', 'How stores use Tajribah')}
         lead={t('ثلاثة أمثلة لطرق تفعيل التجربة حسب نوع المتجر ومنصته، وما يستحق القياس بعدها.', 'Three examples of how to set up try-on by store type and platform, and what is worth measuring afterwards.')} />
+      <LiveStoreCard />
       <section className="sec">
         <div className="wrap">
           <div className="panel-card" role="note"><p><Info size={18} aria-hidden style={{ verticalAlign: '-3px' }} /> <strong>{p(ILLUSTRATIVE)}</strong></p></div>

@@ -49,7 +49,7 @@ test('T33: what the pricing matrix promises per plan is what the dashboard enfor
   const yes = (cells: (boolean | { en: string })[]) => cells.map((c) => c !== false);
   assert.deepEqual(yes(row('True-size comparison')), has('size_comparison'), 'the studio compare mode, every plan');
   assert.deepEqual(yes(row('On-model view')), has('size_comparison'), 'the studio itself, every plan (set up in the dashboard on every plan)');
-  assert.deepEqual(yes(row('AI virtual try-on')), has('virtual_tryon'), 'the shopper’s own photo, Pro and up');
+  assert.deepEqual(yes(row('Try-on on the shopper’s own photo, with the phone QR scan')), has('virtual_tryon'), 'the shopper’s own photo, every plan (T126)');
   assert.deepEqual(yes(row('Catalogue sync')), has('salla'));
   assert.deepEqual(yes(row('White label')), has('white_label'));
   assert.deepEqual(yes(row('API access')), has('public_api'));

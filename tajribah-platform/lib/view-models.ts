@@ -534,7 +534,7 @@ export type TryOnOne = TryOnScreen & { product: { id: string; name: string; name
 export type TryOnScreen = {
   /**
    * T33: every plan sets watches up for the studio (on the model, true-size comparison); this says
-   * whether shoppers may also try them on their own photo — `virtual_tryon`, Pro and Enterprise.
+   * whether shoppers may also try them on their own photo — `virtual_tryon`, every plan since T126.
    */
   onMe: boolean;
   watches: TryOnWatchView[];

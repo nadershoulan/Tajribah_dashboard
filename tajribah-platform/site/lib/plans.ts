@@ -31,6 +31,8 @@ export const PLANS: Plan[] = [
     features: [
       { ar: 'زر «جرّبها» في صفحة المنتج', en: '“Try it” button on the product page' },
       { ar: 'المقارنة بالحجم الحقيقي', en: 'True-size comparison' },
+      // T126 (2026-10-10): "on me" on every plan
+      { ar: 'التجربة على صورة المتسوق، مع مسح QR بالجوال', en: 'Try-on on the shopper’s own photo, with the phone QR scan' },
       { ar: 'العرض ثلاثي الأبعاد والواقع المعزز الأساسي', en: 'Basic 3D and AR viewing' },
       { ar: 'صفحة خاصة لكل منتج تشاركها في أي مكان', en: 'A page of its own for each product, to share anywhere' }, // P1.19
       { ar: 'واجهة عربية وإنجليزية', en: 'Arabic and English interface' },
@@ -61,7 +63,6 @@ export const PLANS: Plan[] = [
     products: { ar: 'منتجات غير محدودة', en: 'Unlimited products' },
     features: [
       { ar: 'كل ما في باقة النمو', en: 'Everything in Growth' },
-      { ar: 'التجربة الافتراضية بالذكاء الاصطناعي', en: 'AI virtual try-on' },
       { ar: 'أولوية في الدعم', en: 'Priority support' },
     ],
   },
@@ -89,7 +90,7 @@ export const MATRIX: { label: Bi; cells: (boolean | Bi)[] }[] = [
   { label: { ar: 'العرض ثلاثي الأبعاد والواقع المعزز', en: '3D and AR viewing' }, cells: [{ ar: 'أساسي', en: 'Basic' }, { ar: 'أساسي', en: 'Basic' }, { ar: 'كامل', en: 'Full' }, { ar: 'كامل', en: 'Full' }] },
   // T34: not built yet — shown as coming, so no one pays for it today.
   { label: { ar: 'المقارنة الذكية بين المنتجات', en: 'AI product comparison' }, cells: [false, { ar: 'قريبًا', en: 'Coming soon' }, { ar: 'قريبًا', en: 'Coming soon' }, { ar: 'قريبًا', en: 'Coming soon' }] },
-  { label: { ar: 'التجربة الافتراضية بالذكاء الاصطناعي', en: 'AI virtual try-on' }, cells: [false, false, true, true] },
+  { label: { ar: 'التجربة على صورة المتسوق، مع مسح QR بالجوال', en: 'Try-on on the shopper’s own photo, with the phone QR scan' }, cells: [true, true, true, true] }, // T126
   { label: { ar: 'مزامنة الكتالوج', en: 'Catalogue sync' }, cells: [false, true, true, true] },
   { label: { ar: 'لوحة التحليلات', en: 'Analytics dashboard' }, cells: [{ ar: 'أساسية', en: 'Basic' }, { ar: 'كاملة', en: 'Full' }, { ar: 'كاملة', en: 'Full' }, { ar: 'كاملة', en: 'Full' }] },
   { label: { ar: 'علامة بيضاء', en: 'White label' }, cells: [false, false, false, true] },

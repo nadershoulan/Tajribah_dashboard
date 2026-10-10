@@ -14,7 +14,7 @@
  *  - Reading is open to every role; every change needs `tryon:write`. **Every plan** sets watches
  *    up (T33: the studio's on-the-model view and true-size comparison are on every plan, as the
  *    website says); `onMe` tells the screen — and the published config — whether the shopper may
- *    also try the watch on their own photo (`virtual_tryon`, Pro and up).
+ *    also try the watch on their own photo (`virtual_tryon`, every plan since T126).
  *  - Pictures count against the plan's storage (`storageBytesHeld`).
  *  - P5.9: each confirmed picture is queued for its check (`quality.ts`): empty edges cropped,
  *    the share of real size measured. The view shows a picture's check only while it is still

@@ -45,7 +45,8 @@ export const PLANS: PlanDefinition[] = [
     priceAnnualMinor: 99000,
     limits: { products: 20, ai_credits: 5, storage_gb: 2, ar_sessions: 5_000, team_members: 2, bandwidth_gb: 50 },
     // T33: the try-on studio (on the model, true-size comparison) on every plan, as the website says.
-    features: ['ar_viewer', 'hosted_pages', 'qr_codes', 'size_comparison', 'basic_analytics'],
+    // T126 (owner, 2026-10-10): "on me" too — the shopper's own photo, with the phone QR scan — on every plan.
+    features: ['ar_viewer', 'hosted_pages', 'qr_codes', 'size_comparison', 'basic_analytics', 'virtual_tryon'],
     highlights: [
       { ar: '20 منتجًا بعرض ثلاثي الأبعاد', en: '20 products with 3D viewing' },
       { ar: 'زر «شاهدها في مكانك» داخل متجرك', en: '“View in your space” button in your store' },
@@ -62,7 +63,7 @@ export const PLANS: PlanDefinition[] = [
     priceAnnualMinor: 299000,
     featured: true,
     limits: { products: 200, ai_credits: 40, storage_gb: 20, ar_sessions: 50_000, team_members: 5, bandwidth_gb: 500 },
-    features: ['ar_viewer', 'hosted_pages', 'qr_codes', 'size_comparison', 'full_analytics', 'salla', 'zid'],
+    features: ['ar_viewer', 'hosted_pages', 'qr_codes', 'size_comparison', 'full_analytics', 'salla', 'zid', 'virtual_tryon'],
     highlights: [
       { ar: '200 منتج، ومقارنة الحجم بأشياء يعرفها العميل', en: '200 products, plus size comparison with familiar objects' },
       // T81/T86: store linking is version 2; today products come from a feed link or a file, on every plan.
@@ -127,8 +128,8 @@ export const FEATURE_LABELS: Record<string, Bi> = {
   zid: { ar: 'تكامل زد', en: 'Zid integration' },
   shopify: { ar: 'تكامل Shopify', en: 'Shopify integration' },
   woocommerce: { ar: 'تكامل WooCommerce', en: 'WooCommerce integration' },
-  // T33: the studio itself is on every plan; this is trying the watch on the shopper's own photo.
-  virtual_tryon: { ar: 'التجربة الافتراضية بالذكاء الاصطناعي', en: 'AI virtual try-on' },
+  // T33: the studio itself is on every plan; this is trying the watch on the shopper's own photo (T126: every plan).
+  virtual_tryon: { ar: 'التجربة على صورة المتسوق، مع مسح QR بالجوال', en: 'Try-on on the shopper’s own photo, with the phone QR scan' },
   ai_3d: { ar: 'توليد النماذج بالذكاء الاصطناعي', en: 'AI 3D generation' },
   recommendations: { ar: 'توصيات المنتجات', en: 'Product recommendations' },
   white_label: { ar: 'علامة بيضاء', en: 'White label' },

@@ -127,7 +127,7 @@ test('a watch with try-on and no 3D model still gets its button; the plan decide
     const config = stored(kv, `beta/${watch.id}.json`);
     assert.ok(config, 'a product made in the dashboard is addressed by its own id');
     assert.equal(config.model, null);
-    assert.equal(config.tryon.onMe, false, 'Starter: on the model and true size only (T33)');
+    assert.equal(config.tryon.onMe, true, 'Starter: the shopper’s own photo too, with the phone QR scan (T126: every plan)');
     assert.equal(config.tryon.finish, null);
     assert.equal(parseConfig(config)?.tryon?.caseMm, 38);
     assert.equal(tryOnProductFrom(config)?.finish.en, 'At its real size');

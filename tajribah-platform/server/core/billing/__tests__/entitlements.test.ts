@@ -96,7 +96,7 @@ test('a feature outside the plan is refused with 402', async () => {
     const ctx = await starterStore(harness);
     const entitlements = await entitlementsOf(ctx);
     let refused: unknown;
-    try { assertFeature(entitlements, 'virtual_tryon'); } catch (error) { refused = error; }
+    try { assertFeature(entitlements, 'white_label'); } catch (error) { refused = error; }
     assert.equal(problemResponse(refused).status, 402);
   } finally { await harness.close(); }
 });

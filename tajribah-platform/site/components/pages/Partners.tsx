@@ -8,6 +8,7 @@ import { COMPANY } from '@site/lib/site';
 import { DRAFT_NOTE, PROGRAMS } from '@site/content/partners';
 import { Shell } from '@site/components/site/chrome';
 import { Checks, PageHero } from '@site/components/site/ui';
+import { LiveStoreCard } from '@site/components/site/live-store';
 
 export default function PartnersPage() {
   const { t, lang } = useLang();
@@ -34,6 +35,7 @@ export default function PartnersPage() {
           </p>
         </div>
       </section>
+      <LiveStoreCard />
     </Shell>
   );
 }

@@ -66,3 +66,6 @@ next-env.d.ts
 
 # T57: the Node worker bundle (scripts/worker-node.mjs)
 /dist-worker/
+
+# TypeScript's incremental-check cache: rebuilt on every check, different on each machine
+*.tsbuildinfo

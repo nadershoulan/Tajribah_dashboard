@@ -15,6 +15,8 @@ import { useSiteEnv } from '@site/lib/site-env';
 import { preparePhoto } from '@site/lib/photo';
 import { castShadow } from '@site/lib/shadow';
 import { markedQrPng } from '@/lib/qr-mark';
+import { handPoints, watchPlacement } from '@site/lib/placement';
+import { detectHand } from '@site/lib/hand-detect';
 import {
   DEMO_WATCH, PX_PER_MM, REFERENCES, STAGE, constrainToModel, modelsFor,
   type ModelId, type Pose, type ReferenceId, type TryOnProduct,
@@ -412,7 +414,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
           runningMode: 'IMAGE', numHands: 1, minHandDetectionConfidence: 0.35,
         });
       }
-      const result = handDetector.current.detect(img);
+      const result = (await detectHand(handDetector.current, img)) ?? { landmarks: [] }; // T134.5: turned, then a weaker sighting
       if (request !== photoRequest.current) return;
       const lm = result.landmarks?.[0];
       if (lm) {
@@ -474,7 +476,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
           runningMode: 'IMAGE', numHands: 1, minHandDetectionConfidence: 0.35,
         });
       }
-      const result = handDetector.current.detect(img);
+      const result = (await detectHand(handDetector.current, img)) ?? { landmarks: [] }; // T134.5: turned, then a weaker sighting
       if (request !== photoRequest.current) return;
       const lm = result.landmarks?.[0];
       if (lm) {
@@ -521,24 +523,19 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
             runningMode: 'IMAGE', numHands: 1, minHandDetectionConfidence: 0.35,
           });
         }
-        const result = handDetector.current.detect(img);
+        // T134.5: a harder look (the photo turned, then a weaker sighting accepted), and the watch at its real case
+        // width with the hand as the ruler (site/lib/placement.ts) — it took 90 % of the palm's width before
+        const found = await detectHand(handDetector.current, img);
         if (request !== photoRequest.current) return;
-        if (result.landmarks.length) {
-          const lm = result.landmarks[0];
-          const f = Math.min(W / img.width, H / img.height);
-          const ox = (W - img.width * f) / 2, oy = (H - img.height * f) / 2;
-          const wrist = { x: lm[0].x * img.width * f + ox, y: lm[0].y * img.height * f + oy };
-          const middle = { x: lm[9].x * img.width * f + ox, y: lm[9].y * img.height * f + oy };
-          const dx = middle.x - wrist.x, dy = middle.y - wrist.y;
-          const palm = Math.hypot((lm[5].x - lm[17].x) * img.width * f, (lm[5].y - lm[17].y) * img.height * f);
-          const w = images.current.watch;
-          base = {
-            x: clamp(wrist.x - dx * 0.22, 50, W - 50), y: clamp(wrist.y - dy * 0.22, 50, H - 50),
-            width: clamp((palm * 0.9) / (w.height / w.width), 45, 240),
-            angle: (Math.atan2(dy, dx) * 180) / Math.PI,
-          };
+        const f = Math.min(W / img.width, H / img.height);
+        const hand = found ? handPoints(found.landmarks[0]!, img, { scale: f, ox: (W - img.width * f) / 2, oy: (H - img.height * f) / 2 }) : null;
+        if (found && hand) {
+          const fit = watchPlacement(hand, product.caseMm, found.score);
+          base = { x: clamp(fit.x, 50, W - 50), y: clamp(fit.y, 50, H - 50), width: clamp(fit.width, 30, 400), angle: fit.angle };
           setPose(base); setPhotoFit(base);
-          notify(t('Wrist found. Fine-tune the fit if needed.', 'تم تحديد المعصم. عدّل موضع الساعة عند الحاجة.'));
+          notify(fit.confidence < 0.45
+            ? t('Wrist found — check the fit and adjust it if needed.', 'تم تحديد المعصم — تأكد من الموضع وعدّله عند الحاجة.')
+            : t('Wrist found. Fine-tune the fit if needed.', 'تم تحديد المعصم. عدّل موضع الساعة عند الحاجة.'));
         } else notify(t('Wrist not found. Use “Fit to wrist” to place your watch.', 'لم يتم تحديد المعصم. استخدم «ضبط على المعصم».'));
       } catch {
         notify(t('Use “Fit to wrist” to place your watch on the photo.', 'استخدم «ضبط على المعصم» لتحديد موضع الساعة.'));
@@ -703,7 +700,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
                     : mode === 'compare' ? t('Size in perspective', 'الحجم عن قرب')
                       : t('Your personal try-on', 'تجربتك الخاصة')}
                 </div>
-                <canvas ref={canvas} width={W} height={H} tabIndex={0}
+                <canvas ref={canvas} width={W} height={H} tabIndex={0} data-pose={`${Math.round(pose.x)},${Math.round(pose.y)},${Math.round(pose.width)},${Math.round(pose.angle)}`}
                   aria-label={isEarring ? t('Interactive earring preview. Drag to position. Use arrow keys for precise movement.', 'معاينة القرط. اسحب لتغيير موضعه أو استخدم مفاتيح الأسهم.') : isBag ? t('Interactive bag preview. Use arrow keys for precise movement.', 'معاينة الحقيبة. استخدم مفاتيح الأسهم لتحريكها بدقة.') : isNecklace ? t('Interactive necklace preview. Drag to position. Use arrow keys for precise movement.', 'معاينة القلادة. اسحب لتغيير موضعها أو استخدم مفاتيح الأسهم.') : isRing ? t('Interactive ring preview. Drag to position. Use arrow keys for precise movement.', 'معاينة الخاتم. اسحب لتغيير موضعه أو استخدم مفاتيح الأسهم.') : isGlasses ? t('Interactive glasses preview. Drag to position. Use arrow keys for precise movement.', 'معاينة النظارة. اسحب لتغيير موضعها أو استخدم مفاتيح الأسهم.') : t('Interactive watch preview. Drag to position. Use arrow keys for precise movement.', 'معاينة الساعة. اسحب لتغيير موضعها أو استخدم مفاتيح الأسهم.')}
                   onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerEnd} onPointerCancel={pointerEnd}
                   onLostPointerCapture={pointerEnd} onKeyDown={keyMove} className={calibrating ? 'calibrating' : ''} />

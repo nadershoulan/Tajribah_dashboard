@@ -83,19 +83,20 @@ try-on: full screen, the store's feel, nothing that says "you left the shop".
 - [ ] Also on the desktop studio's on-me upload (the guide shows what kind of photo to take).
 - [ ] Walk: each kind, guide visible, feedback changes as the detection does (recorded frames).
 
-## Phase 5 — Better auto-detect and auto-place  ·  status: ☐
+## Phase 5 — Better auto-detect and auto-place  ·  status: ✅ core live 2026-10-11 (watch engine, harder detection); face retries next
 
-- [ ] `site/lib/placement.ts` (pure, tested with recorded landmark fixtures): from landmarks to a pose for every kind,
-      **at true size** — a watch's case width in millimetres from the hand's own scale (knuckle span ≈ 78 mm adult
+- [x] `site/lib/placement.ts` (pure, tested with hands drawn from measurements): watch and ring placements
+      **at true size** (knuckle span 58 mm unisex, palm 100 mm, the larger wins; watch 0.28 palm up the arm).
+      *(Glasses, necklace, earring and bag keep the studio's own T68/T83/T84 maths, already true-size.)* Was: — a watch's case width in millimetres from the hand's own scale (knuckle span ≈ 78 mm adult
       average, wrist width ≈ 0.72 of it), the strap across the forearm, on the wrist crease (not the hand); a ring at
       the ring finger's base between MCP and PIP; glasses from pupils (62 mm); necklace from the jaw and shoulders;
       earring from the ear landmarks; bag from wrist and knuckles (T84).
-- [ ] Robustness: try the photo at 0/90/180/270° and with a contrast lift when the first pass finds nothing; prefer
+- [x] Robustness (hands): `site/lib/hand-detect.ts` tries the photo at 0/90/270/180° then a weaker sighting; the confidence drops for a small hand (the studio says «تأكد من الموضع»). *(Face detection retries: next.)* Was: try the photo at 0/90/180/270° and with a contrast lift when the first pass finds nothing; prefer
       the hand facing the camera's back; reject a hand too small to place; a confidence score that decides between
       "placed" and "please adjust".
-- [ ] The studio and the phone page both use the engine (the studio's inline maths moved behind it, same behaviour or
+- [x] The studio's watch path uses the engine; ring and bag use the harder detection. *(The phone page: Phase 3.)* Was: The studio and the phone page both use the engine (the studio's inline maths moved behind it, same behaviour or
       better).
-- [ ] Tests: fixtures from real photos (left/right hand, rotated, close/far) → poses within tolerance; mutation run.
+- [x] Tests: 7 (scale, true size, any angle, confidence, ring, landmark mapping, quarter-turn round trip); 13 breakages caught across T134. Real photo: the demo's wrist photo as a shopper's photo — found upright and turned sideways (only via the retries), the watch on the wrist across the arm; first look sat it against the hand and a little small → 0.28 palm and 58 mm, seen right on the second look.
 
 ## Phase 6 — The store sets where the product sits («جرّبه كما يراه المتسوّق»)  ·  status: ☐
 
@@ -123,4 +124,5 @@ try-on: full screen, the store's feel, nothing that says "you left the shop".
 | Date | Phase | What happened |
 |---|---|---|
 | 2026-10-11 | — | Plan written after reading the studio, capture page, pairing API and QR code paths. |
+| 2026-10-11 | 5 | Placement engine (watch true size, on the wrist, across the arm), harder hand detection (turned photos, weaker sighting), confidence note; walked on the real wrist photo upright and sideways. Next: Phase 4 (guides) with Phase 3 (phone page). |
 | 2026-10-11 | 1, 2 | Shadow (contact + ambient, product-shaped, per kind) and the QR corner mark (level H, read back by jsQR) built, walked, deployed. Next: Phase 5, the placement engine. |

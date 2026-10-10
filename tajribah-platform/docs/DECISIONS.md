@@ -2162,3 +2162,13 @@ corner — the corner without a finder square — inside the corner modules shor
 3-module margin, so it shows (≈ 13 % of the side) while covering < 2 % of the code. Every marked code is read back by
 a QR reader in the tests (dev dependency `jsqr` 1.4.0), and a badge grown over the code is shown not to read. The
 dashboard's SVG embeds the mark (a data URL), so a downloaded file prints with it.
+
+**T134.5 — placement engine (2026-10-11).** `site/lib/placement.ts` (pure) places a watch from the hand's landmarks at
+its **real case width** — the hand as the ruler (knuckle span 58 mm, a unisex middle; palm 100 mm; the larger wins,
+since an angle only shortens) — just above the wrist bone (0.28 of a palm up the forearm) with the strap across the
+arm; before, every watch took 90 % of the palm's width. `site/lib/hand-detect.ts` looks harder before giving up: the
+photo as it is, turned a quarter / three quarters / a half (points brought back with `unrotate`), then a weaker
+sighting; the studio's watch, ring and bag paths use it. A confidence (the detector's score, lowered for a small
+hand) chooses between «تم تحديد المعصم» and «تأكد من الموضع». Tuned on the demo's real wrist photo: 62 mm and a fifth
+of a palm drew the watch small and against the hand; 58 mm and 0.28 look right. The studio canvas carries
+`data-pose` (for checks).

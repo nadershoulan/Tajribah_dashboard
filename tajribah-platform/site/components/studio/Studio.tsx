@@ -5,7 +5,6 @@ import {
   Camera, Check, ChevronRight, Download, Expand, Hand, HelpCircle, ImagePlus, LoaderCircle,
   Maximize2, Minus, Move, Plus, QrCode, RotateCcw, Ruler, Smartphone, Upload, X,
 } from 'lucide-react';
-import QRCode from 'qrcode';
 import { Tabs, TabsList, TabsTrigger } from '@site/components/ui/tabs';
 import { Slider } from '@site/components/ui/slider';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@site/components/ui/dialog';
@@ -14,6 +13,8 @@ import { Switch } from '@site/components/ui/switch';
 import { useLang } from '@site/lib/i18n';
 import { useSiteEnv } from '@site/lib/site-env';
 import { preparePhoto } from '@site/lib/photo';
+import { castShadow } from '@site/lib/shadow';
+import { markedQrPng } from '@/lib/qr-mark';
 import {
   DEMO_WATCH, PX_PER_MM, REFERENCES, STAGE, constrainToModel, modelsFor,
   type ModelId, type Pose, type ReferenceId, type TryOnProduct,
@@ -195,11 +196,11 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
     if (mode !== 'me' || photo) {
       const im = images.current[mode === 'compare' ? 'flat' : 'watch'];
       const width = (pose.width * scale) / 100, height = (width * im.height) / im.width;
+      // T134.1: a contact and an ambient shadow in the product's own shape, so it sits on the skin (was one flat shadow)
+      castShadow(ctx, im, { x: pose.x, y: pose.y, width, height, angle: pose.angle }, mode === 'compare' ? 'flat' : product.category ?? 'watch');
       ctx.save();
       ctx.translate(pose.x, pose.y); ctx.rotate((pose.angle * Math.PI) / 180);
-      ctx.shadowColor = 'rgba(10,34,55,.2)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 3;
       ctx.drawImage(im, -width / 2, -height / 2, width, height);
-      ctx.shadowColor = 'transparent';
       if (rulers) {
         const y = height / 2 + 26;
         ctx.strokeStyle = '#00A7BC'; ctx.lineWidth = 2; ctx.beginPath();
@@ -229,7 +230,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
     }
     ctx.restore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assetsReady, mode, model, photo, pose, scale, zoom, ref, refPose, active, rulers, units, ar, calibrating, points, product.caseMm]);
+  }, [assetsReady, mode, model, photo, pose, scale, zoom, ref, refPose, active, rulers, units, ar, calibrating, points, product.caseMm, product.category]);
   useEffect(() => redraw(), [redraw]);
 
   function getPoint(e: { clientX: number; clientY: number }) {
@@ -556,7 +557,8 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
       if (!r.ok) throw Error();
       const p = (await r.json()) as { id: string; expiresAt: number };
       setPair(p);
-      setQrImage(await QRCode.toDataURL(`${window.location.origin}/capture/${p.id}`, { margin: 2, width: 240, color: { dark: '#0A2237', light: '#ffffff' } }));
+      // T134.2: Tajribah's mark in the code's corner, error correction H (it still reads — lib/qr-mark.ts)
+      setQrImage(await markedQrPng(`${window.location.origin}/capture/${p.id}`, 480, `${window.location.origin}/brand/tajribah-mark.png`, { dark: '#0A2237', light: '#ffffff' }));
     } catch {
       setPairError(t('Could not connect. Try again or upload a photo here.', 'تعذر الاتصال. حاول مجدداً أو ارفع الصورة هنا.'));
     } finally { setPairBusy(false); }

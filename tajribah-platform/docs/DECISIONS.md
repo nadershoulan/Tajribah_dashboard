@@ -2145,3 +2145,20 @@ two products made in the same millisecond took random bits and could swap. Every
 A time earlier than the last keeps its own timestamp (tests mint old ids).
 
 **Rollback path.** Revert the commit. Cost: low.
+
+## T134 · 2026-10-11 · A try-on that feels real and feels like the store's (plan; phases 1–2)
+
+**Plan** in `docs/plans/T134-TRYON-REALISM.md` (the tracker): shadow, a QR mark, the phone page full screen and
+store-first, guides on the camera, a placement engine, store-set placement zones — six phases over several sessions.
+
+**T134.1 — shadow.** A product casts two shadows in its own shape — a tight dark contact one and a wide faint ambient
+one — falling down and a little away whatever its angle (`site/lib/shadow.ts`; drawn in screen space from the
+product exactly as drawn: an offscreen layer, shadows cast by drawing it far off-canvas with the offset brought back,
+which works in every browser — no canvas `filter`, which Safari lacked). Each kind its own amounts. It replaces the
+studio's one flat shadow (`shadowBlur 6`) — the studio's code otherwise untouched.
+
+**T134.2 — the QR mark.** Every code at error correction **H**, a small badge with Tajribah's mark in the bottom-right
+corner — the corner without a finder square — inside the corner modules short of the alignment square, and on into a
+3-module margin, so it shows (≈ 13 % of the side) while covering < 2 % of the code. Every marked code is read back by
+a QR reader in the tests (dev dependency `jsqr` 1.4.0), and a badge grown over the code is shown not to read. The
+dashboard's SVG embeds the mark (a data URL), so a downloaded file prints with it.

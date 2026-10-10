@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { Link2 } from 'lucide-react';
 import { useData } from '@/lib/data';
 import { inArabic } from '@/lib/problem-text';
-import QRCode from 'qrcode';
+import { markedQrPng, markedQrSvg } from '@/lib/qr-mark';
 import { Download, QrCode } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import type { QrScreen } from '@/lib/contracts/hosted-page';
@@ -77,6 +77,15 @@ function Codes({ screen }: { screen: QrScreen }) {
   );
 }
 
+/** T134.2: the mark in each code's corner, embedded as a data URL so a downloaded SVG carries it. Fetched once. */
+const MARK_URL = '/brand/tajribah-mark.png';
+let markOnce: Promise<string> | null = null;
+function markDataUrl(): Promise<string> {
+  markOnce ??= fetch(MARK_URL).then((r) => (r.ok ? r.blob() : Promise.reject(new Error('no mark'))))
+    .then((blob) => new Promise<string>((resolve, reject) => { const f = new FileReader(); f.onload = () => resolve(String(f.result)); f.onerror = reject; f.readAsDataURL(blob); }));
+  return markOnce;
+}
+
 const slugOf = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'product';
 
 function Code({ product, printable, scannable }: { product: QrScreen['products'][number]; printable: boolean; scannable: boolean }) {
@@ -84,8 +93,9 @@ function Code({ product, printable, scannable }: { product: QrScreen['products']
   const [svg, setSvg] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
-    // Level M: survives a scuffed label; the quiet zone of 2 modules is part of the drawing.
-    QRCode.toString(product.url, { type: 'svg', errorCorrectionLevel: 'M', margin: 2 }).then((s) => { if (live) setSvg(s); }, () => {});
+    // T134.2: level H with Tajribah's mark in the bottom-right corner (it still reads — lib/qr-mark.ts); the mark is
+    // embedded in the SVG, so a downloaded file prints with it anywhere.
+    markDataUrl().then((mark) => { if (live) setSvg(markedQrSvg(product.url, 1200, { mark })); }, () => { if (live) setSvg(markedQrSvg(product.url, 1200)); });
     return () => { live = false; };
   }, [product.url]);
   const name = t(product.nameAr ?? product.name, product.name);
@@ -93,7 +103,7 @@ function Code({ product, printable, scannable }: { product: QrScreen['products']
   const download = async (kind: 'svg' | 'png') => {
     const href = kind === 'svg'
       ? URL.createObjectURL(new Blob([svg ?? ''], { type: 'image/svg+xml' }))
-      : await QRCode.toDataURL(product.url, { errorCorrectionLevel: 'M', margin: 2, width: 1200 });
+      : await markedQrPng(product.url, 1200, MARK_URL);
     const a = document.createElement('a');
     a.href = href; a.download = `qr-${slugOf(product.name)}.${kind}`;
     a.click();

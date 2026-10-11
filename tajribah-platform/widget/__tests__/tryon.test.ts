@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseConfig } from '../src/config';
-import { CLOSE_MESSAGE, DEFAULT_TRYON, isCloseFrom, tryOnUrl, warmTryOn } from '../src/tryon';
+import { CLOSE_MESSAGE, DEFAULT_TRYON, PHONE_PAD, SIZE_MESSAGE, fitFrame, isCloseFrom, sizeFrom, tryOnUrl, warmTryOn } from '../src/tryon';
 import { GOOD } from './fixtures';
 
 const TRYON = { worn: 'https://cdn.tajribah.org/t/store/w/worn.png', flat: 'https://cdn.tajribah.org/t/store/w/flat.png', caseMm: 38, sku: 'SFW-38' };
@@ -182,3 +182,17 @@ test('T103: with the store’s cart, the window’s foot offers the product and 
     g.window = saved.window;
   }
 });
+
+test('T137 — on a phone the window fits what the frame shows: its height asked only by our frame, never past the screen', () => {
+  const frame = {};
+  const ok = { origin: 'https://tajribah.org', source: frame, data: { type: SIZE_MESSAGE, height: 612.4 } };
+  assert.equal(sizeFrom(ok, 'https://tajribah.org', frame), 612);
+  assert.equal(sizeFrom({ ...ok, origin: 'https://evil.example' }, 'https://tajribah.org', frame), null, 'another origin');
+  assert.equal(sizeFrom({ ...ok, source: {} }, 'https://tajribah.org', frame), null, 'another window');
+  assert.equal(sizeFrom({ ...ok, data: { type: SIZE_MESSAGE, height: 'tall' } }, 'https://tajribah.org', frame), null);
+  assert.equal(sizeFrom({ ...ok, data: { type: SIZE_MESSAGE, height: 90000 } }, 'https://tajribah.org', frame), null, 'not a sane height');
+  assert.equal(fitFrame(560, 844, PHONE_PAD, 92), 560, 'the content fits: the window is its size — no empty band');
+  assert.equal(fitFrame(1400, 844, PHONE_PAD, 92), 844 - PHONE_PAD * 2 - 92, 'taller than the screen: the screen less the margins and the foot');
+  assert.equal(fitFrame(100, 844, PHONE_PAD, 92), 240, 'never tiny');
+});
+

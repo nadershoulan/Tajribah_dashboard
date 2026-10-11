@@ -31,9 +31,10 @@ import { ShieldCheck, X } from 'lucide-react';
 import { useLang } from '@site/lib/i18n';
 import { SiteEnvContext, SiteLink, useSiteEnv } from '@site/lib/site-env';
 import type { TryOnProduct } from '@site/lib/demo-product';
-import { brandFrom, CLOSE_MESSAGE, SHOWN_MESSAGE, PREVIEW_CONFIG, PREVIEW_HEIGHT, PREVIEW_READY, configBase, configUrl, embedTitle, isLocalHost, tryOnProductFrom, validRefs, type StoreBrand } from '@site/lib/tryon-config';
+import { brandFrom, CLOSE_MESSAGE, SHOWN_MESSAGE, SIZE_MESSAGE, PREVIEW_CONFIG, PREVIEW_HEIGHT, PREVIEW_READY, configBase, configUrl, embedTitle, isLocalHost, tryOnProductFrom, validRefs, type StoreBrand } from '@site/lib/tryon-config';
 import { servesHere } from '@site/lib/store-host';
 import { StoreMark } from '@site/components/site/store-mark';
+import { MonoMark } from '@site/components/site/mono-mark';
 import TryOnFor from '@site/components/tryon/TryOnFor';
 import { COMPANY } from '@site/lib/site';
 
@@ -122,23 +123,42 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
   const close = () => window.parent?.postMessage({ type: CLOSE_MESSAGE }, '*');
   // T100: in a shop's popup, the bar (with its close button) is up: the popup hides its own backup close
   useEffect(() => { if (inPopup && window.parent !== window) window.parent.postMessage({ type: SHOWN_MESSAGE }, '*'); }, [inPopup]);
+  // T137: in a shop's window, say how tall the content is — on a phone the window fits it (no empty band above the
+  // price, the store seen round it). A photo's stage is capped by the phone's screen (not this frame's, which follows).
+  useEffect(() => {
+    if (!inPopup || window.parent === window) return;
+    document.documentElement.style.setProperty('--screen-h', `${screen.height}px`);
+    const root = document.querySelector<HTMLElement>('.embed-root');
+    if (!root || typeof ResizeObserver === 'undefined') return;
+    let last = 0;
+    const post = () => {
+      // the camera (opened from «عليّ», or a product on the phone only) is full screen: all the window can give
+      const height = document.querySelector('main.cap') ? 4000 : Math.ceil(root.scrollHeight);
+      if (Math.abs(height - last) > 2) { last = height; window.parent.postMessage({ type: SIZE_MESSAGE, height }, '*'); }
+    };
+    const watch = new ResizeObserver(post);
+    watch.observe(root);
+    for (const child of Array.from(root.children)) watch.observe(child);
+    const opened = new MutationObserver(post); // the studio's camera opens at the end of the page
+    opened.observe(document.body, { childList: true });
+    post();
+    return () => { watch.disconnect(); opened.disconnect(); };
+  }, [inPopup, state.kind]);
 
-  // T137 (Nader): on a phone the bar's close and mark go onto the picture itself, the privacy line into the help screen —
-  // the picture gets the room (shown only there by CSS; the bar stays for a computer and while loading)
+  // T137 (Nader): on a phone the bar goes — its mark onto the picture, its close beside the tabs (where the help button was;
+  // the help goes onto the picture's corner), the privacy line into the help screen. Shown only there by CSS; the bar
+  // stays for a computer and while loading.
   const mark = brand
     ? <span className="stage-mark"><StoreMark brand={brand} /></span>
-    : <a className="stage-mark" href={`${COMPANY.siteUrl}/?utm_source=tryon&utm_medium=watermark`} target="_blank" rel="noopener">{t('بدعم من تجربة', 'Powered by Tajribah')}</a>;
-  const onPicture = (
-    <>
-      <button type="button" className="stage-close" onClick={close} aria-label={t('أغلق التجربة', 'Close the try-on')}><X size={18} aria-hidden /></button>
-      {mark}
-    </>
-  );
+    // T137 (Nader): the watermark is just the mark, in one gray — no words
+    : <a className="stage-mark is-icon" href={`${COMPANY.siteUrl}/?utm_source=tryon&utm_medium=watermark`} target="_blank" rel="noopener" aria-label={t('بدعم من تجربة — يفتح موقع تجربة', 'Powered by Tajribah — opens Tajribah’s website')} title={t('بدعم من تجربة', 'Powered by Tajribah')}><MonoMark size={16} /></a>;
+  const onPicture = mark;
+  const besideTabs = <button type="button" className="icon-button topbar-close" onClick={close} aria-label={t('أغلق التجربة', 'Close the try-on')}><X size={19} aria-hidden /></button>;
   const inHelp = (
     <p className="help-privacy">
       <ShieldCheck size={15} aria-hidden />
       <SiteLink href="/try-on-privacy" target="_blank" rel="noopener">{t('تُعالج صورك على جهازك — التفاصيل', 'Your photos are processed on your device — details')}</SiteLink>
-      {!brand && <a href={`${COMPANY.siteUrl}/?utm_source=tryon&utm_medium=help`} target="_blank" rel="noopener">{t('بدعم من تجربة', 'Powered by Tajribah')}</a>}
+      {!brand && <a className="help-powered" href={`${COMPANY.siteUrl}/?utm_source=tryon&utm_medium=help`} target="_blank" rel="noopener"><MonoMark size={14} />{t('بدعم من تجربة', 'Powered by Tajribah')}</a>}
     </p>
   );
 
@@ -148,7 +168,7 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
         {/* T101: a small mark that opens Tajribah's website, in a new tab — a store under white-label shows its own name instead */}
         {brand ? <span className="embed-brand"><StoreMark brand={brand} /></span> : (
           <a className="embed-brand embed-watermark" href={`${COMPANY.siteUrl}/?utm_source=tryon&utm_medium=watermark`} target="_blank" rel="noopener" aria-label={t('تجربة — يفتح موقع تجربة في نافذة جديدة', 'Tajribah — opens Tajribah’s website in a new tab')}>
-            <span className="embed-watermark-by">{t('بدعم من', 'Powered by')}</span>{t('تجربة', 'Tajribah')}
+            <MonoMark size={22} />
           </a>
         )}
         <SiteLink href="/try-on-privacy" target="_blank" rel="noopener" className="embed-privacy">
@@ -167,7 +187,7 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
         <SiteEnvContext.Provider value={embedEnv}>
           {/* T135: the studio, or — on the phone only — the camera try-on (a QR code on a computer) */}
           <TryOnFor product={state.product} brand={brand} onClose={previewing ? undefined : close}
-            stageExtras={previewing ? null : onPicture} helpExtra={previewing ? null : inHelp} />
+            stageExtras={previewing ? null : onPicture} helpExtra={previewing ? null : inHelp} topbarExtra={previewing ? null : besideTabs} />
         </SiteEnvContext.Provider>
       )}
     </div>

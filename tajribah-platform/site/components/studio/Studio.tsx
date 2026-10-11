@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Camera, Check, ChevronRight, Download, Expand, Hand, HelpCircle, ImagePlus, LoaderCircle,
-  Maximize2, Minus, Move, Plus, QrCode, RotateCcw, RotateCw, Ruler, Scaling, Smartphone, Upload, X,
+  Maximize2, Minus, Move, Plus, QrCode, RotateCcw, RotateCw, Ruler, Scaling, Share2, Smartphone, Upload, X,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { Tabs, TabsList, TabsTrigger } from '@site/components/ui/tabs';
@@ -19,6 +19,7 @@ import { QR_MARK, markedQrPng } from '@/lib/qr-mark';
 import { earringPlacement, glassesPlacement, handPoints, necklacePlacement, watchPlacement } from '@site/lib/placement';
 import { kindOf, pairProductOf } from '@site/lib/pair-product';
 import CameraTryOn from '@site/components/tryon/CameraTryOn';
+import { dataUrlBlob, savePicture, sharePicture } from '@site/lib/share-picture';
 import { inZone } from '@/lib/tryon-placement';
 import { Guide } from './guides';
 import { detectHand } from '@site/lib/hand-detect';
@@ -52,10 +53,11 @@ const loadImage = (src: string) => (/^(data|blob):/.test(src)
 
 /**
  * `product`: the watch to try on — the Failet demo unless a merchant's own is given (P5, T26). T137: `stageExtras` —
- * what the page around puts on the picture itself (the shop window's close and mark, on a phone); `helpExtra` — what it
- * adds to the help screen (the privacy line).
+ * what the page around puts on the picture itself (the shop window's mark, on a phone); `helpExtra` — what it adds to
+ * the help screen (the privacy line); `topbarExtra` — what it adds beside the tabs (the shop window's close, on a phone,
+ * where the help button was — Nader: the help goes onto the picture, the close beside the tabs).
  */
-export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpExtra = null }: { product?: TryOnProduct; stageExtras?: React.ReactNode; helpExtra?: React.ReactNode } = {}) {
+export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpExtra = null, topbarExtra = null }: { product?: TryOnProduct; stageExtras?: React.ReactNode; helpExtra?: React.ReactNode; topbarExtra?: React.ReactNode } = {}) {
   const { lang } = useLang();
   const { asset, features } = useSiteEnv();
   const ar = lang === 'ar';
@@ -628,21 +630,16 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
     setQrOpen(open);
     if (!open && pair) { void fetch(`/api/pair/${pair.id}`, { method: 'DELETE' }); setPair(null); setQrImage(''); setPairError(''); }
   }
-  /** T137: the picture as it is shown — through the phone's share sheet, or saved as a file. */
-  async function shareImage() {
+  /**
+   * T137: the picture as it is shown — through the phone's share sheet, or saved as a file. Made at once and shared
+   * inside the tap: a phone refuses a share started after waiting.
+   */
+  function shareImage(share = isPhone) {
     if (!canvas.current) return;
     try {
-      const blob = await new Promise<Blob | null>((resolve) => canvas.current!.toBlob(resolve, 'image/png'));
-      if (!blob) throw Error('picture');
-      const file = new File([blob], 'tajribah-try-on.png', { type: 'image/png' });
-      if (isPhone && navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return; }
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob); link.download = file.name; link.click();
-      setTimeout(() => URL.revokeObjectURL(link.href), 4000);
-      notify(t('Your image is ready.', 'صورتك جاهزة.'));
-    } catch (e) {
-      if (!(e instanceof DOMException && e.name === 'AbortError')) notify(t('Could not save the image. Please try again.', 'تعذر حفظ الصورة. حاول مجدداً.'));
-    }
+      const file = new File([dataUrlBlob(canvas.current.toDataURL('image/png'))], 'tajribah-try-on.png', { type: 'image/png' });
+      void (share ? sharePicture(file) : Promise.resolve(savePicture(file))).then((how) => { if (how === 'saved') notify(t('Your image is ready.', 'صورتك جاهزة.')); });
+    } catch { notify(t('Could not save the image. Please try again.', 'تعذر حفظ الصورة. حاول مجدداً.')); }
   }
   function saveImage() {
     if (!canvas.current) return;
@@ -737,20 +734,22 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
             <div className="topbar-actions">
               <button className="icon-button" aria-label={t('How it works', 'طريقة الاستخدام')} onClick={() => setHelpOpen(true)}><HelpCircle size={18} /></button>
               <button className="icon-button" aria-label={expanded ? t('Exit expanded view', 'إغلاق العرض الموسع') : t('Expand studio', 'توسيع الاستوديو')} onClick={() => setExpanded(!expanded)}>{expanded ? <X size={18} /> : <Expand size={18} />}</button>
+              {topbarExtra}
             </div>
           </div>
 
           {/* T136: on a phone, the shopper's photo is the picture — the stage takes its shape (a tall photo, a tall stage) */}
           <div className={'stage ' + (mode !== 'model' ? 'compare-stage' : '') + (mode === 'me' && photo ? ' me-photo' : '')}
             style={mode === 'me' && photo && images.current.photo ? ({ '--photo-ar': String(images.current.photo.width / images.current.photo.height) } as React.CSSProperties) : undefined}>
-            {/* T137: on the picture, as Tangiblee's — the measurements (a ruler; the unit beside it), save, and back to the whole view */}
+            {/* T137: on the picture, as Tangiblee's — the measurements (a ruler; the unit beside it) and back to the whole view */}
+            {/* the help, on a phone in the shop's window: on the picture's corner, where the close was (the close went beside the tabs) */}
+            <button type="button" className="stage-chip stage-help" aria-label={t('How it works', 'طريقة الاستخدام')} title={t('How it works', 'طريقة الاستخدام')} onClick={() => setHelpOpen(true)}><HelpCircle size={17} /></button>
             {showCanvas && (
               <div className="stage-tools">
                 <div className="stage-tools-row">
                   <button type="button" className={'stage-chip' + (rulers ? ' is-on' : '')} aria-pressed={rulers} title={t('Measurements', 'المقاسات')} aria-label={t('Show measurements', 'إظهار المقاسات')} onClick={() => setRulers((r) => !r)}><Ruler size={18} /></button>
                   {rulers && <button type="button" className="stage-chip stage-unit" title={t('Measurement units', 'وحدة القياس')} aria-label={t('Measurement units', 'وحدة القياس')} onClick={() => setUnits((u) => (u === 'mm' ? 'in' : 'mm'))}>{units === 'mm' ? t('mm', 'مم') : t('in', 'بوصة')}</button>}
                 </div>
-                {features.download && <button type="button" className="stage-chip" title={t('Save the picture', 'احفظ الصورة')} aria-label={t('Save the picture', 'احفظ الصورة')} disabled={!assetsReady || photoBusy} onClick={() => void shareImage()}><Download size={18} /></button>}
                 {zoom !== 1 && <button type="button" className="stage-chip stage-reset" title={t('Reset view', 'إعادة ضبط العرض')} aria-label={t('Reset view', 'إعادة ضبط العرض')} onClick={() => reset()}><RotateCcw size={17} /></button>}
               </div>
             )}
@@ -840,6 +839,9 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
                 <div className="photo-actions">
                   <button className="secondary-button" onClick={() => (isPhone ? setCameraOpen(true) : file.current?.click())}><ImagePlus size={16} />{photo ? t('Change photo', 'تغيير الصورة') : t('Upload a photo', 'ارفع صورة')}</button>
                   {photo && <button className="secondary-button" onClick={() => { setCalibrating(true); setPoints([]); setZoom(1); }}><Maximize2 size={16} />{isBag ? t('Fit to hand', 'ضبط على اليد') : isEarring ? t('Fit to ear', 'ضبط على الأذن') : isNecklace ? t('Fit to eyes', 'ضبط على العينين') : isRing ? t('Fit to finger', 'ضبط على الإصبع') : isGlasses ? t('Fit to eyes', 'ضبط على العينين') : t('Fit to wrist', 'ضبط على المعصم')}</button>}
+                  {/* T137: after a photo — save it as a file, or share it (the phone's own sheet) */}
+                  {photo && features.download && <button className="secondary-button save-photo" disabled={!assetsReady || photoBusy} onClick={() => shareImage(false)}><Download size={16} />{t('Save the picture', 'احفظ الصورة')}</button>}
+                  {photo && features.download && isPhone && <button className="secondary-button save-photo" disabled={!assetsReady || photoBusy} onClick={() => shareImage(true)}><Share2 size={16} />{t('Share the picture', 'شارك الصورة')}</button>}
                   {features.pairing && !isPhone && <button className="icon-button" aria-label={t('Use your phone', 'استخدام الجوال')} onClick={() => setQrOpen(true)}><QrCode size={19} /></button>}
                 </div>
               )}

@@ -34,6 +34,7 @@ import { faceFeedback, follow, handFeedback } from '@site/lib/live-feedback';
 import { dragged, fillFor, fitOf, liftedAbove, mirrored, onPicture, onScreen, pinched, type Fit, type Size } from '@site/lib/capture-view';
 import { HAS_SIDE, guideProduct, type Side } from '@site/lib/guide-layout';
 import { startAuto, stepAuto, type AutoState } from '@site/lib/auto-capture';
+import { dataUrlBlob, sharePicture } from '@site/lib/share-picture';
 
 type Landmark = { x: number; y: number; z?: number };
 /** What the detector saw: its points (flipped with the picture when `mirrored`) and its score. */
@@ -52,6 +53,8 @@ const loadImage = (src: string, cors = false) => new Promise<HTMLImageElement>((
   const i = new Image(); if (cors) i.crossOrigin = 'anonymous';
   i.onload = () => resolve(i); i.onerror = () => reject(new Error('image')); i.src = src;
 });
+/** The same picture at a fresh address: a copy the browser kept from a plain request cannot be drawn and shared (T137). */
+const fresh = (src: string) => src + (src.includes('?') ? '&' : '?') + 'cors=1';
 const SHADOW: Record<PairKind, ShadowKind> = { watch: 'watch', ring: 'ring', bag: 'bag', glasses: 'eyewear', necklace: 'necklace', earring: 'earring' };
 const MAX_SHOTS = 6;
 /** Nothing found to measure by and no guide to go by: the product in the middle at about its usual share of the picture. */
@@ -75,7 +78,7 @@ export type CameraTryOnProps = {
 };
 
 export default function CameraTryOn({ product, brand, kind, onSend, onClose, onUse }: CameraTryOnProps) {
-  const { t, lang, toggle } = useLang();
+  const { t, lang } = useLang(); // T137: no language switch on the camera (Nader) — it follows the shop's
   const { asset } = useSiteEnv();
   const onFace = kind === 'glasses' || kind === 'necklace' || kind === 'earring';
   const handKind = kind === 'ring' ? 'ring' : kind === 'bag' ? 'bag' : 'watch';
@@ -116,6 +119,22 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
 
   const shot = shots.find((s) => s.id === current) ?? null;
   const guideFor = product ? { src: worn, caseMm: product.caseMm, aspect } : null;
+  // T137: the pictures sharing draws, ready before the tap (a phone opens its share sheet only straight from the tap)
+  const shareItem = useRef<HTMLImageElement | null>(null);
+  const shotPicture = useRef<{ id: number; img: HTMLImageElement } | null>(null);
+  useEffect(() => {
+    if (!worn) return;
+    let live = true;
+    loadImage(worn, true).catch(() => loadImage(fresh(worn), true)).then((img) => { if (live) shareItem.current = img; }).catch(() => {});
+    return () => { live = false; };
+  }, [worn]);
+  useEffect(() => {
+    if (!shot) return;
+    let live = true;
+    const { id, dataUrl } = shot;
+    loadImage(dataUrl).then((img) => { if (live) shotPicture.current = { id, img }; }).catch(() => {});
+    return () => { live = false; };
+  }, [shot?.id, shot?.dataUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The product's proportions (a necklace, an earring and a bag hang from their top edge).
   useEffect(() => {
@@ -342,12 +361,17 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
     } finally { setBusy(false); }
   }
 
-  /** The photo with the product on it, as one picture: shared through the phone's own sheet, or saved. */
-  async function share() {
+  /**
+   * The photo with the product on it, as one picture: shared through the phone's own sheet, or saved — made at once and
+   * shared inside the tap (T137: awaiting the pictures first made a phone refuse the share).
+   */
+  function share() {
     if (!shot || !product || !shot.pose) return;
-    setBusy(true); setError('');
+    const item = shareItem.current;
+    const photo = shotPicture.current?.id === shot.id ? shotPicture.current.img : null;
+    if (!item || !photo) { setNote(t('لحظة… الصورة تُجهَّز، اضغط مرة أخرى', 'One moment — the picture is being prepared; tap again')); return; }
+    setError('');
     try {
-      const [photo, item] = await Promise.all([loadImage(shot.dataUrl), loadImage(worn, true)]);
       const c = document.createElement('canvas');
       c.width = shot.size.width; c.height = shot.size.height;
       const g = c.getContext('2d')!;
@@ -355,18 +379,12 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
       const p = shot.pose, h = p.width * aspect;
       castShadow(g, item, { x: p.x, y: p.y, width: p.width, height: h, angle: p.angle }, SHADOW[kind]);
       g.save(); g.translate(p.x, p.y); g.rotate((p.angle * Math.PI) / 180); g.drawImage(item, -p.width / 2, -h / 2, p.width, h); g.restore();
-      const blob = await new Promise<Blob | null>((resolve) => c.toBlob(resolve, 'image/jpeg', 0.92));
-      if (!blob) throw Error('picture');
       const name = `${(brand ? brand.name.en : product.name.en).replace(/[^\w-]+/g, '-').slice(0, 40) || 'try-on'}.jpg`;
-      const file = new File([blob], name, { type: 'image/jpeg' });
-      const title = t(product.name.ar, product.name.en);
-      if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title }); return; }
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob); a.download = name; a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    } catch (e) {
-      if (!(e instanceof DOMException && e.name === 'AbortError')) setError(t('تعذّرت المشاركة. التقط صورة للشاشة بدلًا من ذلك.', 'Could not share. Take a screenshot instead.'));
-    } finally { setBusy(false); }
+      const file = new File([dataUrlBlob(c.toDataURL('image/jpeg', 0.92))], name, { type: 'image/jpeg' });
+      void sharePicture(file, t(product.name.ar, product.name.en)).then((how) => { if (how === 'saved') setNote(t('حُفظت الصورة', 'Picture saved')); });
+    } catch {
+      setError(t('تعذّرت المشاركة. التقط صورة للشاشة بدلًا من ذلك.', 'Could not share. Take a screenshot instead.'));
+    }
   }
 
   // ── Moving the product on a shot ──────────────────────────────────────────────────────────────────────────────
@@ -440,7 +458,6 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
       <span className="cap-brand">{brand ? <StoreMark brand={brand} /> : product ? t(product.name.ar, product.name.en) : null}</span>
       <span className="cap-top-tools">
         {view === 'camera' && <button type="button" className="cap-chip" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))} aria-label={t('بدّل الكاميرا', 'Switch camera')}><SwitchCamera size={16} /></button>}
-        <button type="button" className="cap-chip" onClick={toggle} lang={lang === 'ar' ? 'en' : 'ar'}>{lang === 'ar' ? 'EN' : 'ع'}</button>
         {onClose && <button type="button" className="cap-chip" onClick={onClose} aria-label={t('أغلق', 'Close')}><X size={16} /></button>}
       </span>
     </header>
@@ -566,7 +583,7 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
             )}
             <div className={'cap-actions' + (onSend || onUse ? ' has-three' : '')}>
               <button type="button" className="cap-secondary" onClick={() => setView(camera === 'off' ? 'pick' : 'camera')}><Camera size={17} /> {t('صورة أخرى', 'Another photo')}</button>
-              {product && shot.pose && <button type="button" className="cap-secondary" disabled={busy} onClick={() => void share()}><Share2 size={17} /> {t('شارك', 'Share')}</button>}
+              {product && shot.pose && <button type="button" className="cap-icon" disabled={busy} onClick={share} aria-label={t('شارك الصورة أو احفظها', 'Share or save the picture')} title={t('شارك أو احفظ', 'Share or save')}><Share2 size={20} /></button>}
               {onUse && <button type="button" className="cap-primary" onClick={() => onUse(shot)}><Check size={17} /> {t('استخدم هذه الصورة', 'Use this photo')}</button>}
               {onSend && (
                 <button type="button" className={product ? 'cap-secondary' : 'cap-primary'} disabled={busy || shot.sent} onClick={() => void send()}>

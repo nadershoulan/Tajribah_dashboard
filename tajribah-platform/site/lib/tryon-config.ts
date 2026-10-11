@@ -18,6 +18,8 @@ export const CONFIG_BASE = 'https://cfg.tajribah.org/v1';
 export const CLOSE_MESSAGE = 'tajribah:tryon:close';
 /** T100: the frame's page is up, with its own close button — the shop's popup then hides its backup one. */
 export const SHOWN_MESSAGE = 'tajribah:tryon:shown';
+/** T137: the content's height, so the shop's window on a phone fits it (the widget's `SIZE_MESSAGE`). */
+export const SIZE_MESSAGE = 'tajribah:tryon:size';
 /**
  * T85 — the dashboard's preview: the frame says it is ready, and the dashboard (the same address — both
  * sides check) answers with the product's settings, which it read with the merchant's sign-in.

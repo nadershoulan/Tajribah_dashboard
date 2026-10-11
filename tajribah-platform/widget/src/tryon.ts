@@ -15,6 +15,10 @@ export const DEFAULT_TRYON = 'https://tajribah.org/embed/try-on';
 export const CLOSE_MESSAGE = 'tajribah:tryon:close';
 /** T100: what our frame posts once its page is up, with its own close button (the website's `SHOWN_MESSAGE`). */
 export const SHOWN_MESSAGE = 'tajribah:tryon:shown';
+/** T137: our frame's content height (the website's `SIZE_MESSAGE`) — a phone's window fits it. */
+export const SIZE_MESSAGE = 'tajribah:tryon:size';
+/** The window's margin on a phone (Nader: "a little smaller from all sides", the store seen round it). */
+export const PHONE_PAD = 16;
 
 /**
  * Where the studio is opened from: the address the shop's script names (a test or a preview), else the
@@ -65,6 +69,17 @@ export const isCloseFrom = (event: { origin: string; data: unknown; source: unkn
 /** T100: our frame's page is up, its own close button showing. */
 export const isShownFrom = (event: { origin: string; data: unknown; source: unknown }, frameOrigin: string, frameWindow: unknown): boolean => fromFrame(event, frameOrigin, frameWindow, SHOWN_MESSAGE);
 
+/** T137: the height our frame says its content needs — only from our frame, and only a sane number. */
+export function sizeFrom(event: { origin: string; data: unknown; source: unknown }, frameOrigin: string, frameWindow: unknown): number | null {
+  if (!fromFrame(event, frameOrigin, frameWindow, SIZE_MESSAGE)) return null;
+  const h = (event.data as { height?: unknown }).height;
+  return typeof h === 'number' && Number.isFinite(h) && h >= 200 && h <= 4000 ? Math.round(h) : null;
+}
+
+/** T137: the frame's height on a phone — what its content needs, never more than the window leaves (and never tiny). */
+export const fitFrame = (content: number, viewport: number, padding: number, foot: number): number =>
+  Math.max(240, Math.min(content, viewport - padding * 2 - foot));
+
 /** T100: the popup's own styles — it lives in its own layer, not under the button's. */
 export const POPUP_STYLE = `
 :host{all:initial}
@@ -82,7 +97,7 @@ export const POPUP_STYLE = `
 .tryon-sheet.with-cart .tryon-close{bottom:78px}
 .tryon-close{all:unset;box-sizing:border-box;cursor:pointer;position:absolute;bottom:14px;inset-inline-start:14px;background:#111;color:#fff;border-radius:999px;padding:8px 14px;font:600 14px/1.2 system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif}
 .tryon-close:focus-visible{outline:2px solid #fff;outline-offset:2px}
-@media (max-width:600px){.tryon{padding:10px}.tryon-sheet{border-radius:14px}}
+@media (max-width:600px){.tryon{padding:16px 14px}.tryon-sheet{border-radius:16px}.tryon-sheet.fits{height:auto}.tryon-sheet.fits iframe{flex:none;transition:height .25s ease}}
 `;
 
 /** The frame's address in its popup view: the shopper is already on the product page, so only the studio shows. */
@@ -139,6 +154,14 @@ export function openTryOn(root: ShadowRoot, src: string, lang: 'ar' | 'en', labe
     if (isCloseFrom(event, origin, frame.contentWindow)) done();
     // the studio's own close is up: ours, the backup for a frame that never loads, steps aside
     else if (isShownFrom(event, origin, frame.contentWindow)) close.style.display = 'none';
+    else {
+      // T137: on a phone the window fits what the frame shows — no empty band, the store seen round it
+      const height = sizeFrom(event, origin, frame.contentWindow);
+      if (height !== null && window.matchMedia?.('(max-width: 600px)').matches) {
+        sheet.classList.add('fits');
+        frame.style.height = `${fitFrame(height, window.innerHeight, PHONE_PAD, foot?.offsetHeight ?? 0)}px`;
+      }
+    }
   };
   const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') done(); };
   function done() {

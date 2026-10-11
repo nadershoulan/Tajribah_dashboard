@@ -2248,3 +2248,15 @@ screen. The views and comparisons are picture tiles; the sliders an icon and a v
 missing hand guide in the shop: the studio's «عليّ» on a phone opened the phone's own camera — it now opens the guided
 camera (T135), and «استخدم هذه الصورة» brings the photo back into the studio as fitted. Not the store's script: its
 window already showed the new layout (the widget opens our page, always the latest).
+
+**T137b — the phone window, tidier (2026-10-11, Nader's follow-ups).** Save left the picture: after a photo, the row
+under it has save (a file) and share (the phone's sheet) as icons. Sharing failed on a phone because the sheet was
+opened after waiting for the picture — a phone refuses that: the picture is now made at once (`toDataURL`) and the
+sheet opened inside the tap (`site/lib/share-picture.ts`, tested); the camera page's share is an icon too, its
+pictures loaded ahead with CORS. The help sits small and gray on the picture's corner, the close beside the tabs; the
+measurement chips are smaller; the watermark is the mark alone in one gray (`MonoMark`, drawn from the brand mark); the
+camera has no language switch. **The shop's window fits its content on a phone**: our page tells the widget its height
+(`tajribah:tryon:size`, only from our frame, a sane number), the widget sizes the window to it within the screen's
+margins (16 px round) — no empty band above the price, the store seen round it; the camera takes the whole window.
+Computers unchanged. A copy kept from a plain preload had made the saved picture fail (the CDN's plain answer does not
+vary by origin): the preload now asks with CORS, and the studio retries at a fresh address.

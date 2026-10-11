@@ -93,6 +93,7 @@ function view(product: Product, config: Config | null, last30: Last30 = null): T
     last30,
     // T134.6: saved, it reloads into the placement editor (and stays editable)
     placement: placementOf(kind, config?.placement),
+    phoneOnly: !!config?.phoneOnly,
   };
 }
 
@@ -306,7 +307,7 @@ export async function confirmCutout(ctx: TenantContext, productId: string, input
  * `jewelry: 'ring' | 'necklace' | 'earring'` marks a Jewelry product as one; `jewelry: null` takes that back while it
  * has no picture.
  */
-export async function updateTryOn(ctx: TenantContext, productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean; jewelry?: JewelryKind | null; placement?: unknown }): Promise<TryOnWatchView> {
+export async function updateTryOn(ctx: TenantContext, productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean; jewelry?: JewelryKind | null; placement?: unknown; phoneOnly?: boolean }): Promise<TryOnWatchView> {
   await mayChange(ctx);
   const problems: Record<string, string[]> = {};
 
@@ -334,6 +335,7 @@ export async function updateTryOn(ctx: TenantContext, productId: string, patch: 
       values.finishEn = ar && en ? en : null;
     }
     if (patch.enabled !== undefined) values.enabled = patch.enabled;
+    if (patch.phoneOnly !== undefined) values.phoneOnly = patch.phoneOnly; // T135: on the phone only
     if (patch.placement !== undefined) { // T134.6: the whole map at once; null or {} — the built-in places again
       const { placement, problems } = parsePlacement(kind, patch.placement);
       if (Object.keys(problems).length) throw errors.validation(Object.fromEntries(Object.entries(problems).map(([id, why]) => [`placement.${id}`, [why]])));

@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { Link2 } from 'lucide-react';
 import { useData } from '@/lib/data';
 import { inArabic } from '@/lib/problem-text';
-import { markedQrPng, markedQrSvg } from '@/lib/qr-mark';
+import { QR_MARK, markedQrPng, markedQrSvg } from '@/lib/qr-mark';
 import { Download, QrCode } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import type { QrScreen } from '@/lib/contracts/hosted-page';
@@ -78,7 +78,7 @@ function Codes({ screen }: { screen: QrScreen }) {
 }
 
 /** T134.2: the mark in each code's corner, embedded as a data URL so a downloaded SVG carries it. Fetched once. */
-const MARK_URL = '/brand/tajribah-mark.png';
+const MARK_URL = QR_MARK; // T134.2: trimmed to a square, so it is never stretched
 let markOnce: Promise<string> | null = null;
 function markDataUrl(): Promise<string> {
   markOnce ??= fetch(MARK_URL).then((r) => (r.ok ? r.blob() : Promise.reject(new Error('no mark'))))

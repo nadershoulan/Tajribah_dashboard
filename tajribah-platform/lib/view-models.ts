@@ -520,6 +520,8 @@ export type TryOnWatchView = {
   quality: { worn: SlotQuality | null; flat: SlotQuality | null; score: number | null };
   /** T134.6 — where the store set it on each model photo; null: the built-in places. */
   placement?: Placement | null;
+  /** T135 — the shop's button opens the phone camera try-on (a QR code on a computer). */
+  phoneOnly?: boolean;
 };
 
 /**

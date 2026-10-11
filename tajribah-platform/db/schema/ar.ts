@@ -143,6 +143,8 @@ export const tryonConfigs = pgTable('tryon_configs', {
   quality: json<TryOnQuality>('quality'),
   /** T134.6 (0048) — where the store wants it on each model photo: a zone and a starting pose (`lib/tryon-placement.ts`). */
   placement: json<Placement>('placement'),
+  /** T135 (0049) — the shop's button opens the phone camera try-on (a QR code on a computer); no model photos. */
+  phoneOnly: bool('phone_only').notNull().default(false),
   ...timestamps(),
 }, (t) => [uniqueIndex('tryon_configs_product_unq').on(t.productId)]);
 

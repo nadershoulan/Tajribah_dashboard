@@ -12,17 +12,20 @@ import {
 } from '@site/lib/placement';
 
 /**
- * A right hand, back to the camera, drawn at `pxPerMm` from adult measures: wrist at `at`, fingers pointing along
- * `deg` (0 = to the right, 90 = down).
+ * A hand drawn at `pxPerMm` from adult measures: wrist at `at`, fingers pointing along `deg` (0 = to the right, 90 =
+ * down). Fingers to the right, its little finger is at the top and its thumb at the bottom — a left wrist as its wearer
+ * looks down at it (the demo's wrist photo too); `other`: the little finger on the other side (the other hand, or the
+ * same hand seen from the other side).
  */
-function hand(at: Pt, deg: number, pxPerMm: number, squash = 1): HandPoints {
+function hand(at: Pt, deg: number, pxPerMm: number, squash = 1, other = false): HandPoints {
+  const k = other ? -1 : 1;
   const r = (deg * Math.PI) / 180, ux = Math.cos(r), uy = Math.sin(r), vx = -uy, vy = ux; // u: along the fingers, v: across
   const p = (along: number, across: number): Pt => ({ x: at.x + (ux * along + vx * across * squash) * pxPerMm, y: at.y + (uy * along + vy * across * squash) * pxPerMm });
   const half = KNUCKLE_SPAN_MM / 2;
   return {
     wrist: p(0, 0), middleMcp: p(PALM_LENGTH_MM, 0), middlePip: p(PALM_LENGTH_MM + 30, 0),
-    indexMcp: p(PALM_LENGTH_MM - 4, -half), pinkyMcp: p(PALM_LENGTH_MM - 10, half),
-    ringMcp: p(PALM_LENGTH_MM - 6, half * 0.6), ringPip: p(PALM_LENGTH_MM + 22, half * 0.65),
+    indexMcp: p(PALM_LENGTH_MM - 4, half * k), pinkyMcp: p(PALM_LENGTH_MM - 10, -half * k),
+    ringMcp: p(PALM_LENGTH_MM - 6, -half * 0.6 * k), ringPip: p(PALM_LENGTH_MM + 22, -half * 0.65 * k),
   };
 }
 const near = (a: number, b: number, tol: number, what: string) => assert.ok(Math.abs(a - b) <= tol, `${what}: ${a.toFixed(2)} vs ${b.toFixed(2)}`);
@@ -53,6 +56,17 @@ test('at any angle: the watch follows the forearm, and stays on the arm side of 
     const toKnuckle = Math.hypot(h.middleMcp.x - w.x, h.middleMcp.y - w.y), toWrist = Math.hypot(h.wrist.x - w.x, h.wrist.y - w.y);
     assert.ok(toKnuckle > toWrist + 50, `${deg}°: on the arm side of the wrist, not on the hand`);
   }
+});
+
+test('T135 — 12 o’clock towards the little finger: the other hand (or the hand seen from the other side) turns the dial round', () => {
+  for (const deg of [0, -90, 37, 180]) {
+    const one = watchPlacement(hand({ x: 500, y: 500 }, deg, 2), 40), two = watchPlacement(hand({ x: 500, y: 500 }, deg, 2, 1, true), 40);
+    near(Math.abs(((two.angle - one.angle + 540) % 360) - 180), 180, 0.5, `at ${deg}°: turned round`);
+    near(one.x, two.x, 1e-6, 'the same place on the arm'); near(one.width, two.width, 1e-6, 'the same size');
+  }
+  // a right wrist as its wearer sees it: fingers to the left, thumb towards them (bottom) — the dial upright, as on the left wrist
+  const right = hand({ x: 500, y: 500 }, 180, 2, 1, true);
+  near(watchPlacement(right, 40).angle, 0, 0.5, 'upright, not upside down');
 });
 
 test('confidence: the detector’s score, lowered for a hand too small to measure', () => {

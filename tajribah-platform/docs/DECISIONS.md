@@ -2213,3 +2213,17 @@ the photo (`X-Tajribah-Pose`: x, y, width, angle), stored as the photo's metadat
 the studio draws it there («كما تركته على جوالك») instead of guessing again; no header — it places it itself. Glasses
 from a detector keep its eye order (468 is the picture's left on an upright, unmirrored face — checked), so a turned
 face's glasses turn with it; the front camera's flipped points swap them back.
+
+**T135 — the phone camera try-on, learned from Tangiblee's (2026-10-11).** From Nader's screenshots and a 30-second
+recording (read frame by frame): the guide is the arm lying across the screen with the hand at one side, with **the
+product's own picture** translucent where it goes (never a drawn watch), a left / right switch that flips the drawing
+with an animation, and per kind its own drawing (an ear close-up for an earring, which the face model cannot see — the
+earring is placed from the guide). «تلقائي»: found and held still (1.2 s, within 3.5 % of the screen) takes the photo by
+itself and stays on the camera; one photo per pose — the next when the hand goes away for 0.6 s or moves 12 % of the
+screen. With no hand found, a photo's product goes where the guide showed it. The result adds the illustration note, a
+small / medium / large hand (the ruler is an average 58 mm hand: 52 and 64 mm), and share / save as one picture. The
+watch's dial now faces the little finger, so a right wrist's is no longer upside down. **On the phone only** (per
+product, `tryon_configs.phone_only`, 0049): the shop's button opens the camera try-on on a phone, a QR code on a
+computer; the studio's model photos are not shown. The camera page became `site/components/tryon/CameraTryOn.tsx`, used
+by the QR page and by "on the phone only". The QR's corner mark is a square copy of the mark trimmed to its edges and is
+drawn in its own proportions (it was a wide picture squeezed into a square — Nader: "looks stretched").

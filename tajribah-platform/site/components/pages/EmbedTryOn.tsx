@@ -34,7 +34,7 @@ import type { TryOnProduct } from '@site/lib/demo-product';
 import { brandFrom, CLOSE_MESSAGE, SHOWN_MESSAGE, PREVIEW_CONFIG, PREVIEW_HEIGHT, PREVIEW_READY, configBase, configUrl, embedTitle, isLocalHost, tryOnProductFrom, validRefs, type StoreBrand } from '@site/lib/tryon-config';
 import { servesHere } from '@site/lib/store-host';
 import { StoreMark } from '@site/components/site/store-mark';
-import Studio from '@site/components/studio/Studio';
+import TryOnFor from '@site/components/tryon/TryOnFor';
 import { COMPANY } from '@site/lib/site';
 
 /** `store` and `product` from the address (a query in the app, after the hash in the preview). */
@@ -145,7 +145,8 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
       )}
       {state.kind === 'ready' && (
         <SiteEnvContext.Provider value={embedEnv}>
-          <Studio product={state.product} />
+          {/* T135: the studio, or — on the phone only — the camera try-on (a QR code on a computer) */}
+          <TryOnFor product={state.product} brand={brand} onClose={previewing ? undefined : close} />
         </SiteEnvContext.Provider>
       )}
     </div>

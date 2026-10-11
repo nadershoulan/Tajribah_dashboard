@@ -636,7 +636,7 @@ html[lang="en"] .legal-body p { line-height: 1.75; }
 .personal-empty { height: 100%; min-height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 32px 22px; background: linear-gradient(180deg, #fff, var(--tint)); }
 .photo-icon { width: 70px; height: 70px; border-radius: 20px; background: var(--aqua-50); color: var(--aqua); display: grid; place-items: center; margin-bottom: 16px; }
 /* T134.4: the kind of photo to take — the camera guide, small, on the phone page's black */
-.personal-guide { width: 84px; height: 132px; padding: 8px 6px; margin-bottom: 14px; border-radius: 18px; background: #0d151d; }
+.personal-guide { width: 168px; height: 104px; margin-bottom: 14px; overflow: hidden; border-radius: 18px; background: #0d151d; }
 .personal-guide .guide { width: 100%; height: 100%; }
 .personal-guide .guide-line { stroke-width: 2; }
 .personal-guide .guide-mark { stroke-width: 1.8; stroke-dasharray: 3 2.4; }
@@ -918,3 +918,58 @@ html:has(.embed-root.is-preview), html:has(.embed-root.is-preview) body { backgr
 .embed-root.is-popup .studio-footer { display: none; }
 /* the "on me" empty state (no photo yet) is a card, not a picture: the stage's height limit does not apply */
 .embed-root.is-popup .stage:has(.personal-empty) { max-height: none; }
+/* T135 — the guide: it slides in when the camera opens, flips to the other side with an animation, the product pulses */
+.guide-flip { transform-box: view-box; transform-origin: 50% 50%; transition: transform .55s cubic-bezier(.6, 0, .2, 1); }
+.guide-product { transform-box: view-box; transition: transform .55s cubic-bezier(.6, 0, .2, 1), opacity .3s; }
+.guide-product image { opacity: .55; animation: guide-pulse 1.8s ease-in-out infinite; }
+.guide-in { animation: guide-in .6s ease-out both; }
+.cap-guide.guide-ready .guide-product { opacity: 0; } /* found: the live product on the hand takes its place */
+@keyframes guide-pulse { 0%, 100% { opacity: .38; } 50% { opacity: .72; } }
+@keyframes guide-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .guide-flip, .guide-product { transition: none; } .guide-product image, .guide-in { animation: none; } }
+/* T135 — learned from Tangiblee's: the instruction at the top, the side switch, «تلقائي», the last photo with its count */
+.cap-top-tools { display: inline-flex; gap: 8px; }
+.cap-banner { position: absolute; z-index: 3; top: calc(env(safe-area-inset-top) + 58px); inset-inline: 16px; display: grid; justify-items: center; gap: 6px; pointer-events: none; }
+.cap-banner > * { pointer-events: auto; }
+.cap-say-steady, .cap-say-capturing { background: rgba(12, 110, 78, .88); }
+.cap-manual { padding: 3px 10px; border-radius: 999px; background: rgba(0, 0, 0, .42); font-size: 12.5px; }
+.cap-side { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(0, 0, 0, .5); backdrop-filter: blur(8px); direction: ltr; }
+.cap-side button { width: 46px; height: 34px; display: grid; place-items: center; border-radius: 999px; background: transparent; color: #fff; transition: background .25s, color .25s; }
+.cap-side button.is-on { background: #fff; color: #0b0b0b; }
+.cap-controls { direction: ltr; }
+.cap-last { position: relative; width: 52px; height: 52px; padding: 0; border: 2px solid #fff; border-radius: 10px; background: #000; }
+.cap-last img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; animation: cap-pop .35s ease-out; }
+.cap-last b { position: absolute; top: -10px; right: -10px; min-width: 22px; height: 22px; padding: 0 5px; display: grid; place-items: center; border-radius: 11px; border: 1px solid rgba(255, 255, 255, .6); background: #000; color: #fff; font-size: 12px; }
+.cap-auto { width: 64px; display: grid; justify-items: center; gap: 4px; padding: 0; background: none; color: #fff; }
+.cap-auto i { position: relative; width: 50px; height: 30px; border-radius: 15px; background: rgba(255, 255, 255, .28); transition: background .25s; }
+.cap-auto i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .25s; }
+.cap-auto.is-on i { background: #10b981; }
+.cap-auto.is-on i::after { transform: translateX(20px); }
+.cap-auto span { padding: 1px 8px; border-radius: 999px; background: rgba(0, 0, 0, .5); font-size: 11.5px; }
+.cap-auto-space { width: 64px; }
+.cap-shutter { position: relative; }
+.cap-shutter::before { content: ''; position: absolute; inset: -9px; border-radius: 50%; background: conic-gradient(#6ee7b7 calc(var(--hold, 0) * 360deg), transparent 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px)); mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px)); }
+.cap-flash { position: absolute; inset: 0; z-index: 6; background: #fff; pointer-events: none; animation: cap-flash .45s ease-out forwards; }
+@keyframes cap-flash { from { opacity: .85; } to { opacity: 0; } }
+@keyframes cap-pop { from { transform: scale(.6); } to { transform: none; } }
+.cap-disclaimer { position: absolute; z-index: 3; top: calc(env(safe-area-inset-top) + 54px); inset-inline: 16px; margin: 0; text-align: center; font-size: 11.5px; color: rgba(255, 255, 255, .88); text-shadow: 0 1px 2px rgba(0, 0, 0, .7); pointer-events: none; }
+.cap-size { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: rgba(255, 255, 255, .85); }
+.cap-size button { padding: 4px 12px; border-radius: 999px; background: rgba(255, 255, 255, .14); color: #fff; font-size: 13px; }
+.cap-size button.is-on { background: #fff; color: #0b0b0b; }
+.cap-actions.has-three { grid-template-columns: 1fr 1fr 1fr; }
+.cap-actions.has-three > button { padding: 0 6px; font-size: 13.5px; gap: 5px; }
+.cap-note { top: calc(env(safe-area-inset-top) + 84px); }
+@media (prefers-reduced-motion: reduce) { .cap-flash, .cap-last img { animation: none; } }
+/* T135 — on the phone only, seen on a computer: the QR code to continue on the phone; the photo sent back */
+.pq { display: grid; justify-items: center; gap: 14px; padding: 32px 20px 40px; text-align: center; }
+.pq-product { width: 140px; height: 140px; object-fit: contain; filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .18)); }
+.pq h2 { margin: 0; font-size: 1.5rem; font-weight: 700; }
+.pq p { max-width: 42ch; margin: 0; color: var(--text-2); }
+.pq-code { width: 240px; height: 240px; display: grid; place-items: center; padding: 10px; border-radius: 16px; background: #fff; box-shadow: 0 2px 14px rgba(10, 34, 55, .12); }
+.pq-code img { width: 100%; height: 100%; }
+.pq-hint { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.pq-photo { position: relative; overflow: hidden; border-radius: 14px; }
+.pq-photo > img { display: block; width: 100%; height: 100%; }
+.pq-placed { position: absolute; inset: 0; pointer-events: none; }
+.pq-placed img { position: absolute; max-width: none; transform-origin: center; }

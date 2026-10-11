@@ -42,6 +42,8 @@ export type TryOnProduct = {
    * as a share of its real size). Left out: the built-in places below (`constrainToModel`, each photo's `pose`).
    */
   placement?: Placement | null;
+  /** T135 — on the phone only: the camera try-on on a phone, a QR code to continue on the phone on a computer. */
+  phoneOnly?: boolean;
 };
 
 /**

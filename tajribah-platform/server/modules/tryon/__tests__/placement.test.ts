@@ -90,3 +90,25 @@ test('checked in full: a photo this kind is not shown on, a zone off the photo, 
     await harness.close();
   }
 });
+
+test('T135 — on the phone only: saved, reloaded, published, and read by the shop’s try-on page', async () => {
+  const harness = await createTestDb();
+  try {
+    const kv = new MemoryConfigStore();
+    setConfigStore(kv);
+    const { ctx, id } = await glassesStore(harness, 'phone-only');
+    assert.equal((await tryOnOne(ctx, id)).watches[0]!.phoneOnly, false, 'off by default: the full try-on');
+    assert.equal((await updateTryOn(ctx, id, { phoneOnly: true })).phoneOnly, true);
+    assert.equal((await tryOnOne(ctx, id)).watches[0]!.phoneOnly, true, 'it reloads as saved');
+    assert.equal(tryOnProductFrom((await tryOnPreview(ctx, id, null)).config)?.phoneOnly, true, 'the preview shows it as the shop will');
+    await publishTryOn(ctx, id);
+    const config = JSON.parse([...kv.entries.values()][0]!.body);
+    assert.equal(config.tryon.mode, 'phone', 'published');
+    assert.equal(tryOnProductFrom(config)?.phoneOnly, true, 'and the shop’s page opens the camera');
+    await updateTryOn(ctx, id, { phoneOnly: false });
+    const after = JSON.parse([...kv.entries.values()][0]!.body);
+    assert.equal(after.tryon.mode, undefined, 'off again: the full try-on in the shop');
+  } finally {
+    await harness.close();
+  }
+});

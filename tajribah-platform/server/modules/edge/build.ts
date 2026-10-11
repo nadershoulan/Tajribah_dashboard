@@ -57,7 +57,7 @@ export const BLOCK_TEXT: Record<EdgeBlock, string> = {
 export type PublishedConfig = Omit<ViewerConfig, 'tryon' | 'ref'> & {
   /** T95: the product's own ref — only in a config also published at its store page's ref (absent otherwise, so other configs are unchanged). */
   ref?: string;
-  tryon: (NonNullable<ViewerConfig['tryon']> & { finish: { ar: string; en: string } | null; placement?: Placement }) | null;
+  tryon: (NonNullable<ViewerConfig['tryon']> & { finish: { ar: string; en: string } | null; placement?: Placement; mode?: 'phone' }) | null;
   brand: StoreBrand | null;
   page: PublishedPage | null;
   /** P3.8: the live model's picture (the view chosen in the 3D editor) — the page's link preview and loading picture. */
@@ -118,6 +118,8 @@ export async function buildEdgeConfig(ctx: TenantContext, productId: string, ent
       finish: tryon.finishAr && tryon.finishEn ? { ar: tryon.finishAr, en: tryon.finishEn } : null,
       // T134.6: where the store set it on the model photos (the website's studio reads it; the widget ignores it)
       ...(placementOf(kind ?? 'watch', tryon.placement) ? { placement: placementOf(kind ?? 'watch', tryon.placement)! } : {}),
+      // T135: on the phone only — the website's try-on page opens the camera (a QR code on a computer)
+      ...(tryon.phoneOnly ? { mode: 'phone' as const } : {}),
     }
     : null;
   if (!model && !watch) return { ok: false, key, reason: 'nothing_to_show' };

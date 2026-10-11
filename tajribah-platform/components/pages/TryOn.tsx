@@ -160,6 +160,10 @@ function WatchCard({ initial, editable, onUnmarked, number = null }: { initial: 
       setPublished(result.version);
     } catch (e) { setFailure(e as Error); } finally { setBusy(null); }
   };
+  // T135: on the phone only — the shop's button opens the camera try-on on a phone, a QR code on a computer
+  const phoneOnly = (on: boolean) => run('phone', () => source.updateTryOn(w.productId, { phoneOnly: on }),
+    on ? { ar: 'على الجوال فقط: الكاميرا مباشرة على الجوال، ورمز QR على الكمبيوتر. إن كان منشورًا فقد حُدّث.', en: 'On the phone only: the camera straight away on a phone, a QR code on a computer. If it is published, it has been updated.' }
+      : { ar: 'عادت التجربة الكاملة (صور النموذج والمقارنة وعليّ).', en: 'The full try-on is back (model photos, comparison, on me).' });
   const toggle = (on: boolean) => run('toggle', () => source.updateTryOn(w.productId, { enabled: on }),
     on ? { ar: 'زر التجربة يظهر في متجرك بعد «انشر في المتجر» هنا. إن كان منشورًا فقد حُدّث.', en: 'The try-on button appears in your store after “Publish to the store” here. If it is already published, it has been updated.' } : { ar: 'أُوقف.', en: 'Switched off.' });
 
@@ -247,6 +251,10 @@ function WatchCard({ initial, editable, onUnmarked, number = null }: { initial: 
         <label className="toggle">
           <input type="checkbox" role="switch" checked={w.enabled} disabled={!editable || busy !== null || (!w.ready && !w.enabled)} onChange={(e) => void toggle(e.target.checked)} />
           <span>{t('زر «جرّبها» في صفحة المنتج', 'The “Try it on” button on the product page')}</span>
+        </label>
+        <label className="toggle" title={t('مثل تجربة Tangiblee: يفتح الزر الكاميرا على الجوال مباشرة، ويُظهر رمز QR على الكمبيوتر.', 'Like Tangiblee’s: the button opens the camera on a phone, and shows a QR code on a computer.')}>
+          <input type="checkbox" role="switch" checked={!!w.phoneOnly} disabled={!editable || busy !== null} onChange={(e) => void phoneOnly(e.target.checked)} />
+          <span>{t('على الجوال فقط (الكاميرا مباشرة)', 'On the phone only (straight to the camera)')}</span>
         </label>
       {editable && (
         <div className="tryon-publish">

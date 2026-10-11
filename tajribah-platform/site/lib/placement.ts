@@ -77,12 +77,18 @@ export function watchPlacement(h: HandPoints, caseMm: number, score = 1): Placem
   const fx = h.wrist.x - h.middleMcp.x, fy = h.wrist.y - h.middleMcp.y;
   const len = Math.hypot(fx, fy) || 1;
   const back = (WATCH_GAP_MM + caseMm / 2) * pxPerMm; // the case's near edge just above the wrist bone
+  // The picture's strap runs up and down; across the arm means turned with the forearm. Which way up: a watch is worn
+  // with 12 o'clock towards the little finger's side (palm down, it faces away from the wearer) — so a right wrist,
+  // or a hand seen from the other side, turns it round (T135: before, a right wrist's dial came out upside down).
+  const along = Math.atan2(h.middleMcp.y - h.wrist.y, h.middleMcp.x - h.wrist.x);
+  const up = { x: Math.sin(along), y: -Math.cos(along) }; // the picture's top at that turn
+  const flip = up.x * (h.pinkyMcp.x - h.indexMcp.x) + up.y * (h.pinkyMcp.y - h.indexMcp.y) < 0;
+  const degrees = (along * 180) / Math.PI + (flip ? 180 : 0);
   return {
     x: h.wrist.x + (fx / len) * back,
     y: h.wrist.y + (fy / len) * back,
     width: Math.max(1, caseMm * pxPerMm),
-    // the picture's strap runs up and down; across the arm means turned with the forearm
-    angle: (Math.atan2(h.middleMcp.y - h.wrist.y, h.middleMcp.x - h.wrist.x) * 180) / Math.PI,
+    angle: degrees > 180 ? degrees - 360 : degrees,
     confidence: confidenceOf(h, score),
   };
 }

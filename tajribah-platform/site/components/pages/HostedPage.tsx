@@ -17,7 +17,7 @@ import { servesHere } from '@site/lib/store-host';
 import { EVENTS_ENDPOINT, trackPage } from '@site/lib/page-events';
 import { StoreMark } from '@site/components/site/store-mark';
 import { ConsentLink, StoreConsent } from '@site/components/site/consent';
-import Studio from '@site/components/studio/Studio';
+import TryOnFor from '@site/components/tryon/TryOnFor';
 
 export type HostedState = { kind: 'loading' } | { kind: 'ready'; product: HostedProduct } | { kind: 'unavailable' };
 
@@ -104,7 +104,7 @@ export default function HostedPage({ initial, store, product, storeHost = null }
 
           {p.tryon && (
             <SiteEnvContext.Provider value={studioEnv}>
-              <Studio product={p.tryon} />
+              <TryOnFor product={p.tryon} brand={p.brand} />
             </SiteEnvContext.Provider>
           )}
 

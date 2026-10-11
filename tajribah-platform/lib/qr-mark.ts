@@ -58,7 +58,7 @@ export function markedQrSvg(text: string, px: number, style: MarkStyle = {}): st
   for (let y = 0; y < qr.count; y++) for (let x = 0; x < qr.count; x++) {
     if (qr.dark[y]![x] && !underBadge(qr, x, y)) path += `M${x + qr.margin} ${y + qr.margin}h1v1h-1z`;
   }
-  const b = qr.badge, pad = b.size * 0.12;
+  const b = qr.badge, pad = b.size * MARK_PAD;
   const mark = style.mark
     ? `<image href="${style.mark.replace(/"/g, '&quot;')}" x="${b.x + pad}" y="${b.y + pad}" width="${b.size - pad * 2}" height="${b.size - pad * 2}" preserveAspectRatio="xMidYMid meet"/>`
     : '';
@@ -84,9 +84,26 @@ export function drawMarkedQr(ctx: CanvasRenderingContext2D, text: string, px: nu
   ctx.roundRect(bx, by, bs, bs, r);
   ctx.fill();
   if (style.mark) {
-    const pad = bs * 0.12;
-    ctx.drawImage(style.mark, bx + pad, by + pad, bs - pad * 2, bs - pad * 2);
+    // never stretched: the mark keeps its own proportions, centred in the badge (Nader, 2026-10-11 — a wide picture
+    // squeezed into the square looked pulled tall)
+    const pad = bs * MARK_PAD, room = bs - pad * 2;
+    const { width: w, height: h } = sizeOf(style.mark);
+    const k = w > 0 && h > 0 ? Math.min(room / w, room / h) : 0;
+    if (k) ctx.drawImage(style.mark, bx + (bs - w * k) / 2, by + (bs - h * k) / 2, w * k, h * k);
   }
+}
+
+/** The mark's share of the badge left empty on each side (a smaller mark, clear of the code's modules). */
+export const MARK_PAD = 0.2;
+/** The mark made for QR codes: the Tajribah mark trimmed to its own edges, on a square (`public/brand/`). */
+export const QR_MARK = '/brand/tajribah-mark-qr.png';
+
+/** A drawable's own size: an image's natural size, a canvas's or bitmap's width and height. */
+function sizeOf(source: CanvasImageSource): { width: number; height: number } {
+  const s = source as { naturalWidth?: number; naturalHeight?: number; width?: number | { baseVal?: { value: number } }; height?: number | { baseVal?: { value: number } } };
+  if (s.naturalWidth && s.naturalHeight) return { width: s.naturalWidth, height: s.naturalHeight };
+  const num = (v: unknown) => (typeof v === 'number' ? v : (v as { baseVal?: { value: number } } | undefined)?.baseVal?.value ?? 0);
+  return { width: num(s.width), height: num(s.height) };
 }
 
 /** A marked code as a PNG data URL (browser): the mark loaded from `markUrl` first; without it, a plain badge. */

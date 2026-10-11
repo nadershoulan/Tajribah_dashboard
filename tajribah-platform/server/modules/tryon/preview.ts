@@ -86,6 +86,7 @@ export async function tryOnPreview(ctx: TenantContext, productId: string, as: Tr
       finish: mine?.finishAr && mine.finishEn ? { ar: mine.finishAr, en: mine.finishEn } : null,
       // T134.6: where the store set it on the model photos — the preview shows it before anything is published
       ...(placementOf(kind, mine?.placement) ? { placement: placementOf(kind, mine?.placement)! } : {}),
+      ...(mine?.phoneOnly ? { mode: 'phone' as const } : {}), // T135: the preview shows it as the shop will
     },
   } : null;
   return { kind, own, guessed, picture, size, config, onMe };

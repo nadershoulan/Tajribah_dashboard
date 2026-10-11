@@ -14,7 +14,7 @@ import { useLang } from '@site/lib/i18n';
 import { useSiteEnv } from '@site/lib/site-env';
 import { preparePhoto } from '@site/lib/photo';
 import { castShadow } from '@site/lib/shadow';
-import { markedQrPng } from '@/lib/qr-mark';
+import { QR_MARK, markedQrPng } from '@/lib/qr-mark';
 import { earringPlacement, glassesPlacement, handPoints, necklacePlacement, watchPlacement } from '@site/lib/placement';
 import { kindOf } from '@site/lib/pair-product';
 import { inZone } from '@/lib/tryon-placement';
@@ -568,7 +568,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
       const p = (await r.json()) as { id: string; expiresAt: number };
       setPair(p);
       // T134.2: Tajribah's mark in the code's corner, error correction H (it still reads — lib/qr-mark.ts)
-      setQrImage(await markedQrPng(`${window.location.origin}/capture/${p.id}`, 480, `${window.location.origin}/brand/tajribah-mark.png`, { dark: '#0A2237', light: '#ffffff' }));
+      setQrImage(await markedQrPng(`${window.location.origin}/capture/${p.id}`, 480, `${window.location.origin}${QR_MARK}`, { dark: '#0A2237', light: '#ffffff' }));
     } catch {
       setPairError(t('Could not connect. Try again or upload a photo here.', 'تعذر الاتصال. حاول مجدداً أو ارفع الصورة هنا.'));
     } finally { setPairBusy(false); }
@@ -743,7 +743,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
               </>
             ) : (
               <div className="personal-empty">
-                <div className="personal-guide"><Guide kind={kindOf(product)} outline={1.3} /></div>
+                <div className="personal-guide"><Guide kind={kindOf(product)} outline={1} fill="slice" product={{ src: asset(product.worn), caseMm: product.caseMm, aspect: images.current.watch ? images.current.watch.height / images.current.watch.width : 1 }} /></div>
                 <span className="eyebrow">{t('Make it personal', 'جرّبها بنفسك')}</span>
                 <h2>{isBag ? t('Your hand. Your bag.', 'يدك. حقيبتك.') : isEarring ? t('Your ear. Your earring.', 'أذنك. قرطك.') : isNecklace ? t('You. Your necklace.', 'أنتِ. قلادتك.') : isRing ? t('Your hand. Your ring.', 'يدك. خاتمك.') : isGlasses ? t('Your face. Your frame.', 'وجهك. إطارك.') : t('Your wrist. Your watch.', 'معصمك. ساعتك.')}</h2>
                 <p>{isBag ? t('See it in your hand with a photo of you, your hand down at your side. It stays on this device.', 'شاهدي الحقيبة في يدك بصورة لك ويدك منسدلة إلى جانبك. تبقى الصورة على جهازك.') : isEarring ? t('See how it looks on you with a side photo, your ear in view. You tap the top of your ear and your earlobe; it stays on this device.', 'شاهدي كيف يبدو القرط عليك بصورة جانبية تظهر فيها الأذن. تحدّدين أعلى الأذن وشحمتها، وتبقى الصورة على جهازك.') : isNecklace ? t('See how it looks on you with a front photo, your face and chest in view. It stays on this device.', 'شاهدي كيف تبدو القلادة عليك بصورة أمامية يظهر فيها الوجه والصدر. تبقى الصورة على جهازك.') : isRing ? t('See how it looks on you with a photo of the back of your hand, fingers apart. It stays on this device.', 'شاهد كيف يبدو الخاتم عليك بصورة لظهر يدك والأصابع متباعدة. تبقى الصورة على جهازك.') : isGlasses ? t('See how it looks on you with a front photo of your face. It stays on this device.', 'شاهد كيف تبدو النظارة عليك بصورة أمامية لوجهك. تبقى الصورة على جهازك.') : t('See how it looks on you with a photo of your wrist.', 'شاهد كيف تبدو الساعة عليك باستخدام صورة لمعصمك.')}</p>

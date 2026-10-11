@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import jsQR from 'jsqr';
-import { markedQr, markedQrSvg, underBadge, type MarkedQr } from '@/lib/qr-mark';
+import { MARK_PAD, drawMarkedQr, markedQr, markedQrSvg, underBadge, type MarkedQr } from '@/lib/qr-mark';
 
 /** The code as RGBA pixels, `px` per module; the badge is light with a dark square in its middle (a logo). */
 function paint(qr: MarkedQr, px: number): { data: Uint8ClampedArray; size: number } {
@@ -69,4 +69,16 @@ test('the SVG: the code, the badge, and the mark image when given', () => {
   assert.match(svg, /<image href="\/brand\/tajribah-mark.png"/);
   assert.doesNotMatch(markedQrSvg(TEXTS[0]!, 240), /<image/, 'no mark given: a plain badge');
   assert.match(markedQrSvg(TEXTS[0]!, 240, { mark: 'x" onload="alert(1)' }), /href="x&quot; onload=&quot;alert\(1\)"/, 'the mark URL cannot break out of its attribute');
+});
+
+test('the mark is never stretched: a wide picture keeps its proportions, centred, well inside the badge', () => {
+  const drawn: number[][] = [];
+  const ctx = { fillStyle: '', fillRect() {}, beginPath() {}, roundRect() {}, fill() {}, drawImage: (_: unknown, ...box: number[]) => { drawn.push(box); } } as unknown as CanvasRenderingContext2D;
+  const wide = { naturalWidth: 360, naturalHeight: 175 } as unknown as CanvasImageSource; // the original file's shape
+  drawMarkedQr(ctx, TEXTS[0]!, 1200, { mark: wide });
+  const [x, y, w, h] = drawn[0]!;
+  assert.ok(Math.abs(w! / h! - 360 / 175) < 1e-9, `proportions kept: ${w} × ${h}`);
+  const qr = markedQr(TEXTS[0]!), m = 1200 / (qr.count + qr.margin * 2), b = qr.badge;
+  assert.ok(w! <= b.size * m * (1 - 2 * MARK_PAD) + 1e-9, 'smaller than the badge, with room round it');
+  assert.ok(Math.abs(x! + w! / 2 - (b.x + b.size / 2) * m) < 1e-6 && Math.abs(y! + h! / 2 - (b.y + b.size / 2) * m) < 1e-6, 'centred in the badge');
 });

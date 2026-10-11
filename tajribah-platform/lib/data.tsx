@@ -140,7 +140,7 @@ export interface DataSource {
   /** T80: one of the product's store pictures as its try-on picture. */
   cutoutFromStore(productId: string, slot: 'worn' | 'flat', url: string): Promise<TryOnWatchView>;
   /** P5.4/P5.5: `jewelry` marks a Jewelry product as a ring or a necklace (null takes it back while it has no picture). */
-  updateTryOn(productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean; jewelry?: 'ring' | 'necklace' | 'earring' | null; placement?: Placement | null }): Promise<TryOnWatchView>;
+  updateTryOn(productId: string, patch: { caseMm?: number | null; finishAr?: string | null; finishEn?: string | null; enabled?: boolean; jewelry?: 'ring' | 'necklace' | 'earring' | null; placement?: Placement | null; phoneOnly?: boolean }): Promise<TryOnWatchView>;
   /** T68: crop a picture to the case's marked edges (pixel columns, right exclusive); it is checked again after. */
   calibrateCutout(productId: string, slot: 'worn' | 'flat', marks: { key: string; left: number; right: number }): Promise<TryOnWatchView>;
   /** P5.10: a stored picture, for the preview (a Blob: private until published). */

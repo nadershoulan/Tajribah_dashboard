@@ -92,6 +92,7 @@ export const updateTryOnHandler = route(async (request) => {
     caseMm: z.number().nullable().optional(), finishAr: z.string().max(200).nullable().optional(),
     finishEn: z.string().max(200).nullable().optional(), enabled: z.boolean().optional(), jewelry: z.enum(['ring', 'necklace', 'earring']).nullable().optional(),
     placement: z.record(z.string().max(20), z.unknown()).nullable().optional(), // T134.6: checked in full by lib/tryon-placement.ts
+    phoneOnly: z.boolean().optional(), // T135: on the phone only
   }));
   return json(await updateTryOn(ctx, productAt(request, 0), body));
 });

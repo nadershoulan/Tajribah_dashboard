@@ -106,6 +106,7 @@ export function tryOnProductFrom(config: unknown, local = false): TryOnProduct |
     onMe: tryon.onMe === true, // every kind on the shopper's own photo (T83 earrings, T84 bags)
     ...(glasses ? { category: 'eyewear' as const } : ring ? { category: 'ring' as const } : necklace ? { category: 'necklace' as const } : earring ? { category: 'earring' as const } : bag ? { category: 'bag' as const } : {}),
     ...(placement ? { placement } : {}),
+    ...(tryon.mode === 'phone' ? { phoneOnly: true } : {}),
   };
 }
 

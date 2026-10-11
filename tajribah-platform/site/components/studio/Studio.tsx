@@ -57,7 +57,7 @@ const loadImage = (src: string) => (/^(data|blob):/.test(src)
  * the help screen (the privacy line); `topbarExtra` — what it adds beside the tabs (the shop window's close, on a phone,
  * where the help button was — Nader: the help goes onto the picture, the close beside the tabs).
  */
-export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpExtra = null, topbarExtra = null, shareLink }: { product?: TryOnProduct; stageExtras?: React.ReactNode; helpExtra?: React.ReactNode; topbarExtra?: React.ReactNode; shareLink?: string | null } = {}) {
+export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpExtra = null, topbarExtra = null, shareLink, qrMark = QR_MARK }: { product?: TryOnProduct; stageExtras?: React.ReactNode; helpExtra?: React.ReactNode; topbarExtra?: React.ReactNode; qrMark?: string | null; shareLink?: string | null } = {}) {
   const { lang } = useLang();
   const { asset, features } = useSiteEnv();
   const ar = lang === 'ar';
@@ -590,7 +590,8 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
       const p = (await r.json()) as { id: string; expiresAt: number };
       setPair(p);
       // T134.2: Tajribah's mark in the code's corner, error correction H (it still reads — lib/qr-mark.ts)
-      setQrImage(await markedQrPng(`${window.location.origin}/capture/${p.id}`, 480, `${window.location.origin}${QR_MARK}`, { dark: '#0A2237', light: '#ffffff' }));
+      // T134.2: the corner mark — Tajribah's, or a white-label store's own logo (`qrMark`; null: a plain corner)
+      setQrImage(await markedQrPng(`${window.location.origin}/capture/${p.id}`, 480, qrMark, { dark: '#0A2237', light: '#ffffff' }));
     } catch {
       setPairError(t('Could not connect. Try again or upload a photo here.', 'تعذر الاتصال. حاول مجدداً أو ارفع الصورة هنا.'));
     } finally { setPairBusy(false); }

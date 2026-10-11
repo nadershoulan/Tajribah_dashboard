@@ -106,20 +106,40 @@ function sizeOf(source: CanvasImageSource): { width: number; height: number } {
   return { width: num(s.width), height: num(s.height) };
 }
 
+/**
+ * Whose mark sits in a code's corner (T134.2's next step): a white-label store's own logo — `brand` is only ever set
+ * for one (T61) — or, without a logo, a plain corner: never Tajribah's mark on a white-label store. Any other store:
+ * Tajribah's.
+ */
+export function qrMarkOf(brand: { logo: string | null } | null | undefined): string | null {
+  return brand ? brand.logo : QR_MARK;
+}
+
+/**
+ * The same picture at a fresh address, asked for with CORS (a store's logo shown on the page without CORS may be kept
+ * by the browser as a plain copy, which a canvas cannot use) — none for a picture already in the page (`data:`).
+ */
+export function freshMarkUrl(url: string): string | null {
+  if (/^(data|blob):/.test(url)) return null;
+  return `${url}${url.includes('?') ? '&' : '?'}cors=1`;
+}
+
 /** A marked code as a PNG data URL (browser): the mark loaded from `markUrl` first; without it, a plain badge. */
 export async function markedQrPng(text: string, px: number, markUrl: string | null, colours: { dark?: string; light?: string } = {}): Promise<string> {
   const canvas = document.createElement('canvas');
   canvas.width = px; canvas.height = px;
   const ctx = canvas.getContext('2d')!;
+  const load = (src: string) => new Promise<HTMLImageElement | null>((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
   let mark: HTMLImageElement | null = null;
   if (markUrl) {
-    mark = await new Promise<HTMLImageElement | null>((resolve) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = () => resolve(null);
-      img.src = markUrl;
-    });
+    const fresh = freshMarkUrl(markUrl);
+    mark = (await load(markUrl)) ?? (fresh ? await load(fresh) : null);
   }
   drawMarkedQr(ctx, text, px, { ...colours, mark });
   return canvas.toDataURL('image/png');

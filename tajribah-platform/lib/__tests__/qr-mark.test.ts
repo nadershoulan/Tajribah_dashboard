@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import jsQR from 'jsqr';
-import { MARK_PAD, drawMarkedQr, markedQr, markedQrSvg, underBadge, type MarkedQr } from '@/lib/qr-mark';
+import { MARK_PAD, QR_MARK, drawMarkedQr, freshMarkUrl, markedQr, markedQrSvg, qrMarkOf, underBadge, type MarkedQr } from '@/lib/qr-mark';
 
 /** The code as RGBA pixels, `px` per module; the badge is light with a dark square in its middle (a logo). */
 function paint(qr: MarkedQr, px: number): { data: Uint8ClampedArray; size: number } {
@@ -82,3 +82,18 @@ test('the mark is never stretched: a wide picture keeps its proportions, centred
   assert.ok(w! <= b.size * m * (1 - 2 * MARK_PAD) + 1e-9, 'smaller than the badge, with room round it');
   assert.ok(Math.abs(x! + w! / 2 - (b.x + b.size / 2) * m) < 1e-6 && Math.abs(y! + h! / 2 - (b.y + b.size / 2) * m) < 1e-6, 'centred in the badge');
 });
+
+test('whose mark: a white-label store’s own logo, or a plain corner — never Tajribah’s on a white-label store; any other store: Tajribah’s', () => {
+  assert.equal(qrMarkOf({ logo: 'https://cdn.tajribah.org/t/oud/logo.png' }), 'https://cdn.tajribah.org/t/oud/logo.png');
+  assert.equal(qrMarkOf({ logo: null }), null, 'white-label without a logo: plain');
+  assert.equal(qrMarkOf(null), QR_MARK);
+  assert.equal(qrMarkOf(undefined), QR_MARK);
+});
+
+test('a logo the browser kept as a plain copy is asked again at a fresh address; a picture already in the page is not', () => {
+  assert.equal(freshMarkUrl('https://cdn.tajribah.org/t/oud/logo.png'), 'https://cdn.tajribah.org/t/oud/logo.png?cors=1');
+  assert.equal(freshMarkUrl('https://cdn.salla.sa/logo.png?v=3'), 'https://cdn.salla.sa/logo.png?v=3&cors=1');
+  assert.equal(freshMarkUrl('data:image/png;base64,AAAA'), null);
+  assert.equal(freshMarkUrl('blob:https://tajribah.org/1'), null);
+});
+

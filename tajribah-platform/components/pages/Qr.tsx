@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { Link2 } from 'lucide-react';
 import { useData } from '@/lib/data';
 import { inArabic } from '@/lib/problem-text';
-import { QR_MARK, markedQrPng, markedQrSvg } from '@/lib/qr-mark';
+import { QR_MARK, freshMarkUrl, markedQrPng, markedQrSvg } from '@/lib/qr-mark';
 import { Download, QrCode } from 'lucide-react';
 import { AppLink } from '@/lib/app-env';
 import type { QrScreen } from '@/lib/contracts/hosted-page';
@@ -70,40 +70,62 @@ function Codes({ screen }: { screen: QrScreen }) {
         </Panel>
       ) : (
         <ul className="qr-grid" style={{ listStyle: 'none', padding: 0, margin: '16px 0 0', display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
-          {screen.products.map((p) => <Code key={p.id} product={p} printable={screen.printable} scannable={screen.printable || !!screen.testOnly} />)}
+          {screen.products.map((p) => <Code key={p.id} product={p} printable={screen.printable} scannable={screen.printable || !!screen.testOnly} mark={screen.mark === undefined ? QR_MARK : screen.mark} />)}
         </ul>
       )}
     </>
   );
 }
 
-/** T134.2: the mark in each code's corner, embedded as a data URL so a downloaded SVG carries it. Fetched once. */
-const MARK_URL = QR_MARK; // T134.2: trimmed to a square, so it is never stretched
-let markOnce: Promise<string> | null = null;
-function markDataUrl(): Promise<string> {
-  markOnce ??= fetch(MARK_URL).then((r) => (r.ok ? r.blob() : Promise.reject(new Error('no mark'))))
-    .then((blob) => new Promise<string>((resolve, reject) => { const f = new FileReader(); f.onload = () => resolve(String(f.result)); f.onerror = reject; f.readAsDataURL(blob); }));
-  return markOnce;
+/**
+ * T134.2: the mark in each code's corner, embedded as a data URL so a downloaded SVG carries it. Fetched once per
+ * mark — Tajribah's (`QR_MARK`, trimmed to a square, so never stretched), or a white-label store's own logo, asked
+ * again at a fresh address if the browser kept a plain copy of it.
+ */
+const marks = new Map<string, Promise<string>>();
+function markDataUrl(url: string): Promise<string> {
+  // read as a picture, not fetched: the dashboard may fetch only from itself, a picture may come from any https address
+  const read = (u: string) => new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('no mark'));
+    img.src = u;
+  });
+  let once = marks.get(url);
+  if (!once) {
+    const fresh = freshMarkUrl(url);
+    once = read(url).catch((e: unknown) => (fresh ? read(fresh) : Promise.reject(e))).then((img) => {
+      const k = Math.min(1, 512 / Math.max(img.naturalWidth, img.naturalHeight, 1)); // a corner badge needs no more
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+      c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
+      return c.toDataURL('image/png');
+    });
+    marks.set(url, once);
+  }
+  return once;
 }
 
 const slugOf = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'product';
 
-function Code({ product, printable, scannable }: { product: QrScreen['products'][number]; printable: boolean; scannable: boolean }) {
+function Code({ product, printable, scannable, mark: markUrl }: { product: QrScreen['products'][number]; printable: boolean; scannable: boolean; mark: string | null }) {
   const { t } = useLang();
   const [svg, setSvg] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
-    // T134.2: level H with Tajribah's mark in the bottom-right corner (it still reads — lib/qr-mark.ts); the mark is
-    // embedded in the SVG, so a downloaded file prints with it anywhere.
-    markDataUrl().then((mark) => { if (live) setSvg(markedQrSvg(product.url, 1200, { mark })); }, () => { if (live) setSvg(markedQrSvg(product.url, 1200)); });
+    // T134.2: level H with a mark in the bottom-right corner (it still reads — lib/qr-mark.ts) — Tajribah's, or a
+    // white-label store's own logo (none: a plain corner); embedded in the SVG, so a downloaded file prints with it anywhere.
+    if (!markUrl) setSvg(markedQrSvg(product.url, 1200));
+    else markDataUrl(markUrl).then((mark) => { if (live) setSvg(markedQrSvg(product.url, 1200, { mark })); }, () => { if (live) setSvg(markedQrSvg(product.url, 1200)); });
     return () => { live = false; };
-  }, [product.url]);
+  }, [product.url, markUrl]);
   const name = t(product.nameAr ?? product.name, product.name);
 
   const download = async (kind: 'svg' | 'png') => {
     const href = kind === 'svg'
       ? URL.createObjectURL(new Blob([svg ?? ''], { type: 'image/svg+xml' }))
-      : await markedQrPng(product.url, 1200, MARK_URL);
+      : await markedQrPng(product.url, 1200, markUrl);
     const a = document.createElement('a');
     a.href = href; a.download = `qr-${slugOf(product.name)}.${kind}`;
     a.click();

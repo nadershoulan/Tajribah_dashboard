@@ -9,11 +9,12 @@
  * The codes are drawn in the browser from these addresses; nothing is stored.
  */
 import { and, inArray, isNotNull, isNull } from 'drizzle-orm';
-import { edgeConfigs, hostedPages, products } from '@/db/schema';
+import { edgeConfigs, hostedPages, products, tenantSettings } from '@/db/schema';
 import { DEFAULT_HOSTED_PAGE_BASE, qrUrl, type QrScreen } from '@/lib/contracts/hosted-page';
 import { entitlementsOf } from '@/server/core/billing/entitlements';
 import { loadEnv } from '@/server/core/config/env';
 import type { TenantContext } from '@/server/core/tenancy/context';
+import { brandOf } from '@/server/modules/edge/build';
 import { customHostOf, hostedPageViewOf } from './view';
 import { isLocalHost } from '@site/lib/tryon-config';
 
@@ -36,10 +37,13 @@ export async function qrCodesFor(ctx: TenantContext): Promise<QrScreen> {
   const customHost = await customHostOf(ctx);
   const base = customHost ? `https://${customHost}/p` : finalBase() ?? DEFAULT_HOSTED_PAGE_BASE;
   const printable = !!customHost || finalBase() !== null;
-  if (!(await entitlementsOf(ctx)).has('qr_codes')) return { included: false, printable, testOnly: !printable && onThisComputer(), base, products: [] };
+  const entitlements = await entitlementsOf(ctx);
+  if (!entitlements.has('qr_codes')) return { included: false, printable, testOnly: !printable && onThisComputer(), base, products: [] };
+  // T134.2: a white-label store's codes carry its own logo in the corner (the logo its try-on shows), or a plain one
+  const mark = entitlements.has('white_label') ? { mark: brandOf(ctx.tenant, (await ctx.db.findOne(tenantSettings))?.branding?.logoUrl).logo } : {};
 
   const live = await ctx.db.find(edgeConfigs, and(isNotNull(edgeConfigs.key), isNull(edgeConfigs.withdrawnAt)));
-  if (!live.length) return { included: true, printable, testOnly: !printable && onThisComputer(), base, products: [] };
+  if (!live.length) return { included: true, printable, testOnly: !printable && onThisComputer(), base, products: [], ...mark };
   const ids = live.map((e) => e.productId);
   const [rows, pages] = await Promise.all([
     ctx.db.find(products, and(inArray(products.id, ids), isNull(products.deletedAt))),
@@ -57,5 +61,5 @@ export async function qrCodesFor(ctx: TenantContext): Promise<QrScreen> {
     if (!view.shopUrl && view.storePage) withoutBuyLink += 1;
   }
   out.sort((a, b) => a.name.localeCompare(b.name));
-  return { included: true, printable, testOnly: !printable && onThisComputer(), base, products: out, withoutBuyLink };
+  return { included: true, printable, testOnly: !printable && onThisComputer(), base, products: out, withoutBuyLink, ...mark };
 }

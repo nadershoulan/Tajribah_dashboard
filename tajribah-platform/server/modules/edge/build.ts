@@ -199,7 +199,7 @@ async function relatedLive(ctx: TenantContext, productId: string): Promise<NonNu
 }
 
 /** The store's name (both languages) and logo — the Settings logo first, then the store's own; https only. */
-function brandOf(tenant: { name: string; nameAr: string | null; logoUrl: string | null }, settingsLogo: string | undefined): StoreBrand {
+export function brandOf(tenant: { name: string; nameAr: string | null; logoUrl: string | null }, settingsLogo: string | undefined): StoreBrand {
   const https = (v: string | null | undefined) => {
     if (!v || v.length > 2048) return null;
     try { return new URL(v).protocol === 'https:' ? v : null; } catch { return null; }

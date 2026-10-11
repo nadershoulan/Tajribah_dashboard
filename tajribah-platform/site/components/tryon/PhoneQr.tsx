@@ -20,7 +20,7 @@ import type { TryOnProduct } from '@site/lib/demo-product';
 const SHADOW: Record<string, ShadowKind> = { watch: 'watch', ring: 'ring', bag: 'bag', glasses: 'eyewear', necklace: 'necklace', earring: 'earring' };
 type Received = { src: string; width: number; height: number; pose: SharedPose | null };
 
-export default function PhoneQr({ product }: { product: TryOnProduct }) {
+export default function PhoneQr({ product, mark = QR_MARK }: { product: TryOnProduct; /** T134.2: the corner mark (a white-label store's logo; null: plain). */ mark?: string | null }) {
   const { t } = useLang();
   const { asset } = useSiteEnv();
   const kind = kindOf(product);
@@ -47,12 +47,12 @@ export default function PhoneQr({ product }: { product: TryOnProduct }) {
         const r = await fetch('/api/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, ...(product.demo ? { demo: product.sku } : {}) }) });
         if (!r.ok) throw Error();
         const p = (await r.json()) as { id: string; expiresAt: number };
-        const png = await markedQrPng(`${location.origin}/capture/${p.id}`, 480, `${location.origin}${QR_MARK}`, { dark: '#0A2237', light: '#ffffff' });
+        const png = await markedQrPng(`${location.origin}/capture/${p.id}`, 480, mark, { dark: '#0A2237', light: '#ffffff' });
         if (live) { setPair(p); setQr(png); }
       } catch { if (live) setFailed(true); }
     })();
     return () => { live = false; };
-  }, [kind, product.demo, product.sku, round]);
+  }, [kind, product.demo, product.sku, round, mark]);
 
   // the phone's photo, when the shopper sends it
   useEffect(() => {

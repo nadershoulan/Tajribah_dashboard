@@ -2279,3 +2279,12 @@ browser), so nothing grows past the outline. It is worked at the product picture
 it is seen at, the picture was resampled twice and the dial blurred (seen in the walk's close-up) — at its own
 resolution the final draw is the same single downscale as before, and the radius in its pixels barely changes as it is
 resized, so the result is kept while it is dragged, turned or resized. Not on the comparison grid (a product shot there).
+
+**T134.2 — a white-label store's own logo in its QR codes (2026-10-11).** The plan's note ("a store with its own brand
+gets its logo there instead") done: under white-label (T61) every code we draw for the store — the try-on's "continue
+on your phone" code, a phone-only product's code, the dashboard's «رموز QR» — carries the store's logo (the one its
+try-on shows: the Settings logo first, then the store's own; https), and a store with no logo gets a plain corner:
+white-label never shows Tajribah's mark. Other plans keep it. The logo is read as a picture, not fetched: the
+dashboard's security policy lets it fetch only from itself, while pictures may come from any https address; a logo the
+browser kept as a plain copy is asked again at a fresh address (as the studio's pictures are); a logo with no CORS at
+all leaves the corner plain rather than breaking the code.

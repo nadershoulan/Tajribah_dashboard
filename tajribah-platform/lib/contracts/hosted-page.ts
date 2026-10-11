@@ -64,6 +64,11 @@ export type QrScreen = {
   products: { id: string; name: string; nameAr: string | null; url: string }[];
   /** T99: of those, the pages with no buy link whose product's store page is known (its feed) — one click links them all. */
   withoutBuyLink?: number;
+  /**
+   * T134.2 — the codes' corner mark: absent, Tajribah's; under white-label the store's own logo (https), or `null` —
+   * a plain corner (a white-label store with no logo never shows Tajribah's mark).
+   */
+  mark?: string | null;
 };
 
 /** A product page's address as a QR code carries it: tagged, so the visit counts as "from a QR code". */

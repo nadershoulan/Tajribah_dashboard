@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq } from 'drizzle-orm';
-import { customDomains, models3d, modelFiles, modelVersions, products, tenants } from '@/db/schema';
+import { customDomains, models3d, modelFiles, modelVersions, products, tenantSettings, tenants } from '@/db/schema';
 import { uuidv7 } from '@/lib/ids';
 import { loadEnv, resetEnv } from '@/server/core/config/env';
 import { MemoryConfigStore, setConfigStore } from '@/server/core/edge/configs';
@@ -115,3 +115,32 @@ test('printable only on a final address: one set for real (T106: tajribah.org/p 
     }
   } finally { await harness.close(); }
 });
+
+test('T134.2 — the corner mark: a white-label store’s own logo (its Settings logo first), a plain corner without one; other plans say nothing (Tajribah’s)', async () => {
+  const harness = await createTestDb();
+  try {
+    {
+      const { ctx, tenantId } = await store(harness, 'brand', 'enterprise');
+      await harness.asAdmin(() => harness.db.update(tenants).set({ logoUrl: 'https://cdn.salla.sa/oud/logo.png' } as any).where(eq(tenants.id, tenantId)));
+      const fresh = await buildTenantContext({ actor: ctx.actor, tenantId, requestId: 'req-brand-2' });
+      assert.equal((await qrCodesFor(fresh)).mark, 'https://cdn.salla.sa/oud/logo.png', 'the store’s own logo, as its try-on shows');
+      await publishProduct(fresh, (await lamp(harness, tenantId, 'sa-5', 'Lamp')).id);
+      assert.equal((await qrCodesFor(fresh)).mark, 'https://cdn.salla.sa/oud/logo.png', 'with codes too');
+      await harness.asAdmin(() => harness.db.insert(tenantSettings).values({ tenantId, branding: { logoUrl: 'https://cdn.tajribah.org/t/brand/logo.png' } } as any)
+        .onConflictDoUpdate({ target: tenantSettings.tenantId, set: { branding: { logoUrl: 'https://cdn.tajribah.org/t/brand/logo.png' } } as any }));
+      assert.equal((await qrCodesFor(fresh)).mark, 'https://cdn.tajribah.org/t/brand/logo.png', 'the logo set in Settings comes first');
+    }
+    {
+      const { ctx, tenantId } = await store(harness, 'plain', 'enterprise');
+      await harness.asAdmin(() => harness.db.update(tenants).set({ logoUrl: 'http://oud.sa/logo.png' } as any).where(eq(tenants.id, tenantId)));
+      const fresh = await buildTenantContext({ actor: ctx.actor, tenantId, requestId: 'req-plain-2' });
+      const screen = await qrCodesFor(fresh);
+      assert.ok('mark' in screen && screen.mark === null, 'no https logo: a plain corner — not Tajribah’s');
+    }
+    {
+      const { ctx } = await store(harness, 'basic', 'starter');
+      assert.equal('mark' in (await qrCodesFor(ctx)), false, 'not white-label: Tajribah’s mark');
+    }
+  } finally { await harness.close(); }
+});
+

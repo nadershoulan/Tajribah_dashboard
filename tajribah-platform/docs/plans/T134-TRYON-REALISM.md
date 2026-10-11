@@ -52,7 +52,10 @@ The product must look *on* the skin, not pasted. Reference: the watch on the mod
       the Tajribah mark in the **bottom-right corner area** — the one corner with no finder pattern — sized so the
       code still scans with margin (≤ 12 % of the side). SVG and PNG.
 - [x] Use it for the studio's pairing QR and the dashboard «رموز QR» (preview, SVG with the mark embedded, PNG).
-      *(Next: a store with its own brand (T61) gets its logo there instead — with Phase 3's store branding.)*
+- [x] A store with its own brand (T61, white-label) gets **its logo** there instead (2026-10-11) — or a plain corner if it
+      has none, never Tajribah's mark: the studio's pairing code, the phone-only product's code (`PhoneQr`) and the
+      dashboard's «رموز QR» (the screen carries `mark`). `qrMarkOf` in `lib/qr-mark.ts`; tested, mutation 7/7; walked
+      with the local test store made Enterprise (its logo in both) and back (Tajribah's mark again).
 - [x] Tests: decode every marked code with a QR reader (dev dependency `jsqr`) at several sizes — the URL comes back
       exactly; a badge too big is refused.
 - [x] Walk: the studio's pairing QR read back from the page with jsQR — the exact capture link; the dashboard's codes all carry the mark. The mark grown to ~13 % of the side (into a 3-module margin) after the first look — still reads at every size.
@@ -147,6 +150,7 @@ try-on: full screen, the store's feel, nothing that says "you left the shop".
 
 | Date | Phase | What happened |
 |---|---|---|
+| 2026-10-11 | 2 | A white-label store's QR codes carry its own logo (or a plain corner), never Tajribah's mark — the studio's, the phone-only product's and the dashboard's. The dashboard may only fetch from itself: the logo is read as a picture and embedded from a canvas. |
 | 2026-10-11 | 1 | The edge blend (the last option left): the product's outline about a pixel softer on the photo, the inside untouched (a first try built it at the size seen and blurred the dial — rebuilt at the picture's own resolution). **Nothing left open in T134.** |
 | 2026-10-11 | — | Plan written after reading the studio, capture page, pairing API and QR code paths. |
 | 2026-10-11 | follow-ups | «أرسل إلى شاشتي» carries the shopper's own fit (`site/lib/pair-pose.ts`, header `X-Tajribah-Pose`, kept as the photo's metadata, checked both ways): the computer says «كما تركته على جوالك» and shows it there. Glasses keep the detector's eye order — a turned face's glasses turn with it (−93° on the face turned anticlockwise, was +87°); the mirrored front camera handled. |

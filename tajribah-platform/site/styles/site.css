@@ -973,3 +973,48 @@ html:has(.embed-root.is-preview), html:has(.embed-root.is-preview) body { backgr
 .pq-photo > img { display: block; width: 100%; height: 100%; }
 .pq-placed { position: absolute; inset: 0; pointer-events: none; }
 .pq-placed img { position: absolute; max-width: none; transform-origin: center; }
+/* T136 — phones (Nader, 2026-10-11: "a container inside a container … most photos are tall … make the image the main
+   event … icons instead of text"): no card inside the window, the picture as wide and tall as the screen allows, the
+   controls small and mostly icons. */
+@media (max-width: 600px) {
+  .studio-panel { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+  .studio-topbar { min-height: 0; padding: 6px 2px; border-bottom: 0; flex-wrap: nowrap; }
+  .studio-topbar > [data-slot="tabs"] { flex: 1 1 auto; min-width: 0; } /* the tabs take the row, not their words' width */
+  .mode-tabs[data-slot] { flex: 1 1 auto; width: 100%; min-width: 0; height: 42px; }
+  .mode-tabs [data-slot="tabs-trigger"] { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 7px 6px; font-size: 12.5px; gap: 4px; }
+  .stage { border-radius: 14px; }
+  .stage-label, .drag-hint { display: none; }
+  /* the shopper's photo fills the width, as tall as it is (a portrait photo: a portrait stage) */
+  .stage.me-photo { aspect-ratio: var(--photo-ar, 3 / 4); max-height: 72vh; max-height: 72dvh; }
+  .stage.me-photo canvas { object-fit: cover; }
+  .canvas-tools { bottom: 10px; inset-inline-start: 10px; height: 34px; border-radius: 10px; }
+  .canvas-tools button { width: 32px; height: 32px; }
+  .canvas-tools span, .canvas-tools .tool-divider { display: none; }
+  .studio-bottom { border-top: 0; padding: 8px 2px 6px; }
+  .selection-row { min-height: 0; gap: 8px; }
+  /* icons, not words: the name stays for screen readers (font-size 0 keeps it, only hides it) */
+  .photo-actions { gap: 8px; }
+  .photo-actions .secondary-button { width: 46px; min-height: 46px; padding: 0; gap: 0; justify-content: center; border-radius: 50%; font-size: 0; }
+  .photo-actions .secondary-button svg { width: 20px; height: 20px; }
+  .photo-actions .icon-button { width: 46px; height: 46px; border-radius: 50%; border: 1.5px solid var(--line-2); }
+  .adjustments { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 8px 14px; margin-top: 6px; padding-top: 6px; border-top: 0; }
+  .adjustment { min-width: 0; }
+  .adjustment-label { font-size: 12px; margin-bottom: 8px; }
+  .measurement-control { width: auto; margin-inline-start: 0; gap: 6px; }
+  .measurement-control > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .unit-select { min-width: 54px; }
+  /* the shop's window: edge to edge, the bar small, the privacy line an icon */
+  .embed-root { padding: 0 10px 10px; }
+  .embed-root.is-popup { padding: 0 8px 6px; }
+  .embed-root.is-popup .embed-bar { padding: 4px 2px; }
+  .embed-privacy { font-size: 0; gap: 0; }
+  .embed-privacy svg { width: 18px; height: 18px; }
+  .embed-root.is-popup .studio-topbar { padding: 4px 0; flex-wrap: nowrap; }
+  .embed-root.is-popup .topbar-actions .icon-button:last-child { display: none; } /* "expand": the window is the whole screen already */
+  /* the model photos as tall as they are (1200 × 1050), the shopper's photo takes what the controls leave */
+  .embed-root.is-popup .stage { max-height: calc(100vw * 1050 / 1200); }
+  .embed-root.is-popup .studio-panel:has(.me-photo) { flex: 1 1 auto; }
+  .embed-root.is-popup .stage.me-photo { flex: 1 1 auto; max-height: none; aspect-ratio: auto; }
+  .embed-root.is-popup .studio-bottom { padding: 6px 2px 4px; }
+  .embed-root.is-popup .adjustments { margin-top: 4px; padding-top: 4px; }
+}

@@ -2227,3 +2227,13 @@ product, `tryon_configs.phone_only`, 0049): the shop's button opens the camera t
 computer; the studio's model photos are not shown. The camera page became `site/components/tryon/CameraTryOn.tsx`, used
 by the QR page and by "on the phone only". The QR's corner mark is a square copy of the mark trimmed to its edges and is
 drawn in its own proportions (it was a wide picture squeezed into a square — Nader: "looks stretched").
+
+**T136 — the studio on phones (2026-10-11).** Nader, from his phone in Failet's window: "a container inside a container",
+most shoppers' photos are tall, "make the image the main event", icons instead of words. On screens up to 600 px: the
+studio's card loses its border and shadow (the shop's window is the only frame); with the shopper's photo the stage
+takes the photo's own shape (a tall photo, a tall stage, up to 72 % of the screen; in the shop's window, all the height
+the controls leave) and the canvas fills it (`cover`); the model photos show their full height; the photo buttons are
+icons (their names kept for screen readers); the sliders and the measurement switch share one row; the stage's label
+and the zoom percentage go. The studio's own code changed in two lines: the finger's point follows the canvas's CSS fit
+(it assumed contain off the model view), and the stage carries the photo's shape. Before: the photo drawn at 0.19 of
+its size in a 372 × 195 stage; after: 0.61 in 374 × 640, and a 40 px drag moves it 40 px.

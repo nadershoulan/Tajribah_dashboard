@@ -246,7 +246,10 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
 
   function getPoint(e: { clientX: number; clientY: number }) {
     const r = canvas.current!.getBoundingClientRect();
-    const fit = expanded || mode !== 'model' ? Math.min(r.width / W, r.height / H) : Math.max(r.width / W, r.height / H);
+    // T136: the canvas is fitted as its CSS says (cover fills the box, contain shows it whole) — so a phone's tall photo,
+    // drawn to fill the screen, still takes a finger where it lands
+    const cover = getComputedStyle(canvas.current!).objectFit === 'cover';
+    const fit = cover ? Math.max(r.width / W, r.height / H) : Math.min(r.width / W, r.height / H);
     const ox = (r.width - W * fit) / 2, oy = (r.height - H * fit) / 2;
     return { x: ((e.clientX - r.left - ox) / fit - W / 2) / zoom + W / 2, y: ((e.clientY - r.top - oy) / fit - H / 2) / zoom + H / 2 };
   }
@@ -706,7 +709,9 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
             </div>
           </div>
 
-          <div className={'stage ' + (mode !== 'model' ? 'compare-stage' : '')}>
+          {/* T136: on a phone, the shopper's photo is the picture — the stage takes its shape (a tall photo, a tall stage) */}
+          <div className={'stage ' + (mode !== 'model' ? 'compare-stage' : '') + (mode === 'me' && photo ? ' me-photo' : '')}
+            style={mode === 'me' && photo && images.current.photo ? ({ '--photo-ar': String(images.current.photo.width / images.current.photo.height) } as React.CSSProperties) : undefined}>
             {showCanvas ? (
               <>
                 <div className="stage-label"><span className="label-line" />

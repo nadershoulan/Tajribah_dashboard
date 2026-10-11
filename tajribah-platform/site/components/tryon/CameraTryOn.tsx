@@ -25,7 +25,7 @@ import { StoreMark } from '@site/components/site/store-mark';
 import { Guide, guideText, type CapturePhase, type GuideState } from '@site/components/studio/guides';
 import type { PairKind, PairProduct } from '@site/lib/pair-product';
 import type { StoreBrand } from '@site/lib/tryon-config';
-import { castShadow, cssShadow, type ShadowKind } from '@site/lib/shadow';
+import { castShadow, cssShadow, softEdged, type ShadowKind } from '@site/lib/shadow';
 import { detectHand } from '@site/lib/hand-detect';
 import { detectFace } from '@site/lib/face-detect';
 import { model } from '@site/lib/detectors';
@@ -380,7 +380,7 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
       g.drawImage(photo, 0, 0);
       const p = shot.pose, h = p.width * aspect;
       castShadow(g, item, { x: p.x, y: p.y, width: p.width, height: h, angle: p.angle }, SHADOW[kind]);
-      g.save(); g.translate(p.x, p.y); g.rotate((p.angle * Math.PI) / 180); g.drawImage(item, -p.width / 2, -h / 2, p.width, h); g.restore();
+      g.save(); g.translate(p.x, p.y); g.rotate((p.angle * Math.PI) / 180); g.drawImage(softEdged(item, p.width), -p.width / 2, -h / 2, p.width, h); g.restore();
       const fileName = `${(brand ? brand.name.en : product.name.en).replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'tajribah-try-on'}.jpg`; // an Arabic name leaves no letters: ours
       const file = new File([dataUrlBlob(c.toDataURL('image/jpeg', 0.92))], fileName, { type: 'image/jpeg' });
       const name = t(product.name.ar, product.name.en);

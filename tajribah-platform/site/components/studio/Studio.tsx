@@ -14,7 +14,7 @@ import { Switch } from '@site/components/ui/switch';
 import { useLang } from '@site/lib/i18n';
 import { useSiteEnv } from '@site/lib/site-env';
 import { preparePhoto } from '@site/lib/photo';
-import { castShadow } from '@site/lib/shadow';
+import { castShadow, softEdged } from '@site/lib/shadow';
 import { QR_MARK, markedQrPng } from '@/lib/qr-mark';
 import { earringPlacement, glassesPlacement, handPoints, necklacePlacement, watchPlacement } from '@site/lib/placement';
 import { kindOf, pairProductOf } from '@site/lib/pair-product';
@@ -228,7 +228,9 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
       castShadow(ctx, im, { x: pose.x, y: pose.y, width, height, angle: pose.angle }, mode === 'compare' ? 'flat' : product.category ?? 'watch');
       ctx.save();
       ctx.translate(pose.x, pose.y); ctx.rotate((pose.angle * Math.PI) / 180);
-      ctx.drawImage(im, -width / 2, -height / 2, width, height);
+      // T134.1: on a photo its outline softened by about a pixel, so it reads as photographed there, not pasted on
+      const seen = Math.hypot(ctx.getTransform().a, ctx.getTransform().b) || 1;
+      ctx.drawImage(mode === 'compare' ? im : softEdged(im, width * seen), -width / 2, -height / 2, width, height);
       if (rulers) {
         const y = height / 2 + 26;
         ctx.strokeStyle = '#00A7BC'; ctx.lineWidth = 2; ctx.beginPath();

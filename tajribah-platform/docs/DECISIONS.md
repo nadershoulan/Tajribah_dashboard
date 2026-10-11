@@ -2271,3 +2271,11 @@ same site, so another site framing us cannot make shoppers share its address —
 Tajribah (`/p/{store}/{product}`), and the QR phone page gets the same link through its session. The link is put in the
 text only (a phone adds a separate `url` after the text, and the link would show twice), since some apps keep only the
 text. The dashboard's preview shares no link.
+
+**T134.1 — the edge blend (2026-10-11).** The last option left in T134: a product cut out of its photo has a razor
+edge that reads as pasted on. Its outline is softened inward by about a pixel of the picture as seen (0.6–2 px), from
+its own blurred silhouette (a canvas shadow, as the product's shadows are made — a canvas `filter` is not in every
+browser), so nothing grows past the outline. It is worked at the product picture's own resolution: built at the size
+it is seen at, the picture was resampled twice and the dial blurred (seen in the walk's close-up) — at its own
+resolution the final draw is the same single downscale as before, and the radius in its pixels barely changes as it is
+resized, so the result is kept while it is dragged, turned or resized. Not on the comparison grid (a product shot there).

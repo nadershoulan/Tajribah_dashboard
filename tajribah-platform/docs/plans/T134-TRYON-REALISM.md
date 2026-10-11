@@ -38,8 +38,11 @@ The product must look *on* the skin, not pasted. Reference: the watch on the mod
 - [x] Draw them in `redraw()` from the product's own silhouette (its alpha), blurred and darkened — so the shadow has
       the product's shape, not a box. Same in on-me and compare modes; none on the flat compare shot's grid if it
       looks wrong there.
-- [ ] *(later, if needed)* A subtle **edge blend** (1 px feather of the product's edge against the photo) so a cut-out's hard edge reads as
-      real.
+- [x] A subtle **edge blend** (2026-10-11): the product's outline softened by about a pixel of the picture as seen
+      (0.6–2 px, by its drawn width), inward only, worked at the product picture's own resolution so the inside stays
+      exactly as sharp (`softEdged` in `site/lib/shadow.ts`; tested, mutation 12/12). On photos and in the camera's
+      saved / shared picture; not on the comparison grid. Walked: before (live) and after (local) differ only on the
+      outline, one pixel wide.
 - [x] Tests: shadow layers per kind, in proportion to size, each kind as worn (`lib/__tests__/shadow.test.ts`). The silhouette is the canvas's own (a shadow of the drawn alpha) — not unit-testable without a canvas; seen in the walk.
 - [x] Walk: the watch on the model, before (live) and after (local) at 3× — a soft contact shadow under the case and strap links; made a little stronger after the first look.
 
@@ -144,6 +147,7 @@ try-on: full screen, the store's feel, nothing that says "you left the shop".
 
 | Date | Phase | What happened |
 |---|---|---|
+| 2026-10-11 | 1 | The edge blend (the last option left): the product's outline about a pixel softer on the photo, the inside untouched (a first try built it at the size seen and blurred the dial — rebuilt at the picture's own resolution). **Nothing left open in T134.** |
 | 2026-10-11 | — | Plan written after reading the studio, capture page, pairing API and QR code paths. |
 | 2026-10-11 | follow-ups | «أرسل إلى شاشتي» carries the shopper's own fit (`site/lib/pair-pose.ts`, header `X-Tajribah-Pose`, kept as the photo's metadata, checked both ways): the computer says «كما تركته على جوالك» and shows it there. Glasses keep the detector's eye order — a turned face's glasses turn with it (−93° on the face turned anticlockwise, was +87°); the mirrored front camera handled. |
 | 2026-10-11 | 5 | Face detection tries the photo turned too (the hand already did): walked live without it — a face turned 90° counter-clockwise not found; locally with it — found, the glasses on the eyes. |

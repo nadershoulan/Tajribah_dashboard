@@ -84,3 +84,51 @@ export function cssShadow(kind: ShadowKind, widthPx: number): string {
     .map((l) => `drop-shadow(${l.offsetX.toFixed(1)}px ${l.offsetY.toFixed(1)}px ${l.blur.toFixed(1)}px rgba(16, 22, 28, ${l.alpha}))`)
     .join(' ');
 }
+
+/**
+ * T134.1 — the edge blend: a cut-out's outline is razor sharp, a real object's edge in a photo is not. The product's
+ * outline is softened by about a pixel of the picture as it is drawn (its width sets how much, within 0.6–2 px), so
+ * it reads as photographed with the skin rather than pasted over it. Inward only — nothing grows past the outline.
+ */
+export function featherRadius(widthPx: number): number {
+  return Math.min(2, Math.max(0.6, widthPx * 0.0035));
+}
+
+type Canvasish = HTMLCanvasElement | OffscreenCanvas;
+const softCache = new WeakMap<object, { radius: number; canvas: Canvasish }>();
+/** The largest side the blend is worked at (a product picture bigger than this is worked smaller). */
+const WORK_MAX = 2048;
+
+/**
+ * The product with its outline softened by `featherRadius` of the size it is seen at (`widthPx`, the canvas's zoom
+ * included); draw it where the product goes, at its usual size. Worked at the picture's own resolution, so the inside
+ * stays exactly as sharp as before (one downscale, as always) — only the outline changes. The radius in the
+ * picture's pixels hardly changes as the product is resized, so dragging, turning and resizing make nothing new.
+ * A picture not loaded, or no canvas to work on: the product as it is.
+ */
+export function softEdged(image: CanvasImageSource, widthPx: number): CanvasImageSource {
+  const size = image as { naturalWidth?: number; naturalHeight?: number; width?: number; height?: number };
+  const nw = size.naturalWidth || Number(size.width) || 0, nh = size.naturalHeight || Number(size.height) || 0;
+  if (!nw || !nh || !(widthPx > 0)) return image;
+  const k = Math.min(1, WORK_MAX / Math.max(nw, nh));
+  const w = Math.max(1, Math.round(nw * k)), h = Math.max(1, Math.round(nh * k));
+  const radius = Math.max(0.25, Math.round(featherRadius(widthPx) * (w / widthPx) * 4) / 4);
+  const kept = softCache.get(image as object);
+  if (kept && kept.radius === radius) return kept.canvas;
+  const make = (): Canvasish => (typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, h) : Object.assign(document.createElement('canvas'), { width: w, height: h }));
+  const out = make(), mask = make();
+  const o = out.getContext('2d') as CanvasRenderingContext2D | null, m = mask.getContext('2d') as CanvasRenderingContext2D | null;
+  if (!o || !m) return image;
+  o.drawImage(image, 0, 0, w, h);
+  // the outline blurred, as a canvas shadow (every browser has one — a canvas `filter` is not everywhere); twice, so
+  // the inside stays whole and thin parts (a chain, a frame's arm) keep their body
+  m.shadowColor = '#000';
+  m.shadowBlur = radius * 2;
+  m.shadowOffsetX = FAR;
+  m.drawImage(out as CanvasImageSource, -FAR, 0);
+  m.drawImage(out as CanvasImageSource, -FAR, 0);
+  o.globalCompositeOperation = 'destination-in';
+  o.drawImage(mask as CanvasImageSource, 0, 0);
+  softCache.set(image as object, { radius, canvas: out });
+  return out as CanvasImageSource;
+}

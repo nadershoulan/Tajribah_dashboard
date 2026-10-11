@@ -29,6 +29,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { ShieldCheck, X } from 'lucide-react';
 import { useLang } from '@site/lib/i18n';
+import { shareLinkOf } from '@site/lib/share-picture';
 import { SiteEnvContext, SiteLink, useSiteEnv } from '@site/lib/site-env';
 import type { TryOnProduct } from '@site/lib/demo-product';
 import { brandFrom, CLOSE_MESSAGE, SHOWN_MESSAGE, SIZE_MESSAGE, PREVIEW_CONFIG, PREVIEW_HEIGHT, PREVIEW_READY, configBase, configUrl, embedTitle, isLocalHost, tryOnProductFrom, validRefs, type StoreBrand } from '@site/lib/tryon-config';
@@ -121,6 +122,11 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
   }), [env]);
 
   const close = () => window.parent?.postMessage({ type: CLOSE_MESSAGE }, '*');
+  // T137: the link a shopper shares with their picture, for others to try the product — the store page the window is
+  // over (the widget says which; trusted only when the browser's own record of the framing page is that same site),
+  // else the product's own try-on page on this site.
+  const [shareLink, setShareLink] = useState<string | null>(null);
+  useEffect(() => { setShareLink(shareLinkOf(params(), document.referrer, location.origin)); }, []);
   // T100: in a shop's popup, the bar (with its close button) is up: the popup hides its own backup close
   useEffect(() => { if (inPopup && window.parent !== window) window.parent.postMessage({ type: SHOWN_MESSAGE }, '*'); }, [inPopup]);
   // T137: in a shop's window, say how tall the content is — on a phone the window fits it (no empty band above the
@@ -132,14 +138,15 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
     if (!root || typeof ResizeObserver === 'undefined') return;
     let last = 0;
     const post = () => {
-      // the camera (opened from «عليّ», or a product on the phone only) is full screen: all the window can give
-      const height = document.querySelector('main.cap') ? 4000 : Math.ceil(root.scrollHeight);
+      // the camera (opened from «عليّ», or a product on the phone only) and the info screen (any dialog) take all the
+      // window can give — a short window would cut them (Nader: the info screen ran off it)
+      const height = document.querySelector('main.cap, [data-slot="dialog-content"]') ? 4000 : Math.ceil(root.scrollHeight);
       if (Math.abs(height - last) > 2) { last = height; window.parent.postMessage({ type: SIZE_MESSAGE, height }, '*'); }
     };
     const watch = new ResizeObserver(post);
     watch.observe(root);
     for (const child of Array.from(root.children)) watch.observe(child);
-    const opened = new MutationObserver(post); // the studio's camera opens at the end of the page
+    const opened = new MutationObserver(post); // the studio's camera and its dialogs open at the end of the page
     opened.observe(document.body, { childList: true });
     post();
     return () => { watch.disconnect(); opened.disconnect(); };
@@ -186,7 +193,7 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
       {state.kind === 'ready' && (
         <SiteEnvContext.Provider value={embedEnv}>
           {/* T135: the studio, or — on the phone only — the camera try-on (a QR code on a computer) */}
-          <TryOnFor product={state.product} brand={brand} onClose={previewing ? undefined : close}
+          <TryOnFor product={state.product} brand={brand} onClose={previewing ? undefined : close} shareLink={shareLink}
             stageExtras={previewing ? null : onPicture} helpExtra={previewing ? null : inHelp} topbarExtra={previewing ? null : besideTabs} />
         </SiteEnvContext.Provider>
       )}

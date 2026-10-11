@@ -19,7 +19,7 @@ export const PAIR_KINDS: readonly PairKind[] = ['watch', 'ring', 'bag', 'glasses
 export type PairProduct = { name: Bi; worn: string; caseMm: number; kind: PairKind };
 
 /** What a pairing records for the phone page. `brand`: the store's name (and logo under white-label) — never Tajribah's. */
-export type Pairing = { brand: StoreBrand | null; product: PairProduct | null; kind: PairKind };
+export type Pairing = { brand: StoreBrand | null; product: PairProduct | null; kind: PairKind; /** T137: where others can try it (shared with a picture). */ link?: string | null };
 
 /** The studio's category as the phone page's kind (left out: a watch). */
 export function kindOf(product: Pick<TryOnProduct, 'category'>): PairKind {
@@ -73,12 +73,13 @@ export function pairRequestOf(body: string): { kind: PairKind | null; demo: stri
 }
 
 /** A session read back from storage, checked again (it was written by us, but a bad one must not break the page). */
-export function pairingOfSession(session: { brand?: unknown; product?: unknown; kind?: unknown } | null): Pairing {
+export function pairingOfSession(session: { brand?: unknown; product?: unknown; kind?: unknown; link?: unknown } | null): Pairing {
   const kind = PAIR_KINDS.includes(session?.kind as PairKind) ? (session!.kind as PairKind) : 'watch';
   const brand = session?.brand && typeof session.brand === 'object' ? (session.brand as StoreBrand) : null;
   const p = session?.product as Partial<PairProduct> | null | undefined;
   const product = p && typeof p.worn === 'string' && /^(https?:\/\/|\/assets\/)/.test(p.worn) && typeof p.caseMm === 'number' && p.caseMm > 0 && p.name && typeof p.name.ar === 'string' && typeof p.name.en === 'string' && PAIR_KINDS.includes(p.kind as PairKind)
     ? { name: p.name, worn: p.worn, caseMm: p.caseMm, kind: p.kind as PairKind }
     : null;
-  return { brand, product, kind: product?.kind ?? kind };
+  const link = typeof session?.link === 'string' && /^https?:\/\/[^\s]{1,600}$/.test(session.link) ? session.link : null;
+  return { brand, product, kind: product?.kind ?? kind, link };
 }

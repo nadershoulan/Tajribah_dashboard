@@ -63,20 +63,23 @@ export function refsOf(request: Request): { store: string; product: string; base
  */
 export async function pairingOf(request: Request, body: string, fetcher: typeof fetch = fetch): Promise<Pairing> {
   const asked = pairRequestOf(body);
-  const fallback: Pairing = { brand: null, product: null, kind: asked.kind ?? 'watch' };
+  const here = new URL(request.url);
   const refs = refsOf(request);
+  // T137: where others can try it — the product's own try-on page on this site (the demo: the demo page)
+  const link = refs ? `${here.origin}/p/${encodeURIComponent(refs.store)}/${encodeURIComponent(refs.product)}` : null;
+  const fallback: Pairing = { brand: null, product: null, kind: asked.kind ?? 'watch', link };
   if (refs) {
-    const here = new URL(request.url);
     const local = isLocalHost(here.hostname);
     // on this computer the frame reads this app's own configs unless it names another local server (as the embed page)
     const base = configBase(refs.base ?? (local ? `${here.origin}/v1` : null), local);
     try {
       const response = await fetcher(configUrl(base, refs.store, refs.product), { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(2000) });
       const found = response.ok ? pairingFromConfig(await response.json(), local) : null;
-      return found ? { ...found, kind: found.product ? found.kind : fallback.kind } : fallback;
+      return found ? { ...found, kind: found.product ? found.kind : fallback.kind, link } : fallback;
     } catch {
       return fallback;
     }
   }
-  return demoPairing(asked.demo) ?? fallback;
+  const demo = demoPairing(asked.demo);
+  return demo ? { ...demo, link: `${here.origin}/demo` } : fallback;
 }

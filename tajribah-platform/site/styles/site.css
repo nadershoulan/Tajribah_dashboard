@@ -1102,3 +1102,38 @@ html:has(.embed-root.is-preview), html:has(.embed-root.is-preview) body { backgr
 /* T137 — the help on the picture: small and gray, no circle — as quiet as the mark */
 .embed-root.is-popup .stage-help { width: 26px; height: 26px; border: 0; background: none; box-shadow: none; color: rgba(40, 50, 60, .55); }
 .embed-root.is-popup .stage-help svg { width: 17px; height: 17px; }
+/* T137 — the info screen never runs off its window: it scrolls inside; on a phone it is compact (and in the shop's window
+   the window grows to the screen while it is open) */
+[data-slot="dialog-content"] { max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; }
+@media (max-width: 600px) {
+  [data-slot="dialog-content"] { padding: 18px 16px; gap: 10px; }
+  [data-slot="dialog-content"] [data-slot="dialog-title"] { padding-inline-end: 26px; font-size: 17px; }
+  [data-slot="dialog-content"] [data-slot="dialog-description"] { font-size: 13px; }
+  .help-steps { gap: 12px; padding-top: 4px; }
+  .help-steps > div { gap: 10px; }
+  .help-steps > div > svg { width: 20px; height: 20px; margin-top: 1px; }
+  .help-steps strong { font-size: 14.5px; }
+  .help-steps p { margin-top: 2px; font-size: 13px; line-height: 1.6; }
+  .help-steps .privacy-note, .help-privacy { font-size: 12px; }
+}
+/* T137 — the info screen: a sticky bar with its title and a clear close (always in sight), the rest scrolls, «حسنًا» at
+   its foot; tapping outside or Escape closes it too */
+.help-dialog { padding: 0 !important; gap: 0 !important; }
+.help-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px 12px; background: #fff; border-bottom: 1px solid var(--line); }
+.help-head [data-slot="dialog-title"] { padding-inline-end: 0 !important; margin: 0; }
+.help-close { flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: var(--tint); color: var(--navy-800); }
+.help-close:hover { background: var(--line); }
+.help-dialog [data-slot="dialog-description"] { padding: 12px 20px 0; }
+.help-dialog .help-steps { padding: 12px 20px 0; }
+.help-ok { display: flex; justify-content: center; width: calc(100% - 40px); margin: 16px 20px 18px; }
+@media (max-width: 600px) {
+  .help-head { padding: 12px 14px 10px; }
+  .help-dialog [data-slot="dialog-description"] { padding: 10px 14px 0; }
+  .help-dialog .help-steps { padding: 10px 14px 0; }
+  .help-ok { width: calc(100% - 28px); margin: 14px 14px 14px; }
+}
+/* T137 — the rotate icon puts the turn back: a small round button beside the label */
+.adjustment-name { display: inline-flex; align-items: center; gap: 6px; }
+.adjust-reset { display: inline-grid; place-items: center; width: 28px; height: 28px; margin: -6px; padding: 0; border-radius: 50%; color: var(--text-2); background: none; }
+.adjust-reset:hover, .adjust-reset:active { background: var(--tint); color: var(--navy-800); }
+@media (max-width: 600px) { .adjust-reset svg { width: 17px; height: 17px; } }

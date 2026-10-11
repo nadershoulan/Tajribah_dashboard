@@ -8,7 +8,7 @@ import {
 import { createPortal } from 'react-dom';
 import { Tabs, TabsList, TabsTrigger } from '@site/components/ui/tabs';
 import { Slider } from '@site/components/ui/slider';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@site/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@site/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@site/components/ui/select';
 import { Switch } from '@site/components/ui/switch';
 import { useLang } from '@site/lib/i18n';
@@ -19,7 +19,7 @@ import { QR_MARK, markedQrPng } from '@/lib/qr-mark';
 import { earringPlacement, glassesPlacement, handPoints, necklacePlacement, watchPlacement } from '@site/lib/placement';
 import { kindOf, pairProductOf } from '@site/lib/pair-product';
 import CameraTryOn from '@site/components/tryon/CameraTryOn';
-import { dataUrlBlob, savePicture, sharePicture } from '@site/lib/share-picture';
+import { dataUrlBlob, inviteText, linkOrHere, savePicture, sharePicture } from '@site/lib/share-picture';
 import { inZone } from '@/lib/tryon-placement';
 import { Guide } from './guides';
 import { detectHand } from '@site/lib/hand-detect';
@@ -57,7 +57,7 @@ const loadImage = (src: string) => (/^(data|blob):/.test(src)
  * the help screen (the privacy line); `topbarExtra` — what it adds beside the tabs (the shop window's close, on a phone,
  * where the help button was — Nader: the help goes onto the picture, the close beside the tabs).
  */
-export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpExtra = null, topbarExtra = null }: { product?: TryOnProduct; stageExtras?: React.ReactNode; helpExtra?: React.ReactNode; topbarExtra?: React.ReactNode } = {}) {
+export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpExtra = null, topbarExtra = null, shareLink }: { product?: TryOnProduct; stageExtras?: React.ReactNode; helpExtra?: React.ReactNode; topbarExtra?: React.ReactNode; shareLink?: string | null } = {}) {
   const { lang } = useLang();
   const { asset, features } = useSiteEnv();
   const ar = lang === 'ar';
@@ -638,7 +638,9 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
     if (!canvas.current) return;
     try {
       const file = new File([dataUrlBlob(canvas.current.toDataURL('image/png'))], 'tajribah-try-on.png', { type: 'image/png' });
-      void (share ? sharePicture(file) : Promise.resolve(savePicture(file))).then((how) => { if (how === 'saved') notify(t('Your image is ready.', 'صورتك جاهزة.')); });
+      // T137: an invitation — the product's name and where others can try it (this page, when no link is given)
+      const name = t(product.name.en, product.name.ar), link = linkOrHere(shareLink);
+      void (share ? sharePicture(file, { title: name, text: inviteText(name, link, ar), url: link }) : Promise.resolve(savePicture(file))).then((how) => { if (how === 'saved') notify(t('Your image is ready.', 'صورتك جاهزة.')); });
     } catch { notify(t('Could not save the image. Please try again.', 'تعذر حفظ الصورة. حاول مجدداً.')); }
   }
   function saveImage() {
@@ -849,7 +851,14 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
             {showCanvas && (
               <div className="adjustments">
                 <div className="adjustment">
-                  <div className="adjustment-label"><label id="rotation-label"><RotateCw size={14} aria-hidden />{mode === 'compare' && active === 'object' ? t('Object rotation', 'تدوير العنصر') : t('Rotation', 'التدوير')}</label>
+                  <div className="adjustment-label"><span className="adjustment-name">
+                    {/* T137 (Nader): the rotate icon also puts the turn back — the view's own angle (0° in the comparison) */}
+                    <button type="button" className="adjust-reset" aria-label={t('Reset rotation', 'أعد الدوران')} title={t('Reset rotation', 'أعد الدوران')}
+                      onClick={() => (mode === 'compare' && active === 'object' ? setRefPose((p) => ({ ...p, angle: 0 }))
+                        : setPose((p) => ({ ...p, angle: mode === 'model' ? modelPose(model).angle : mode === 'me' ? photoFit.angle : 0 })))}>
+                      <RotateCw size={14} aria-hidden />
+                    </button>
+                    <label id="rotation-label">{mode === 'compare' && active === 'object' ? t('Object rotation', 'تدوير العنصر') : t('Rotation', 'التدوير')}</label></span>
                     <span dir="ltr">{Math.round(active === 'object' && mode === 'compare' ? refPose.angle : pose.angle)}°</span></div>
                   <Slider aria-labelledby="rotation-label" value={[active === 'object' && mode === 'compare' ? refPose.angle : pose.angle]} min={-180} max={180} step={1}
                     onValueChange={([angle]) => (active === 'object' && mode === 'compare' ? setRefPose((p) => ({ ...p, angle })) : setPose((p) => ({ ...p, angle })))} />
@@ -905,8 +914,12 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
       )}
 
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
-        <DialogContent>
-          <DialogTitle>{isEarring ? t('A closer look', 'طرق تجربة قرطك') : isBag ? t('A closer look', 'طرق تجربة حقيبتك') : isNecklace ? t('A closer look', 'طرق تجربة قلادتك') : isRing ? t('A closer look', 'طرق تجربة خاتمك') : isGlasses ? t('A closer look', 'طرق تجربة نظارتك') : t('A closer look, in three ways', 'ثلاث طرق لتجربة ساعتك')}</DialogTitle>
+        {/* T137 (Nader): on a phone it closes easily — a sticky bar with the title and a clear close, the rest scrolls, «حسنًا» at its foot */}
+        <DialogContent className="help-dialog" showCloseButton={false}>
+          <div className="help-head">
+            <DialogTitle>{isEarring ? t('A closer look', 'طرق تجربة قرطك') : isBag ? t('A closer look', 'طرق تجربة حقيبتك') : isNecklace ? t('A closer look', 'طرق تجربة قلادتك') : isRing ? t('A closer look', 'طرق تجربة خاتمك') : isGlasses ? t('A closer look', 'طرق تجربة نظارتك') : t('A closer look, in three ways', 'ثلاث طرق لتجربة ساعتك')}</DialogTitle>
+            <DialogClose className="help-close" aria-label={t('Close', 'إغلاق')}><X size={18} aria-hidden /></DialogClose>
+          </div>
           <DialogDescription>{isEarring ? t('Explore the earring from every perspective.', 'اكتشف القرط بالطريقة التي تناسبك.') : isBag ? t('Explore the bag from every perspective.', 'اكتشف الحقيبة بالطريقة التي تناسبك.') : isNecklace ? t('Explore the necklace from every perspective.', 'اكتشف القلادة بالطريقة التي تناسبك.') : isRing ? t('Explore the ring from every perspective.', 'اكتشف الخاتم بالطريقة التي تناسبك.') : isGlasses ? t('Explore the glasses from every perspective.', 'اكتشف النظارة بالطريقة التي تناسبك.') : t('Explore the watch from every perspective.', 'اكتشف الساعة بالطريقة التي تناسبك.')}</DialogDescription>
           <div className="help-steps">
             <div><Hand /><div><strong>{t('On model', 'على النموذج')}</strong><p>{isEarring ? t('The earring hangs from a real ear at its real size. Drag it and adjust its size.', 'يتدلى القرط من أذن حقيقية بحجمه الحقيقي. حرّكه وعدّل حجمه.') : isBag ? t('The bag is carried by a real model at its real size.', 'تحمل الحقيبةَ عارضةٌ حقيقية بحجمها الحقيقي.') : isNecklace ? t('The necklace hangs on a real model at its real size. Drag it and adjust its size.', 'تتدلى القلادة على عارضة حقيقية بحجمها الحقيقي. حرّكها وعدّل حجمها.') : isRing ? t('The ring sits on a real hand at its real width. Drag it along the finger and adjust its size or angle.', 'يظهر الخاتم على يد حقيقية بعرضه الحقيقي. حرّكه على الإصبع وعدّل حجمه وزاويته.') : isGlasses ? t('The frame sits on a real face at its real width. Drag it and adjust its size or angle.', 'يظهر الإطار على وجه حقيقي بعرضه الحقيقي. حرّكه وعدّل حجمه وزاويته.') : t('Choose a close-up or lifestyle photo. Drag the watch along the wrist and adjust its size or angle.', 'اختر صورة المعصم أو الإطلالة اليومية. حرّك الساعة على المعصم وعدّل حجمها وزاويتها.')}</p></div></div>
@@ -915,12 +928,13 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
             <p className="privacy-note">{t('Photo-based preview, not a live 3D camera filter. A single photo cannot verify exact physical fit.', 'معاينة باستخدام صورة، وليست فلتر كاميرا ثلاثي الأبعاد. لا يمكن التحقق من المقاس الفعلي الدقيق عبر صورة واحدة.')}</p>
             {helpExtra}
           </div>
+          <DialogClose asChild><button type="button" className="primary-button help-ok">{t('Got it', 'حسنًا')}</button></DialogClose>
         </DialogContent>
       </Dialog>
 
       {/* T137: on a phone, «عليّ» opens the camera with the guide and auto capture; the chosen photo comes back here as it was fitted */}
       {cameraOpen && typeof document !== 'undefined' && createPortal(
-        <CameraTryOn product={pairProductOf(product)} brand={null} kind={kindOf(product)} onClose={() => setCameraOpen(false)}
+        <CameraTryOn product={pairProductOf(product)} brand={null} kind={kindOf(product)} onClose={() => setCameraOpen(false)} shareLink={linkOrHere(shareLink)}
           onUse={(shot) => {
             setCameraOpen(false);
             const fitted = shot.pose ? { x: shot.pose.x / shot.size.width, y: shot.pose.y / shot.size.height, width: shot.pose.width / shot.size.width, angle: shot.pose.angle } : null;

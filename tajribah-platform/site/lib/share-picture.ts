@@ -28,14 +28,47 @@ export function savePicture(file: File): 'saved' {
   return 'saved';
 }
 
+/** What goes with the picture: the product's name, a line inviting others to try it, and the link to it. */
+export type ShareDetails = { title?: string; text?: string; url?: string | null };
+
+/**
+ * T137 (Nader): a share is an invitation — «{the product} — جرّبها عليك من هنا: {link}» — so whoever receives the
+ * picture can open the product and try it themselves. The link is also in the text: some apps keep only the text.
+ */
+export function inviteText(name: string, link: string | null | undefined, ar: boolean): string {
+  const line = ar ? `${name} — جرّبها عليك من هنا` : `${name} — try it on here`;
+  return link ? `${line}: ${link}` : name;
+}
+
 /** Call straight from the tap: the share sheet opens at once; refused or unsupported, the file is saved instead. */
-export function sharePicture(file: File, title?: string): Promise<'shared' | 'saved' | 'cancelled'> {
+export function sharePicture(file: File, details: ShareDetails = {}): Promise<'shared' | 'saved' | 'cancelled'> {
   const nav = typeof navigator === 'undefined' ? null : navigator;
+  const extra = { ...(details.title ? { title: details.title } : {}), ...(details.text ? { text: details.text } : {}), ...(details.url && !details.text?.includes(details.url) ? { url: details.url } : {}) };
   if (nav?.canShare?.({ files: [file] }) && nav.share) {
-    return nav.share({ files: [file], ...(title ? { title } : {}) }).then(
+    return nav.share({ files: [file], ...extra }).then(
       () => 'shared' as const,
       (e: unknown) => (e instanceof DOMException && e.name === 'AbortError' ? ('cancelled' as const) : savePicture(file)),
     );
   }
   return Promise.resolve(savePicture(file));
 }
+
+/**
+ * The address a shared picture invites people to (T137): the store's own product page the window is over, when the
+ * widget said so (`from`) and the browser agrees it came from that site (the referrer) — else the product's try-on page
+ * on Tajribah, `/p/{store}/{product}`. Nothing in the dashboard's preview (no shopper is sharing).
+ */
+export function shareLinkOf(query: URLSearchParams, referrer: string, origin: string): string | null {
+  if (query.get('preview')) return null;
+  const from = query.get('from');
+  try {
+    if (from && referrer && /^https:\/\//.test(from) && new URL(from).origin === new URL(referrer).origin) return from;
+  } catch { /* not addresses */ }
+  const store = query.get('store'), product = query.get('product');
+  return store && product ? `${origin}/p/${encodeURIComponent(store)}/${encodeURIComponent(product)}` : null;
+}
+
+/** The link a picture shares: the one given, none when given none (`null` — the dashboard's preview), this page when not given. */
+export const linkOrHere = (link: string | null | undefined): string | null =>
+  link !== undefined ? link : typeof location === 'undefined' ? null : location.href.split('#')[0]!;
+

@@ -34,7 +34,7 @@ import { faceFeedback, follow, handFeedback } from '@site/lib/live-feedback';
 import { dragged, fillFor, fitOf, liftedAbove, mirrored, onPicture, onScreen, pinched, type Fit, type Size } from '@site/lib/capture-view';
 import { HAS_SIDE, guideProduct, type Side } from '@site/lib/guide-layout';
 import { startAuto, stepAuto, type AutoState } from '@site/lib/auto-capture';
-import { dataUrlBlob, sharePicture } from '@site/lib/share-picture';
+import { dataUrlBlob, inviteText, sharePicture } from '@site/lib/share-picture';
 
 type Landmark = { x: number; y: number; z?: number };
 /** What the detector saw: its points (flipped with the picture when `mirrored`) and its score. */
@@ -75,9 +75,11 @@ export type CameraTryOnProps = {
   onClose?: () => void;
   /** T137: opened from the studio — «استخدم هذه الصورة» gives the photo and where the product was left back to it. */
   onUse?: (shot: Shot) => void;
+  /** T137: where others can try the product — shared with the picture. */
+  shareLink?: string | null;
 };
 
-export default function CameraTryOn({ product, brand, kind, onSend, onClose, onUse }: CameraTryOnProps) {
+export default function CameraTryOn({ product, brand, kind, onSend, onClose, onUse, shareLink = null }: CameraTryOnProps) {
   const { t, lang } = useLang(); // T137: no language switch on the camera (Nader) — it follows the shop's
   const { asset } = useSiteEnv();
   const onFace = kind === 'glasses' || kind === 'necklace' || kind === 'earring';
@@ -379,9 +381,10 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
       const p = shot.pose, h = p.width * aspect;
       castShadow(g, item, { x: p.x, y: p.y, width: p.width, height: h, angle: p.angle }, SHADOW[kind]);
       g.save(); g.translate(p.x, p.y); g.rotate((p.angle * Math.PI) / 180); g.drawImage(item, -p.width / 2, -h / 2, p.width, h); g.restore();
-      const name = `${(brand ? brand.name.en : product.name.en).replace(/[^\w-]+/g, '-').slice(0, 40) || 'try-on'}.jpg`;
-      const file = new File([dataUrlBlob(c.toDataURL('image/jpeg', 0.92))], name, { type: 'image/jpeg' });
-      void sharePicture(file, t(product.name.ar, product.name.en)).then((how) => { if (how === 'saved') setNote(t('حُفظت الصورة', 'Picture saved')); });
+      const fileName = `${(brand ? brand.name.en : product.name.en).replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'tajribah-try-on'}.jpg`; // an Arabic name leaves no letters: ours
+      const file = new File([dataUrlBlob(c.toDataURL('image/jpeg', 0.92))], fileName, { type: 'image/jpeg' });
+      const name = t(product.name.ar, product.name.en);
+      void sharePicture(file, { title: name, text: inviteText(name, shareLink, lang === 'ar'), url: shareLink }).then((how) => { if (how === 'saved') setNote(t('حُفظت الصورة', 'Picture saved')); });
     } catch {
       setError(t('تعذّرت المشاركة. التقط صورة للشاشة بدلًا من ذلك.', 'Could not share. Take a screenshot instead.'));
     }

@@ -9,16 +9,17 @@ import Studio from '@site/components/studio/Studio';
 import type { TryOnProduct } from '@site/lib/demo-product';
 import type { StoreBrand } from '@site/lib/tryon-config';
 import { kindOf, pairProductOf } from '@site/lib/pair-product';
+import { linkOrHere } from '@site/lib/share-picture';
 import CameraTryOn from './CameraTryOn';
 import PhoneQr from './PhoneQr';
 
 const never = () => () => {};
 const onAPhone = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
-export default function TryOnFor({ product, brand = null, onClose, stageExtras = null, helpExtra = null, topbarExtra = null }: {
-  product: TryOnProduct; brand?: StoreBrand | null; onClose?: () => void; stageExtras?: React.ReactNode; helpExtra?: React.ReactNode; topbarExtra?: React.ReactNode;
+export default function TryOnFor({ product, brand = null, onClose, stageExtras = null, helpExtra = null, topbarExtra = null, shareLink }: {
+  product: TryOnProduct; brand?: StoreBrand | null; onClose?: () => void; stageExtras?: React.ReactNode; helpExtra?: React.ReactNode; topbarExtra?: React.ReactNode; shareLink?: string | null;
 }) {
   const phone = useSyncExternalStore(never, onAPhone, () => false);
-  if (!product.phoneOnly) return <Studio product={product} stageExtras={stageExtras} helpExtra={helpExtra} topbarExtra={topbarExtra} />;
-  return phone ? <CameraTryOn product={pairProductOf(product)} brand={brand} kind={kindOf(product)} onClose={onClose} /> : <PhoneQr product={product} />;
+  if (!product.phoneOnly) return <Studio product={product} stageExtras={stageExtras} helpExtra={helpExtra} topbarExtra={topbarExtra} shareLink={shareLink} />;
+  return phone ? <CameraTryOn product={pairProductOf(product)} brand={brand} kind={kindOf(product)} onClose={onClose} shareLink={linkOrHere(shareLink)} /> : <PhoneQr product={product} />;
 }

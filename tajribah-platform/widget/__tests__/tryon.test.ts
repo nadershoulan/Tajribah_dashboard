@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseConfig } from '../src/config';
-import { CLOSE_MESSAGE, DEFAULT_TRYON, PHONE_PAD, SIZE_MESSAGE, fitFrame, isCloseFrom, sizeFrom, tryOnUrl, warmTryOn } from '../src/tryon';
+import { CLOSE_MESSAGE, DEFAULT_TRYON, PHONE_PAD, SIZE_MESSAGE, fitFrame, isCloseFrom, sizeFrom, tryOnUrl, warmTryOn, withFrom } from '../src/tryon';
 import { GOOD } from './fixtures';
 
 const TRYON = { worn: 'https://cdn.tajribah.org/t/store/w/worn.png', flat: 'https://cdn.tajribah.org/t/store/w/flat.png', caseMm: 38, sku: 'SFW-38' };
@@ -123,6 +123,8 @@ test('T100: the try-on opens in a window over the product page, in a layer of it
     assert.equal(sheet.children[0]!.src, 'https://tajribah.org/embed/try-on?store=failet&product=244167095&lang=ar&view=popup', 'the studio’s popup view: the shopper is on the product page already');
     assert.equal(body.style.overflow, 'hidden', 'the page behind does not scroll');
     const [frame, close] = sheet.children as [El, El];
+    assert.match(frame.allow, /\bcamera\b/);
+    assert.match(frame.allow, /\bweb-share\b/, 'T137: the share sheet may open from the window (a phone blocks it otherwise — share fell back to saving)');
     onMessage!({ origin: 'https://evil.example', source: frame.contentWindow, data: { type: SHOWN_MESSAGE } });
     onMessage!({ origin: 'https://tajribah.org', source: {}, data: { type: SHOWN_MESSAGE } });
     assert.notEqual(close.style.display, 'none', 'only our frame can say its page is up');
@@ -194,5 +196,14 @@ test('T137 — on a phone the window fits what the frame shows: its height asked
   assert.equal(fitFrame(560, 844, PHONE_PAD, 92), 560, 'the content fits: the window is its size — no empty band');
   assert.equal(fitFrame(1400, 844, PHONE_PAD, 92), 844 - PHONE_PAD * 2 - 92, 'taller than the screen: the screen less the margins and the foot');
   assert.equal(fitFrame(100, 844, PHONE_PAD, 92), 240, 'never tiny');
+});
+
+test('T137 — the window tells the try-on which store page it is over (for the link a shopper shares): https only, no # part, never long', () => {
+  const src = 'https://tajribah.org/embed/try-on?store=failet&product=244167095&lang=ar&view=popup';
+  assert.equal(new URL(withFrom(src, 'https://failet.sa/ar/watch/p1617831548?x=1#reviews')).searchParams.get('from'), 'https://failet.sa/ar/watch/p1617831548?x=1');
+  assert.equal(new URL(withFrom(src, 'http://failet.sa/ar/watch')).searchParams.get('from'), null, 'not https: not passed');
+  assert.equal(new URL(withFrom(src, '')).searchParams.get('from'), null, 'no page');
+  assert.equal(new URL(withFrom(src, 'https://failet.sa/' + 'x'.repeat(700))).searchParams.get('from'), null, 'too long');
+  assert.equal(new URL(withFrom(src, 'https://failet.sa/p')).searchParams.get('view'), 'popup', 'the rest of the address kept');
 });
 

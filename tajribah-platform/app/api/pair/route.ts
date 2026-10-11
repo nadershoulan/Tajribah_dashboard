@@ -12,8 +12,8 @@ export async function POST(request:Request){
     // Opportunistically clear abandoned, expired sessions without a background job.
     const old=await bucket().list({prefix:'sessions/',limit:100});
     await Promise.all(old.objects.filter(o=>o.uploaded.getTime()<Date.now()-SESSION_MS).map(o=>removeSession(o.key.slice(9,-5))));
-    const {brand,product,kind}=await branding;
-    await bucket().put(`sessions/${id}.json`,JSON.stringify({expiresAt,brand,product,kind}),{httpMetadata:{contentType:'application/json'}});
+    const {brand,product,kind,link}=await branding;
+    await bucket().put(`sessions/${id}.json`,JSON.stringify({expiresAt,brand,product,kind,link}),{httpMetadata:{contentType:'application/json'}});
     return Response.json({id,expiresAt},{status:201,headers:NO_CACHE});
   }catch(e){return failure(e);}
 }

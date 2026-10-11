@@ -104,6 +104,17 @@ export const POPUP_STYLE = `
 export const popupUrl = (src: string): string => { const url = new URL(src); url.searchParams.set('view', 'popup'); return url.href; };
 
 /**
+ * T137: the store page the window opens over, for the link a shopper shares with their picture (the frame trusts it
+ * only when the browser says it really sits on that site). Without its # part, and never a long one.
+ */
+export const withFrom = (src: string, pageHref: string): string => {
+  const url = new URL(src);
+  const from = pageHref.split('#')[0]!;
+  if (/^https:\/\//.test(from) && from.length <= 600) url.searchParams.set('from', from);
+  return url.href;
+};
+
+/**
  * Open the frame in a window over the product page (T100: a popup on the same page, the page dimmed behind
  * it — not a full screen). It goes in a layer of its own at the end of the page (`document.body`), not under
  * the button: a store's own sticky column, header or add-to-cart bar can then never draw over it. Escape, a
@@ -131,9 +142,9 @@ export function openTryOn(root: ShadowRoot, src: string, lang: 'ar' | 'en', labe
   const sheet = document.createElement('div');
   sheet.className = 'tryon-sheet';
   const frame = document.createElement('iframe');
-  frame.src = popupUrl(src);
+  frame.src = withFrom(popupUrl(src), typeof location === 'undefined' ? '' : location.href);
   frame.title = label;
-  frame.allow = 'camera; fullscreen';
+  frame.allow = 'camera; fullscreen; web-share'; // T137: the share sheet too (a phone blocks it in a frame not let)
   frame.referrerPolicy = 'strict-origin-when-cross-origin';
   const close = document.createElement('button');
   close.type = 'button';

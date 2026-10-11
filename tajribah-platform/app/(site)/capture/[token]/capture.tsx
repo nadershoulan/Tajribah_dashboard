@@ -30,5 +30,5 @@ export default function Capture({ token, pairing }: { token: string; pairing: Pa
     if (!r.ok) throw Error(((await r.json().catch(() => ({}))) as { error?: string }).error ?? '');
   }
 
-  return <CameraTryOn product={pairing.product} brand={pairing.brand} kind={pairing.kind} onSend={send} />;
+  return <CameraTryOn product={pairing.product} brand={pairing.brand} kind={pairing.kind} onSend={send} shareLink={pairing.link ?? null} />;
 }

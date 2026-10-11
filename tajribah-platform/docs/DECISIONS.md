@@ -2260,3 +2260,14 @@ camera has no language switch. **The shop's window fits its content on a phone**
 margins (16 px round) — no empty band above the price, the store seen round it; the camera takes the whole window.
 Computers unchanged. A copy kept from a plain preload had made the saved picture fail (the CDN's plain answer does not
 vary by origin): the preload now asks with CORS, and the studio retries at a fresh address.
+
+**T137c — sharing shares the product (2026-10-11, Nader: "it should be able to share the image and the products so
+people can share for others to try").** Share was acting as download in the shop: a page in a frame may open the share
+sheet only if the frame allows it, and the widget's window did not (`allow="camera; fullscreen"`) — the phone refused
+and our fallback saved the file. The window now allows `web-share`. What is shared: the picture, the product's name, and
+one line «… — جرّبها عليك من هنا: <link>». The link is the store's own product page when we can trust it — the widget
+passes its page address (`from`, https only) and the try-on page accepts it only when the browser's referrer is that
+same site, so another site framing us cannot make shoppers share its address — otherwise the product's try-on page on
+Tajribah (`/p/{store}/{product}`), and the QR phone page gets the same link through its session. The link is put in the
+text only (a phone adds a separate `url` after the text, and the link would show twice), since some apps keep only the
+text. The dashboard's preview shares no link.

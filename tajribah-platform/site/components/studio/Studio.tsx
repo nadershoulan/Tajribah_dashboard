@@ -42,8 +42,13 @@ const loadPlain = (src: string, cors: boolean) =>
     i.onerror = () => reject(new Error('Image could not be loaded'));
     i.src = src;
   });
-// T137: asked for with CORS first (the CDN allows it), so the picture can be saved; a server that does not — as before
-const loadImage = (src: string) => loadPlain(src, !src.startsWith('data:')).catch(() => loadPlain(src, false));
+// T137: asked for with CORS (the CDN allows it), so the picture can be saved. A copy the browser kept from a plain request
+// (the CDN's plain answer does not vary by origin) can fail that: then once more at a fresh address; a server that never
+// allows it — as before, a picture that cannot be saved.
+const fresh = (src: string) => src + (src.includes('?') ? '&' : '?') + 'cors=1';
+const loadImage = (src: string) => (/^(data|blob):/.test(src)
+  ? loadPlain(src, false)
+  : loadPlain(src, true).catch(() => loadPlain(fresh(src), true)).catch(() => loadPlain(src, false)));
 
 /**
  * `product`: the watch to try on — the Failet demo unless a merchant's own is given (P5, T26). T137: `stageExtras` —

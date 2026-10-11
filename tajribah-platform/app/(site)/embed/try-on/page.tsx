@@ -53,6 +53,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Search 
 
 export default async function Page({ searchParams }: { searchParams: Search }) {
   const initial = await initialOf(await searchParams);
-  if (initial?.kind === 'ready') for (const src of studioImages(initial.product)) preload(src, { as: 'image' });
+  // T137: asked for with CORS, as the studio asks — so the browser keeps the copy the studio can save from
+  if (initial?.kind === 'ready') for (const src of studioImages(initial.product)) preload(src, { as: 'image', crossOrigin: 'anonymous' });
   return <EmbedTryOn initial={initial} storeHost={(await headers()).get(STORE_HOST_HEADER)} />;
 }

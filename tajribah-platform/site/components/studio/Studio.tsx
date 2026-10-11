@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Camera, Check, ChevronRight, Download, Expand, Hand, HelpCircle, ImagePlus, LoaderCircle,
-  Maximize2, Minus, Move, Plus, QrCode, RotateCcw, Ruler, Smartphone, Upload, X,
+  Maximize2, Minus, Move, Plus, QrCode, RotateCcw, RotateCw, Ruler, Scaling, Smartphone, Upload, X,
 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { Tabs, TabsList, TabsTrigger } from '@site/components/ui/tabs';
 import { Slider } from '@site/components/ui/slider';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@site/components/ui/dialog';
@@ -16,7 +17,8 @@ import { preparePhoto } from '@site/lib/photo';
 import { castShadow } from '@site/lib/shadow';
 import { QR_MARK, markedQrPng } from '@/lib/qr-mark';
 import { earringPlacement, glassesPlacement, handPoints, necklacePlacement, watchPlacement } from '@site/lib/placement';
-import { kindOf } from '@site/lib/pair-product';
+import { kindOf, pairProductOf } from '@site/lib/pair-product';
+import CameraTryOn from '@site/components/tryon/CameraTryOn';
 import { inZone } from '@/lib/tryon-placement';
 import { Guide } from './guides';
 import { detectHand } from '@site/lib/hand-detect';
@@ -32,16 +34,23 @@ const { W, H } = STAGE;
 const REF_IDS = Object.keys(REFERENCES) as ReferenceId[];
 
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
-const loadImage = (src: string) =>
+const loadPlain = (src: string, cors: boolean) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
     const i = new Image();
+    if (cors) i.crossOrigin = 'anonymous';
     i.onload = () => resolve(i);
     i.onerror = () => reject(new Error('Image could not be loaded'));
     i.src = src;
   });
+// T137: asked for with CORS first (the CDN allows it), so the picture can be saved; a server that does not — as before
+const loadImage = (src: string) => loadPlain(src, !src.startsWith('data:')).catch(() => loadPlain(src, false));
 
-/** `product`: the watch to try on — the Failet demo unless a merchant's own is given (P5, T26). */
-export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduct } = {}) {
+/**
+ * `product`: the watch to try on — the Failet demo unless a merchant's own is given (P5, T26). T137: `stageExtras` —
+ * what the page around puts on the picture itself (the shop window's close and mark, on a phone); `helpExtra` — what it
+ * adds to the help screen (the privacy line).
+ */
+export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpExtra = null }: { product?: TryOnProduct; stageExtras?: React.ReactNode; helpExtra?: React.ReactNode } = {}) {
   const { lang } = useLang();
   const { asset, features } = useSiteEnv();
   const ar = lang === 'ar';
@@ -80,6 +89,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
   const [calibrating, setCalibrating] = useState(false);
   const [points, setPoints] = useState<{ x: number; y: number }[]>([]);
   const [qrOpen, setQrOpen] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false); // T137: on a phone, the camera with the guide (CameraTryOn)
   const [helpOpen, setHelpOpen] = useState(false);
   const [pair, setPair] = useState<{ id: string; expiresAt: number } | null>(null);
   const [qrImage, setQrImage] = useState('');
@@ -507,7 +517,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
     }
   }
 
-  async function applyPhoto(blob: Blob, shared: SharedPose | null = null) {
+  async function applyPhoto(blob: Blob, shared: SharedPose | null = null, said: string | null = null) {
     const request = ++photoRequest.current;
     setPhotoBusy(true);
     try {
@@ -522,7 +532,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
         const p = poseOnStage(shared, img, { W, H });
         const fit = { x: clamp(p.x, 0, W), y: clamp(p.y, 0, H), width: clamp(p.width, 8, 2400), angle: p.angle };
         setPose(fit); setPhotoFit(fit);
-        notify(t('As you left it on your phone. Adjust it here if needed.', 'كما تركته على جوالك. عدّله هنا عند الحاجة.'));
+        notify(said ?? t('As you left it on your phone. Adjust it here if needed.', 'كما تركته على جوالك. عدّله هنا عند الحاجة.'));
         return;
       }
       if (isEarring) { setCalibrating(true); setPoints([]); notify(t('Tap the top of your ear, then the bottom of your earlobe.', 'حدّد أعلى أذنك، ثم أسفل شحمة الأذن.')); return; } // T83
@@ -612,6 +622,22 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
   function closePair(open: boolean) {
     setQrOpen(open);
     if (!open && pair) { void fetch(`/api/pair/${pair.id}`, { method: 'DELETE' }); setPair(null); setQrImage(''); setPairError(''); }
+  }
+  /** T137: the picture as it is shown — through the phone's share sheet, or saved as a file. */
+  async function shareImage() {
+    if (!canvas.current) return;
+    try {
+      const blob = await new Promise<Blob | null>((resolve) => canvas.current!.toBlob(resolve, 'image/png'));
+      if (!blob) throw Error('picture');
+      const file = new File([blob], 'tajribah-try-on.png', { type: 'image/png' });
+      if (isPhone && navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob); link.download = file.name; link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 4000);
+      notify(t('Your image is ready.', 'صورتك جاهزة.'));
+    } catch (e) {
+      if (!(e instanceof DOMException && e.name === 'AbortError')) notify(t('Could not save the image. Please try again.', 'تعذر حفظ الصورة. حاول مجدداً.'));
+    }
   }
   function saveImage() {
     if (!canvas.current) return;
@@ -712,6 +738,18 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
           {/* T136: on a phone, the shopper's photo is the picture — the stage takes its shape (a tall photo, a tall stage) */}
           <div className={'stage ' + (mode !== 'model' ? 'compare-stage' : '') + (mode === 'me' && photo ? ' me-photo' : '')}
             style={mode === 'me' && photo && images.current.photo ? ({ '--photo-ar': String(images.current.photo.width / images.current.photo.height) } as React.CSSProperties) : undefined}>
+            {/* T137: on the picture, as Tangiblee's — the measurements (a ruler; the unit beside it), save, and back to the whole view */}
+            {showCanvas && (
+              <div className="stage-tools">
+                <div className="stage-tools-row">
+                  <button type="button" className={'stage-chip' + (rulers ? ' is-on' : '')} aria-pressed={rulers} title={t('Measurements', 'المقاسات')} aria-label={t('Show measurements', 'إظهار المقاسات')} onClick={() => setRulers((r) => !r)}><Ruler size={18} /></button>
+                  {rulers && <button type="button" className="stage-chip stage-unit" title={t('Measurement units', 'وحدة القياس')} aria-label={t('Measurement units', 'وحدة القياس')} onClick={() => setUnits((u) => (u === 'mm' ? 'in' : 'mm'))}>{units === 'mm' ? t('mm', 'مم') : t('in', 'بوصة')}</button>}
+                </div>
+                {features.download && <button type="button" className="stage-chip" title={t('Save the picture', 'احفظ الصورة')} aria-label={t('Save the picture', 'احفظ الصورة')} disabled={!assetsReady || photoBusy} onClick={() => void shareImage()}><Download size={18} /></button>}
+                {zoom !== 1 && <button type="button" className="stage-chip stage-reset" title={t('Reset view', 'إعادة ضبط العرض')} aria-label={t('Reset view', 'إعادة ضبط العرض')} onClick={() => reset()}><RotateCcw size={17} /></button>}
+              </div>
+            )}
+            {stageExtras}
             {showCanvas ? (
               <>
                 <div className="stage-label"><span className="label-line" />
@@ -752,7 +790,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
                 <span className="eyebrow">{t('Make it personal', 'جرّبها بنفسك')}</span>
                 <h2>{isBag ? t('Your hand. Your bag.', 'يدك. حقيبتك.') : isEarring ? t('Your ear. Your earring.', 'أذنك. قرطك.') : isNecklace ? t('You. Your necklace.', 'أنتِ. قلادتك.') : isRing ? t('Your hand. Your ring.', 'يدك. خاتمك.') : isGlasses ? t('Your face. Your frame.', 'وجهك. إطارك.') : t('Your wrist. Your watch.', 'معصمك. ساعتك.')}</h2>
                 <p>{isBag ? t('See it in your hand with a photo of you, your hand down at your side. It stays on this device.', 'شاهدي الحقيبة في يدك بصورة لك ويدك منسدلة إلى جانبك. تبقى الصورة على جهازك.') : isEarring ? t('See how it looks on you with a side photo, your ear in view. You tap the top of your ear and your earlobe; it stays on this device.', 'شاهدي كيف يبدو القرط عليك بصورة جانبية تظهر فيها الأذن. تحدّدين أعلى الأذن وشحمتها، وتبقى الصورة على جهازك.') : isNecklace ? t('See how it looks on you with a front photo, your face and chest in view. It stays on this device.', 'شاهدي كيف تبدو القلادة عليك بصورة أمامية يظهر فيها الوجه والصدر. تبقى الصورة على جهازك.') : isRing ? t('See how it looks on you with a photo of the back of your hand, fingers apart. It stays on this device.', 'شاهد كيف يبدو الخاتم عليك بصورة لظهر يدك والأصابع متباعدة. تبقى الصورة على جهازك.') : isGlasses ? t('See how it looks on you with a front photo of your face. It stays on this device.', 'شاهد كيف تبدو النظارة عليك بصورة أمامية لوجهك. تبقى الصورة على جهازك.') : t('See how it looks on you with a photo of your wrist.', 'شاهد كيف تبدو الساعة عليك باستخدام صورة لمعصمك.')}</p>
-                <button className="primary-button" onClick={() => (isPhone ? file.current?.click() : features.pairing ? setQrOpen(true) : file.current?.click())}>
+                <button className="primary-button" onClick={() => (isPhone ? setCameraOpen(true) : features.pairing ? setQrOpen(true) : file.current?.click())}>
                   {isPhone ? <Camera size={18} /> : features.pairing ? <Smartphone size={18} /> : <Upload size={18} />}
                   {isPhone ? (isBag ? t('Take a photo of you', 'التقطي صورة لك') : isEarring ? t('Take a side photo', 'التقطي صورة جانبية') : isNecklace ? t('Take a front photo', 'التقطي صورة أمامية') : isRing ? t('Take a photo of your hand', 'التقط صورة ليدك') : isGlasses ? t('Take a selfie', 'التقط صورة لوجهك') : t('Take a wrist photo', 'التقط صورة لمعصمك'))
                     : features.pairing ? t('Continue on your phone', 'أكمل التجربة من جوالك')
@@ -795,23 +833,23 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
                 </>
               ) : (
                 <div className="photo-actions">
-                  <button className="secondary-button" onClick={() => file.current?.click()}><ImagePlus size={16} />{photo ? t('Change photo', 'تغيير الصورة') : t('Upload a photo', 'ارفع صورة')}</button>
+                  <button className="secondary-button" onClick={() => (isPhone ? setCameraOpen(true) : file.current?.click())}><ImagePlus size={16} />{photo ? t('Change photo', 'تغيير الصورة') : t('Upload a photo', 'ارفع صورة')}</button>
                   {photo && <button className="secondary-button" onClick={() => { setCalibrating(true); setPoints([]); setZoom(1); }}><Maximize2 size={16} />{isBag ? t('Fit to hand', 'ضبط على اليد') : isEarring ? t('Fit to ear', 'ضبط على الأذن') : isNecklace ? t('Fit to eyes', 'ضبط على العينين') : isRing ? t('Fit to finger', 'ضبط على الإصبع') : isGlasses ? t('Fit to eyes', 'ضبط على العينين') : t('Fit to wrist', 'ضبط على المعصم')}</button>}
-                  {features.pairing && <button className="icon-button" aria-label={t('Use your phone', 'استخدام الجوال')} onClick={() => setQrOpen(true)}><QrCode size={19} /></button>}
+                  {features.pairing && !isPhone && <button className="icon-button" aria-label={t('Use your phone', 'استخدام الجوال')} onClick={() => setQrOpen(true)}><QrCode size={19} /></button>}
                 </div>
               )}
             </div>
             {showCanvas && (
               <div className="adjustments">
                 <div className="adjustment">
-                  <div className="adjustment-label"><label id="rotation-label">{mode === 'compare' && active === 'object' ? t('Object rotation', 'تدوير العنصر') : t('Rotation', 'التدوير')}</label>
+                  <div className="adjustment-label"><label id="rotation-label"><RotateCw size={14} aria-hidden />{mode === 'compare' && active === 'object' ? t('Object rotation', 'تدوير العنصر') : t('Rotation', 'التدوير')}</label>
                     <span dir="ltr">{Math.round(active === 'object' && mode === 'compare' ? refPose.angle : pose.angle)}°</span></div>
                   <Slider aria-labelledby="rotation-label" value={[active === 'object' && mode === 'compare' ? refPose.angle : pose.angle]} min={-180} max={180} step={1}
                     onValueChange={([angle]) => (active === 'object' && mode === 'compare' ? setRefPose((p) => ({ ...p, angle })) : setPose((p) => ({ ...p, angle })))} />
                 </div>
                 {mode !== 'compare' && (
                   <div className="adjustment">
-                    <div className="adjustment-label"><label id="scale-label">{isEarring ? t('Earring size', 'حجم القرط') : isBag ? t('Bag size', 'حجم الحقيبة') : isNecklace ? t('Necklace size', 'حجم القلادة') : isRing ? t('Ring size', 'حجم الخاتم') : isGlasses ? t('Glasses size', 'حجم النظارة') : t('Watch size', 'حجم الساعة')}</label><span dir="ltr">{scale}%</span></div>
+                    <div className="adjustment-label"><label id="scale-label"><Scaling size={14} aria-hidden />{isEarring ? t('Earring size', 'حجم القرط') : isBag ? t('Bag size', 'حجم الحقيبة') : isNecklace ? t('Necklace size', 'حجم القلادة') : isRing ? t('Ring size', 'حجم الخاتم') : isGlasses ? t('Glasses size', 'حجم النظارة') : t('Watch size', 'حجم الساعة')}</label><span dir="ltr">{scale}%</span></div>
                     <Slider aria-labelledby="scale-label" value={[scale]} min={50} max={160} step={1} onValueChange={([v]) => setScale(v)} />
                   </div>
                 )}
@@ -868,9 +906,21 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
             <div><Camera /><div><strong>{t('On me', 'عليّ')}</strong><p>{isBag ? t('Upload a photo of you with your hand down at your side. We find your hand automatically, on this device, and hang the bag from it at its real size, sized from your hand; use Fit to hand to tap your wrist and your middle finger’s knuckle if needed.', 'ارفعي صورة لك ويدك منسدلة إلى جانبك. نحدد يدك تلقائيًا على جهازك ونعلّق الحقيبة منها بحجمها الحقيقي، والمقياس من طول الكف، ويمكنك تحديد المعصم ومفصل الإصبع الوسطى باستخدام ضبط على اليد.') : isEarring ? t('Upload a clear side photo with your ear in view. Tap the top of your ear, then the bottom of your earlobe: the earring hangs from the lobe at its real size, sized from the ear.', 'ارفعي صورة جانبية واضحة تظهر فيها الأذن. حدّدي أعلى الأذن ثم أسفل الشحمة: يتدلى القرط من الشحمة بحجمه الحقيقي، والمقياس من طول الأذن.') : isNecklace ? t('Upload a clear front photo with your face and chest in view. We find your face automatically, on this device, and hang the necklace below your chin; use Fit to eyes to tap your two pupils if needed.', 'ارفعي صورة أمامية واضحة يظهر فيها الوجه والصدر. نحدد وجهك تلقائيًا على جهازك ونعلّق القلادة تحت الذقن، ويمكنك تحديد الحدقتين باستخدام ضبط على العينين.') : isRing ? t('Upload a clear photo of the back of your hand, fingers apart. We find your ring finger automatically, on this device; use Fit to finger to tap its two sides if needed.', 'ارفع صورة واضحة لظهر يدك والأصابع متباعدة. نحدد البنصر تلقائيًا على جهازك، ويمكنك تحديد جهتيه باستخدام ضبط على الإصبع.') : isGlasses ? t('Upload a clear front photo of your face. We find your eyes automatically, on this device; use Fit to eyes to tap your two pupils if needed.', 'ارفع صورة أمامية واضحة لوجهك. نحدد عينيك تلقائيًا على جهازك، ويمكنك تحديد الحدقتين باستخدام ضبط على العينين.') : t('Upload a clear photo with your whole hand visible. We look for your wrist automatically; use Fit to wrist to mark its two edges if needed.', 'ارفع صورة واضحة تظهر اليد كاملة. نحاول تحديد المعصم تلقائياً، ويمكنك تحديد حافتيه باستخدام ضبط على المعصم.')}</p></div></div>
             <div><Ruler /><div><strong>{t('Compare', 'قارن الحجم')}</strong><p>{t('Compare relative sizes with an iPhone, AirPods or Saudi riyal. Drag either item and rotate it. Zoom scales both together.', 'قارن الحجم مع آيفون أو إيربودز أو ريال سعودي. حرّك أي عنصر ودوّره. التكبير يغيّر حجم العنصرين معاً.')}</p></div></div>
             <p className="privacy-note">{t('Photo-based preview, not a live 3D camera filter. A single photo cannot verify exact physical fit.', 'معاينة باستخدام صورة، وليست فلتر كاميرا ثلاثي الأبعاد. لا يمكن التحقق من المقاس الفعلي الدقيق عبر صورة واحدة.')}</p>
+            {helpExtra}
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* T137: on a phone, «عليّ» opens the camera with the guide and auto capture; the chosen photo comes back here as it was fitted */}
+      {cameraOpen && typeof document !== 'undefined' && createPortal(
+        <CameraTryOn product={pairProductOf(product)} brand={null} kind={kindOf(product)} onClose={() => setCameraOpen(false)}
+          onUse={(shot) => {
+            setCameraOpen(false);
+            const fitted = shot.pose ? { x: shot.pose.x / shot.size.width, y: shot.pose.y / shot.size.height, width: shot.pose.width / shot.size.width, angle: shot.pose.angle } : null;
+            void applyPhoto(shot.blob, fitted, t('Placed as you set it. Adjust it here if needed.', 'كما ضبطته. عدّله هنا عند الحاجة.'));
+          }} />,
+        document.body,
+      )}
 
       {notice && (
         <div className="notice" role="status">{notice}

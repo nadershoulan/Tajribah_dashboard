@@ -57,7 +57,7 @@ export default function HostedPage({ initial, store, product, storeHost = null }
   const studioEnv = useMemo(() => ({
     ...env,
     asset: (path: string) => (/^https?:\/\//.test(path) ? path : env.asset(path)),
-    features: { ...env.features, download: false },
+    features: { ...env.features, download: true }, // T137: the studio asks for CORS; the CDN allows it
   }), [env]);
 
   const p = state.kind === 'ready' ? state.product : null;

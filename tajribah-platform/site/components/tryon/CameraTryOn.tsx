@@ -70,9 +70,11 @@ export type CameraTryOnProps = {
   onSend?: (shot: Shot) => Promise<void>;
   /** In a shop's window (on the phone only, T135): its close button. */
   onClose?: () => void;
+  /** T137: opened from the studio — «استخدم هذه الصورة» gives the photo and where the product was left back to it. */
+  onUse?: (shot: Shot) => void;
 };
 
-export default function CameraTryOn({ product, brand, kind, onSend, onClose }: CameraTryOnProps) {
+export default function CameraTryOn({ product, brand, kind, onSend, onClose, onUse }: CameraTryOnProps) {
   const { t, lang, toggle } = useLang();
   const { asset } = useSiteEnv();
   const onFace = kind === 'glasses' || kind === 'necklace' || kind === 'earring';
@@ -562,9 +564,10 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose }: C
                 ))}
               </div>
             )}
-            <div className={'cap-actions' + (onSend ? ' has-three' : '')}>
+            <div className={'cap-actions' + (onSend || onUse ? ' has-three' : '')}>
               <button type="button" className="cap-secondary" onClick={() => setView(camera === 'off' ? 'pick' : 'camera')}><Camera size={17} /> {t('صورة أخرى', 'Another photo')}</button>
               {product && shot.pose && <button type="button" className="cap-secondary" disabled={busy} onClick={() => void share()}><Share2 size={17} /> {t('شارك', 'Share')}</button>}
+              {onUse && <button type="button" className="cap-primary" onClick={() => onUse(shot)}><Check size={17} /> {t('استخدم هذه الصورة', 'Use this photo')}</button>}
               {onSend && (
                 <button type="button" className={product ? 'cap-secondary' : 'cap-primary'} disabled={busy || shot.sent} onClick={() => void send()}>
                   {busy ? <LoaderCircle className="spin" size={17} /> : shot.sent ? <Check size={17} /> : <Monitor size={17} />} {shot.sent ? t('على شاشتك', 'On your screen') : t('أرسل إلى شاشتي', 'Send to my screen')}

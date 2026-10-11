@@ -15,8 +15,10 @@ import PhoneQr from './PhoneQr';
 const never = () => () => {};
 const onAPhone = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
-export default function TryOnFor({ product, brand = null, onClose }: { product: TryOnProduct; brand?: StoreBrand | null; onClose?: () => void }) {
+export default function TryOnFor({ product, brand = null, onClose, stageExtras = null, helpExtra = null }: {
+  product: TryOnProduct; brand?: StoreBrand | null; onClose?: () => void; stageExtras?: React.ReactNode; helpExtra?: React.ReactNode;
+}) {
   const phone = useSyncExternalStore(never, onAPhone, () => false);
-  if (!product.phoneOnly) return <Studio product={product} />;
+  if (!product.phoneOnly) return <Studio product={product} stageExtras={stageExtras} helpExtra={helpExtra} />;
   return phone ? <CameraTryOn product={pairProductOf(product)} brand={brand} kind={kindOf(product)} onClose={onClose} /> : <PhoneQr product={product} />;
 }

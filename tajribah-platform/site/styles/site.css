@@ -1018,3 +1018,49 @@ html:has(.embed-root.is-preview), html:has(.embed-root.is-preview) body { backgr
   .embed-root.is-popup .studio-bottom { padding: 6px 2px 4px; }
   .embed-root.is-popup .adjustments { margin-top: 4px; padding-top: 4px; }
 }
+/* T137 — on the picture itself (Nader, from Tangiblee's): the measurements as a ruler with the unit beside it, save, and
+   back to the whole view; on a phone in the shop's window also its close and mark (the bar goes, the picture gets the
+   room; the privacy line moves into the help screen) — and the controls under it simpler: picture tiles, icon sliders. */
+.stage-tools { position: absolute; z-index: 3; top: 12px; inset-inline-end: 12px; display: grid; justify-items: end; gap: 8px; }
+.stage-tools-row { display: flex; align-items: center; gap: 6px; }
+.stage-chip { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: rgba(255, 255, 255, .95); color: var(--navy-800); box-shadow: 0 2px 8px rgba(10, 34, 55, .14); transition: background .2s, color .2s, transform .15s; }
+.stage-chip:active { transform: scale(.94); }
+.stage-chip.is-on { border-color: var(--navy-800); background: var(--navy-800); color: #fff; }
+.stage-chip:disabled { opacity: .5; }
+.stage-unit { width: auto; min-width: 46px; height: 32px; padding: 0 10px; border-radius: 16px; font-family: var(--f-display); font-size: 13px; font-weight: 600; }
+.measurement-control { display: none; } /* the ruler on the picture took its place (its switch and unit box) */
+.adjustment-label label { display: inline-flex; align-items: center; gap: 6px; }
+.stage-close, .stage-mark { display: none; }
+.help-privacy { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 12px 0 0; font-size: 13px; color: var(--text-2); }
+.help-privacy a { color: var(--aqua-ink); text-decoration: underline; }
+.cap { z-index: 60; } /* the camera opened from the studio covers the whole window */
+@media (max-width: 600px) {
+  .stage-tools { top: 10px; inset-inline-end: auto; inset-inline-start: 10px; justify-items: start; }
+  .canvas-tools { display: none; } /* pinch to zoom; the reset is on the picture when zoomed */
+  .embed-root.is-popup { padding: 0 0 4px; }
+  .embed-root.is-popup:has(.stage-close) .embed-bar { display: none; }
+  .embed-root.is-popup .stage { border-radius: 0; }
+  .embed-root.is-popup .stage-close { position: absolute; z-index: 4; top: 10px; inset-inline-end: 10px; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: rgba(255, 255, 255, .95); color: var(--navy-800); box-shadow: 0 2px 8px rgba(10, 34, 55, .14); }
+  .embed-root.is-popup .stage-mark { position: absolute; z-index: 3; bottom: 8px; inset-inline-end: 10px; display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px; background: rgba(255, 255, 255, .75); color: rgba(30, 42, 52, .62); font-size: 10.5px; text-decoration: none; }
+  .embed-root.is-popup .stage-mark .store-mark { font-size: 11px; }
+  .embed-root.is-popup .stage-mark img { height: 16px; }
+  .embed-root.is-popup .studio-topbar { padding: 6px 8px; }
+  .embed-root.is-popup .studio-bottom { padding: 8px 10px 14px; }
+  .studio-bottom { padding-bottom: 14px; }
+  /* the views and the comparisons: picture tiles (the names stay for screen readers) */
+  .section-caption { display: none; }
+  .model-options, .reference-options { display: flex; flex: 1 1 100%; gap: 8px; }
+  .model-option, .reference-option { position: relative; flex: 0 0 auto; width: 64px; height: 64px; min-height: 0; padding: 0; justify-content: center; overflow: hidden; border-radius: 12px; background: #fff; }
+  [dir="rtl"] .model-option { padding: 0; }
+  .model-option img { width: 100%; height: 100%; border-radius: 0; }
+  .reference-option img { width: 34px; height: 42px; }
+  .model-option span, .reference-option span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .model-option svg { display: none; }
+  .model-option.selected, .reference-option.selected { border: 2px solid var(--navy-800); background: #fff; }
+  /* the sliders: an icon and the value over each, room for the knob */
+  .adjustments { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 18px; }
+  .adjustment-label { align-items: center; margin-bottom: 10px; }
+  .adjustment-label label { display: inline-flex; align-items: center; font-size: 0; }
+  .adjustment-label label svg { width: 17px; height: 17px; color: var(--text-2); }
+  .adjustment [data-slot="slider"] { padding-block: 8px; }
+}

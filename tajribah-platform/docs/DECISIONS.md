@@ -2237,3 +2237,14 @@ icons (their names kept for screen readers); the sliders and the measurement swi
 and the zoom percentage go. The studio's own code changed in two lines: the finger's point follows the canvas's CSS fit
 (it assumed contain off the model view), and the stage carries the photo's shape. Before: the photo drawn at 0.19 of
 its size in a 372 × 195 stage; after: 0.61 in 374 × 640, and a 40 px drag moves it 40 px.
+
+**T137 — tools on the picture; the guided camera from the studio (2026-10-11).** Nader, from his phone in Failet's
+window, with Tangiblee's for comparison. The measurements' switch and unit box (the switch drew broken) became a ruler
+button on the picture with the unit beside it; a save button sits under it (the picture through the phone's share
+sheet, else a file — the studio now asks for its pictures with CORS, which the CDN allows, and falls back when a
+server does not); a back-to-whole-view button shows when zoomed (the zoom pill goes on phones: pinch). On a phone in the
+shop's window the bar goes: its close and the «بدعم من تجربة» mark sit on the picture, the privacy line in the help
+screen. The views and comparisons are picture tiles; the sliders an icon and a value, with room for the knob. And the
+missing hand guide in the shop: the studio's «عليّ» on a phone opened the phone's own camera — it now opens the guided
+camera (T135), and «استخدم هذه الصورة» brings the photo back into the studio as fitted. Not the store's script: its
+window already showed the new layout (the widget opens our page, always the latest).

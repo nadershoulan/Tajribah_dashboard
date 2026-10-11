@@ -115,12 +115,32 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
   const embedEnv = useMemo(() => ({
     ...env,
     asset: (path: string) => (/^https?:\/\//.test(path) ? path : env.asset(path)),
-    features: { ...env.features, download: false },
+    // T137: the CDN allows CORS and the studio asks for it, so the picture can be saved (a store picture that does not: a notice)
+    features: { ...env.features, download: true },
   }), [env]);
 
   const close = () => window.parent?.postMessage({ type: CLOSE_MESSAGE }, '*');
   // T100: in a shop's popup, the bar (with its close button) is up: the popup hides its own backup close
   useEffect(() => { if (inPopup && window.parent !== window) window.parent.postMessage({ type: SHOWN_MESSAGE }, '*'); }, [inPopup]);
+
+  // T137 (Nader): on a phone the bar's close and mark go onto the picture itself, the privacy line into the help screen —
+  // the picture gets the room (shown only there by CSS; the bar stays for a computer and while loading)
+  const mark = brand
+    ? <span className="stage-mark"><StoreMark brand={brand} /></span>
+    : <a className="stage-mark" href={`${COMPANY.siteUrl}/?utm_source=tryon&utm_medium=watermark`} target="_blank" rel="noopener">{t('بدعم من تجربة', 'Powered by Tajribah')}</a>;
+  const onPicture = (
+    <>
+      <button type="button" className="stage-close" onClick={close} aria-label={t('أغلق التجربة', 'Close the try-on')}><X size={18} aria-hidden /></button>
+      {mark}
+    </>
+  );
+  const inHelp = (
+    <p className="help-privacy">
+      <ShieldCheck size={15} aria-hidden />
+      <SiteLink href="/try-on-privacy" target="_blank" rel="noopener">{t('تُعالج صورك على جهازك — التفاصيل', 'Your photos are processed on your device — details')}</SiteLink>
+      {!brand && <a href={`${COMPANY.siteUrl}/?utm_source=tryon&utm_medium=help`} target="_blank" rel="noopener">{t('بدعم من تجربة', 'Powered by Tajribah')}</a>}
+    </p>
+  );
 
   return (
     <div className={'embed-root' + (previewing ? ' is-preview' : '') + (inPopup ? ' is-popup' : '')}>
@@ -146,7 +166,8 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
       {state.kind === 'ready' && (
         <SiteEnvContext.Provider value={embedEnv}>
           {/* T135: the studio, or — on the phone only — the camera try-on (a QR code on a computer) */}
-          <TryOnFor product={state.product} brand={brand} onClose={previewing ? undefined : close} />
+          <TryOnFor product={state.product} brand={brand} onClose={previewing ? undefined : close}
+            stageExtras={previewing ? null : onPicture} helpExtra={previewing ? null : inHelp} />
         </SiteEnvContext.Provider>
       )}
     </div>

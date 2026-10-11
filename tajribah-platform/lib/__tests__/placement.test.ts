@@ -115,3 +115,14 @@ test('T134.3 — glasses, a necklace, an earring and a bag: the studio’s own r
   assert.ok(Math.abs(placeOnFace('glasses', face, 124, 1).y - face.leftPupil.y) < 10, 'glasses on the eyes');
   assert.equal(facePoints([], { width: 1, height: 1 }, { scale: 1, ox: 0, oy: 0 }), null);
 });
+
+test('T134.7 — a detector’s eyes keep their order: glasses turn with a turned face; a mirrored picture swaps them back', () => {
+  const left = { x: 400, y: 500 }, right = { x: 600, y: 500 }; // an upright face, not mirrored
+  near(glassesPlacement(left, right, 132, true).angle, 0, 0.01, 'upright');
+  near(Math.abs(glassesPlacement(right, left, 132, true).angle), 180, 0.01, 'upside down: the glasses too');
+  near(glassesPlacement({ x: 500, y: 600 }, { x: 500, y: 400 }, 132, true).angle, -90, 0.01, 'turned a quarter anticlockwise: so are they');
+  near(glassesPlacement(right, left, 132).angle, 0, 0.01, 'two taps in any order: taken left to right');
+  const mirroredFace = { leftPupil: right, rightPupil: left, chin: { x: 500, y: 700 } }; // the front camera flipped the points
+  near(placeOnFace('glasses', mirroredFace, 132, 1, true).angle, 0, 0.01, 'a mirrored upright face: upright glasses');
+  near(Math.abs(placeOnFace('glasses', mirroredFace, 132, 1).angle), 180, 0.01, 'not told it is mirrored: upside down');
+});

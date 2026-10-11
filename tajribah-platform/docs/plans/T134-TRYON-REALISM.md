@@ -145,6 +145,7 @@ try-on: full screen, the store's feel, nothing that says "you left the shop".
 | Date | Phase | What happened |
 |---|---|---|
 | 2026-10-11 | — | Plan written after reading the studio, capture page, pairing API and QR code paths. |
+| 2026-10-11 | follow-ups | «أرسل إلى شاشتي» carries the shopper's own fit (`site/lib/pair-pose.ts`, header `X-Tajribah-Pose`, kept as the photo's metadata, checked both ways): the computer says «كما تركته على جوالك» and shows it there. Glasses keep the detector's eye order — a turned face's glasses turn with it (−93° on the face turned anticlockwise, was +87°); the mirrored front camera handled. |
 | 2026-10-11 | 5 | Face detection tries the photo turned too (the hand already did): walked live without it — a face turned 90° counter-clockwise not found; locally with it — found, the glasses on the eyes. |
 | 2026-10-11 | 6 | Store-set placement: zone + starting pose per model photo, saved with the try-on, in the preview, published; «اضبط الموضع» editor; the studio starts there and keeps the product in the zone. **T134 complete** (left as options: Phase 1's edge blend; face-detection turn retries; the shopper's adjusted pose sent with «أرسل إلى شاشتي»). |
 | 2026-10-11 | 3, 4 | Live (prod 84d6c75c, staging fb428b1d): the same walk on tajribah.org — watch, ring (camera refused), glasses, ended session, and a real store's watch (owner-3 / 23446039, 25 mm) from its try-on frame: the store's name and product on the phone, no Tajribah. The store is still named «owner» in its settings (Nader to rename). |

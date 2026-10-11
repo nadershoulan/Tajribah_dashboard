@@ -24,12 +24,15 @@ import type { Pairing } from '@site/lib/pair-product';
 import { cssShadow, type ShadowKind } from '@site/lib/shadow';
 import { detectHand } from '@site/lib/hand-detect';
 import { detectFace } from '@site/lib/face-detect';
+import { POSE_HEADER, poseHeader } from '@site/lib/pair-pose';
 import { model } from '@site/lib/detectors';
 import { earringPlacement, facePoints, handPoints, placeOnFace, placeOnHand, type Pose, type Pt } from '@site/lib/placement';
 import { faceFeedback, follow, handFeedback } from '@site/lib/live-feedback';
 import { dragged, fillFor, fitOf, liftedAbove, mirrored, onPicture, onScreen, pinched, type Fit, type Size } from '@site/lib/capture-view';
 
 type Landmark = { x: number; y: number; z?: number };
+/** What the detector saw: its points (flipped with the picture when `mirrored`) and its score. */
+type Sighting = { landmarks: Landmark[]; score: number; mirrored?: boolean };
 /** `fill`: edge to edge, or the whole picture when that would cut off where the product is — chosen once, so it never jumps mid-drag. */
 /** `first`: where the product first landed — the photo is slid up from it so the buttons never cover it. */
 type Shot = { id: number; dataUrl: string; blob: Blob; size: Size; fill: 'cover' | 'contain'; pose: Pose | null; auto: Pose | null; first: Pose | null; taps: Pt[]; sent: boolean };
@@ -71,7 +74,7 @@ export default function Capture({ token, pairing }: { token: string; pairing: Pa
   const nativeCamera = useRef<HTMLInputElement>(null);
   const gallery = useRef<HTMLInputElement>(null);
   /** The last sighting on the live frame: landmarks as on the (mirrored, when the front camera) picture. */
-  const sighting = useRef<{ landmarks: Landmark[]; score: number } | null>(null);
+  const sighting = useRef<Sighting | null>(null);
   const nextId = useRef(1);
   const mirror = facing === 'user';
 
@@ -144,16 +147,16 @@ export default function Capture({ token, pairing }: { token: string; pairing: Pa
           const found = detector.detectForVideo(v, now).faceLandmarks?.[0] as Landmark[] | undefined;
           const lm = found ? (mirror ? mirrored(found) : found) : null;
           const f = lm ? facePoints(lm, picture, fit) : null;
-          sighting.current = lm && f ? { landmarks: lm, score: 1 } : null;
+          sighting.current = lm && f ? { landmarks: lm, score: 1, mirrored: mirror } : null;
           tell(faceFeedback(f, box));
-          if (f && product && kind !== 'earring') target = placeOnFace(kind === 'necklace' ? 'necklace' : 'glasses', f, product.caseMm, aspect);
+          if (f && product && kind !== 'earring') target = placeOnFace(kind === 'necklace' ? 'necklace' : 'glasses', f, product.caseMm, aspect, mirror);
         } else {
           const result = detector.detectForVideo(v, now);
           const found = result.landmarks?.[0] as Landmark[] | undefined;
           const lm = found ? (mirror ? mirrored(found) : found) : null;
           const h = lm ? handPoints(lm, picture, fit) : null;
           const score = result.handedness?.[0]?.[0]?.score ?? 0.5;
-          sighting.current = lm && h ? { landmarks: lm, score } : null;
+          sighting.current = lm && h ? { landmarks: lm, score, mirrored: mirror } : null;
           const handKind = kind === 'ring' ? 'ring' : kind === 'bag' ? 'bag' : 'watch';
           tell(handFeedback(handKind, h, box));
           if (h && product) target = placeOnHand(handKind, h, product.caseMm, aspect, score);
@@ -172,16 +175,18 @@ export default function Capture({ token, pairing }: { token: string; pairing: Pa
 
   // ── Shots ─────────────────────────────────────────────────────────────────────────────────────────────────────
   /** Place the product on a still: the live sighting when there is one (the same moment), else a fresh, harder look. */
-  async function placeOn(img: HTMLImageElement, seen: { landmarks: Landmark[]; score: number } | null): Promise<{ pose: Pose | null; found: boolean }> {
+  async function placeOn(img: HTMLImageElement, seen: Sighting | null): Promise<{ pose: Pose | null; found: boolean }> {
     const size = { width: img.naturalWidth, height: img.naturalHeight };
     const flat = { scale: 1, ox: 0, oy: 0 };
     if (!product || kind === 'earring') return { pose: null, found: false };
     try {
       if (onFace) {
         let lm = seen?.landmarks ?? null;
+        // the live sighting was flipped with the front camera's picture; a fresh look at the (flipped) still is not
+        const flipped = !!lm && seen?.mirrored === true;
         if (!lm) lm = ((await detectFace(await model('face', 'IMAGE', asset), img))?.faceLandmarks[0] as Landmark[] | undefined) ?? null;
         const f = lm ? facePoints(lm, size, flat) : null;
-        return f ? { pose: placeOnFace(kind === 'necklace' ? 'necklace' : 'glasses', f, product.caseMm, aspect), found: true } : { pose: null, found: false };
+        return f ? { pose: placeOnFace(kind === 'necklace' ? 'necklace' : 'glasses', f, product.caseMm, aspect, flipped), found: true } : { pose: null, found: false };
       }
       let lm = seen?.landmarks ?? null, score = seen?.score ?? 0.5;
       if (!lm) {
@@ -196,7 +201,7 @@ export default function Capture({ token, pairing }: { token: string; pairing: Pa
     }
   }
 
-  async function keep(blob: Blob, seen: { landmarks: Landmark[]; score: number } | null) {
+  async function keep(blob: Blob, seen: Sighting | null) {
     setBusy(true); setError('');
     try {
       const prepared = await preparePhoto(blob);
@@ -245,7 +250,9 @@ export default function Capture({ token, pairing }: { token: string; pairing: Pa
     if (!shot || busy) return;
     setBusy(true); setError('');
     try {
-      const r = await fetch(`/api/pair/${token}`, { method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: shot.blob });
+      // T134.7: with where the shopper left the product, so the computer shows the same picture
+      const fitted: Record<string, string> = product && shot.pose ? { [POSE_HEADER]: poseHeader(shot.pose, shot.size) } : {};
+      const r = await fetch(`/api/pair/${token}`, { method: 'POST', headers: { 'Content-Type': 'image/jpeg', ...fitted }, body: shot.blob });
       if (!r.ok) throw Error(((await r.json().catch(() => ({}))) as { error?: string }).error ?? '');
       update(shot.id, (s) => ({ ...s, sent: true }));
       setNote(t('أُرسلت إلى شاشتك', 'Sent to your screen'));

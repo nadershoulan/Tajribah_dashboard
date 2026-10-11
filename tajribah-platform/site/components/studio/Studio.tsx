@@ -21,6 +21,7 @@ import { inZone } from '@/lib/tryon-placement';
 import { Guide } from './guides';
 import { detectHand } from '@site/lib/hand-detect';
 import { detectFace } from '@site/lib/face-detect';
+import { POSE_HEADER, poseFromHeader, poseOnStage, type SharedPose } from '@site/lib/pair-pose';
 import {
   DEMO_WATCH, PX_PER_MM, REFERENCES, STAGE, constrainToModel, modelsFor,
   type ModelId, type Pose, type ReferenceId, type TryOnProduct,
@@ -355,8 +356,8 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
    * 62 mm apart, so the frame is drawn at its width on that scale, centred between them a touch lower
    * (the frame's centre sits just below the pupils), tilted as the eyes are.
    */
-  function glassesPose(a: { x: number; y: number }, b: { x: number; y: number }): Pose {
-    const p = glassesPlacement(a, b, product.caseMm); // T134.3: the rule now lives in site/lib/placement.ts (the phone page uses it too)
+  function glassesPose(a: { x: number; y: number }, b: { x: number; y: number }, ordered = false): Pose {
+    const p = glassesPlacement(a, b, product.caseMm, ordered); // T134.3: the rule now lives in site/lib/placement.ts (the phone page uses it too)
     return { x: clamp(p.x, 50, W - 50), y: clamp(p.y, 50, H - 50), width: clamp(p.width, 80, 1100), angle: p.angle };
   }
 
@@ -456,7 +457,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
         const at = (i: number) => ({ x: lm[i].x * img.width * f + ox, y: lm[i].y * img.height * f + oy });
         const fit = isNecklace && lm[152]
           ? necklacePose(at(152), Math.hypot(at(473).x - at(468).x, at(473).y - at(468).y))
-          : glassesPose(at(468), at(473));
+          : glassesPose(at(468), at(473), true); // T134.7: the detector's order — a turned face's glasses turn with it
         setPose(fit); setPhotoFit(fit);
         notify(isNecklace ? t('Face found. Fine-tune the fit if needed.', 'تم تحديد الوجه. عدّل موضع القلادة عند الحاجة.') : t('Face found. Fine-tune the fit if needed.', 'تم تحديد الوجه. عدّل موضع النظارة عند الحاجة.'));
       } else notify(t('Face not found. Use “Fit to eyes” to place the glasses.', 'لم يتم تحديد الوجه. استخدم «ضبط على العينين».'));
@@ -503,7 +504,7 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
     }
   }
 
-  async function applyPhoto(blob: Blob) {
+  async function applyPhoto(blob: Blob, shared: SharedPose | null = null) {
     const request = ++photoRequest.current;
     setPhotoBusy(true);
     try {
@@ -514,6 +515,13 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
       setPhoto(prepared.dataUrl); setMode('me'); setZoom(1); setScale(100); setCalibrating(false);
       let base = { x: 600, y: 570, width: 155, angle: 0 };
       setPose(base); setPhotoFit(base);
+      if (shared) { // T134.7: the shopper fitted it on their phone — show that, not a new guess
+        const p = poseOnStage(shared, img, { W, H });
+        const fit = { x: clamp(p.x, 0, W), y: clamp(p.y, 0, H), width: clamp(p.width, 8, 2400), angle: p.angle };
+        setPose(fit); setPhotoFit(fit);
+        notify(t('As you left it on your phone. Adjust it here if needed.', 'كما تركته على جوالك. عدّله هنا عند الحاجة.'));
+        return;
+      }
       if (isEarring) { setCalibrating(true); setPoints([]); notify(t('Tap the top of your ear, then the bottom of your earlobe.', 'حدّد أعلى أذنك، ثم أسفل شحمة الأذن.')); return; } // T83
       if (isGlasses || isNecklace) { await fitGlassesToFace(img, request); return; } // T68; a watch, as before:
       if (isRing) { await fitRingToHand(img, request); return; }
@@ -585,10 +593,11 @@ export default function Studio({ product = DEMO_WATCH }: { product?: TryOnProduc
           const photoResponse = await fetch(`/api/pair/${pair.id}?image=1`, { cache: 'no-store' });
           if (!photoResponse.ok) throw Error();
           const b = await photoResponse.blob();
+          const shared = poseFromHeader(photoResponse.headers.get(POSE_HEADER)); // T134.7: as the shopper left it on the phone
           if (disposed) return;
           setQrOpen(false); setPair(null); setQrImage('');
           void fetch(`/api/pair/${pair.id}`, { method: 'DELETE' });
-          await applyPhoto(b);
+          await applyPhoto(b, shared);
         }
       } catch {
         if (!disposed) setPairError(t('Connection interrupted. Try a new QR code.', 'انقطع الاتصال. جرّب رمزاً جديداً.'));

@@ -121,10 +121,14 @@ export function rotatePoint(p: Pt, quarters: number): Pt {
  * edge, so their centre is half a height lower).
  */
 
-/** Glasses from the two pupils (either order): an adult's are about 62 mm apart; centred a touch below them, tilted as the eyes. */
+/**
+ * Glasses from the two pupils: an adult's are about 62 mm apart; centred a touch below them, tilted as the eyes. Two
+ * taps come in either order (taken left to right); `ordered` (a detector's points): `a` is the eye on the picture's
+ * left when the face is upright — so a face turned sideways or upside down gets its glasses turned the same way.
+ */
 export const PUPIL_DISTANCE_MM = 62;
-export function glassesPlacement(a: Pt, b: Pt, frameMm: number): Pose {
-  const [l, r] = a.x <= b.x ? [a, b] : [b, a];
+export function glassesPlacement(a: Pt, b: Pt, frameMm: number, ordered = false): Pose {
+  const [l, r] = ordered || a.x <= b.x ? [a, b] : [b, a];
   const ipd = dist(l, r);
   return {
     x: (l.x + r.x) / 2,
@@ -163,7 +167,10 @@ export function bagPlacement(h: HandPoints, mm: number, aspect: number, score = 
   return { x: top.x, y: top.y + (width * aspect) / 2, width, angle: 0, confidence: confidenceOf(h, score) };
 }
 
-/** The face points the placements use (MediaPipe face landmarks: iris centres 468 and 473, chin 152). */
+/**
+ * The face points the placements use (MediaPipe face landmarks: iris centres 468 and 473, chin 152). `leftPupil` (468)
+ * is on the picture's left when the face is upright and the picture not mirrored — checked on the demo's face photo.
+ */
 export type FacePoints = { leftPupil: Pt; rightPupil: Pt; chin: Pt };
 
 export function facePoints(landmarks: { x: number; y: number }[], img: { width: number; height: number }, fit: { scale: number; ox: number; oy: number }): FacePoints | null {
@@ -180,9 +187,11 @@ export function placeOnHand(kind: HandKind, h: HandPoints, mm: number, aspect: n
   return kind === 'ring' ? ringPlacement(h, mm, score) : kind === 'bag' ? bagPlacement(h, mm, aspect, score) : watchPlacement(h, mm, score);
 }
 
-/** One call for a face kind (an earring needs the ear, which the face model does not find: two taps instead). */
-export function placeOnFace(kind: FaceKind, f: FacePoints, mm: number, aspect: number): Pose {
-  return kind === 'necklace'
-    ? necklacePlacement(f.chin, dist(f.leftPupil, f.rightPupil), mm, aspect)
-    : glassesPlacement(f.leftPupil, f.rightPupil, mm);
+/**
+ * One call for a face kind (an earring needs the ear, which the face model does not find: two taps instead).
+ * `mirrored`: the points were flipped like the front camera's picture — the eyes then swap sides.
+ */
+export function placeOnFace(kind: FaceKind, f: FacePoints, mm: number, aspect: number, mirrored = false): Pose {
+  if (kind === 'necklace') return necklacePlacement(f.chin, dist(f.leftPupil, f.rightPupil), mm, aspect);
+  return mirrored ? glassesPlacement(f.rightPupil, f.leftPupil, mm, true) : glassesPlacement(f.leftPupil, f.rightPupil, mm, true);
 }

@@ -2207,3 +2207,9 @@ three quarters / a half, points brought back (`site/lib/face-detect.ts`). Walked
 already finds it upside down and turned clockwise, but not turned counter-clockwise — found with the turns. A turned
 face's glasses may come out the wrong way up (pupils ordered left to right so a mirrored selfie stays right): rare, and
 the shopper can turn them.
+
+**T134.7 — follow-ups (2026-10-11).** «أرسل إلى شاشتي» sends the shopper's fit with the photo: a short header in shares of
+the photo (`X-Tajribah-Pose`: x, y, width, angle), stored as the photo's metadata and checked on the way in and out;
+the studio draws it there («كما تركته على جوالك») instead of guessing again; no header — it places it itself. Glasses
+from a detector keep its eye order (468 is the picture's left on an upright, unmirrored face — checked), so a turned
+face's glasses turn with it; the front camera's flipped points swap them back.

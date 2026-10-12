@@ -2304,3 +2304,14 @@ finds nothing. Live: **one-euro smoothing** (steady when still, quick when movin
 **dropped frame (250 ms) is not the hand gone** — the product does not blink, the guide does not flash «أظهر يدك», auto
 capture's ring does not restart. Left: the earring's automatic first guess (needs photos with face and ear), and real
 evening phone photos to sharpen the bench.
+
+**T139 — several photos from the phone in one pairing (2026-10-12, Nader: a second photo sent to the screen said
+«انتهت هذه الجلسة» — "make me able to send multiple images to the screen, and switch between them").** The computer
+deleted the whole session the moment it took the first photo. Now a session is a small queue: each photo the phone
+sends waits under its own key (oldest first, at most 10 waiting, so a computer that is not looking cannot fill the
+store), the computer takes them one by one and deletes each the moment it has it — the promise "deleted once received,
+or after 30 minutes" still holds — and the session lives until it expires or the page that opened it closes. The studio
+keeps listening after the first photo (closing the QR dialog ends the session only if nothing has come yet), and every
+photo of the visit — sent from the phone, taken, or uploaded — becomes a tile under the picture to switch between, each
+keeping its own fit (up to 8). A phone-only product's QR page does the same. An old studio tab still works one photo at
+a time (`?image=1` takes the oldest).

@@ -1137,3 +1137,13 @@ html:has(.embed-root.is-preview), html:has(.embed-root.is-preview) body { backgr
 .adjust-reset { display: inline-grid; place-items: center; width: 28px; height: 28px; margin: -6px; padding: 0; border-radius: 50%; color: var(--text-2); background: none; }
 .adjust-reset:hover, .adjust-reset:active { background: var(--tint); color: var(--navy-800); }
 @media (max-width: 600px) { .adjust-reset svg { width: 17px; height: 17px; } }
+/* T139 — the shopper's photos (several from the phone in one pairing, taken or uploaded), to switch between */
+.my-photos { display: flex; gap: 10px; overflow-x: auto; padding: 8px 8px 6px; margin-bottom: 2px; scrollbar-width: thin; }
+.my-photo { position: relative; flex: none; }
+.my-photo > button:first-child { display: block; width: 56px; height: 56px; padding: 0; border-radius: 10px; overflow: hidden; border: 2px solid transparent; background: var(--tint); cursor: pointer; }
+.my-photo > button:first-child img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.my-photo.selected > button:first-child { border-color: var(--teal-500, #00A7BC); box-shadow: 0 0 0 2px rgba(0, 167, 188, .18); }
+.my-photo-remove { position: absolute; top: -6px; inset-inline-end: -6px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: #0A2237; color: #fff; border: 2px solid #fff; padding: 0; cursor: pointer; }
+.pq .my-photos { justify-content: center; }
+@media (max-width: 600px) { .my-photo > button:first-child { width: 48px; height: 48px; } }
+

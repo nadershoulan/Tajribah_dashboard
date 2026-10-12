@@ -24,7 +24,8 @@ import { inZone } from '@/lib/tryon-placement';
 import { Guide } from './guides';
 import { detectHand } from '@site/lib/hand-detect';
 import { detectFace } from '@site/lib/face-detect';
-import { POSE_HEADER, poseFromHeader, poseOnStage, type SharedPose } from '@site/lib/pair-pose';
+import { poseFromHeader, poseOnStage, type SharedPose } from '@site/lib/pair-pose';
+import { nextPhoto } from '@site/lib/pair-photos';
 import {
   DEMO_WATCH, PX_PER_MM, REFERENCES, STAGE, constrainToModel, modelsFor,
   type ModelId, type Pose, type ReferenceId, type TryOnProduct,
@@ -47,6 +48,8 @@ const loadPlain = (src: string, cors: boolean) =>
 // (the CDN's plain answer does not vary by origin) can fail that: then once more at a fresh address; a server that never
 // allows it — as before, a picture that cannot be saved.
 const fresh = (src: string) => src + (src.includes('?') ? '&' : '?') + 'cors=1';
+/** T139: how many of the shopper's photos are kept to switch between (the oldest goes first). */
+const MAX_PHOTOS = 8;
 const loadImage = (src: string) => (/^(data|blob):/.test(src)
   ? loadPlain(src, false)
   : loadPlain(src, true).catch(() => loadPlain(fresh(src), true)).catch(() => loadPlain(src, false)));
@@ -102,6 +105,12 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
   const [qrImage, setQrImage] = useState('');
   const [pairBusy, setPairBusy] = useState(false);
   const [pairError, setPairError] = useState('');
+  // T139 (Nader): the shopper's photos this visit — sent from the phone (several, in one pairing), taken or uploaded —
+  // to switch between; each keeps its own fit. The refs let the pairing's timer read what is shown now.
+  const [myPhotos, setMyPhotos] = useState<{ id: number; src: string; pose: Pose | null; fit: Pose | null; scale: number }[]>([]);
+  const [currentPhoto, setCurrentPhoto] = useState<number | null>(null);
+  const photoSeq = useRef(0);
+  const pairGot = useRef(0); // photos received through the pairing now open
   const [notice, setNotice] = useState('');
   const [loaded, setLoaded] = useState<ReadonlySet<string>>(() => new Set());
   // Ready = the pictures this view draws are in (T31: they arrive in two steps).
@@ -122,6 +131,8 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
   const gestures = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ distance: number; zoom: number } | null>(null);
   const photoRequest = useRef(0);
+  const shownNow = useRef<{ pose: Pose; fit: Pose; scale: number; current: number | null; photos: typeof myPhotos; qrOpen: boolean; pair: typeof pair }>(null!);
+  shownNow.current = { pose, fit: photoFit, scale, current: currentPhoto, photos: myPhotos, qrOpen, pair };
   const notify = (message: string) => setNotice(message);
 
   useEffect(() => { setIsPhone(/Android|iPhone|iPad/i.test(navigator.userAgent)); }, []);
@@ -533,6 +544,10 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
       const prepared = await preparePhoto(blob);
       const img = await loadImage(prepared.dataUrl);
       if (request !== photoRequest.current) return;
+      keepFit();
+      const id = ++photoSeq.current;
+      setMyPhotos((list) => [...list, { id, src: prepared.dataUrl, pose: null, fit: null, scale: 100 }].slice(-MAX_PHOTOS));
+      setCurrentPhoto(id);
       images.current.photo = img;
       setPhoto(prepared.dataUrl); setMode('me'); setZoom(1); setScale(100); setCalibrating(false);
       let base = { x: 600, y: 570, width: 155, angle: 0 };
@@ -588,6 +603,7 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
       const r = await fetch('/api/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: kindOf(product), ...(product.demo ? { demo: product.sku } : {}) }) });
       if (!r.ok) throw Error();
       const p = (await r.json()) as { id: string; expiresAt: number };
+      pairGot.current = 0;
       setPair(p);
       // T134.2: Tajribah's mark in the code's corner, error correction H (it still reads — lib/qr-mark.ts)
       // T134.2: the corner mark — Tajribah's, or a white-label store's own logo (`qrMark`; null: a plain corner)
@@ -597,41 +613,66 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
     } finally { setPairBusy(false); }
   }
   useEffect(() => { if (qrOpen && !pair && !pairBusy && !pairError) void startPair(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [qrOpen, pair, pairBusy, pairError]);
+  // T139: the phone may send several photos — the pairing keeps listening after the first (until it expires or this
+  // page closes), each photo taken from the session and deleted there the moment it is here, then shown as one more of
+  // the shopper's photos. (Before, the session was ended on the first photo: the phone's next send said «انتهت».)
   useEffect(() => {
-    if (!qrOpen || !pair) return;
+    if (!pair) return;
     let disposed = false, pending = false;
+    const ended = () => {
+      if (shownNow.current.qrOpen) setPairError(t('This QR code has expired. Create a new one.', 'انتهت صلاحية الرمز. أنشئ رمزاً جديداً.'));
+      else { setPair(null); setQrImage(''); }
+    };
     const timer = setInterval(async () => {
       if (disposed || pending) return;
       pending = true;
       try {
-        if (Date.now() > pair.expiresAt) {
-          setPairError(t('This QR code has expired. Create a new one.', 'انتهت صلاحية الرمز. أنشئ رمزاً جديداً.'));
-          clearInterval(timer); return;
-        }
-        const r = await fetch(`/api/pair/${pair.id}`, { cache: 'no-store' });
-        if (!r.ok) throw Error();
-        const data = (await r.json()) as { ready: boolean };
-        if (data.ready) {
-          clearInterval(timer);
-          const photoResponse = await fetch(`/api/pair/${pair.id}?image=1`, { cache: 'no-store' });
-          if (!photoResponse.ok) throw Error();
-          const b = await photoResponse.blob();
-          const shared = poseFromHeader(photoResponse.headers.get(POSE_HEADER)); // T134.7: as the shopper left it on the phone
-          if (disposed) return;
-          setQrOpen(false); setPair(null); setQrImage('');
-          void fetch(`/api/pair/${pair.id}`, { method: 'DELETE' });
-          await applyPhoto(b, shared);
-        }
+        if (Date.now() > pair.expiresAt) { clearInterval(timer); ended(); return; }
+        const next = await nextPhoto(pair.id);
+        if (next === 'expired') { clearInterval(timer); ended(); return; }
+        if (!next || disposed) return;
+        const more = pairGot.current++ > 0;
+        setQrOpen(false);
+        // T134.7: as the shopper left it on the phone
+        await applyPhoto(next.blob, poseFromHeader(next.pose), more ? t('Another photo from your phone — switch between your photos below.', 'وصلت صورة أخرى من جوالك — بدّل بين صورك من الأسفل.') : null);
       } catch {
-        if (!disposed) setPairError(t('Connection interrupted. Try a new QR code.', 'انقطع الاتصال. جرّب رمزاً جديداً.'));
+        if (!disposed && shownNow.current.qrOpen) setPairError(t('Connection interrupted. Try a new QR code.', 'انقطع الاتصال. جرّب رمزاً جديداً.'));
       } finally { pending = false; }
     }, 2500);
     return () => { disposed = true; clearInterval(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qrOpen, pair, ar]);
+  }, [pair, ar]);
+  // leaving the page ends the pairing (anything not yet received goes with it)
+  useEffect(() => () => { const open = shownNow.current.pair; if (open) void fetch(`/api/pair/${open.id}`, { method: 'DELETE', keepalive: true }); }, []);
   function closePair(open: boolean) {
     setQrOpen(open);
-    if (!open && pair) { void fetch(`/api/pair/${pair.id}`, { method: 'DELETE' }); setPair(null); setQrImage(''); setPairError(''); }
+    // T139: once a photo has come, closing keeps the pairing listening for more from the phone; before, it ends it
+    if (!open && pair && pairGot.current === 0) { void fetch(`/api/pair/${pair.id}`, { method: 'DELETE' }); setPair(null); setQrImage(''); setPairError(''); }
+  }
+  /** The photo shown keeps where its product is, for when the shopper comes back to it (T139). */
+  function keepFit() {
+    const now = shownNow.current;
+    if (now.current !== null) setMyPhotos((list) => list.map((p) => (p.id === now.current ? { ...p, pose: now.pose, fit: now.fit, scale: now.scale } : p)));
+  }
+  async function showPhoto(id: number) {
+    const target = shownNow.current.photos.find((p) => p.id === id);
+    if (!target || id === shownNow.current.current) return;
+    ++photoRequest.current; // a fit still being found for the photo left behind does not land on this one
+    keepFit();
+    const img = await loadImage(target.src);
+    images.current.photo = img;
+    const fit = target.fit ?? { x: 600, y: 570, width: 155, angle: 0 };
+    setPhoto(target.src); setMode('me'); setZoom(1); setCalibrating(false); setPoints([]); setPhotoBusy(false);
+    setPose(target.pose ?? fit); setPhotoFit(fit); setScale(target.scale); setCurrentPhoto(id);
+  }
+  function forgetPhoto(id: number) {
+    const rest = shownNow.current.photos.filter((p) => p.id !== id);
+    if (id === shownNow.current.current) {
+      const other = rest.at(-1);
+      if (other) void showPhoto(other.id);
+      else { ++photoRequest.current; setPhoto(null); setCurrentPhoto(null); }
+    }
+    setMyPhotos(rest);
   }
   /**
    * T137: the picture as it is shown — through the phone's share sheet, or saved as a file. Made at once and shared
@@ -841,6 +882,17 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
                   </div>
                 </>
               ) : (
+                <>
+                {photo && myPhotos.length > 1 && (
+                  <div className="my-photos" role="group" aria-label={t('Your photos', 'صورك')}>
+                    {myPhotos.map((p, n) => (
+                      <span key={p.id} className={'my-photo' + (p.id === currentPhoto ? ' selected' : '')}>
+                        <button type="button" onClick={() => void showPhoto(p.id)} aria-pressed={p.id === currentPhoto} aria-label={t(`Photo ${n + 1}`, `الصورة ${n + 1}`)}><img src={p.src} alt="" /></button>
+                        <button type="button" className="my-photo-remove" onClick={() => forgetPhoto(p.id)} aria-label={t(`Remove photo ${n + 1}`, `احذف الصورة ${n + 1}`)}><X size={12} aria-hidden /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="photo-actions">
                   <button className="secondary-button" onClick={() => (isPhone ? setCameraOpen(true) : file.current?.click())}><ImagePlus size={16} />{photo ? t('Change photo', 'تغيير الصورة') : t('Upload a photo', 'ارفع صورة')}</button>
                   {photo && <button className="secondary-button" onClick={() => { setCalibrating(true); setPoints([]); setZoom(1); }}><Maximize2 size={16} />{isBag ? t('Fit to hand', 'ضبط على اليد') : isEarring ? t('Fit to ear', 'ضبط على الأذن') : isNecklace ? t('Fit to eyes', 'ضبط على العينين') : isRing ? t('Fit to finger', 'ضبط على الإصبع') : isGlasses ? t('Fit to eyes', 'ضبط على العينين') : t('Fit to wrist', 'ضبط على المعصم')}</button>}
@@ -849,6 +901,7 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
                   {photo && features.download && isPhone && <button className="secondary-button save-photo" disabled={!assetsReady || photoBusy} onClick={() => shareImage(true)}><Share2 size={16} />{t('Share the picture', 'شارك الصورة')}</button>}
                   {features.pairing && !isPhone && <button className="icon-button" aria-label={t('Use your phone', 'استخدام الجوال')} onClick={() => setQrOpen(true)}><QrCode size={19} /></button>}
                 </div>
+                </>
               )}
             </div>
             {showCanvas && (
@@ -911,7 +964,7 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
               <p className="qr-status"><LoaderCircle size={14} className="spin" />{t('Waiting for your photo', 'بانتظار صورتك')}</p>
             )}
             {pair && !pairError && <a className="text-button" href={`/capture/${pair.id}`} target="_blank" rel="noreferrer">{t('Open capture page', 'فتح صفحة التصوير')}</a>}
-            <p className="privacy-note">{t('Valid for 30 minutes. The transferred photo is removed after this browser receives it.', 'صالح لمدة ٣٠ دقيقة. تُحذف الصورة المنقولة بعد استلامها هنا.')}</p>
+            <p className="privacy-note">{t('Valid for 30 minutes — send as many photos as you like. Each is removed after this browser receives it.', 'صالح لمدة ٣٠ دقيقة — أرسل ما شئت من الصور. تُحذف كل صورة بعد استلامها هنا.')}</p>
           </DialogContent>
         </Dialog>
       )}

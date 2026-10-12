@@ -369,9 +369,11 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
     try {
       await onSend(shot);
       update(shot.id, (s) => ({ ...s, sent: true }));
-      setNote(t('أُرسلت إلى شاشتك', 'Sent to your screen'));
+      setNote(t('أُرسلت إلى شاشتك — ويمكنك إرسال صور أخرى', 'Sent to your screen — you can send more'));
     } catch (e) {
-      setError(ended(e) ? t('انتهت هذه الجلسة. امسح رمزًا جديدًا لإرسال الصورة.', 'This session has ended. Scan a new code to send the photo.') : t('تعذّر الإرسال. حاول مجددًا.', 'Could not send. Try again.'));
+      setError(ended(e) ? t('انتهت هذه الجلسة. امسح رمزًا جديدًا لإرسال الصورة.', 'This session has ended. Scan a new code to send the photo.')
+        : waiting(e) ? t('صور كثيرة بانتظار شاشتك — افتحها لتستلمها، ثم أرسل غيرها.', 'Several photos are waiting for your screen — open it to receive them, then send more.')
+          : t('تعذّر الإرسال. حاول مجددًا.', 'Could not send. Try again.'));
     } finally { setBusy(false); }
   }
 
@@ -620,6 +622,8 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
 
 /** The server said the session is over (it expired, or the computer closed it). */
 function ended(e: unknown) { return e instanceof Error && /expired|scan a new code/i.test(e.message); }
+/** T139: the session holds a few photos at once; more wait for the screen to take them. */
+function waiting(e: unknown) { return e instanceof Error && /photos are waiting/i.test(e.message); }
 
 /** The product drawn at `pose` (screen pixels): an unturned box carries the shadow, so the light stays above. */
 function Placed({ pose, aspect, kind, src, alt }: { pose: Pose; aspect: number; kind: ShadowKind; src: string; alt: string }) {

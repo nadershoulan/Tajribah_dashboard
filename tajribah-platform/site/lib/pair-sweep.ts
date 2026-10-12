@@ -9,6 +9,7 @@
  * uses the pairing's own `removeSession`; `/api/pair*` and the capture page are unchanged.
  */
 import { SESSION_MS, bucket, removeSession, validToken } from './pair-store';
+import { tokenOfPhotoKey } from './pair-photos';
 
 type Listing = { objects: { key: string; uploaded: Date }[]; truncated: boolean; cursor?: string };
 export type SweepBucket = {
@@ -38,8 +39,8 @@ export async function sweepExpiredPairs(now = Date.now(), store: SweepBucket = b
   for (let cursor: string | undefined; ;) {
     const page = await store.list({ prefix: 'photos/', limit: 1000, cursor });
     for (const object of page.objects) {
-      const token = object.key.slice('photos/'.length, -'.jpg'.length);
-      if (!validToken(token) || live.has(token)) continue;
+      const token = tokenOfPhotoKey(object.key); // T139: photos/<token>/<id>.jpg (or the one-photo key of before)
+      if (!token || !validToken(token) || live.has(token)) continue;
       if (object.uploaded.getTime() < now - SESSION_MS) { await remove(token); orphans++; }
     }
     if (!page.truncated) break;

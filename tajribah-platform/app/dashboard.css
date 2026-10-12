@@ -1280,3 +1280,9 @@ table.data .cell-main { min-width: 220px; }
 .pz-controls input[type=range] { width: 100%; accent-color: var(--aqua); }
 .pz-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 @media (max-width: 640px) { .pz-controls { grid-template-columns: 1fr; } }
+
+/* T140.3 — last week's summary on the Analytics screen, as the email says it */
+.report-preview { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border, #e5e7eb); }
+.report-preview strong { display: block; font-size: 13px; margin-bottom: 6px; }
+.report-preview ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; line-height: 1.5; }
+.report-preview .report-gap { height: 6px; }

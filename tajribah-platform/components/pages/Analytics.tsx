@@ -331,6 +331,12 @@ function WeeklyReportPanel() {
     setBusy(true); setFailure(null);
     try { setChanged(await source.setReportSubscription(weekly)); } catch (e) { setFailure(e as Error); } finally { setBusy(false); }
   };
+  const [preview, setPreview] = useState<{ period: { ar: string; en: string }; lines: { ar: string; en: string } } | null>(null);
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const showPreview = async () => {
+    setPreviewBusy(true); setFailure(null);
+    try { setPreview(await source.reportPreview()); } catch (e) { setFailure(e as Error); } finally { setPreviewBusy(false); }
+  };
   const why = view?.unavailable === 'role' ? t('الملخص لمن يملك صلاحية التصدير: المالك والمسؤول والمحلّل.', 'The summary is for those who may export: owners, admins and analysts.')
     : view?.unavailable === 'plan' ? t('الملخص الأسبوعي ضمن التحليلات الكاملة (باقة النمو فأعلى).', 'The weekly summary is part of full analytics (Growth and up).')
     : view?.unavailable === 'email' ? t('أكّد بريدك الإلكتروني أولاً — الملخص يُرسل إليه.', 'Confirm your email address first — the summary is sent to it.')
@@ -349,6 +355,19 @@ function WeeklyReportPanel() {
               ? <>{t('الملخص القادم إلى', 'The next one goes to')} <bdi dir="ltr">{view.email}</bdi> {t('صباح الأحد', 'on Sunday morning,')} {formatDate(`${view.nextOn}T12:00:00Z`, lang)}.</>
               : <>{t('أرقام الأسبوع من الأحد إلى السبت بجانب الأسبوع الذي قبله، إلى', 'The week’s figures, Sunday to Saturday, beside the week before, sent to')} <bdi dir="ltr">{view.email}</bdi>. {t('لك وحدك — كل عضو يختار لنفسه.', 'For you only — each member chooses for themselves.')}</>}
         </p>
+      )}
+      {/* T140.3: what the email says, here — last week's summary */}
+      {view && !why && (
+        <div className="report-preview">
+          {!preview ? (
+            <button type="button" className="btn btn-ghost btn-sm" disabled={previewBusy} onClick={() => void showPreview()}>{t('عرض ملخص الأسبوع الماضي', 'See last week’s summary')}</button>
+          ) : (
+            <>
+              <strong>{t(preview.period.ar, preview.period.en)}</strong>
+              <ul>{t(preview.lines.ar, preview.lines.en).split('\n').map((line, i) => (line ? <li key={i}>{line}</li> : <li key={i} className="report-gap" aria-hidden />))}</ul>
+            </>
+          )}
+        </div>
       )}
       {(failure ?? error) && <ErrorNote error={(failure ?? error)!} />}
     </Panel>

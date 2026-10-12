@@ -52,7 +52,18 @@ MediaPipe pose model, which marks the ears — downloaded with Nader's yes, 2026
       the try-on's own events, only the period); pairing +; mutation 15/15. Walked: the try-on → events in the local
       collector (a photo found by «shrunk», a save) → the console shows them.
 
-## 3 — Weekly report  ·  status: to do
+## 3 — Weekly report  ·  status: ✅ 2026-10-12
+- [x] The weekly summary by email already existed (P4.8 — a member's own choice, Growth and up, Sunday 08:00 Riyadh,
+      views / AR / try-on sessions / add-to-carts / purchases / revenue beside the week before, uplift when stated).
+      Added: **try-on photos** and **pictures shoppers shared or saved** (the try-on's own anonymous events, T140.5),
+      each beside the week before, and **the week's most tried products** (top 3 by try-on sessions, with their
+      add-to-carts; none untried).
+- [x] **The same summary on the Analytics screen**: «عرض ملخص الأسبوع الماضي» beside the switch
+      (`/api/analytics/report/preview`, the same checks as the email) — what the email says, without waiting for
+      Sunday. The preview of the dashboard (demo) shows a made-up week.
+- [x] Tests: report +1 (photos and shares counted from the try-on's own events, in the week only; top products sorted,
+      untried left out, Arabic names; the email says the same; the screen's summary only for those who may) and the
+      existing ones updated; mutation 8/8. Walked: the Analytics screen as the local test merchant.
 
 ## 4 — Earrings  ·  status: to do
 
@@ -64,3 +75,4 @@ MediaPipe pose model, which marks the ears — downloaded with Nader's yes, 2026
 | 2026-10-12 | 2 | Light matching built and walked. |
 | 2026-10-12 | 1 | Compare on the shopper's photo built and walked (shelf + split view). |
 | 2026-10-12 | 5 | Anonymous success counts sent and shown in the staff console; walked end to end locally. |
+| 2026-10-12 | 3 | The weekly summary: try-on photos, shares, top products; the same on the Analytics screen. |

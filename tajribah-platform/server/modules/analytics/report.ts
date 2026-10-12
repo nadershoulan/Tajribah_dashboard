@@ -16,11 +16,14 @@
  *    send it; an email that fails is logged, not sent again.
  *  - **What it says**: the week's totals from the daily rollup (`daily_tenant_stats` — the same rows the
  *    screen and the CSV read), each beside the week before, and the conversion uplift only when both
- *    groups are large enough for one (`upliftOf`). No figure is estimated.
+ *    groups are large enough for one (`upliftOf`). No figure is estimated. T140.3 (Nader: "try-ons, shares,
+ *    add-to-carts and top products, which proves the value"): also the try-on's photos and the pictures shoppers
+ *    shared or saved (its own anonymous events, T140.5), and the week's most tried products with their
+ *    add-to-carts. The same summary can be seen on the Analytics screen (`reportPreview`).
  */
-import { and, eq, gte, isNull, lt, lte, or } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import { unsafeAdminDb } from '@/db/client';
-import { dailyTenantStats, reportSubscriptions, users } from '@/db/schema';
+import { analyticsEvents, dailyProductStats, dailyTenantStats, products, reportSubscriptions, users } from '@/db/schema';
 import { formatDate, formatNumber, formatPoints } from '@/lib/format';
 import type { Bi, Lang } from '@/lib/lang';
 import { formatMoney } from '@/lib/money';
@@ -110,20 +113,49 @@ export async function setReportSubscription(ctx: TenantContext, weekly: boolean,
   }
 }
 
-export type WeekFigures = { views: number; arSessions: number; tryonSessions: number; addToCart: number; purchases: number; revenueMinor: number };
-const NOTHING: WeekFigures = { views: 0, arSessions: 0, tryonSessions: 0, addToCart: 0, purchases: 0, revenueMinor: 0 };
+export type WeekFigures = { views: number; arSessions: number; tryonSessions: number; photos: number; shares: number; addToCart: number; purchases: number; revenueMinor: number };
+const NOTHING: WeekFigures = { views: 0, arSessions: 0, tryonSessions: 0, photos: 0, shares: 0, addToCart: 0, purchases: 0, revenueMinor: 0 };
+/** T140.3: one of the week's most tried products. */
+export type TopProduct = { name: Bi; tryons: number; addToCart: number };
+export type ReportFigures = { week: WeekFigures; before: WeekFigures; upliftPct: number | null; top?: TopProduct[] };
 
-/** The week's totals, the week before's, and the week's uplift when there is one to state. */
-export async function weekFigures(ctx: TenantContext, week: ReportWeek): Promise<{ week: WeekFigures; before: WeekFigures; upliftPct: number | null }> {
+/** A Riyadh day's start (midnight, UTC+3) as an instant, and the next day's. */
+const dayStart = (day: string) => new Date(`${day}T00:00:00+03:00`);
+const dayAfter = (day: string) => new Date(dayStart(day).getTime() + DAY);
+
+/** T140.3: the try-on's own anonymous events of a kind, in these Riyadh days. */
+async function tryOnEvents(ctx: TenantContext, type: 'tryon_capture' | 'tryon_share', from: string, to: string): Promise<number> {
+  return Number(await ctx.db.count(analyticsEvents, and(eq(analyticsEvents.eventType, type), gte(analyticsEvents.occurredAt, dayStart(from)), lt(analyticsEvents.occurredAt, dayAfter(to)), sql`${analyticsEvents.properties}->>'surface' = 'tryon'`)));
+}
+
+/** T140.3: the week's most tried products (try-on sessions), with their add-to-carts — at most `n`, none untried. */
+export async function topProducts(ctx: TenantContext, week: { from: string; to: string }, n = 3): Promise<TopProduct[]> {
+  const rows = await ctx.db.find(dailyProductStats, and(gte(dailyProductStats.day, week.from), lte(dailyProductStats.day, week.to)), { limit: 10_000 });
+  const by = new Map<string, { tryons: number; addToCart: number }>();
+  for (const r of rows) {
+    const t = by.get(r.productId) ?? { tryons: 0, addToCart: 0 };
+    by.set(r.productId, { tryons: t.tryons + r.tryonSessions, addToCart: t.addToCart + r.addToCart });
+  }
+  const best = [...by].filter(([, v]) => v.tryons > 0).sort((a, b) => b[1].tryons - a[1].tryons || b[1].addToCart - a[1].addToCart).slice(0, n);
+  if (!best.length) return [];
+  const named = new Map((await ctx.db.find(products, inArray(products.id, best.map(([id]) => id)), { limit: n })).map((p) => [p.id, { ar: p.nameAr ?? p.name, en: p.name }]));
+  return best.flatMap(([id, v]) => (named.has(id) ? [{ name: named.get(id)!, ...v }] : []));
+}
+
+/** The week's totals, the week before's, the week's uplift when there is one to state, and its most tried products. */
+export async function weekFigures(ctx: TenantContext, week: ReportWeek): Promise<ReportFigures> {
   const rows = await ctx.db.find(dailyTenantStats, and(gte(dailyTenantStats.day, week.before.from), lte(dailyTenantStats.day, week.to)), { limit: 100 });
   const total = (from: string, to: string) => rows.filter((r) => String(r.day) >= from && String(r.day) <= to).reduce<WeekFigures>((sum, r) => ({
     views: sum.views + r.views, arSessions: sum.arSessions + r.arSessions, tryonSessions: sum.tryonSessions + r.tryonSessions,
     addToCart: sum.addToCart + r.addToCart, purchases: sum.purchases + r.purchases, revenueMinor: sum.revenueMinor + Number(r.revenueMinor ?? 0),
+    photos: 0, shares: 0, // from the try-on's own events, below
   }), NOTHING);
+  const withTryOn = async (from: string, to: string) => ({ ...total(from, to), photos: await tryOnEvents(ctx, 'tryon_capture', from, to), shares: await tryOnEvents(ctx, 'tryon_share', from, to) });
   return {
-    week: total(week.from, week.to),
-    before: total(week.before.from, week.before.to),
+    week: await withTryOn(week.from, week.to),
+    before: await withTryOn(week.before.from, week.before.to),
     upliftPct: upliftOf(await conversionTotals(ctx, week.from, week.to)),
+    top: await topProducts(ctx, week),
   };
 }
 
@@ -131,13 +163,15 @@ const LABELS: [keyof WeekFigures, Bi][] = [
   ['views', { ar: 'مشاهدات المنتجات', en: 'Product views' }],
   ['arSessions', { ar: 'جلسات العرض', en: 'AR sessions' }],
   ['tryonSessions', { ar: 'تجارب افتراضية', en: 'Try-on sessions' }],
+  ['photos', { ar: 'صور التجربة', en: 'Try-on photos' }],
+  ['shares', { ar: 'صور شاركها المتسوقون أو حفظوها', en: 'Pictures shoppers shared or saved' }],
   ['addToCart', { ar: 'إضافات إلى السلة', en: 'Added to cart' }],
   ['purchases', { ar: 'عمليات شراء', en: 'Purchases' }],
   ['revenueMinor', { ar: 'إيراد المشتريات المسجّلة', en: 'Tracked revenue' }],
 ];
 
 /** The figures as the email's lines, in one language: each beside the week before. */
-export function reportLines(figures: { week: WeekFigures; before: WeekFigures; upliftPct: number | null }, lang: Lang): string {
+export function reportLines(figures: ReportFigures, lang: Lang): string {
   const show = (key: keyof WeekFigures, value: number) => (key === 'revenueMinor' ? formatMoney(value, 'SAR', lang) : formatNumber(value, lang));
   const lines = LABELS.map(([key, label]) => lang === 'ar'
     ? `${label.ar}: ${show(key, figures.week[key])} (الأسبوع الذي قبله: ${show(key, figures.before[key])})`
@@ -146,6 +180,13 @@ export function reportLines(figures: { week: WeekFigures; before: WeekFigures; u
     lines.push(lang === 'ar'
       ? `ارتفاع التحويل (نسبة الشراء لمن فتح العرض ناقص من لم يفتحه): ${formatPoints(figures.upliftPct, 'ar')}`
       : `Conversion uplift (purchase rate with AR minus without): ${formatPoints(figures.upliftPct, 'en')}`);
+  }
+  // T140.3: the week's most tried products, each with its add-to-carts
+  if (figures.top?.length) {
+    lines.push('', lang === 'ar' ? 'أكثر المنتجات تجربةً:' : 'Most tried on:');
+    figures.top.forEach((p, i) => lines.push(lang === 'ar'
+      ? `${formatNumber(i + 1, 'ar')}. ${p.name.ar} — ${formatNumber(p.tryons, 'ar')} تجربة، ${formatNumber(p.addToCart, 'ar')} إضافة إلى السلة`
+      : `${i + 1}. ${p.name.en} — ${formatNumber(p.tryons, 'en')} try-ons, ${formatNumber(p.addToCart, 'en')} added to cart`));
   }
   return lines.join('\n');
 }
@@ -189,3 +230,20 @@ export async function sendWeeklyReports(now = new Date(), limit = 100): Promise<
   if (result.sent) log.info('weekly reports sent', result);
   return result;
 }
+
+/**
+ * T140.3 — the same summary on the Analytics screen: the last whole week's lines, in both languages, for whoever may
+ * receive it by email (the same three checks) — so a merchant sees what the email says without waiting for Sunday.
+ */
+export async function reportPreview(ctx: TenantContext, now = new Date()): Promise<{ period: Bi; lines: Bi }> {
+  const why = await blocked(ctx);
+  if (why === 'role') throw errors.forbidden('the weekly summary is for those who may export analytics');
+  if (why === 'plan') throw errors.forbidden('the weekly summary is part of full analytics');
+  const week = reportWeek(now);
+  const figures = await weekFigures(ctx, week);
+  return {
+    period: { ar: `من ${formatDate(`${week.from}T12:00:00Z`, 'ar')} إلى ${formatDate(`${week.to}T12:00:00Z`, 'ar')}`, en: `${formatDate(`${week.from}T12:00:00Z`, 'en')} to ${formatDate(`${week.to}T12:00:00Z`, 'en')}` },
+    lines: { ar: reportLines(figures, 'ar'), en: reportLines(figures, 'en') },
+  };
+}
+

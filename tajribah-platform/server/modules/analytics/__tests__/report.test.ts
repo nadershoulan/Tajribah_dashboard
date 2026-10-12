@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq } from 'drizzle-orm';
-import { auditLogs, conversionDaily, dailyTenantStats, products, reportSubscriptions, subscriptions, tenantMemberships, tenants, users } from '@/db/schema';
+import { analyticsEvents, auditLogs, conversionDaily, dailyProductStats, dailyTenantStats, products, reportSubscriptions, subscriptions, tenantMemberships, tenants, users } from '@/db/schema';
 import { formatDate } from '@/lib/format';
 import { uuidv7 } from '@/lib/ids';
 import { loadEnv, resetEnv } from '@/server/core/config/env';
@@ -16,7 +16,7 @@ import { setEmailSender, type EmailMessage } from '@/server/core/notify/notify';
 import { setLogLevel } from '@/server/core/observability/log';
 import { buildTenantContext } from '@/server/core/tenancy/context';
 import { createTestDb, seedTenant, type TestDb } from '@/server/testing/harness';
-import { reportLines, reportSubscription, reportWeek, sendWeeklyReports, setReportSubscription } from '@/server/modules/analytics/report';
+import { reportLines, reportPreview, reportSubscription, reportWeek, sendWeeklyReports, setReportSubscription } from '@/server/modules/analytics/report';
 
 setLogLevel('error');
 resetEnv();
@@ -119,6 +119,8 @@ test('a member turns it on for themselves; the first summary is the next Sunday�
       'مشاهدات المنتجات: 150 (الأسبوع الذي قبله: 30)',
       'جلسات العرض: 45 (الأسبوع الذي قبله: 9)',
       'تجارب افتراضية: 30 (الأسبوع الذي قبله: 6)',
+      'صور التجربة: 0 (الأسبوع الذي قبله: 0)',
+      'صور شاركها المتسوقون أو حفظوها: 0 (الأسبوع الذي قبله: 0)',
       'إضافات إلى السلة: 15 (الأسبوع الذي قبله: 3)',
       'عمليات شراء: 15 (الأسبوع الذي قبله: 3)',
       `إيراد المشتريات المسجّلة: ${'1,334.56'} ر.س (الأسبوع الذي قبله: ${'30.00'} ر.س)`, '',
@@ -268,9 +270,52 @@ test('the uplift line appears only when both groups are large enough, signed eit
     await sendWeeklyReports(SUNDAY_0800);
     assert.ok(sent[0]!.text.includes('\nارتفاع التحويل (نسبة الشراء لمن فتح العرض ناقص من لم يفتحه): ⁦+5.0⁩ نقطة\n\n'), sent[0]!.text);
 
-    const zero = { views: 0, arSessions: 0, tryonSessions: 0, addToCart: 0, purchases: 0, revenueMinor: 0 };
+    const zero = { views: 0, arSessions: 0, tryonSessions: 0, photos: 0, shares: 0, addToCart: 0, purchases: 0, revenueMinor: 0 };
     assert.ok(reportLines({ week: zero, before: zero, upliftPct: -0.021 }, 'en').endsWith('Conversion uplift (purchase rate with AR minus without): −2.1 pts'), 'a worse week is said as worse');
-    assert.equal(reportLines({ week: zero, before: zero, upliftPct: null }, 'en').split('\n').length, 6, 'and no line at all without one');
+    assert.equal(reportLines({ week: zero, before: zero, upliftPct: null }, 'en').split('\n').length, 8, 'and no line at all without one');
     assert.ok(reportLines({ week: zero, before: zero, upliftPct: null }, 'ar').startsWith('مشاهدات المنتجات: 0 (الأسبوع الذي قبله: 0)'), 'a quiet week is zeros, not a missing mail');
   } finally { await harness.close(); }
 });
+
+test('T140.3: the try-on photos and shared pictures beside the week before, the week’s most tried products — and the same summary on the screen', async () => {
+  const harness = await createTestDb();
+  const sent = outbox();
+  try {
+    const shop = await store(harness, 'oud');
+    const tenantId = shop.tenantId;
+    const [a, b, c] = [uuidv7(), uuidv7(), uuidv7()];
+    const at = (d: string) => new Date(`${d}T10:00:00+03:00`);
+    const ev = (eventType: string, d: string, surface = 'tryon') => ({ tenantId, eventType, sessionId: 's', occurredAt: at(d), properties: { surface } });
+    await harness.asAdmin(async () => {
+      await harness.db.insert(products).values([{ id: a, tenantId, name: 'Oud 41', nameAr: 'عود 41' }, { id: b, tenantId, name: 'Pearl 38' }, { id: c, tenantId, name: 'Untried' }] as any);
+      await harness.db.insert(dailyProductStats).values([
+        { tenantId, productId: a, day: '2026-09-28', tryonSessions: 5, addToCart: 2 }, { tenantId, productId: a, day: '2026-10-01', tryonSessions: 4, addToCart: 1 },
+        { tenantId, productId: b, day: '2026-09-29', tryonSessions: 12, addToCart: 1 },
+        { tenantId, productId: c, day: '2026-09-29', views: 40, tryonSessions: 0 },
+        { tenantId, productId: c, day: '2026-09-20', tryonSessions: 99 }, // the week before: not this week's
+      ] as any);
+      await harness.db.insert(analyticsEvents).values([
+        ev('tryon_capture', '2026-09-27'), ev('tryon_capture', '2026-10-03'), ev('tryon_share', '2026-09-30'),
+        ev('tryon_capture', '2026-09-22'), // the week before
+        ev('tryon_capture', '2026-09-30', 'page'), // not the try-on's own
+        ev('tryon_capture', '2026-10-04'), // the Sunday after
+      ] as any);
+    });
+    const preview = await reportPreview(shop.ctx, SUNDAY_0800);
+    assert.ok(preview.lines.ar.includes('صور التجربة: 2 (الأسبوع الذي قبله: 1)'), preview.lines.ar);
+    assert.ok(preview.lines.ar.includes('صور شاركها المتسوقون أو حفظوها: 1 (الأسبوع الذي قبله: 0)'));
+    assert.ok(preview.lines.en.endsWith('Most tried on:\n1. Pearl 38 — 12 try-ons, 1 added to cart\n2. Oud 41 — 9 try-ons, 3 added to cart'), preview.lines.en);
+    assert.ok(preview.lines.ar.includes('2. عود 41 — 9 تجربة، 3 إضافة إلى السلة'), 'its Arabic name');
+    assert.ok(!preview.lines.en.includes('Untried'), 'a product nobody tried is not in the top');
+    assert.ok(preview.lines.en.includes('\n\nMost tried on:'), 'its own paragraph, after the figures');
+    assert.match(preview.period.en, /27 Sept? 2026 to 3 Oct 2026/);
+    // the email says the same
+    await setReportSubscription(shop.ctx, true, WEDNESDAY);
+    await sendWeeklyReports(SUNDAY_0800);
+    assert.ok(sent[0]!.text.includes('أكثر المنتجات تجربةً:\n1. Pearl 38 — 12 تجربة'), sent[0]!.text);
+    // the screen's summary only for those who may have it
+    const basic = await store(harness, 'basic', 'starter');
+    await assert.rejects(reportPreview(basic.ctx, SUNDAY_0800), (e: any) => e.code === 'forbidden');
+  } finally { await harness.close(); }
+});
+

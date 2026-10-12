@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { route } from '@/server/core/observability/request';
 import { apiConfig, assertSameOrigin, json, readJson, tenantContextFor } from '@/server/core/http/api';
 import { analyticsCsv, analyticsView } from './metrics';
-import { reportSubscription, setReportSubscription } from './report';
+import { reportPreview, reportSubscription, setReportSubscription } from './report';
 import { collectResponse, collectThenAnswer } from './ingest';
 import { liveActivity } from './live';
 import { SESSION_FILTERS, sessionList, sessionPath } from './sessions';
@@ -37,6 +37,11 @@ export const analyticsExportHandler = route(async (request) => {
 /** API-092 — GET /api/analytics/report: the signed-in member's own weekly summary by email (P4.8). */
 export const analyticsReportHandler = route(async (request) => {
   return json(await reportSubscription(await tenantContextFor(request, apiConfig())));
+});
+
+/** T140.3 — GET /api/analytics/report/preview: last week's summary, as the email says it. */
+export const analyticsReportPreviewHandler = route(async (request) => {
+  return json(await reportPreview(await tenantContextFor(request, apiConfig())));
 });
 
 /** API-092 — PUT /api/analytics/report { weekly }: turn one's own on or off. */

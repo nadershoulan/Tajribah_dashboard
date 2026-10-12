@@ -215,6 +215,8 @@ export interface DataSource {
   /** P4.8: the signed-in member's own weekly summary by email, and turning it on or off. */
   reportSubscription(): Promise<ReportSubscriptionView>;
   setReportSubscription(weekly: boolean): Promise<ReportSubscriptionView>;
+  /** T140.3: last week's summary, as the email says it. */
+  reportPreview(): Promise<{ period: { ar: string; en: string }; lines: { ar: string; en: string } }>;
   /** P1.2: the setup checklist as the database decides it (P1.1), and the merchant's moves on it. */
   onboarding(): Promise<OnboardingView>;
   skipStep(step: StepKey): Promise<OnboardingView>;
@@ -492,6 +494,7 @@ export function apiSource(client: ApiClient): DataSource {
     },
     async reportSubscription() { return client.call<ReportSubscriptionView>('/api/analytics/report'); },
     async setReportSubscription(weekly) { return client.call<ReportSubscriptionView>('/api/analytics/report', { method: 'PUT', body: { weekly } }); },
+    async reportPreview() { return client.call('/api/analytics/report/preview'); },
     async onboarding() { return client.call<OnboardingView>('/api/onboarding'); },
     async skipStep(step) { return client.call<OnboardingView>('/api/onboarding/skip', { body: { step } }); },
     async unskipStep(step) { return client.call<OnboardingView>('/api/onboarding/unskip', { body: { step } }); },
@@ -1197,6 +1200,16 @@ export const demoSource: DataSource = {
   // The preview sends no mail: the switch works, and says where a real one would go.
   async reportSubscription() { return { weekly: demoWeeklyReport, email: 'owner@failet.sa', unavailable: null, nextOn: nextSunday() }; },
   async setReportSubscription(weekly) { demoWeeklyReport = weekly; return this.reportSubscription(); },
+  // the preview's own made-up store: what a week's summary looks like
+  async reportPreview() {
+    return {
+      period: { ar: 'الأسبوع الماضي', en: 'Last week' },
+      lines: {
+        ar: 'مشاهدات المنتجات: 1,240 (الأسبوع الذي قبله: 1,105)\nتجارب افتراضية: 186 (الأسبوع الذي قبله: 150)\nصور التجربة: 142 (الأسبوع الذي قبله: 118)\nصور شاركها المتسوقون أو حفظوها: 37 (الأسبوع الذي قبله: 29)\nإضافات إلى السلة: 64 (الأسبوع الذي قبله: 52)\n\nأكثر المنتجات تجربةً:\n١. ساعة فايلت النسائية الألماس — 88 تجربة، 31 إضافة إلى السلة',
+        en: 'Product views: 1,240 (week before: 1,105)\nTry-on sessions: 186 (week before: 150)\nTry-on photos: 142 (week before: 118)\nPictures shoppers shared or saved: 37 (week before: 29)\nAdded to cart: 64 (week before: 52)\n\nMost tried on:\n1. Failet women’s diamond watch — 88 try-ons, 31 added to cart',
+      },
+    };
+  },
   async analytics(range) {
     const days = range === '7d' ? 7 : range === '30d' ? 30 : 90;
     const series = DEMO_ANALYTICS.series.slice(-Math.min(days, DEMO_ANALYTICS.series.length));

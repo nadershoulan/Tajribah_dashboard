@@ -2288,3 +2288,19 @@ white-label never shows Tajribah's mark. Other plans keep it. The logo is read a
 dashboard's security policy lets it fetch only from itself, while pictures may come from any https address; a logo the
 browser kept as a plain copy is asked again at a fresh address (as the studio's pictures are); a logo with no CORS at
 all leaves the corner plain rather than breaking the code.
+
+**T138 — detection after the picture and while taking it (2026-10-12, Nader: "improve the auto watch and other product
+detection after user take picture or trying to take").** Measured first: a bench (`scripts/dev/detection-bench/`) runs
+the site's own detection with the real models on our real photos made harder the way a shopper's photo goes wrong (240
+cases; ground truth the clean photo's detection carried through each known change). Each change was kept only if the
+bench said so — found 194 → 221, placed well 173 → 203. Kept: a dark or grainy photo is looked at **cleaned first**
+(smaller with smoothing, its light stretched — at 512 then 320 px; a clean photo never is); a hand or face **too close**
+is found once **shrunk** into a margin; a **far** one in **zoomed** crops, then **looked at once more, closer** when
+found small (under a fifth of the photo — at under 30 % it only moved moderate hands about). **Faces are never turned
+upside down**: the face model fits an upside-down face wrongly (chin on the forehead), so that look only ever produced
+upside-down glasses and a necklace on the forehead — no face found is better than a wrong one. The guided camera now
+places the product from a **fresh look at the photo itself** (full size, every look), the live sighting only when that
+finds nothing. Live: **one-euro smoothing** (steady when still, quick when moving — a fixed share had to choose), and a
+**dropped frame (250 ms) is not the hand gone** — the product does not blink, the guide does not flash «أظهر يدك», auto
+capture's ring does not restart. Left: the earring's automatic first guess (needs photos with face and ear), and real
+evening phone photos to sharpen the bench.

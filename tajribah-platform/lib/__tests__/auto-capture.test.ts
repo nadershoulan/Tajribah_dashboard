@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AWAY_MS, HOLD_MS, NEW_POSE, STILL, startAuto, stepAuto, type AutoState } from '@site/lib/auto-capture';
+import { AWAY_MS, DROP_MS, HOLD_MS, NEW_POSE, STILL, startAuto, stepAuto, type AutoState } from '@site/lib/auto-capture';
 
 const W = 390;
 const run = (s: AutoState, from: number, to: number, seen: (t: number) => { x: number; y: number; width: number } | null) => {
@@ -43,3 +43,24 @@ test('after a shot: not again while the hand stays, however long — until it go
   const nudged = run(first.state, t0 + 80, t0 + 600 + HOLD_MS + 600, (t) => (t < t0 + 600 ? still() : { ...still(), x: 200 + NEW_POSE * W * 0.5 }));
   assert.deepEqual(nudged.fired, [], 'a nudge is the same pose');
 });
+
+test('T138: a dropped look while holding still does not start the wait again; gone longer, it does', () => {
+  const clean = run(startAuto(), 0, HOLD_MS + 400, still);
+  const blink = run(startAuto(), 0, HOLD_MS + 400, (t) => (t === 480 ? null : still()));
+  assert.equal(blink.fired.length, 1, 'still taken');
+  assert.deepEqual(blink.fired, clean.fired, 'and on time, as if nothing was missed');
+  const before = run(startAuto(), 0, 480, still);
+  const during = stepAuto(before.state, 560, null, W);
+  assert.ok(during.progress > 0 && Math.abs(during.progress - before.progress) < 1e-9, `the ring holds where it was during the drop (${during.progress.toFixed(2)}), no flicker to empty`);
+  const gone = run(startAuto(), 0, HOLD_MS + 160, (t) => (t >= 400 && t <= 400 + DROP_MS + 160 ? null : still()));
+  assert.deepEqual(gone.fired, [], 'away for longer than a drop: begun again, not yet taken');
+});
+
+test('T138: after a shot, away is counted from when the hand was last seen — the drop allowance adds no wait', () => {
+  const first = run(startAuto(), 0, HOLD_MS + 200, still);
+  const end = HOLD_MS + 200, t1 = end + 400; // still there a while after the shot, then gone
+  const back = t1 + AWAY_MS + 80;
+  const next = run(first.state, end + 80, back + HOLD_MS + 400, (t) => (t < t1 ? still() : t < back ? null : still()));
+  assert.equal(next.fired.length, 1, 'away for AWAY_MS since last seen, then back: the next pose is taken');
+});
+

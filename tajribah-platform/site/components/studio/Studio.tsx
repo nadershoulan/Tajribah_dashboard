@@ -557,7 +557,7 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
             runningMode: 'IMAGE', numHands: 1, minHandDetectionConfidence: 0.35,
           });
         }
-        // T134.5: a harder look (the photo turned, then a weaker sighting accepted), and the watch at its real case
+        // T134.5 / T138: harder looks (turned, shrunk, zoomed, then a weaker sighting), and the watch at its real case
         // width with the hand as the ruler (site/lib/placement.ts) — it took 90 % of the palm's width before
         const found = await detectHand(handDetector.current, img);
         if (request !== photoRequest.current) return;

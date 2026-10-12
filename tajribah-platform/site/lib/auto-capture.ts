@@ -17,6 +17,8 @@ export const NEW_POSE = 0.12;
 const WINDOW_MS = 500;
 /** The hand away this long after a shot — not a dropped frame — and the next pose may be taken. */
 export const AWAY_MS = 600;
+/** T138: a look that finds nothing this soon after the last sighting is a dropped frame — the wait carries on. */
+export const DROP_MS = 250;
 
 export const startAuto = (): AutoState => ({ history: [], since: null, armed: true, last: -Infinity, gone: null, shot: null });
 
@@ -25,9 +27,15 @@ export const startAuto = (): AutoState => ({ history: [], since: null, armed: tr
  * screen's width. `progress` 0…1 fills the ring round the shutter; `fire` takes the photo.
  */
 export function stepAuto(s: AutoState, now: number, seen: { x: number; y: number; width: number } | null, screen: number): AutoStep {
-  // after a shot: the hand away for a moment (not one dropped frame), or a new pose, and it may shoot again
+  // T138: one look that finds nothing (a blur) does not start the wait again — it carries on where it was
+  const last = s.history.at(-1);
+  if (!seen && last && now >= last.t && now - last.t <= DROP_MS) {
+    return { state: s, progress: s.since === null ? 0 : Math.min(1, (last.t - s.since) / HOLD_MS), fire: false };
+  }
+  // after a shot: the hand away for a moment (not one dropped frame), or a new pose, and it may shoot again — away
+  // counted from when it was last seen
   if (!seen) {
-    const gone = s.gone ?? now;
+    const gone = s.gone ?? (last && last.t <= now ? last.t : now);
     return { state: { ...s, history: [], since: null, armed: s.armed || now - gone >= AWAY_MS, gone }, progress: 0, fire: false };
   }
   const moved = !!s.shot && (Math.hypot(seen.x - s.shot.x, seen.y - s.shot.y) > NEW_POSE * screen || Math.abs(seen.width - s.shot.width) > s.shot.width * 0.2);

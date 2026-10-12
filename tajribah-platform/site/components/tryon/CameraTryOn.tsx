@@ -30,7 +30,7 @@ import { detectHand } from '@site/lib/hand-detect';
 import { detectFace } from '@site/lib/face-detect';
 import { model } from '@site/lib/detectors';
 import { earringPlacement, facePoints, handPoints, placeOnFace, placeOnHand, type Pose, type Pt } from '@site/lib/placement';
-import { faceFeedback, follow, handFeedback } from '@site/lib/live-feedback';
+import { DROP_MS, faceFeedback, handFeedback, smooth, type Smoothing } from '@site/lib/live-feedback';
 import { dragged, fillFor, fitOf, liftedAbove, mirrored, onPicture, onScreen, pinched, type Fit, type Size } from '@site/lib/capture-view';
 import { HAS_SIDE, guideProduct, type Side } from '@site/lib/guide-layout';
 import { startAuto, stepAuto, type AutoState } from '@site/lib/auto-capture';
@@ -187,11 +187,18 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
   useEffect(() => {
     if (view !== 'camera' || camera !== 'live' || !detects) return;
     let stopped = false, frame = 0, last = 0, drawn: Pose | null = null, said: GuideState = 'idle', shown = 0;
+    // T138: when the hand or face was last seen, and the drawn product's smoothing (steady when still, quick when moving)
+    let seenAt = -Infinity, smoothing: Smoothing<Pose> = null;
     let steady: AutoState = startAuto();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let detector: any = null;
     (onFace ? model('face', 'VIDEO', asset) : model('hand', 'VIDEO', asset)).then((m) => { detector = m; }).catch(() => {});
-    const tell = (next: GuideState) => { if (next !== said) { said = next; setState(next); } };
+    // a look that finds nothing just after a sighting is a dropped frame: the guide keeps what it said (T138)
+    const tell = (next: GuideState, now: number) => {
+      if (next === 'none' && now - seenAt <= DROP_MS) return;
+      if (next !== 'none') seenAt = now;
+      if (next !== said) { said = next; setState(next); }
+    };
     const tick = (now: number) => {
       if (stopped) return;
       frame = requestAnimationFrame(tick);
@@ -208,7 +215,7 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
           const lm = found ? (mirror ? mirrored(found) : found) : null;
           const f = lm ? facePoints(lm, picture, fit) : null;
           sighting.current = lm && f ? { landmarks: lm, score: 1, mirrored: mirror } : null;
-          tell(faceFeedback(f, box));
+          tell(faceFeedback(f, box), now);
           if (f && product) target = placeOnFace(kind === 'necklace' ? 'necklace' : 'glasses', f, product.caseMm, aspect, mirror);
         } else {
           const result = detector.detectForVideo(v, now);
@@ -217,7 +224,7 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
           const h = lm ? handPoints(lm, picture, fit) : null;
           const score = result.handedness?.[0]?.[0]?.score ?? 0.5;
           sighting.current = lm && h ? { landmarks: lm, score, mirrored: mirror } : null;
-          tell(handFeedback(handKind, h, box));
+          tell(handFeedback(handKind, h, box), now);
           if (h && product) target = placeOnHand(handKind, h, product.caseMm, aspect, score);
         }
       } catch { /* a dropped frame */ }
@@ -231,8 +238,13 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
       if (step.fire) shoot.current(true);
       const el = liveProduct.current;
       if (!el) return;
-      if (!target) { drawn = null; el.style.opacity = '0'; return; }
-      drawn = follow(drawn, target);
+      // nothing this look: a dropped frame keeps the product where it was; gone longer, it fades out
+      if (!target) {
+        if (drawn && now - seenAt <= DROP_MS) return;
+        drawn = null; smoothing = null; el.style.opacity = '0'; return;
+      }
+      const next = smooth(smoothing, target, now);
+      smoothing = next.state; drawn = next.pose;
       place(el, drawn, aspect, SHADOW[kind]);
       el.style.opacity = '1';
     };
@@ -258,8 +270,10 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
   }
 
   /**
-   * Place the product on a still: the live sighting when there is one (the same moment), else a fresh, harder look,
-   * else where the guide showed it (the shopper lined up with it).
+   * Place the product on a still. T138: first a fresh look at the photo itself — the whole picture, at its full size,
+   * with every harder look (`detect-views.ts`): more exact than the live preview's last sighting, which is a frame or
+   * two older and from the lighter video tracking; then that live sighting (the detector saw it a moment ago); then
+   * where the guide showed it (the shopper lined up with it).
    */
   async function placeOn(img: HTMLImageElement, seen: Sighting | null, hint: GuideHint | null): Promise<{ pose: Pose | null; how: 'found' | 'guide' | 'none' }> {
     const size = { width: img.naturalWidth, height: img.naturalHeight };
@@ -273,18 +287,16 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
     if (!detects) return fromGuide();
     try {
       if (onFace) {
-        let lm = seen?.landmarks ?? null;
+        let lm = ((await detectFace(await model('face', 'IMAGE', asset), img))?.faceLandmarks[0] as Landmark[] | undefined) ?? null;
         // the live sighting was flipped with the front camera's picture; a fresh look at the (flipped) still is not
-        const flipped = !!lm && seen?.mirrored === true;
-        if (!lm) lm = ((await detectFace(await model('face', 'IMAGE', asset), img))?.faceLandmarks[0] as Landmark[] | undefined) ?? null;
+        const flipped = !lm && seen?.mirrored === true;
+        lm ??= seen?.landmarks ?? null;
         const f = lm ? facePoints(lm, size, flat) : null;
         return f ? { pose: placeOnFace(kind === 'necklace' ? 'necklace' : 'glasses', f, product.caseMm, aspect, flipped), how: 'found' } : fromGuide();
       }
-      let lm = seen?.landmarks ?? null, score = seen?.score ?? 0.5;
-      if (!lm) {
-        const found = await detectHand(await model('hand', 'IMAGE', asset), img);
-        if (found) { lm = found.landmarks[0] ?? null; score = found.score; }
-      }
+      const found = await detectHand(await model('hand', 'IMAGE', asset), img);
+      let lm: Landmark[] | null = (found?.landmarks[0] as Landmark[] | undefined) ?? null, score = found?.score ?? 0.5;
+      if (!lm && seen) { lm = seen.landmarks; score = seen.score; }
       const h = lm ? handPoints(lm, size, flat) : null;
       return h ? { pose: placeOnHand(handKind, h, product.caseMm, aspect, score), how: 'found' } : fromGuide();
     } catch {

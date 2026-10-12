@@ -15,6 +15,7 @@ import { useLang } from '@site/lib/i18n';
 import { useSiteEnv } from '@site/lib/site-env';
 import { preparePhoto } from '@site/lib/photo';
 import { castShadow, softEdged } from '@site/lib/shadow';
+import { NEUTRAL, litProduct, measureLight, tintOf, type Tint } from '@site/lib/light';
 import { QR_MARK, markedQrPng } from '@/lib/qr-mark';
 import { earringPlacement, glassesPlacement, handPoints, necklacePlacement, watchPlacement } from '@site/lib/placement';
 import { kindOf, pairProductOf } from '@site/lib/pair-product';
@@ -131,6 +132,8 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
   const gestures = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ distance: number; zoom: number } | null>(null);
   const photoRequest = useRef(0);
+  // T140.2: how the product is lit on the shopper's photo shown now (measured once per photo)
+  const photoTint = useRef<Tint>(NEUTRAL);
   const shownNow = useRef<{ pose: Pose; fit: Pose; scale: number; current: number | null; photos: typeof myPhotos; qrOpen: boolean; pair: typeof pair }>(null!);
   shownNow.current = { pose, fit: photoFit, scale, current: currentPhoto, photos: myPhotos, qrOpen, pair };
   const notify = (message: string) => setNotice(message);
@@ -241,7 +244,9 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
       ctx.translate(pose.x, pose.y); ctx.rotate((pose.angle * Math.PI) / 180);
       // T134.1: on a photo its outline softened by about a pixel, so it reads as photographed there, not pasted on
       const seen = Math.hypot(ctx.getTransform().a, ctx.getTransform().b) || 1;
-      ctx.drawImage(mode === 'compare' ? im : softEdged(im, width * seen), -width / 2, -height / 2, width, height);
+      // T140.2: on the shopper's own photo, lit like it — darker in dim light, a little towards a lamp's colour
+      const lit = mode === 'me' ? litProduct(im, photoTint.current) : im;
+      ctx.drawImage(mode === 'compare' ? im : softEdged(lit, width * seen), -width / 2, -height / 2, width, height);
       if (rulers) {
         const y = height / 2 + 26;
         ctx.strokeStyle = '#00A7BC'; ctx.lineWidth = 2; ctx.beginPath();
@@ -549,6 +554,7 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
       setMyPhotos((list) => [...list, { id, src: prepared.dataUrl, pose: null, fit: null, scale: 100 }].slice(-MAX_PHOTOS));
       setCurrentPhoto(id);
       images.current.photo = img;
+      photoTint.current = tintOf(measureLight(img));
       setPhoto(prepared.dataUrl); setMode('me'); setZoom(1); setScale(100); setCalibrating(false);
       let base = { x: 600, y: 570, width: 155, angle: 0 };
       setPose(base); setPhotoFit(base);
@@ -661,6 +667,7 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
     keepFit();
     const img = await loadImage(target.src);
     images.current.photo = img;
+    photoTint.current = tintOf(measureLight(img));
     const fit = target.fit ?? { x: 600, y: 570, width: 155, angle: 0 };
     setPhoto(target.src); setMode('me'); setZoom(1); setCalibrating(false); setPoints([]); setPhotoBusy(false);
     setPose(target.pose ?? fit); setPhotoFit(fit); setScale(target.scale); setCurrentPhoto(id);

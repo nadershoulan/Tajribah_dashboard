@@ -26,6 +26,7 @@ import { Guide, guideText, type CapturePhase, type GuideState } from '@site/comp
 import type { PairKind, PairProduct } from '@site/lib/pair-product';
 import type { StoreBrand } from '@site/lib/tryon-config';
 import { castShadow, cssShadow, softEdged, type ShadowKind } from '@site/lib/shadow';
+import { NEUTRAL, lightOf, litProduct, litUrl, measureLight, tintOf, type Tint } from '@site/lib/light';
 import { detectHand } from '@site/lib/hand-detect';
 import { detectFace } from '@site/lib/face-detect';
 import { model } from '@site/lib/detectors';
@@ -45,7 +46,7 @@ type GuideHint = { pose: Pose; frame: Size };
  * `fill`: edge to edge, or the whole picture when that would cut off where the product is — chosen once, so it never
  * jumps mid-drag. `first`: where the product first landed — the photo is slid up from it so the buttons never cover it.
  */
-export type Shot = { id: number; dataUrl: string; blob: Blob; size: Size; fill: 'cover' | 'contain'; pose: Pose | null; auto: Pose | null; first: Pose | null; taps: Pt[]; sent: boolean };
+export type Shot = { id: number; dataUrl: string; blob: Blob; size: Size; fill: 'cover' | 'contain'; pose: Pose | null; auto: Pose | null; first: Pose | null; taps: Pt[]; sent: boolean; /** T140.2: the product lit like this photo */ tint?: Tint };
 type View = 'camera' | 'pick' | 'result';
 type HandSize = 'small' | 'medium' | 'large';
 
@@ -188,7 +189,7 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
     if (view !== 'camera' || camera !== 'live' || !detects) return;
     let stopped = false, frame = 0, last = 0, drawn: Pose | null = null, said: GuideState = 'idle', shown = 0;
     // T138: when the hand or face was last seen, and the drawn product's smoothing (steady when still, quick when moving)
-    let seenAt = -Infinity, smoothing: Smoothing<Pose> = null;
+    let seenAt = -Infinity, smoothing: Smoothing<Pose> = null, litAt = -Infinity, lightCanvas: HTMLCanvasElement | null = null;
     let steady: AutoState = startAuto();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let detector: any = null;
@@ -246,6 +247,16 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
       const next = smooth(smoothing, target, now);
       smoothing = next.state; drawn = next.pose;
       place(el, drawn, aspect, SHADOW[kind]);
+      // T140.2: the live product a little darker in a dim room, measured from the camera every second and a half
+      if (now - litAt > 1500) {
+        litAt = now;
+        try {
+          const g = (lightCanvas ??= Object.assign(document.createElement('canvas'), { width: 48, height: 48 })).getContext('2d', { willReadFrequently: true })!;
+          g.drawImage(v, 0, 0, 48, 48);
+          const img = el.firstElementChild as HTMLElement | null;
+          if (img) img.style.filter = `brightness(${tintOf(lightOf(g.getImageData(0, 0, 48, 48).data)).brightness.toFixed(2)})`;
+        } catch { /* a frame that could not be read */ }
+      }
       el.style.opacity = '1';
     };
     frame = requestAnimationFrame(tick);
@@ -315,7 +326,7 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
       // nothing to go by: the product in the middle at about its usual share of the picture, to be moved by hand
       const start = sized ?? (product && kind !== 'earring' ? { x: size.width / 2, y: size.height / 2, width: size.width * START_SHARE[kind], angle: 0 } : null);
       const fill = fillFor(screen, size, start);
-      const next: Shot = { id: nextId.current++, dataUrl: prepared.dataUrl, blob: prepared.blob, size, fill, pose: start, auto: sized, first: start, taps: [], sent: false };
+      const next: Shot = { id: nextId.current++, dataUrl: prepared.dataUrl, blob: prepared.blob, size, fill, pose: start, auto: sized, first: start, taps: [], sent: false, tint: tintOf(measureLight(img)) };
       setShots((was) => [...was, next].slice(-MAX_SHOTS));
       setCurrent(next.id);
       if (stay) { setFlash((f) => f + 1); return; } // auto: the camera stays for another pose
@@ -394,7 +405,7 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
       g.drawImage(photo, 0, 0);
       const p = shot.pose, h = p.width * aspect;
       castShadow(g, item, { x: p.x, y: p.y, width: p.width, height: h, angle: p.angle }, SHADOW[kind]);
-      g.save(); g.translate(p.x, p.y); g.rotate((p.angle * Math.PI) / 180); g.drawImage(softEdged(item, p.width), -p.width / 2, -h / 2, p.width, h); g.restore();
+      g.save(); g.translate(p.x, p.y); g.rotate((p.angle * Math.PI) / 180); g.drawImage(softEdged(litProduct(item, shot.tint ?? NEUTRAL), p.width), -p.width / 2, -h / 2, p.width, h); g.restore();
       const fileName = `${(brand ? brand.name.en : product.name.en).replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'tajribah-try-on'}.jpg`; // an Arabic name leaves no letters: ours
       const file = new File([dataUrlBlob(c.toDataURL('image/jpeg', 0.92))], fileName, { type: 'image/jpeg' });
       const name = t(product.name.ar, product.name.en);
@@ -563,7 +574,7 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
           <div className="cap-stage" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
             <img className="cap-photo" src={shot.dataUrl} alt={t('صورتك', 'Your photo')} draggable={false}
               style={{ left: fit.ox, top: fit.oy, width: shot.size.width * fit.scale, height: shot.size.height * fit.scale }} />
-            {product && shot.pose && <Placed pose={onScreen(shot.pose, fit)} aspect={aspect} kind={SHADOW[kind]} src={worn} alt={t(product.name.ar, product.name.en)} />}
+            {product && shot.pose && <Placed pose={onScreen(shot.pose, fit)} aspect={aspect} kind={SHADOW[kind]} src={shareItem.current && shot.tint ? litUrl(shareItem.current, shot.tint) : worn} alt={t(product.name.ar, product.name.en)} />}
             {kind === 'earring' && !shot.pose && shot.taps.map((p, i) => (
               <span key={i} className="cap-tap" style={{ left: fit.ox + p.x * fit.scale, top: fit.oy + p.y * fit.scale }} />
             ))}

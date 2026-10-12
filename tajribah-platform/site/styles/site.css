@@ -1146,4 +1146,21 @@ html:has(.embed-root.is-preview), html:has(.embed-root.is-preview) body { backgr
 .my-photo-remove { position: absolute; top: -6px; inset-inline-end: -6px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: #0A2237; color: #fff; border: 2px solid #fff; padding: 0; cursor: pointer; }
 .pq .my-photos { justify-content: center; }
 @media (max-width: 600px) { .my-photo > button:first-child { width: 48px; height: 48px; } }
+/* T140.1 — compare on the shopper's photo: the same photo twice, each with one product at its real size */
+.compare-dialog { width: min(760px, calc(100vw - 24px)) !important; max-width: none !important; }
+.compare-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 20px 6px; }
+.compare-half { margin: 0; display: grid; gap: 8px; }
+.compare-half canvas { width: 100%; aspect-ratio: 1; border-radius: 12px; background: var(--tint); display: block; }
+.compare-half figcaption { display: grid; gap: 2px; font-size: 13px; }
+.compare-half figcaption strong { font-size: 14px; line-height: 1.35; color: var(--navy-800); }
+.compare-half figcaption span { color: var(--text-2, #5b6b78); }
+.compare-page { display: inline-flex; align-items: center; gap: 4px; color: var(--teal-600, #00879a); font-weight: 600; margin-top: 2px; }
+.compare-choices { padding: 6px 20px 18px; }
+.compare-choices .my-photo > button:first-child img { object-fit: contain; background: #fff; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@media (max-width: 600px) {
+  .compare-pair { gap: 8px; padding: 10px 12px 4px; }
+  .compare-half figcaption strong { font-size: 13px; }
+  .compare-choices { padding: 6px 12px 14px; }
+}
 

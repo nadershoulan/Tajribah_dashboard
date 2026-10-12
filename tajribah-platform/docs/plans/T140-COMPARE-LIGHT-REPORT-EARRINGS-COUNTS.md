@@ -22,7 +22,18 @@ MediaPipe pose model, which marks the ears — downloaded with Nader's yes, 2026
 - [x] Tests 4 (well lit untouched, dark things not dim light, dim → darker in proportion, warm lamp → warmer, blown-out
       highlights ignored); mutation 7/7. Walked: a warm dim wrist photo, live vs local — the watch no longer glows.
 
-## 1 — Compare  ·  status: to do
+## 1 — Compare  ·  status: ✅ 2026-10-12
+- [x] The store's **try-on shelf** (`server/modules/edge/shelf.ts`): every live try-on product (pictures, real size,
+      kind, https store page), newest first, at most 40, at the reserved ref `shelf:tryons` next to the configs —
+      rebuilt on publish, rewrite, withdrawal, take-down and the whole-store refresh; read through the config host.
+- [x] The try-on page reads it (`site/lib/shelf.ts`, each entry checked as a config; `use-compare-choices.ts`): the
+      same kind only, never the same product, at most 12 — in the shop's window and on the product's own page.
+- [x] Studio, on the shopper's photo: «قارن» → the photo twice, side by side — this product and the one chosen, each
+      at its real size against the other (42 mm is 42/38 of 38 mm) where the shopper fitted it, with its shadow, soft
+      edge and the photo's light; names, sizes, «افتح صفحتها» (the store page) for the other; tiles to change it; a
+      product whose picture does not load is dropped.
+- [x] Tests: server shelf 2, client shelf 3; mutation 14/14. Walked: the store's window and product page, desktop and
+      390 px — 50 mm beside 45 mm.
 
 ## 5 — Counts  ·  status: to do
 
@@ -36,3 +47,4 @@ MediaPipe pose model, which marks the ears — downloaded with Nader's yes, 2026
 |---|---|---|
 | 2026-10-12 | — | Plan written; the pose model downloaded (Nader's yes). |
 | 2026-10-12 | 2 | Light matching built and walked. |
+| 2026-10-12 | 1 | Compare on the shopper's photo built and walked (shelf + split view). |

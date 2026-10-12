@@ -17,6 +17,7 @@ import { servesHere } from '@site/lib/store-host';
 import { EVENTS_ENDPOINT, trackPage } from '@site/lib/page-events';
 import { StoreMark } from '@site/components/site/store-mark';
 import { ConsentLink, StoreConsent } from '@site/components/site/consent';
+import { useCompareChoices } from '@site/components/tryon/use-compare-choices';
 import TryOnFor from '@site/components/tryon/TryOnFor';
 
 export type HostedState = { kind: 'loading' } | { kind: 'ready'; product: HostedProduct } | { kind: 'unavailable' };
@@ -71,6 +72,8 @@ export default function HostedPage({ initial, store, product, storeHost = null }
   // T69: the store's own GA4 gets the same moment — only once the shopper said yes (gtag exists only then).
   const toStoreGa = (event: string) => { if (p?.ga4) window.gtag?.('event', event, { item_name: p.name.en }); };
   const name = p ? t(p.name.ar, p.name.en) : '';
+  // T140.1: the store's other try-on products of this kind, to compare on the shopper's photo
+  const choices = useCompareChoices(p?.tryon ?? null, () => ({ store, ref: product, base: query().get('base') }));
   const storeName = p ? t(p.store.ar, p.store.en) : '';
   const size = p ? sizeParts(p, lang) : null;
 
@@ -104,7 +107,7 @@ export default function HostedPage({ initial, store, product, storeHost = null }
 
           {p.tryon && (
             <SiteEnvContext.Provider value={studioEnv}>
-              <TryOnFor product={p.tryon} brand={p.brand} />
+              <TryOnFor product={p.tryon} brand={p.brand} compareWith={choices} />
             </SiteEnvContext.Provider>
           )}
 

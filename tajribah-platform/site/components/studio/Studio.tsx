@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Camera, Check, ChevronRight, Download, Expand, Hand, HelpCircle, ImagePlus, LoaderCircle,
+  Camera, Check, ChevronRight, Columns2, Download, Expand, ExternalLink, Hand, HelpCircle, ImagePlus, LoaderCircle,
   Maximize2, Minus, Move, Plus, QrCode, RotateCcw, RotateCw, Ruler, Scaling, Share2, Smartphone, Upload, X,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -16,6 +16,7 @@ import { useSiteEnv } from '@site/lib/site-env';
 import { preparePhoto } from '@site/lib/photo';
 import { castShadow, softEdged } from '@site/lib/shadow';
 import { NEUTRAL, litProduct, measureLight, tintOf, type Tint } from '@site/lib/light';
+import { cropRound, widthBeside, type Choice } from '@site/lib/shelf';
 import { QR_MARK, markedQrPng } from '@/lib/qr-mark';
 import { earringPlacement, glassesPlacement, handPoints, necklacePlacement, watchPlacement } from '@site/lib/placement';
 import { kindOf, pairProductOf } from '@site/lib/pair-product';
@@ -61,7 +62,7 @@ const loadImage = (src: string) => (/^(data|blob):/.test(src)
  * the help screen (the privacy line); `topbarExtra` — what it adds beside the tabs (the shop window's close, on a phone,
  * where the help button was — Nader: the help goes onto the picture, the close beside the tabs).
  */
-export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpExtra = null, topbarExtra = null, shareLink, qrMark = QR_MARK }: { product?: TryOnProduct; stageExtras?: React.ReactNode; helpExtra?: React.ReactNode; topbarExtra?: React.ReactNode; qrMark?: string | null; shareLink?: string | null } = {}) {
+export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpExtra = null, topbarExtra = null, shareLink, qrMark = QR_MARK, compareWith = [] }: { product?: TryOnProduct; stageExtras?: React.ReactNode; helpExtra?: React.ReactNode; topbarExtra?: React.ReactNode; qrMark?: string | null; /** T140.1: the store's other products of this kind, to put beside this one on the shopper's photo */ compareWith?: Choice[]; shareLink?: string | null } = {}) {
   const { lang } = useLang();
   const { asset, features } = useSiteEnv();
   const ar = lang === 'ar';
@@ -112,6 +113,15 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
   const [currentPhoto, setCurrentPhoto] = useState<number | null>(null);
   const photoSeq = useRef(0);
   const pairGot = useRef(0); // photos received through the pairing now open
+  // T140.1 (Nader): "this watch or that one" — the shopper's photo twice, side by side, each with one product at its
+  // real size, where the shopper fitted this one, lit like the photo
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareTo, setCompareTo] = useState(0);
+  const compareHalves = useRef<(HTMLCanvasElement | null)[]>([null, null]);
+  const compareImages = useRef(new Map<string, Promise<HTMLImageElement>>());
+  // a product whose picture does not load is dropped from the choices (never a half left showing the one before)
+  const [compareBroken, setCompareBroken] = useState<string[]>([]);
+  const choices = compareWith.filter((c) => !compareBroken.includes(c.ref));
   const [notice, setNotice] = useState('');
   const [loaded, setLoaded] = useState<ReadonlySet<string>>(() => new Set());
   // Ready = the pictures this view draws are in (T31: they arrive in two steps).
@@ -672,6 +682,45 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
     setPhoto(target.src); setMode('me'); setZoom(1); setCalibrating(false); setPoints([]); setPhotoBusy(false);
     setPose(target.pose ?? fit); setPhotoFit(fit); setScale(target.scale); setCurrentPhoto(id);
   }
+  // T140.1: draw both halves — the photo as the stage shows it, each product where the shopper fitted this one (the
+  // other at its own real size against it), lit like the photo, cropped round them the same way
+  useEffect(() => {
+    if (!compareOpen || !photo || !images.current.photo) return;
+    const other = choices[compareTo];
+    if (!other) return;
+    let live = true;
+    const load = (src: string) => {
+      let p = compareImages.current.get(src);
+      if (!p) { p = loadImage(src); compareImages.current.set(src, p); }
+      return p;
+    };
+    void Promise.all([images.current.watch ? Promise.resolve(images.current.watch) : load(asset(product.worn)), load(asset(other.product.worn))]).then(([mine, theirs]) => {
+      const ph = images.current.photo;
+      if (!live || !ph) return;
+      const first = (pose.width * scale) / 100;
+      const widths = [first, widthBeside(first, product.caseMm, other.product.caseMm)];
+      const crop = cropRound(pose, Math.max(...widths), { W, H });
+      [mine, theirs].forEach((im, i) => {
+        const out = compareHalves.current[i];
+        if (!out) return;
+        const full = document.createElement('canvas');
+        full.width = W; full.height = H;
+        const g = full.getContext('2d')!;
+        g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+        const f = Math.min(W / ph.width, H / ph.height);
+        g.drawImage(ph, (W - ph.width * f) / 2, (H - ph.height * f) / 2, ph.width * f, ph.height * f);
+        const width = widths[i]!, height = (width * im.height) / im.width;
+        castShadow(g, im, { x: pose.x, y: pose.y, width, height, angle: pose.angle }, product.category ?? 'watch');
+        g.save(); g.translate(pose.x, pose.y); g.rotate((pose.angle * Math.PI) / 180);
+        g.drawImage(softEdged(litProduct(im, photoTint.current), width), -width / 2, -height / 2, width, height);
+        g.restore();
+        out.width = Math.round(crop.side); out.height = Math.round(crop.side);
+        out.getContext('2d')!.drawImage(full, crop.x, crop.y, crop.side, crop.side, 0, 0, out.width, out.height);
+      });
+    }).catch(() => { if (live) { setCompareBroken((b) => [...b, other.ref]); setCompareTo(0); } });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compareOpen, compareTo, photo, pose, scale, compareWith, compareBroken]);
   function forgetPhoto(id: number) {
     const rest = shownNow.current.photos.filter((p) => p.id !== id);
     if (id === shownNow.current.current) {
@@ -906,6 +955,7 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
                   {/* T137: after a photo — save it as a file, or share it (the phone's own sheet) */}
                   {photo && features.download && <button className="secondary-button save-photo" disabled={!assetsReady || photoBusy} onClick={() => shareImage(false)}><Download size={16} />{t('Save the picture', 'احفظ الصورة')}</button>}
                   {photo && features.download && isPhone && <button className="secondary-button save-photo" disabled={!assetsReady || photoBusy} onClick={() => shareImage(true)}><Share2 size={16} />{t('Share the picture', 'شارك الصورة')}</button>}
+                  {photo && choices.length > 0 && <button className="secondary-button compare-button" onClick={() => setCompareOpen(true)}><Columns2 size={16} />{t('Compare', 'قارن')}</button>}
                   {features.pairing && !isPhone && <button className="icon-button" aria-label={t('Use your phone', 'استخدام الجوال')} onClick={() => setQrOpen(true)}><QrCode size={19} /></button>}
                 </div>
                 </>
@@ -975,6 +1025,40 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
           </DialogContent>
         </Dialog>
       )}
+
+      {/* T140.1: the comparison — the same photo twice, this product and the one chosen, each at its real size */}
+      <Dialog open={compareOpen} onOpenChange={setCompareOpen}>
+        <DialogContent className="help-dialog compare-dialog" showCloseButton={false}>
+          <div className="help-head">
+            <DialogTitle>{t('Compare on your photo', 'قارن على صورتك')}</DialogTitle>
+            <DialogClose className="help-close" aria-label={t('Close', 'إغلاق')}><X size={18} aria-hidden /></DialogClose>
+          </div>
+          <DialogDescription className="sr-only">{t('Your photo with each product at its real size.', 'صورتك مع كل منتج بمقاسه الحقيقي.')}</DialogDescription>
+          {choices[compareTo] && (
+            <div className="compare-pair">
+              {[{ p: product, page: null as string | null }, { p: choices[compareTo]!.product, page: choices[compareTo]!.page }].map(({ p, page }, i) => (
+                <figure key={i} className="compare-half">
+                  <canvas ref={(el) => { compareHalves.current[i] = el; }} aria-label={t(p.name.en, p.name.ar)} />
+                  <figcaption>
+                    <strong>{t(p.name.en, p.name.ar)}</strong>
+                    <span dir="ltr">{p.caseMm} {t('mm', 'مم')}</span>
+                    {page && <a href={page} target="_top" rel="noopener" className="compare-page"><ExternalLink size={13} aria-hidden />{t('Open its page', 'افتح صفحتها')}</a>}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          )}
+          {choices.length > 1 && (
+            <div className="my-photos compare-choices" role="group" aria-label={t('Compare with', 'قارن مع')}>
+              {choices.map((c, i) => (
+                <span key={c.ref} className={'my-photo' + (i === compareTo ? ' selected' : '')}>
+                  <button type="button" onClick={() => setCompareTo(i)} aria-pressed={i === compareTo} aria-label={t(c.product.name.en, c.product.name.ar)}><img src={asset(c.product.flat)} alt="" onError={() => { setCompareBroken((b) => [...b, c.ref]); setCompareTo(0); }} /></button>
+                </span>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
         {/* T137 (Nader): on a phone it closes easily — a sticky bar with the title and a clear close, the rest scrolls, «حسنًا» at its foot */}

@@ -30,6 +30,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { ShieldCheck, X } from 'lucide-react';
 import { useLang } from '@site/lib/i18n';
 import { shareLinkOf } from '@site/lib/share-picture';
+import { useCompareChoices } from '@site/components/tryon/use-compare-choices';
 import { SiteEnvContext, SiteLink, useSiteEnv } from '@site/lib/site-env';
 import type { TryOnProduct } from '@site/lib/demo-product';
 import { brandFrom, CLOSE_MESSAGE, SHOWN_MESSAGE, SIZE_MESSAGE, PREVIEW_CONFIG, PREVIEW_HEIGHT, PREVIEW_READY, configBase, configUrl, embedTitle, isLocalHost, tryOnProductFrom, validRefs, type StoreBrand } from '@site/lib/tryon-config';
@@ -109,6 +110,13 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
       .catch(() => { if (live) setState({ kind: 'unavailable' }); });
     return () => { live = false; };
   }, [initial, storeHost]);
+
+  // T140.1: the store's other try-on products of this kind, to compare on the shopper's photo (read once it is ready)
+  const choices = useCompareChoices(state.kind === 'ready' && !previewing ? state.product : null, () => {
+    if (params().get('preview')) return null;
+    const p = params();
+    return { store: p.get('store') ?? '', ref: p.get('product'), base: p.get('base') };
+  });
 
   const brand = state.kind === 'ready' ? state.brand ?? null : null;
   useEffect(() => { if (brand) document.title = embedTitle(brand, lang); }, [brand, lang]);
@@ -193,7 +201,7 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
       {state.kind === 'ready' && (
         <SiteEnvContext.Provider value={embedEnv}>
           {/* T135: the studio, or — on the phone only — the camera try-on (a QR code on a computer) */}
-          <TryOnFor product={state.product} brand={brand} onClose={previewing ? undefined : close} shareLink={shareLink}
+          <TryOnFor product={state.product} brand={brand} onClose={previewing ? undefined : close} shareLink={shareLink} compareWith={choices}
             stageExtras={previewing ? null : onPicture} helpExtra={previewing ? null : inHelp} topbarExtra={previewing ? null : besideTabs} />
         </SiteEnvContext.Provider>
       )}

@@ -47,6 +47,7 @@ import { withTenant } from '@/server/core/tenancy/rls';
 import { notifyIn } from '@/server/modules/notifications/service';
 import { TenantDb } from '@/server/core/tenancy/tenant-db';
 import { BLOCK_TEXT, buildEdgeConfig, type EdgeBlock, type EdgeBuild } from './build';
+import { refreshShelf } from './shelf';
 
 type EdgeRow = typeof edgeConfigs.$inferSelect;
 
@@ -169,6 +170,7 @@ export async function refreshStore(tenantId: string, productId: string | null, r
   const withdrawn = new Map<string, EdgeBlock>();
   for (const row of published) outcomes.set(row.productId, await refreshProduct(ctx, row.productId, entitlements, (id, reason) => withdrawn.set(id, reason)));
   await tellWithdrawn(ctx, withdrawn);
+  if (!productId) await refreshShelf(ctx); // T140.1: the whole store's refresh writes its try-on shelf (a store published before it had none)
   return outcomes;
 }
 
@@ -251,7 +253,7 @@ async function write(ctx: TenantContext, productId: string, build: Extract<EdgeB
       before: locked ? { version: locked.version, key: locked.key } : undefined, after: { version, key: build.key },
     }, db);
     return saved;
-  }).then(async (saved) => { await refreshListers(ctx.tenantId, productId); return saved; });
+  }).then(async (saved) => { await refreshListers(ctx.tenantId, productId); await refreshShelf(ctx); return saved; }); // T140.1: the store's try-on shelf too
 }
 
 /**
@@ -287,6 +289,7 @@ async function withdraw(ctx: TenantContext, row: EdgeRow, reason: EdgeBlock): Pr
     }, db);
   });
   await refreshListers(ctx.tenantId, row.productId);
+  await refreshShelf(ctx); // T140.1
 }
 
 /** T40: the entry deleted and the key cleared — nothing brings it back but publishing again. */
@@ -302,6 +305,7 @@ async function takeDown(ctx: TenantContext, row: EdgeRow, actor: 'user' | 'syste
     }, db);
   });
   if (!row.withdrawnAt) await refreshListers(ctx.tenantId, row.productId); // a withdrawal already told them
+  await refreshShelf(ctx); // T140.1
 }
 
 const WITHDRAWN_BECAUSE: Record<Exclude<EdgeBlock, 'store_closed'>, { ar: string; en: string }> = {

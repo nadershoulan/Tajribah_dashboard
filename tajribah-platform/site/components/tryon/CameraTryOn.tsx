@@ -32,7 +32,7 @@ import { useTelemetry } from '@site/components/tryon/telemetry';
 import { detectHand } from '@site/lib/hand-detect';
 import { detectFace } from '@site/lib/face-detect';
 import { model } from '@site/lib/detectors';
-import { earringPlacement, facePoints, handPoints, placeOnFace, placeOnHand, type Pose, type Pt } from '@site/lib/placement';
+import { earringFromFace, earringFromPose, earringPlacement, facePoints, handPoints, placeOnFace, placeOnHand, type Pose, type Pt } from '@site/lib/placement';
 import { DROP_MS, faceFeedback, handFeedback, smooth, type Smoothing } from '@site/lib/live-feedback';
 import { dragged, fillFor, fitOf, liftedAbove, mirrored, onPicture, onScreen, pinched, type Fit, type Size } from '@site/lib/capture-view';
 import { HAS_SIDE, guideProduct, type Side } from '@site/lib/guide-layout';
@@ -126,11 +126,12 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
   const guideFor = product ? { src: worn, caseMm: product.caseMm, aspect } : null;
   // T137: the pictures sharing draws, ready before the tap (a phone opens its share sheet only straight from the tap)
   const shareItem = useRef<HTMLImageElement | null>(null);
+  const [itemPicture, setItemPicture] = useState<HTMLImageElement | null>(null); // T140.2: the lit product shown on the result
   const shotPicture = useRef<{ id: number; img: HTMLImageElement } | null>(null);
   useEffect(() => {
     if (!worn) return;
     let live = true;
-    loadImage(worn, true).catch(() => loadImage(fresh(worn), true)).then((img) => { if (live) shareItem.current = img; }).catch(() => {});
+    loadImage(worn, true).catch(() => loadImage(fresh(worn), true)).then((img) => { if (live) { shareItem.current = img; setItemPicture(img); } }).catch(() => {});
     return () => { live = false; };
   }, [worn]);
   useEffect(() => {
@@ -297,6 +298,18 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
       const k = size.width / hint.frame.width; // the photo may have been made smaller than the frame
       return { pose: { x: hint.pose.x * k, y: hint.pose.y * k, width: hint.pose.width * k, angle: hint.pose.angle }, how: 'guide' };
     };
+    // T140.4: an earring placed by itself — the face's outline from the front, the pose model's ear from the side
+    if (kind === 'earring') {
+      try {
+        const face = await detectFace(await model('face', 'IMAGE', asset), img);
+        const fromFace = face ? earringFromFace(face.faceLandmarks[0] ?? [], size, flat, product.caseMm, aspect) : null;
+        if (fromFace) return { pose: fromFace, how: 'found', detail: 'face' };
+        const body = (await model('pose', 'IMAGE', asset)).detect(img).landmarks[0];
+        const fromPose = body ? earringFromPose(body, size, flat, product.caseMm, aspect) : null;
+        if (fromPose) return { pose: fromPose, how: 'found', detail: 'pose' };
+      } catch { /* the models could not run: the outline, as before */ }
+      return fromGuide();
+    }
     if (!detects) return fromGuide();
     try {
       if (onFace) {
@@ -359,7 +372,7 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
     if (blob) await keep(blob, seen, hint, fromAuto);
     if (fromAuto) setPhase(null);
   }
-  shoot.current = (fromAuto) => { void capture(fromAuto); };
+  useEffect(() => { shoot.current = (fromAuto) => { void capture(fromAuto); }; });
 
   function choose(f: File | undefined) { if (f) void keep(f, null, null, false, 'upload'); }
 
@@ -383,14 +396,14 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
   const telemetry = useTelemetry();
   const reportedShots = useRef(new Set<number>());
   const shotsNow = useRef<Shot[]>([]);
-  shotsNow.current = shots;
+  useEffect(() => { shotsNow.current = shots; }, [shots]);
   function reportShot(s: Shot) {
     if (reportedShots.current.has(s.id) || !product) return;
     reportedShots.current.add(s.id);
     sendTryOn(telemetry, [photoEvent({ kind, source: s.source ?? 'camera', found: s.found ?? 'none', how: s.how, moved: movedFrom(s.first, s.pose) })]);
   }
   const reportAll = useRef(() => {});
-  reportAll.current = () => shotsNow.current.forEach(reportShot);
+  useEffect(() => { reportAll.current = () => shotsNow.current.forEach(reportShot); });
   useEffect(() => {
     // leaving, or put in the background (a phone often never says it leaves): counted once either way
     const leave = () => reportAll.current();
@@ -604,7 +617,7 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
           <div className="cap-stage" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
             <img className="cap-photo" src={shot.dataUrl} alt={t('صورتك', 'Your photo')} draggable={false}
               style={{ left: fit.ox, top: fit.oy, width: shot.size.width * fit.scale, height: shot.size.height * fit.scale }} />
-            {product && shot.pose && <Placed pose={onScreen(shot.pose, fit)} aspect={aspect} kind={SHADOW[kind]} src={shareItem.current && shot.tint ? litUrl(shareItem.current, shot.tint) : worn} alt={t(product.name.ar, product.name.en)} />}
+            {product && shot.pose && <Placed pose={onScreen(shot.pose, fit)} aspect={aspect} kind={SHADOW[kind]} src={itemPicture && shot.tint ? litUrl(itemPicture, shot.tint) : worn} alt={t(product.name.ar, product.name.en)} />}
             {kind === 'earring' && !shot.pose && shot.taps.map((p, i) => (
               <span key={i} className="cap-tap" style={{ left: fit.ox + p.x * fit.scale, top: fit.oy + p.y * fit.scale }} />
             ))}

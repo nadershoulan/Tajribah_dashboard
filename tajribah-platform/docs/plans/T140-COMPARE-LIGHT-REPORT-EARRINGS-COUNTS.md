@@ -65,7 +65,21 @@ MediaPipe pose model, which marks the ears — downloaded with Nader's yes, 2026
       untried left out, Arabic names; the email says the same; the screen's summary only for those who may) and the
       existing ones updated; mutation 8/8. Walked: the Analytics screen as the local test merchant.
 
-## 4 — Earrings  ·  status: to do
+## 4 — Earrings  ·  status: ✅ 2026-10-12
+- [x] **From the front** (the face model): the earlobe hangs just outside the face's outline, half way from the ear's
+      middle down to the lobe (face-oval 323 → 361, or 93 → 132), 4 mm out — the side nearer the camera, never one cut
+      off by the photo's edge; sized by the pupils; hanging straight. Measured on our real face photos (the ears hidden
+      by hair): it lands under the hair where the lobe is. (The pose model's ear point sat on the cheek there — not used
+      from the front.)
+- [x] **From the side** (no face from the front): Google's pose model (`public/assets/pose-landmarker.task`, downloaded
+      with Nader's yes) marks the ear; the piercing 19 mm below its middle, sized from the pupils or the ear-to-eye
+      distance (75 mm). *Not yet seen on a real side photo (we have none) — tested by its maths.*
+- [x] Neither (a close-up of the ear alone, or the ears out of the photo): the two taps, as before.
+- [x] Studio (the shopper's photo, «تم تحديد الأذن…») and the phone camera's photos; the pose model is fetched only
+      when an earring needs it.
+- [x] Tests: earring-auto 4; mutation 10/10. Walked: the demo earring on a face photo (placed by itself), on an ear
+      close-up (the taps), through the phone camera (placed by itself when the ears are in the frame; the outline when
+      the face fills the frame).
 
 ## Log
 
@@ -76,3 +90,4 @@ MediaPipe pose model, which marks the ears — downloaded with Nader's yes, 2026
 | 2026-10-12 | 1 | Compare on the shopper's photo built and walked (shelf + split view). |
 | 2026-10-12 | 5 | Anonymous success counts sent and shown in the staff console; walked end to end locally. |
 | 2026-10-12 | 3 | The weekly summary: try-on photos, shares, top products; the same on the Analytics screen. |
+| 2026-10-12 | 4 | Earrings placed by themselves (face outline from the front, the pose model's ear from the side). **T140 done.** |

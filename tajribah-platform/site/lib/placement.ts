@@ -201,3 +201,73 @@ export function placeOnFace(kind: FaceKind, f: FacePoints, mm: number, aspect: n
   if (kind === 'necklace') return necklacePlacement(f.chin, dist(f.leftPupil, f.rightPupil), mm, aspect);
   return mirrored ? glassesPlacement(f.rightPupil, f.leftPupil, mm, true) : glassesPlacement(f.leftPupil, f.rightPupil, mm, true);
 }
+
+/**
+ * T140.4 — an earring placed by itself (Nader: "earrings placed automatically — they needed two taps"). The face model
+ * does not mark the ear, but it does mark the face's outline: on a photo of the face from the front or a little
+ * turned, the earlobe hangs just outside that outline, about where the outline passes from the ear's middle down to the
+ * lobe (MediaPipe's face-oval points 323 → 361 on one side, 93 → 132 on the other) — measured on our real face photos,
+ * where the ears are hidden by hair, it lands under the hair where the lobe is. The ear nearer the camera is used (the
+ * outline farther from the nose), never one cut off by the photo's edge; the size from the pupils (62 mm apart); the
+ * earring hangs straight down.
+ *
+ * A side photo (no face found from the front): Google's pose model marks the ear itself (7, 8); the piercing is taken
+ * about 19 mm below the ear's middle, the size from the pupils or, turned away, from the ear to the eye's outer corner
+ * (about 75 mm). Neither found: the two taps, as before.
+ */
+export const EAR_SIDES: readonly [number, number][] = [[323, 361], [93, 132]];
+/** How far outside the face's outline the lobe hangs. */
+export const LOBE_OUTSIDE_MM = 4;
+/** From the ear's middle (the pose model's ear point) down to the piercing; from the ear to the eye's outer corner. */
+export const PIERCE_BELOW_EAR_MM = 19;
+export const EAR_EYE_MM = 75;
+
+type Mark = { x: number; y: number; visibility?: number };
+type Drawn = { width: number; height: number };
+type Fit = { scale: number; ox: number; oy: number };
+const onStage = (lm: Mark[], img: Drawn, fit: Fit) => (i: number): Pt => ({ x: lm[i]!.x * img.width * fit.scale + fit.ox, y: lm[i]!.y * img.height * fit.scale + fit.oy });
+const insidePhoto = (p: Pt, img: Drawn, fit: Fit) => p.x >= fit.ox && p.x <= fit.ox + img.width * fit.scale && p.y >= fit.oy && p.y <= fit.oy + img.height * fit.scale;
+
+/** An earring from the face model's points (a face from the front or a little turned); null when it cannot say. */
+export function earringFromFace(lm: Mark[], img: Drawn, fit: Fit, mm: number, aspect: number): Pose | null {
+  if (!lm || !lm[468] || !lm[473] || !lm[1] || EAR_SIDES.some(([a, b]) => !lm[a] || !lm[b])) return null;
+  const at = onStage(lm, img, fit);
+  const l = at(468), r = at(473), nose = at(1);
+  const ipd = dist(l, r);
+  if (!(ipd > 0)) return null;
+  const s = ipd / PUPIL_DISTANCE_MM;
+  const u = { x: (r.x - l.x) / ipd, y: (r.y - l.y) / ipd }; // along the eyes
+  const lobes = EAR_SIDES.map(([a, b]) => {
+    const p = { x: (at(a).x + at(b).x) / 2, y: (at(a).y + at(b).y) / 2 };
+    const out = Math.sign((p.x - nose.x) * u.x + (p.y - nose.y) * u.y) || 1; // away from the nose, along the eyes
+    return { x: p.x + out * u.x * LOBE_OUTSIDE_MM * s, y: p.y + out * u.y * LOBE_OUTSIDE_MM * s };
+  }).filter((p) => insidePhoto(p, img, fit)).sort((p, q) => dist(q, nose) - dist(p, nose));
+  const pierce = lobes[0];
+  if (!pierce) return null;
+  const width = mm * s;
+  return { x: pierce.x, y: pierce.y + (width * aspect) / 2, width, angle: 0 };
+}
+
+/** An earring from the pose model's points (a side photo): the ear itself; null when no ear is seen. */
+export function earringFromPose(lm: Mark[], img: Drawn, fit: Fit, mm: number, aspect: number): Pose | null {
+  if (!lm || lm.length < 9) return null;
+  const at = onStage(lm, img, fit);
+  const seen = (i: number) => (lm[i]?.visibility ?? 1) > 0.5;
+  const nose = at(0);
+  const ears = [7, 8].filter((i) => seen(i) && insidePhoto(at(i), img, fit)).sort((a, b) => dist(at(b), nose) - dist(at(a), nose));
+  const ear = ears[0];
+  if (ear === undefined) return null;
+  const e = at(ear), corner = at(ear === 7 ? 3 : 6);
+  const bothEyes = seen(2) && seen(5);
+  const eyes = bothEyes ? dist(at(2), at(5)) : 0;
+  const s = Math.max(eyes / PUPIL_DISTANCE_MM, dist(e, corner) / EAR_EYE_MM);
+  if (!(s > 0)) return null;
+  // down the head: across the eyes' line when both are seen (pointing down the picture), else the picture's down
+  let down = { x: 0, y: 1 };
+  if (bothEyes && eyes > 0) {
+    const ux = (at(2).x - at(5).x) / eyes, uy = (at(2).y - at(5).y) / eyes;
+    down = ux >= 0 ? { x: -uy, y: ux } : { x: uy, y: -ux }; // the perpendicular that points down the picture
+  }
+  const width = mm * s;
+  return { x: e.x + down.x * PIERCE_BELOW_EAR_MM * s, y: e.y + down.y * PIERCE_BELOW_EAR_MM * s + (width * aspect) / 2, width, angle: 0 };
+}

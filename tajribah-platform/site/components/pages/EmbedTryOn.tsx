@@ -123,12 +123,12 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
 
   // T140.5: the try-on's anonymous counts, for this store and product (never in the dashboard's preview; on this
   // computer, its own collector)
-  const [telemetry, setTelemetry] = useState<Telemetry | null>(null);
-  useEffect(() => {
-    if (previewing || params().get('preview')) { setTelemetry(null); return; }
+  const address = useSyncExternalStore(noSubscription, () => location.href, () => '');
+  const telemetry = useMemo<Telemetry | null>(() => {
+    if (!address || previewing || params().get('preview')) return null;
     const p = params();
-    setTelemetry(p.get('store') && p.get('product') ? { store: p.get('store')!, product: p.get('product')!, endpoint: onThisMachine() ? `${location.origin}/v1/e` : EVENTS_ENDPOINT } : null);
-  }, [previewing]);
+    return p.get('store') && p.get('product') ? { store: p.get('store')!, product: p.get('product')!, endpoint: onThisMachine() ? `${location.origin}/v1/e` : EVENTS_ENDPOINT } : null;
+  }, [address, previewing]);
 
   const brand = state.kind === 'ready' ? state.brand ?? null : null;
   useEffect(() => { if (brand) document.title = embedTitle(brand, lang); }, [brand, lang]);
@@ -145,8 +145,7 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
   // T137: the link a shopper shares with their picture, for others to try the product — the store page the window is
   // over (the widget says which; trusted only when the browser's own record of the framing page is that same site),
   // else the product's own try-on page on this site.
-  const [shareLink, setShareLink] = useState<string | null>(null);
-  useEffect(() => { setShareLink(shareLinkOf(params(), document.referrer, location.origin)); }, []);
+  const shareLink = useMemo(() => (address ? shareLinkOf(params(), document.referrer, location.origin) : null), [address]);
   // T100: in a shop's popup, the bar (with its close button) is up: the popup hides its own backup close
   useEffect(() => { if (inPopup && window.parent !== window) window.parent.postMessage({ type: SHOWN_MESSAGE }, '*'); }, [inPopup]);
   // T137: in a shop's window, say how tall the content is — on a phone the window fits it (no empty band above the

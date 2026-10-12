@@ -34,7 +34,6 @@ function Figures() {
   const [error, setError] = useState<Error | null>(null);
   useEffect(() => {
     let live = true;
-    setData(null); setError(null);
     auth.admin.accuracy(days).then((d) => { if (live) setData(d); }, (e: Error) => { if (live) setError(e); });
     return () => { live = false; };
   }, [auth.admin, days]);
@@ -43,7 +42,7 @@ function Figures() {
   const pct = (v: number | null) => (v === null ? '—' : `${formatNumber(v, lang)}%`);
   const range = (
     <div className="btn-row" role="group" aria-label={t('المدة', 'Period')}>
-      {[7, 30, 90].map((d) => <button key={d} type="button" className={'btn btn-sm ' + (d === days ? 'btn-primary' : 'btn-ghost')} aria-pressed={d === days} onClick={() => setDays(d)}>{t(`${d} يومًا`, `${d} days`)}</button>)}
+      {[7, 30, 90].map((d) => <button key={d} type="button" className={'btn btn-sm ' + (d === days ? 'btn-primary' : 'btn-ghost')} aria-pressed={d === days} onClick={() => { if (d !== days) { setData(null); setError(null); setDays(d); } }}>{t(`${d} يومًا`, `${d} days`)}</button>)}
     </div>
   );
   if (error) return <><ErrorNote error={error} />{range}</>;

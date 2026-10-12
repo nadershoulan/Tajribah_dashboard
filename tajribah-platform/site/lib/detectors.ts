@@ -16,6 +16,11 @@ export type FaceModel = {
   detectForVideo(video: HTMLVideoElement, at: number): { faceLandmarks: Landmark[][] };
   close(): void;
 };
+/** T140.4: Google's pose model — it marks the ears (7, 8), for an earring on a side photo. */
+export type PoseModel = {
+  detect(image: HTMLImageElement | HTMLCanvasElement): { landmarks: (Landmark & { visibility?: number })[][] };
+  close(): void;
+};
 export type Mode = 'IMAGE' | 'VIDEO';
 
 const made = new Map<string, Promise<unknown>>();
@@ -23,13 +28,17 @@ const made = new Map<string, Promise<unknown>>();
 /** A hand or face model for stills or video; the same promise for every caller. `asset` maps a site path to its URL. */
 export function model(kind: 'hand', mode: Mode, asset: (path: string) => string): Promise<HandModel>;
 export function model(kind: 'face', mode: Mode, asset: (path: string) => string): Promise<FaceModel>;
-export function model(kind: 'hand' | 'face', mode: Mode, asset: (path: string) => string): Promise<unknown> {
+export function model(kind: 'pose', mode: Mode, asset: (path: string) => string): Promise<PoseModel>;
+export function model(kind: 'hand' | 'face' | 'pose', mode: Mode, asset: (path: string) => string): Promise<unknown> {
   const key = `${kind}:${mode}`;
   let found = made.get(key);
   if (!found) {
     found = (async () => {
-      const { FilesetResolver, HandLandmarker, FaceLandmarker } = await import('@mediapipe/tasks-vision');
+      const { FilesetResolver, HandLandmarker, FaceLandmarker, PoseLandmarker } = await import('@mediapipe/tasks-vision');
       const vision = await FilesetResolver.forVisionTasks(asset('/wasm'));
+      if (kind === 'pose') {
+        return PoseLandmarker.createFromOptions(vision, { baseOptions: { modelAssetPath: asset('/assets/pose-landmarker.task'), delegate: 'CPU' }, runningMode: mode, numPoses: 1 });
+      }
       return kind === 'hand'
         ? HandLandmarker.createFromOptions(vision, {
           baseOptions: { modelAssetPath: asset('/assets/hand-landmarker.task'), delegate: 'CPU' },

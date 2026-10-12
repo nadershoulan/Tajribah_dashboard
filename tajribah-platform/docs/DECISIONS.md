@@ -2315,3 +2315,19 @@ keeps listening after the first photo (closing the QR dialog ends the session on
 photo of the visit — sent from the phone, taken, or uploaded — becomes a tile under the picture to switch between, each
 keeping its own fit (up to 8). A phone-only product's QR page does the same. An old studio tab still works one photo at
 a time (`?image=1` takes the oldest).
+
+**T140 — compare, light, the weekly report, earrings, real success numbers (2026-10-12, Nader: "do these only").**
+*Compare*: the try-on page knows only its product, so the publisher keeps a **store shelf** — every live try-on, as its
+config publishes it — next to the configs at the reserved ref `shelf:tryons` (as `page:` refs are), rebuilt on every
+publish and removal and on the whole-store refresh; the page reads it from the config host, never Postgres. «قارن»
+shows the shopper's photo twice: this product and one of the same kind, each at its real size against the other, where
+the shopper fitted this one, with shadow, soft edge and the photo's light. *Light*: measured from the photo's brightest
+2 % (not its average — dark clothes or darker skin are not dim light) and the colour of highlights that are not blown
+out; the product only ever made darker (to 0.66) and its colour moved at most a tenth — gentle on purpose.
+*Success numbers*: one anonymous event per photo (kind, source, found by itself and by which look, moved by hand) and
+per share, through the analytics collector — no picture, no point, no identity, nothing under Do Not Track; staff see
+them in «دقة التجربة». *Weekly report*: the existing opt-in email (P4.8, never sent unasked) gains try-on photos,
+shares and the most tried products, and the same summary shows on the Analytics screen. *Earrings*: from the front
+the face's outline (the lobe just outside it, measured on our photos), from the side Google's pose model's ear
+(downloaded with Nader's explicit yes — 5.8 MB, served from our own site, run on the shopper's phone; not yet seen on
+a real side photo), else the two taps.

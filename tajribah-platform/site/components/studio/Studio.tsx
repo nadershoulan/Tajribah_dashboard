@@ -20,7 +20,7 @@ import { cropRound, widthBeside, type Choice } from '@site/lib/shelf';
 import { movedFrom, photoEvent, sendTryOn, shareEvent, type Found, type PhotoSource } from '@site/lib/tryon-telemetry';
 import { useTelemetry } from '@site/components/tryon/telemetry';
 import { QR_MARK, markedQrPng } from '@/lib/qr-mark';
-import { earringPlacement, glassesPlacement, handPoints, necklacePlacement, watchPlacement } from '@site/lib/placement';
+import { earringFromFace, earringFromPose, earringPlacement, glassesPlacement, handPoints, necklacePlacement, watchPlacement } from '@site/lib/placement';
 import { kindOf, pairProductOf } from '@site/lib/pair-product';
 import CameraTryOn from '@site/components/tryon/CameraTryOn';
 import { dataUrlBlob, inviteText, linkOrHere, savePicture, sharePicture } from '@site/lib/share-picture';
@@ -146,6 +146,8 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
   const handDetector = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const faceDetector = useRef<any>(null); // T68: glasses on the shopper's own photo
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const poseDetector = useRef<any>(null); // T140.4: an earring on a side photo (the pose model marks the ears)
   const drag = useRef<{ x: number; y: number; start: Pose; target: 'watch' | 'object' } | null>(null);
   const gestures = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ distance: number; zoom: number } | null>(null);
@@ -495,6 +497,44 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
   }
 
   /** T68 — find the face in the shopper's photo (on this device) and place the glasses on it. */
+  /**
+   * T140.4 — an earring placed by itself: the face's outline on a photo from the front (the face model), the ear the
+   * pose model sees on a side photo; true when placed (else the two taps, as before).
+   */
+  async function fitEarringToEar(img: HTMLImageElement, request: number): Promise<boolean> {
+    try {
+      const { FilesetResolver, FaceLandmarker, PoseLandmarker } = await import('@mediapipe/tasks-vision');
+      const vision = await FilesetResolver.forVisionTasks(asset('/wasm'));
+      faceDetector.current ??= await FaceLandmarker.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: asset('/assets/face-landmarker.task'), delegate: 'CPU' },
+        runningMode: 'IMAGE', numFaces: 1, minFaceDetectionConfidence: 0.4,
+      });
+      const f = Math.min(W / img.width, H / img.height);
+      const stage = { scale: f, ox: (W - img.width * f) / 2, oy: (H - img.height * f) / 2 };
+      const aspect = images.current.watch ? images.current.watch.height / images.current.watch.width : 1;
+      const face = await detectFace(faceDetector.current, img);
+      if (request !== photoRequest.current) return true;
+      let fit = face ? earringFromFace(face.faceLandmarks[0] ?? [], img, stage, product.caseMm, aspect) : null, how = 'face';
+      if (!fit) {
+        poseDetector.current ??= await PoseLandmarker.createFromOptions(vision, {
+          baseOptions: { modelAssetPath: asset('/assets/pose-landmarker.task'), delegate: 'CPU' }, runningMode: 'IMAGE', numPoses: 1,
+        });
+        const body = poseDetector.current.detect(img).landmarks?.[0];
+        if (request !== photoRequest.current) return true;
+        fit = body ? earringFromPose(body, img, stage, product.caseMm, aspect) : null;
+        how = 'pose';
+      }
+      if (!fit) return false;
+      const base = { x: clamp(fit.x, 0, W), y: clamp(fit.y, 0, H), width: clamp(fit.width, 8, 400), angle: 0 };
+      setPose(base); setPhotoFit(base);
+      noteFound('detected', how);
+      notify(t('Ear found. Fine-tune the fit if needed, or use “Fit to ear”.', 'تم تحديد الأذن. عدّل موضع القرط عند الحاجة، أو استخدم «ضبط على الأذن».'));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async function fitGlassesToFace(img: HTMLImageElement, request: number) {
     try {
       if (!faceDetector.current) {
@@ -588,7 +628,7 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
         notify(said ?? t('As you left it on your phone. Adjust it here if needed.', 'كما تركته على جوالك. عدّله هنا عند الحاجة.'));
         return;
       }
-      if (isEarring) { setCalibrating(true); setPoints([]); notify(t('Tap the top of your ear, then the bottom of your earlobe.', 'حدّد أعلى أذنك، ثم أسفل شحمة الأذن.')); return; } // T83
+      if (isEarring) { if (await fitEarringToEar(img, request)) return; setCalibrating(true); setPoints([]); notify(t('Tap the top of your ear, then the bottom of your earlobe.', 'حدّد أعلى أذنك، ثم أسفل شحمة الأذن.')); return; } // T83; T140.4: first by itself
       if (isGlasses || isNecklace) { await fitGlassesToFace(img, request); return; } // T68; a watch, as before:
       if (isRing) { await fitRingToHand(img, request); return; }
       if (isBag) { await fitBagToHand(img, request); return; } // T84

@@ -23,6 +23,7 @@ const ADMIN_ALLOWED: Record<string, string> = {
   'server/modules/billing/notices.ts': 'billing mail goes to the store’s owners and admins, whose addresses live on the global users table',
   'server/modules/admin/access.ts': 'the admin console: staff act across every store by definition; the staff trail is admin-role only',
   'server/modules/admin/overview.ts': 'platform-wide counts and revenue for staff (A2): read across every store',
+  'server/modules/admin/accuracy.ts': 'the try-on’s success numbers for staff (T140.5): its anonymous events, read across every store',
   'server/modules/admin/stores.ts': 'staff list and inspect any store (A3), including a suspended one; reads only',
   'server/modules/admin/actions.ts': 'staff change a store (A4): the change, the store audit row and the staff trail in one admin transaction',
   'server/modules/admin/billing.ts': 'staff read subscriptions and invoices across every store (A7); reads only',

@@ -26,6 +26,7 @@ import { createBankAccount, deleteBankAccount, paymentSettingsForStaff, updateBa
 import { receiptResponse } from '@/server/modules/billing/bank-transfer';
 import { TRANSFER_STATUSES } from '@/lib/contracts/bank-transfer';
 import { decideQa, qaModelFile, qaQueue } from './qa';
+import { tryOnAccuracy } from './accuracy';
 import { confirmDelivery, markPaid, professionalQueue, quoteOrder, startDelivery } from './professional';
 import { aiOperations, cancelJobForStore, setGuardrails } from './ai-ops';
 import { listRegistry, registerModel, setModelActive, setSplits } from './models';
@@ -44,6 +45,13 @@ export const staffTrailHandler = route(async (request) => {
   const store = new URL(request.url).searchParams.get('store');
   const storeId = store && z.string().uuid().safeParse(store).success ? store : undefined;
   return json({ entries: await staffTrail({ storeId }) });
+});
+
+/** T140.5 — GET /api/admin/accuracy?days=7|30|90: the try-on's real success numbers, from its anonymous events. */
+export const accuracyHandler = route(async (request) => {
+  await staffContextFor(request);
+  const days = Number(new URL(request.url).searchParams.get('days'));
+  return json(await tryOnAccuracy([7, 30, 90].includes(days) ? days : 30));
 });
 
 /** API-A02 — GET /api/admin/overview: the platform at a glance (A2, ADM-02). */

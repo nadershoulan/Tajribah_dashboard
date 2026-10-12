@@ -8,7 +8,7 @@
  * to turn it on. The server refuses the same people on every admin endpoint regardless.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Activity, ArrowLeft, Box, Cpu, FileLock2, Globe, Inbox, Landmark, LayoutDashboard, LifeBuoy, Megaphone, PenTool, Receipt, ScrollText, ShieldAlert, Store, Tags, TicketPercent, Users, WalletCards } from 'lucide-react';
+import { Activity, ArrowLeft, Box, Cpu, Crosshair, FileLock2, Globe, Inbox, Landmark, LayoutDashboard, LifeBuoy, Megaphone, PenTool, Receipt, ScrollText, ShieldAlert, Store, Tags, TicketPercent, Users, WalletCards } from 'lucide-react';
 import { AppLink, useEnv } from '@/lib/app-env';
 import { ApiError } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
@@ -34,6 +34,7 @@ const NAV = [
   { href: '/admin/billing', icon: Receipt, label: { ar: 'الفوترة', en: 'Billing' }, also: ['/admin/invoices/'] },
   { href: '/admin/payment-methods', icon: WalletCards, label: { ar: 'طرق الدفع', en: 'Payment methods' } },
   { href: '/admin/operations', icon: Activity, label: { ar: 'التشغيل', en: 'Operations' } },
+  { href: '/admin/accuracy', icon: Crosshair, label: { ar: 'دقة التجربة', en: 'Try-on accuracy' } },
   { href: '/admin/qa', icon: Box, label: { ar: 'مراجعة النماذج', en: 'Model review' } },
   { href: '/admin/professional', icon: PenTool, label: { ar: 'النماذج الاحترافية', en: 'Professional models' } },
   { href: '/admin/ai', icon: Cpu, label: { ar: 'عمليات الذكاء الاصطناعي', en: 'AI operations' } },

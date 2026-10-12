@@ -35,7 +35,22 @@ MediaPipe pose model, which marks the ears — downloaded with Nader's yes, 2026
 - [x] Tests: server shelf 2, client shelf 3; mutation 14/14. Walked: the store's window and product page, desktop and
       390 px — 50 mm beside 45 mm.
 
-## 5 — Counts  ·  status: to do
+## 5 — Counts  ·  status: ✅ 2026-10-12
+- [x] `site/lib/tryon-telemetry.ts`: one anonymous `tryon_capture` per photo (kind; source camera / upload / phone;
+      found detected / phone / guide / none, and which look; moved by hand yes / no — more than a twentieth of its
+      width, 4° or 6 %), one `tryon_share` per share or save; `surface: 'tryon'`; through the analytics collector
+      (no picture, no point, no identity; nothing under Do Not Track / GPC). `tryon_share` added to the SDK's list
+      (the table always had it).
+- [x] Sent by the studio (each photo once, when it is left: another photo, a switch, share / save, leaving or the page
+      going to the background) and the phone camera (when a photo is used, sent, shared, or the camera goes); the
+      shop's window, the product page and the QR phone page say which store and product (the pairing carries them);
+      on this computer the app's own collector.
+- [x] Staff console «دقة التجربة» (`server/modules/admin/accuracy.ts`, `/api/admin/accuracy?days=`): photos, found by
+      itself (of those it had to place — phone-fitted apart), moved by hand, moved although found; by kind, source,
+      look; 7 / 30 / 90 days.
+- [x] Tests: telemetry 3 (the collector's own schema accepts the batch), accuracy 2 (summary; from the database: only
+      the try-on's own events, only the period); pairing +; mutation 15/15. Walked: the try-on → events in the local
+      collector (a photo found by «shrunk», a save) → the console shows them.
 
 ## 3 — Weekly report  ·  status: to do
 
@@ -48,3 +63,4 @@ MediaPipe pose model, which marks the ears — downloaded with Nader's yes, 2026
 | 2026-10-12 | — | Plan written; the pose model downloaded (Nader's yes). |
 | 2026-10-12 | 2 | Light matching built and walked. |
 | 2026-10-12 | 1 | Compare on the shopper's photo built and walked (shelf + split view). |
+| 2026-10-12 | 5 | Anonymous success counts sent and shown in the staff console; walked end to end locally. |

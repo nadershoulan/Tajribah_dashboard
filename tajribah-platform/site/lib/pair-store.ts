@@ -11,7 +11,7 @@ export function validToken(token:string){return /^[a-f0-9]{32}$/.test(token);}
 export async function readSession(token:string){
   if(!validToken(token))return null;
   const obj=await bucket().get(`sessions/${token}.json`);if(!obj)return null;
-  const session=await obj.json<{expiresAt:number;brand?:StoreBrand|null;product?:PairProduct|null;kind?:PairKind;link?:string|null}>();
+  const session=await obj.json<{expiresAt:number;brand?:StoreBrand|null;product?:PairProduct|null;kind?:PairKind;link?:string|null;track?:{store:string;product:string}|null}>();
   if(Date.now()>session.expiresAt){await removeSession(token);return null;}
   return session;
 }

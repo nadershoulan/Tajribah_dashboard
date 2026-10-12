@@ -27,6 +27,8 @@ import type { PairKind, PairProduct } from '@site/lib/pair-product';
 import type { StoreBrand } from '@site/lib/tryon-config';
 import { castShadow, cssShadow, softEdged, type ShadowKind } from '@site/lib/shadow';
 import { NEUTRAL, lightOf, litProduct, litUrl, measureLight, tintOf, type Tint } from '@site/lib/light';
+import { movedFrom, photoEvent, sendTryOn, shareEvent, type Found } from '@site/lib/tryon-telemetry';
+import { useTelemetry } from '@site/components/tryon/telemetry';
 import { detectHand } from '@site/lib/hand-detect';
 import { detectFace } from '@site/lib/face-detect';
 import { model } from '@site/lib/detectors';
@@ -46,7 +48,7 @@ type GuideHint = { pose: Pose; frame: Size };
  * `fill`: edge to edge, or the whole picture when that would cut off where the product is — chosen once, so it never
  * jumps mid-drag. `first`: where the product first landed — the photo is slid up from it so the buttons never cover it.
  */
-export type Shot = { id: number; dataUrl: string; blob: Blob; size: Size; fill: 'cover' | 'contain'; pose: Pose | null; auto: Pose | null; first: Pose | null; taps: Pt[]; sent: boolean; /** T140.2: the product lit like this photo */ tint?: Tint };
+export type Shot = { id: number; dataUrl: string; blob: Blob; size: Size; fill: 'cover' | 'contain'; pose: Pose | null; auto: Pose | null; first: Pose | null; taps: Pt[]; sent: boolean; /** T140.2: the product lit like this photo */ tint?: Tint; /** T140.5: for the anonymous counts */ source?: 'camera' | 'upload'; found?: Found; how?: string | null };
 type View = 'camera' | 'pick' | 'result';
 type HandSize = 'small' | 'medium' | 'large';
 
@@ -286,7 +288,7 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
    * two older and from the lighter video tracking; then that live sighting (the detector saw it a moment ago); then
    * where the guide showed it (the shopper lined up with it).
    */
-  async function placeOn(img: HTMLImageElement, seen: Sighting | null, hint: GuideHint | null): Promise<{ pose: Pose | null; how: 'found' | 'guide' | 'none' }> {
+  async function placeOn(img: HTMLImageElement, seen: Sighting | null, hint: GuideHint | null): Promise<{ pose: Pose | null; how: 'found' | 'guide' | 'none'; detail?: string | null }> {
     const size = { width: img.naturalWidth, height: img.naturalHeight };
     const flat = { scale: 1, ox: 0, oy: 0 };
     if (!product) return { pose: null, how: 'none' };
@@ -298,24 +300,27 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
     if (!detects) return fromGuide();
     try {
       if (onFace) {
-        let lm = ((await detectFace(await model('face', 'IMAGE', asset), img))?.faceLandmarks[0] as Landmark[] | undefined) ?? null;
+        const fresh = await detectFace(await model('face', 'IMAGE', asset), img);
+        let lm = (fresh?.faceLandmarks[0] as Landmark[] | undefined) ?? null;
         // the live sighting was flipped with the front camera's picture; a fresh look at the (flipped) still is not
         const flipped = !lm && seen?.mirrored === true;
+        const detail = lm ? fresh!.how : seen ? 'live' : null;
         lm ??= seen?.landmarks ?? null;
         const f = lm ? facePoints(lm, size, flat) : null;
-        return f ? { pose: placeOnFace(kind === 'necklace' ? 'necklace' : 'glasses', f, product.caseMm, aspect, flipped), how: 'found' } : fromGuide();
+        return f ? { pose: placeOnFace(kind === 'necklace' ? 'necklace' : 'glasses', f, product.caseMm, aspect, flipped), how: 'found', detail } : fromGuide();
       }
       const found = await detectHand(await model('hand', 'IMAGE', asset), img);
       let lm: Landmark[] | null = (found?.landmarks[0] as Landmark[] | undefined) ?? null, score = found?.score ?? 0.5;
-      if (!lm && seen) { lm = seen.landmarks; score = seen.score; }
+      let detail: string | null = found?.how ?? null;
+      if (!lm && seen) { lm = seen.landmarks; score = seen.score; detail = 'live'; }
       const h = lm ? handPoints(lm, size, flat) : null;
-      return h ? { pose: placeOnHand(handKind, h, product.caseMm, aspect, score), how: 'found' } : fromGuide();
+      return h ? { pose: placeOnHand(handKind, h, product.caseMm, aspect, score), how: 'found', detail } : fromGuide();
     } catch {
       return fromGuide();
     }
   }
 
-  async function keep(blob: Blob, seen: Sighting | null, hint: GuideHint | null, stay = false) {
+  async function keep(blob: Blob, seen: Sighting | null, hint: GuideHint | null, stay = false, source: 'camera' | 'upload' = 'camera') {
     setBusy(true); setError('');
     try {
       const prepared = await preparePhoto(blob);
@@ -326,7 +331,7 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
       // nothing to go by: the product in the middle at about its usual share of the picture, to be moved by hand
       const start = sized ?? (product && kind !== 'earring' ? { x: size.width / 2, y: size.height / 2, width: size.width * START_SHARE[kind], angle: 0 } : null);
       const fill = fillFor(screen, size, start);
-      const next: Shot = { id: nextId.current++, dataUrl: prepared.dataUrl, blob: prepared.blob, size, fill, pose: start, auto: sized, first: start, taps: [], sent: false, tint: tintOf(measureLight(img)) };
+      const next: Shot = { id: nextId.current++, dataUrl: prepared.dataUrl, blob: prepared.blob, size, fill, pose: start, auto: sized, first: start, taps: [], sent: false, tint: tintOf(measureLight(img)), source, found: placed.how === 'found' ? 'detected' : placed.how, how: placed.detail ?? null };
       setShots((was) => [...was, next].slice(-MAX_SHOTS));
       setCurrent(next.id);
       if (stay) { setFlash((f) => f + 1); return; } // auto: the camera stays for another pose
@@ -356,7 +361,7 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
   }
   shoot.current = (fromAuto) => { void capture(fromAuto); };
 
-  function choose(f: File | undefined) { if (f) void keep(f, null, null); }
+  function choose(f: File | undefined) { if (f) void keep(f, null, null, false, 'upload'); }
 
   function update(id: number, change: (s: Shot) => Shot) { setShots((was) => was.map((s) => (s.id === id ? change(s) : s))); }
 
@@ -374,12 +379,34 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
     setShots((was) => was.map((s) => ({ ...s, pose: s.pose && { ...s.pose, width: s.pose.width * k }, auto: s.auto && { ...s.auto, width: s.auto.width * k } })));
   }
 
+  // T140.5: each photo counted once, anonymously — what happened to it and whether the shopper moved the product
+  const telemetry = useTelemetry();
+  const reportedShots = useRef(new Set<number>());
+  const shotsNow = useRef<Shot[]>([]);
+  shotsNow.current = shots;
+  function reportShot(s: Shot) {
+    if (reportedShots.current.has(s.id) || !product) return;
+    reportedShots.current.add(s.id);
+    sendTryOn(telemetry, [photoEvent({ kind, source: s.source ?? 'camera', found: s.found ?? 'none', how: s.how, moved: movedFrom(s.first, s.pose) })]);
+  }
+  const reportAll = useRef(() => {});
+  reportAll.current = () => shotsNow.current.forEach(reportShot);
+  useEffect(() => {
+    // leaving, or put in the background (a phone often never says it leaves): counted once either way
+    const leave = () => reportAll.current();
+    const hidden = () => { if (document.visibilityState === 'hidden') leave(); };
+    window.addEventListener('pagehide', leave);
+    document.addEventListener('visibilitychange', hidden);
+    return () => { window.removeEventListener('pagehide', leave); document.removeEventListener('visibilitychange', hidden); leave(); };
+  }, []);
+
   async function send() {
     if (!shot || busy || !onSend) return;
     setBusy(true); setError('');
     try {
       await onSend(shot);
       update(shot.id, (s) => ({ ...s, sent: true }));
+      reportShot(shot);
       setNote(t('أُرسلت إلى شاشتك — ويمكنك إرسال صور أخرى', 'Sent to your screen — you can send more'));
     } catch (e) {
       setError(ended(e) ? t('انتهت هذه الجلسة. امسح رمزًا جديدًا لإرسال الصورة.', 'This session has ended. Scan a new code to send the photo.')
@@ -409,7 +436,10 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
       const fileName = `${(brand ? brand.name.en : product.name.en).replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'tajribah-try-on'}.jpg`; // an Arabic name leaves no letters: ours
       const file = new File([dataUrlBlob(c.toDataURL('image/jpeg', 0.92))], fileName, { type: 'image/jpeg' });
       const name = t(product.name.ar, product.name.en);
-      void sharePicture(file, { title: name, text: inviteText(name, shareLink, lang === 'ar'), url: shareLink }).then((how) => { if (how === 'saved') setNote(t('حُفظت الصورة', 'Picture saved')); });
+      void sharePicture(file, { title: name, text: inviteText(name, shareLink, lang === 'ar'), url: shareLink }).then((how) => {
+        if (how === 'saved') setNote(t('حُفظت الصورة', 'Picture saved'));
+        if (how !== 'cancelled') { reportShot(shot); sendTryOn(telemetry, [shareEvent(how === 'shared' ? 'shared' : 'saved', 'camera')]); } // T140.5
+      });
     } catch {
       setError(t('تعذّرت المشاركة. التقط صورة للشاشة بدلًا من ذلك.', 'Could not share. Take a screenshot instead.'));
     }
@@ -612,7 +642,7 @@ export default function CameraTryOn({ product, brand, kind, onSend, onClose, onU
             <div className={'cap-actions' + (onSend || onUse ? ' has-three' : '')}>
               <button type="button" className="cap-secondary" onClick={() => setView(camera === 'off' ? 'pick' : 'camera')}><Camera size={17} /> {t('صورة أخرى', 'Another photo')}</button>
               {product && shot.pose && <button type="button" className="cap-icon" disabled={busy} onClick={share} aria-label={t('شارك الصورة أو احفظها', 'Share or save the picture')} title={t('شارك أو احفظ', 'Share or save')}><Share2 size={20} /></button>}
-              {onUse && <button type="button" className="cap-primary" onClick={() => onUse(shot)}><Check size={17} /> {t('استخدم هذه الصورة', 'Use this photo')}</button>}
+              {onUse && <button type="button" className="cap-primary" onClick={() => { reportShot(shot); onUse(shot); }}><Check size={17} /> {t('استخدم هذه الصورة', 'Use this photo')}</button>}
               {onSend && (
                 <button type="button" className={product ? 'cap-secondary' : 'cap-primary'} disabled={busy || shot.sent} onClick={() => void send()}>
                   {busy ? <LoaderCircle className="spin" size={17} /> : shot.sent ? <Check size={17} /> : <Monitor size={17} />} {shot.sent ? t('على شاشتك', 'On your screen') : t('أرسل إلى شاشتي', 'Send to my screen')}

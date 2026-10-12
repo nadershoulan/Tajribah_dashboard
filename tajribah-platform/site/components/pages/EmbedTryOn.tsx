@@ -31,6 +31,9 @@ import { ShieldCheck, X } from 'lucide-react';
 import { useLang } from '@site/lib/i18n';
 import { shareLinkOf } from '@site/lib/share-picture';
 import { useCompareChoices } from '@site/components/tryon/use-compare-choices';
+import { TelemetryContext } from '@site/components/tryon/telemetry';
+import { EVENTS_ENDPOINT } from '@site/lib/page-events';
+import type { Telemetry } from '@site/lib/tryon-telemetry';
 import { SiteEnvContext, SiteLink, useSiteEnv } from '@site/lib/site-env';
 import type { TryOnProduct } from '@site/lib/demo-product';
 import { brandFrom, CLOSE_MESSAGE, SHOWN_MESSAGE, SIZE_MESSAGE, PREVIEW_CONFIG, PREVIEW_HEIGHT, PREVIEW_READY, configBase, configUrl, embedTitle, isLocalHost, tryOnProductFrom, validRefs, type StoreBrand } from '@site/lib/tryon-config';
@@ -118,6 +121,15 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
     return { store: p.get('store') ?? '', ref: p.get('product'), base: p.get('base') };
   });
 
+  // T140.5: the try-on's anonymous counts, for this store and product (never in the dashboard's preview; on this
+  // computer, its own collector)
+  const [telemetry, setTelemetry] = useState<Telemetry | null>(null);
+  useEffect(() => {
+    if (previewing || params().get('preview')) { setTelemetry(null); return; }
+    const p = params();
+    setTelemetry(p.get('store') && p.get('product') ? { store: p.get('store')!, product: p.get('product')!, endpoint: onThisMachine() ? `${location.origin}/v1/e` : EVENTS_ENDPOINT } : null);
+  }, [previewing]);
+
   const brand = state.kind === 'ready' ? state.brand ?? null : null;
   useEffect(() => { if (brand) document.title = embedTitle(brand, lang); }, [brand, lang]);
 
@@ -201,8 +213,10 @@ export default function EmbedTryOn({ initial, storeHost = null }: { initial?: Em
       {state.kind === 'ready' && (
         <SiteEnvContext.Provider value={embedEnv}>
           {/* T135: the studio, or — on the phone only — the camera try-on (a QR code on a computer) */}
+          <TelemetryContext.Provider value={telemetry}>
           <TryOnFor product={state.product} brand={brand} onClose={previewing ? undefined : close} shareLink={shareLink} compareWith={choices}
             stageExtras={previewing ? null : onPicture} helpExtra={previewing ? null : inHelp} topbarExtra={previewing ? null : besideTabs} />
+          </TelemetryContext.Provider>
         </SiteEnvContext.Provider>
       )}
     </div>

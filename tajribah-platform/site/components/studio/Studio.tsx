@@ -17,6 +17,8 @@ import { preparePhoto } from '@site/lib/photo';
 import { castShadow, softEdged } from '@site/lib/shadow';
 import { NEUTRAL, litProduct, measureLight, tintOf, type Tint } from '@site/lib/light';
 import { cropRound, widthBeside, type Choice } from '@site/lib/shelf';
+import { movedFrom, photoEvent, sendTryOn, shareEvent, type Found, type PhotoSource } from '@site/lib/tryon-telemetry';
+import { useTelemetry } from '@site/components/tryon/telemetry';
 import { QR_MARK, markedQrPng } from '@/lib/qr-mark';
 import { earringPlacement, glassesPlacement, handPoints, necklacePlacement, watchPlacement } from '@site/lib/placement';
 import { kindOf, pairProductOf } from '@site/lib/pair-product';
@@ -122,6 +124,12 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
   // a product whose picture does not load is dropped from the choices (never a half left showing the one before)
   const [compareBroken, setCompareBroken] = useState<string[]>([]);
   const choices = compareWith.filter((c) => !compareBroken.includes(c.ref));
+  // T140.5: the anonymous counts — for the photo shown, where it came from and whether the product was found on it;
+  // counted once, when the shopper leaves it (then "moved by hand" is known)
+  const telemetry = useTelemetry();
+  const placed = useRef<{ id: number | null; source: PhotoSource; found: Found; how: string | null }>({ id: null, source: 'upload', found: 'none', how: null });
+  const reported = useRef(new Set<number>());
+  const noteFound = (found: 'detected' | 'none', how?: string | null) => { placed.current = { ...placed.current, found, how: found === 'detected' ? how ?? null : null }; };
   const [notice, setNotice] = useState('');
   const [loaded, setLoaded] = useState<ReadonlySet<string>>(() => new Set());
   // Ready = the pictures this view draws are in (T31: they arrive in two steps).
@@ -478,8 +486,9 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
         const index = at(5), little = at(17);
         const fit = bagPose(at(0), base, Math.hypot(index.x - little.x, index.y - little.y), { x: (base.x + middle.x) / 2, y: (base.y + middle.y) / 2 });
         setPose(fit); setPhotoFit(fit);
+        noteFound('detected', (result as { how?: string }).how);
         notify(t('Hand found. Fine-tune the fit if needed.', 'تم تحديد اليد. عدّل موضع الحقيبة عند الحاجة.'));
-      } else notify(t('Hand not found. Use “Fit to hand” to place the bag.', 'لم يتم تحديد اليد. استخدم «ضبط على اليد».'));
+      } else { noteFound('none'); notify(t('Hand not found. Use “Fit to hand” to place the bag.', 'لم يتم تحديد اليد. استخدم «ضبط على اليد».')); }
     } catch {
       notify(t('Use “Fit to hand” to place the bag on the photo.', 'استخدم «ضبط على اليد» لتحديد موضع الحقيبة.'));
     }
@@ -507,8 +516,9 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
           ? necklacePose(at(152), Math.hypot(at(473).x - at(468).x, at(473).y - at(468).y))
           : glassesPose(at(468), at(473), true); // T134.7: the detector's order — a turned face's glasses turn with it
         setPose(fit); setPhotoFit(fit);
+        noteFound('detected', (result as { how?: string }).how);
         notify(isNecklace ? t('Face found. Fine-tune the fit if needed.', 'تم تحديد الوجه. عدّل موضع القلادة عند الحاجة.') : t('Face found. Fine-tune the fit if needed.', 'تم تحديد الوجه. عدّل موضع النظارة عند الحاجة.'));
-      } else notify(t('Face not found. Use “Fit to eyes” to place the glasses.', 'لم يتم تحديد الوجه. استخدم «ضبط على العينين».'));
+      } else { noteFound('none'); notify(t('Face not found. Use “Fit to eyes” to place the glasses.', 'لم يتم تحديد الوجه. استخدم «ضبط على العينين».')); }
     } catch {
       notify(t('Use “Fit to eyes” to place the glasses on the photo.', 'استخدم «ضبط على العينين» لتحديد موضع النظارة.'));
     }
@@ -545,14 +555,15 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
           angle: (Math.atan2(dx, -dy) * 180) / Math.PI, // the band across the finger
         };
         setPose(fit); setPhotoFit(fit);
+        noteFound('detected', (result as { how?: string }).how);
         notify(t('Hand found. Fine-tune the fit if needed.', 'تم تحديد اليد. عدّل موضع الخاتم عند الحاجة.'));
-      } else notify(t('Hand not found. Use “Fit to finger” to place the ring.', 'لم يتم تحديد اليد. استخدم «ضبط على الإصبع».'));
+      } else { noteFound('none'); notify(t('Hand not found. Use “Fit to finger” to place the ring.', 'لم يتم تحديد اليد. استخدم «ضبط على الإصبع».')); }
     } catch {
       notify(t('Use “Fit to finger” to place the ring on the photo.', 'استخدم «ضبط على الإصبع» لتحديد موضع الخاتم.'));
     }
   }
 
-  async function applyPhoto(blob: Blob, shared: SharedPose | null = null, said: string | null = null) {
+  async function applyPhoto(blob: Blob, shared: SharedPose | null = null, said: string | null = null, source: PhotoSource = 'upload') {
     const request = ++photoRequest.current;
     setPhotoBusy(true);
     try {
@@ -560,7 +571,9 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
       const img = await loadImage(prepared.dataUrl);
       if (request !== photoRequest.current) return;
       keepFit();
+      reportPhoto();
       const id = ++photoSeq.current;
+      placed.current = { id, source, found: shared ? 'phone' : 'none', how: null };
       setMyPhotos((list) => [...list, { id, src: prepared.dataUrl, pose: null, fit: null, scale: 100 }].slice(-MAX_PHOTOS));
       setCurrentPhoto(id);
       images.current.photo = img;
@@ -598,10 +611,11 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
           const fit = watchPlacement(hand, product.caseMm, found.score);
           base = { x: clamp(fit.x, 50, W - 50), y: clamp(fit.y, 50, H - 50), width: clamp(fit.width, 30, 400), angle: fit.angle };
           setPose(base); setPhotoFit(base);
+          noteFound('detected', found.how);
           notify(fit.confidence < 0.45
             ? t('Wrist found — check the fit and adjust it if needed.', 'تم تحديد المعصم — تأكد من الموضع وعدّله عند الحاجة.')
             : t('Wrist found. Fine-tune the fit if needed.', 'تم تحديد المعصم. عدّل موضع الساعة عند الحاجة.'));
-        } else notify(t('Wrist not found. Use “Fit to wrist” to place your watch.', 'لم يتم تحديد المعصم. استخدم «ضبط على المعصم».'));
+        } else { noteFound('none'); notify(t('Wrist not found. Use “Fit to wrist” to place your watch.', 'لم يتم تحديد المعصم. استخدم «ضبط على المعصم».')); }
       } catch {
         notify(t('Use “Fit to wrist” to place your watch on the photo.', 'استخدم «ضبط على المعصم» لتحديد موضع الساعة.'));
       }
@@ -650,7 +664,7 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
         const more = pairGot.current++ > 0;
         setQrOpen(false);
         // T134.7: as the shopper left it on the phone
-        await applyPhoto(next.blob, poseFromHeader(next.pose), more ? t('Another photo from your phone — switch between your photos below.', 'وصلت صورة أخرى من جوالك — بدّل بين صورك من الأسفل.') : null);
+        await applyPhoto(next.blob, poseFromHeader(next.pose), more ? t('Another photo from your phone — switch between your photos below.', 'وصلت صورة أخرى من جوالك — بدّل بين صورك من الأسفل.') : null, 'phone');
       } catch {
         if (!disposed && shownNow.current.qrOpen) setPairError(t('Connection interrupted. Try a new QR code.', 'انقطع الاتصال. جرّب رمزاً جديداً.'));
       } finally { pending = false; }
@@ -670,9 +684,28 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
     const now = shownNow.current;
     if (now.current !== null) setMyPhotos((list) => list.map((p) => (p.id === now.current ? { ...p, pose: now.pose, fit: now.fit, scale: now.scale } : p)));
   }
+  /** T140.5: the photo shown, counted once (anonymously) — what happened to it, and whether the shopper moved it. */
+  function reportPhoto() {
+    const p = placed.current, now = shownNow.current;
+    if (p.id === null || reported.current.has(p.id)) return;
+    reported.current.add(p.id);
+    sendTryOn(telemetry, [photoEvent({ kind: kindOf(product), source: p.source, found: p.found, how: p.how, moved: movedFrom(now.fit, now.pose, now.scale / 100) })]);
+  }
+  const reportNow = useRef(reportPhoto);
+  reportNow.current = reportPhoto;
+  useEffect(() => {
+    // leaving, or put in the background (a phone often never says it leaves): counted once either way
+    const leave = () => reportNow.current();
+    const hidden = () => { if (document.visibilityState === 'hidden') leave(); };
+    window.addEventListener('pagehide', leave);
+    document.addEventListener('visibilitychange', hidden);
+    return () => { window.removeEventListener('pagehide', leave); document.removeEventListener('visibilitychange', hidden); leave(); };
+  }, []);
   async function showPhoto(id: number) {
     const target = shownNow.current.photos.find((p) => p.id === id);
     if (!target || id === shownNow.current.current) return;
+    reportPhoto();
+    placed.current = { ...placed.current, id };
     ++photoRequest.current; // a fit still being found for the photo left behind does not land on this one
     keepFit();
     const img = await loadImage(target.src);
@@ -740,7 +773,10 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
       const file = new File([dataUrlBlob(canvas.current.toDataURL('image/png'))], 'tajribah-try-on.png', { type: 'image/png' });
       // T137: an invitation — the product's name and where others can try it (this page, when no link is given)
       const name = t(product.name.en, product.name.ar), link = linkOrHere(shareLink);
-      void (share ? sharePicture(file, { title: name, text: inviteText(name, link, ar), url: link }) : Promise.resolve(savePicture(file))).then((how) => { if (how === 'saved') notify(t('Your image is ready.', 'صورتك جاهزة.')); });
+      void (share ? sharePicture(file, { title: name, text: inviteText(name, link, ar), url: link }) : Promise.resolve(savePicture(file))).then((how) => {
+        if (how === 'saved') notify(t('Your image is ready.', 'صورتك جاهزة.'));
+        if (how !== 'cancelled') { reportPhoto(); sendTryOn(telemetry, [shareEvent(how === 'shared' ? 'shared' : 'saved', 'studio')]); } // T140.5
+      });
     } catch { notify(t('Could not save the image. Please try again.', 'تعذر حفظ الصورة. حاول مجدداً.')); }
   }
   function saveImage() {
@@ -751,6 +787,7 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
       link.href = canvas.current.toDataURL('image/png');
       link.click();
       notify(t('Your image is ready.', 'صورتك جاهزة.'));
+      reportPhoto(); sendTryOn(telemetry, [shareEvent('saved', 'studio')]); // T140.5
     } catch { notify(t('Could not save the image. Please try again.', 'تعذر حفظ الصورة. حاول مجدداً.')); }
   }
 
@@ -1085,7 +1122,7 @@ export default function Studio({ product = DEMO_WATCH, stageExtras = null, helpE
           onUse={(shot) => {
             setCameraOpen(false);
             const fitted = shot.pose ? { x: shot.pose.x / shot.size.width, y: shot.pose.y / shot.size.height, width: shot.pose.width / shot.size.width, angle: shot.pose.angle } : null;
-            void applyPhoto(shot.blob, fitted, t('Placed as you set it. Adjust it here if needed.', 'كما ضبطته. عدّله هنا عند الحاجة.'));
+            void applyPhoto(shot.blob, fitted, t('Placed as you set it. Adjust it here if needed.', 'كما ضبطته. عدّله هنا عند الحاجة.'), 'camera');
           }} />,
         document.body,
       )}

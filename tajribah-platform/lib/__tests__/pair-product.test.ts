@@ -77,14 +77,19 @@ test('the pairing on the server: a store’s product from the config host the fr
   assert.equal(demo.product?.worn, DEMO_WATCH.worn);
 
   const down = await pairingOf(pairing('https://tajribah.org/embed/try-on?store=ward&product=sa-1001'), JSON.stringify({ kind: 'ring' }), (async () => { throw new Error('down'); }) as typeof fetch);
-  assert.deepEqual(down, { brand: null, product: null, kind: 'ring', link: 'https://tajribah.org/p/ward/sa-1001' }, 'the host unreachable: no product, the guide for the kind the studio shows — and still the link to try it');
+  assert.deepEqual(down, { brand: null, product: null, kind: 'ring', link: 'https://tajribah.org/p/ward/sa-1001', track: { store: 'ward', product: 'sa-1001' } }, 'the host unreachable: no product, the guide for the kind the studio shows — and still the link to try it');
+  assert.deepEqual(framed.track, { store: 'ward', product: 'sa-1001' }, 'T140.5: the store and product the phone’s anonymous counts are for');
+  assert.equal(demo.track, null, 'the demo: no store to count for');
   assert.equal(framed.link, 'https://tajribah.org/p/ward/sa-1001', 'T137: the product’s own try-on page, shared with a picture');
   assert.equal(demo.link, 'https://tajribah.org/demo', 'the demo: the demo page');
 });
 
 test('a stored session read back is checked again: a broken one cannot break the page', () => {
-  assert.deepEqual(pairingOfSession(null), { brand: null, product: null, kind: 'watch', link: null });
-  assert.deepEqual(pairingOfSession({ kind: 'necklace', product: { worn: 5 } }), { brand: null, product: null, kind: 'necklace', link: null });
+  assert.deepEqual(pairingOfSession(null), { brand: null, product: null, kind: 'watch', link: null, track: null });
+  assert.deepEqual(pairingOfSession({ kind: 'necklace', product: { worn: 5 } }), { brand: null, product: null, kind: 'necklace', link: null, track: null });
+  assert.deepEqual(pairingOfSession({ track: { store: 'ward', product: 'sa-1001' } }).track, { store: 'ward', product: 'sa-1001' });
+  assert.equal(pairingOfSession({ track: { store: 'no spaces/allowed', product: 'x' } }).track, null, 'a store key as stores spell them');
+  assert.equal(pairingOfSession({ track: { store: 'ward', product: '' } }).track, null);
   assert.equal(pairingOfSession({ link: 'https://tajribah.org/p/ward/sa-1001' }).link, 'https://tajribah.org/p/ward/sa-1001');
   assert.equal(pairingOfSession({ link: 'javascript:alert(1)' }).link, null, 'only a web address');
   const ring = { name: { ar: 'خاتم', en: 'Ring' }, caseMm: 20, kind: 'ring' };

@@ -19,7 +19,7 @@ export const PAIR_KINDS: readonly PairKind[] = ['watch', 'ring', 'bag', 'glasses
 export type PairProduct = { name: Bi; worn: string; caseMm: number; kind: PairKind };
 
 /** What a pairing records for the phone page. `brand`: the store's name (and logo under white-label) — never Tajribah's. */
-export type Pairing = { brand: StoreBrand | null; product: PairProduct | null; kind: PairKind; /** T137: where others can try it (shared with a picture). */ link?: string | null };
+export type Pairing = { brand: StoreBrand | null; product: PairProduct | null; kind: PairKind; /** T137: where others can try it (shared with a picture). */ link?: string | null; /** T140.5: the store and product the anonymous counts are for */ track?: { store: string; product: string } | null };
 
 /** The studio's category as the phone page's kind (left out: a watch). */
 export function kindOf(product: Pick<TryOnProduct, 'category'>): PairKind {
@@ -73,7 +73,7 @@ export function pairRequestOf(body: string): { kind: PairKind | null; demo: stri
 }
 
 /** A session read back from storage, checked again (it was written by us, but a bad one must not break the page). */
-export function pairingOfSession(session: { brand?: unknown; product?: unknown; kind?: unknown; link?: unknown } | null): Pairing {
+export function pairingOfSession(session: { brand?: unknown; product?: unknown; kind?: unknown; link?: unknown; track?: unknown } | null): Pairing {
   const kind = PAIR_KINDS.includes(session?.kind as PairKind) ? (session!.kind as PairKind) : 'watch';
   const brand = session?.brand && typeof session.brand === 'object' ? (session.brand as StoreBrand) : null;
   const p = session?.product as Partial<PairProduct> | null | undefined;
@@ -81,5 +81,7 @@ export function pairingOfSession(session: { brand?: unknown; product?: unknown; 
     ? { name: p.name, worn: p.worn, caseMm: p.caseMm, kind: p.kind as PairKind }
     : null;
   const link = typeof session?.link === 'string' && /^https?:\/\/[^\s]{1,600}$/.test(session.link) ? session.link : null;
-  return { brand, product, kind: product?.kind ?? kind, link };
+  const t = session?.track as { store?: unknown; product?: unknown } | null | undefined;
+  const track = t && typeof t.store === 'string' && /^[A-Za-z0-9._-]{1,64}$/.test(t.store) && typeof t.product === 'string' && t.product.length > 0 && t.product.length <= 200 ? { store: t.store, product: t.product } : null;
+  return { brand, product, kind: product?.kind ?? kind, link, track };
 }

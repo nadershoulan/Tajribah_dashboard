@@ -28,7 +28,8 @@ export function noTracking(nav: { doNotTrack?: string | null; globalPrivacyContr
   return dnt === '1' || dnt === 'yes' || nav.globalPrivacyControl === true;
 }
 
-function session(): string {
+/** The random per-tab token (the same key as the widget's) — T140.5: the try-on's own counts use it too. */
+export function sessionToken(): string {
   try {
     const found = sessionStorage.getItem(SESSION_KEY);
     if (found && /^[A-Za-z0-9_-]{16,64}$/.test(found)) return found;
@@ -51,7 +52,7 @@ export function pageBatch(store: string, product: string, type: PageEvent, via: 
 export function trackPage(store: string, product: string, type: PageEvent, endpoint = EVENTS_ENDPOINT): void {
   try {
     if (typeof window === 'undefined' || noTracking(navigator as never, window as never)) return;
-    const body = JSON.stringify(pageBatch(store, product, type, viaOf(location.search), session(), Date.now()));
+    const body = JSON.stringify(pageBatch(store, product, type, viaOf(location.search), sessionToken(), Date.now()));
     const blob = new Blob([body], { type: 'text/plain;charset=UTF-8' });
     if (navigator.sendBeacon?.(endpoint, blob)) return;
     void fetch(endpoint, { method: 'POST', body, keepalive: true, mode: 'no-cors', credentials: 'omit', headers: { 'content-type': 'text/plain;charset=UTF-8' } }).catch(() => undefined);

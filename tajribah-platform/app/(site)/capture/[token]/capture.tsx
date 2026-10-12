@@ -9,6 +9,9 @@ import { useLang } from '@site/lib/i18n';
 import type { Pairing } from '@site/lib/pair-product';
 import { POSE_HEADER, poseHeader } from '@site/lib/pair-pose';
 import CameraTryOn, { type Shot } from '@site/components/tryon/CameraTryOn';
+import { TelemetryContext } from '@site/components/tryon/telemetry';
+import { EVENTS_ENDPOINT } from '@site/lib/page-events';
+import { isLocalHost } from '@site/lib/tryon-config';
 
 export default function Capture({ token, pairing }: { token: string; pairing: Pairing | null }) {
   const { t, lang } = useLang();
@@ -30,5 +33,11 @@ export default function Capture({ token, pairing }: { token: string; pairing: Pa
     if (!r.ok) throw Error(((await r.json().catch(() => ({}))) as { error?: string }).error ?? '');
   }
 
-  return <CameraTryOn product={pairing.product} brand={pairing.brand} kind={pairing.kind} onSend={send} shareLink={pairing.link ?? null} />;
+  // T140.5: the anonymous counts go to the store and product the code was made for (on this computer, its own collector)
+  const telemetry = pairing.track ? { ...pairing.track, endpoint: typeof location !== 'undefined' && isLocalHost(location.hostname) ? `${location.origin}/v1/e` : EVENTS_ENDPOINT } : null;
+  return (
+    <TelemetryContext.Provider value={telemetry}>
+      <CameraTryOn product={pairing.product} brand={pairing.brand} kind={pairing.kind} onSend={send} shareLink={pairing.link ?? null} />
+    </TelemetryContext.Provider>
+  );
 }

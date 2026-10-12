@@ -30,6 +30,7 @@ export const EVENT_TYPES = [
   'ar_place',
   'tryon_start',
   'tryon_capture',
+  'tryon_share', // T140.5: sent by the try-on page (the table always had it)
   'add_to_cart',
   'purchase',
 ] as const;

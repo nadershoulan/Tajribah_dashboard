@@ -71,6 +71,16 @@ export type StaffTrailRow = {
   storeId: string | null; reason: string | null;
 };
 
+/** T140.5 — server/modules/admin/accuracy.ts: the try-on's real success numbers. */
+export type TryOnAccuracy = {
+  days: number; since: string; photos: number; shares: number;
+  found: { detected: number; phone: number; guide: number; none: number };
+  foundPct: number | null; movedPct: number | null; movedWhenFoundPct: number | null;
+  kinds: { name: string; photos: number; foundPct: number | null; movedPct: number | null }[];
+  sources: { name: string; photos: number; foundPct: number | null; movedPct: number | null }[];
+  looks: { how: string; n: number }[];
+};
+
 /** A2 — server/modules/admin/overview.ts */
 export type PlatformOverview = {
   stores: { total: number; trial: number; active: number; pastDue: number; suspended: number; cancelled: number; readOnly: number };
@@ -280,6 +290,7 @@ export type AdminApi = {
   whoami(): Promise<{ email: string; fullName: string }>;
   trail(storeId?: string): Promise<StaffTrailRow[]>;
   overview(): Promise<PlatformOverview>;
+  accuracy(days: number): Promise<TryOnAccuracy>;
   stores(query: { q?: string; status?: string; plan?: string; before?: string }): Promise<{ stores: AdminStoreRow[]; next: string | null }>;
   store(id: string): Promise<AdminStoreDetail>;
   act(id: string, action: AdminStoreAction): Promise<void>;
@@ -393,6 +404,7 @@ export function AuthProvider({ client, children }: { client: ApiClient; children
       whoami: () => client.call('/api/admin/whoami'),
       trail: async (storeId) => (await client.call<{ entries: StaffTrailRow[] }>(`/api/admin/audit${storeId ? `?store=${encodeURIComponent(storeId)}` : ''}`)).entries,
       overview: () => client.call('/api/admin/overview'),
+      accuracy: (days) => client.call(`/api/admin/accuracy?days=${days}`),
       stores: (query) => {
         const params = new URLSearchParams(Object.entries(query).filter(([, v]) => v) as [string, string][]);
         return client.call(`/api/admin/stores${params.size ? `?${params}` : ''}`);
@@ -544,7 +556,7 @@ const demoTwoFactor: TwoFactorApi = {
 };
 
 const notFound = () => Promise.reject(new ApiError(404, 'not_found', 'page not found'));
-const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound, announcements: notFound, contactInbox: notFound, setContactStatus: notFound, deleteContact: notFound, bankTransfers: notFound, pendingTransfers: notFound, bankTransfer: notFound, decideTransfer: notFound, transferReceipt: notFound, paymentSettings: notFound, updatePaymentMethod: notFound, createBankAccount: notFound, updateBankAccount: notFound, deleteBankAccount: notFound, site: notFound, updateSite: notFound, ga4Picker: noGa4Picker, createAnnouncement: notFound, updateAnnouncement: notFound, qaQueue: notFound, professionalQueue: notFound, quoteProfessional: notFound, markProfessionalPaid: notFound, deliverProfessional: notFound, decideQa: notFound, qaModel: notFound, aiOperations: notFound, cancelAiJob: notFound, setAiGuardrails: notFound, aiModels: notFound, registerAiModel: notFound, setAiSplits: notFound, setAiModelActive: notFound, rollbackAiModel: notFound };
+const demoAdmin: AdminApi = { whoami: notFound, trail: notFound, overview: notFound, accuracy: notFound, stores: notFound, store: notFound, act: notFound, people: notFound, person: notFound, actOnPerson: notFound, plans: notFound, updatePlan: notFound, subscriptions: notFound, invoices: notFound, invoice: notFound, operations: notFound, retryJob: notFound, replayWebhook: notFound, lookup: notFound, storeActivity: notFound, coupons: notFound, createCoupon: notFound, updateCoupon: notFound, viewStore: notFound, endView: notFound, privacyRequests: notFound, recordPrivacy: notFound, fulfilExport: notFound, privacyExport: notFound, fulfilErasure: notFound, rejectPrivacy: notFound, retention: notFound, announcements: notFound, contactInbox: notFound, setContactStatus: notFound, deleteContact: notFound, bankTransfers: notFound, pendingTransfers: notFound, bankTransfer: notFound, decideTransfer: notFound, transferReceipt: notFound, paymentSettings: notFound, updatePaymentMethod: notFound, createBankAccount: notFound, updateBankAccount: notFound, deleteBankAccount: notFound, site: notFound, updateSite: notFound, ga4Picker: noGa4Picker, createAnnouncement: notFound, updateAnnouncement: notFound, qaQueue: notFound, professionalQueue: notFound, quoteProfessional: notFound, markProfessionalPaid: notFound, deliverProfessional: notFound, decideQa: notFound, qaModel: notFound, aiOperations: notFound, cancelAiJob: notFound, setAiGuardrails: notFound, aiModels: notFound, registerAiModel: notFound, setAiSplits: notFound, setAiModelActive: notFound, rollbackAiModel: notFound };
 
 /** The preview: signed in as the seeded demo store, and every action is a no-op. */
 export function DemoAuthProvider({ children }: { children: ReactNode }) {
